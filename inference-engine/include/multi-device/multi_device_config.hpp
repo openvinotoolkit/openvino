@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include <string>
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {

@@ -14,7 +14,6 @@
 
 #include <ie_icore.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
 
 #include <vpu/stage_builder.hpp>
 #include <vpu/frontend/ie_parsed_network.hpp>

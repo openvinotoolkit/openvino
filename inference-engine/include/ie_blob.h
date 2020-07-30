@@ -19,14 +19,14 @@
 #include <utility>
 #include <vector>
 
-#include "details/ie_blob_iterator.hpp"
-#include "details/ie_exception.hpp"
-#include "details/ie_pre_allocator.hpp"
 #include "ie_allocator.hpp"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
+#include "details/ie_blob_iterator.hpp"
+#include "details/ie_exception.hpp"
+#include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
 

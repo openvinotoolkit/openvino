@@ -8,7 +8,9 @@
  * @file ie_exception_conversion.hpp
  */
 #pragma once
-#include <ie_common.h>
+
+#include "ie_common.h"
+#include "details/ie_exception.hpp"
 
 #define CALL_STATUS_FNC(function, ...)               \
     if (!actual)    THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC was not initialized."; \

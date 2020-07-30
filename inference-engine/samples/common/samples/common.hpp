@@ -21,10 +21,7 @@
 #include <algorithm>
 #include <random>
 
-#include <ie_core.hpp>
-#include <ie_plugin_config.hpp>
-#include <cpp/ie_infer_request.hpp>
-#include <ie_blob.h>
+#include <inference_engine.hpp>
 
 #ifndef UNUSED
   #if defined (_MSC_VER) && !defined (__clang__)

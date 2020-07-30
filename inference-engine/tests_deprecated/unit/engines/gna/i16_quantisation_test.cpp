@@ -11,6 +11,12 @@
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
 
+#if defined GNA_LIB_VER && GNA_LIB_VER == 2
+# define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
+#else
+# define DISABLE_TEST_ON_GNA2
+#endif
+
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNATestIRs;

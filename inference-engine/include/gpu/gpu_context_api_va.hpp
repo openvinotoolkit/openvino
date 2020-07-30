@@ -13,7 +13,8 @@
 
 #include <memory>
 #include <string>
-#include "gpu_context_api_ocl.hpp"
+
+#include "gpu/gpu_context_api_ocl.hpp"
 
 #include <va/va.h>
 

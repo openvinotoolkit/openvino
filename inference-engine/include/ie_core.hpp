@@ -14,10 +14,11 @@
 #include <string>
 #include <vector>
 
-#include <cpp/ie_executable_network.hpp>
-#include "details/os/os_filesystem.hpp"
+#include "ie_version.hpp"
 #include "ie_extension.h"
 #include "ie_remote_context.hpp"
+#include "cpp/ie_executable_network.hpp"
+#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 

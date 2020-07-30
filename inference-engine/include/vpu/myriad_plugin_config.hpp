@@ -6,15 +6,12 @@
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file
+ * @file myriad_plugin_config
  */
 
 #pragma once
 
-#include <string>
-
 #include "ie_plugin_config.hpp"
-#include "ie_api.h"
 
 /**
  * @def VPU_MYRIAD_CONFIG_KEY(name)

@@ -11,13 +11,10 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "ie_unicode.hpp"
 
 namespace InferenceEngine {
 /**

@@ -9,7 +9,6 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/model/data_contents/ie_blob_content.hpp>
 
-#include <details/caseless.hpp>
 #include "blob_factory.hpp"
 
 #include <cctype>

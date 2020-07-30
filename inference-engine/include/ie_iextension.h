@@ -14,12 +14,12 @@
 #include <string>
 #include <vector>
 
-#include "details/ie_no_copy.hpp"
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
+#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)

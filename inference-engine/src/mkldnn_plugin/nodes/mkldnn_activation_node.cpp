@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <string>
 #include <mkldnn_extension_utils.h>
-#include "details/caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

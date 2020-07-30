@@ -6,7 +6,6 @@
 
 #include <cpp/ie_cnn_network.h>
 
-#include <details/caseless.hpp>
 #include <iterator>
 #include <map>
 #include <utility>

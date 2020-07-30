@@ -9,7 +9,6 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/model/data_contents/mean_contents.hpp>
 
-#include <details/caseless.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <precision_utils.h>
 #include <ie_parallel.hpp>

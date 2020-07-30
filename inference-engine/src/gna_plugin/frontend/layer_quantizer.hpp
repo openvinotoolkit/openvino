@@ -12,7 +12,6 @@
 #include "gna_plugin_log.hpp"
 #include "quantized_layer_params.hpp"
 #include "quantization.h"
-#include "details/caseless.hpp"
 #include "gna_graph_tools.hpp"
 #include "blob_factory.hpp"
 #include "precision_ex.hpp"

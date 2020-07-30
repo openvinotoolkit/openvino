@@ -9,7 +9,6 @@
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
 
-#include <details/caseless.hpp>
 #include <precision_utils.h>
 
 #include <cmath>

@@ -11,11 +11,8 @@
 
 #pragma once
 
-#include <string>
-
-#include "ie_plugin_config.hpp"
-#include "myriad_plugin_config.hpp"
-#include "hddl_plugin_config.hpp"
+#include "vpu/myriad_plugin_config.hpp"
+#include "vpu/hddl_plugin_config.hpp"
 #include "ie_api.h"
 
 //

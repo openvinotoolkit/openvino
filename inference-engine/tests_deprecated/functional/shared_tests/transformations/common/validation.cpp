@@ -10,7 +10,6 @@
 #include <vector>
 #include <unordered_set>
 
-#include <details/caseless.hpp>
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/fake_quantize.hpp"
 #include "low_precision_transformations/transformer.hpp"
