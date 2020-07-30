@@ -44,7 +44,7 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
 }
 
 void ConcatTransformation::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::IE);
+    SetRefMode(FuncTestUtils::RefMode::IE);
 
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;

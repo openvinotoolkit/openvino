@@ -55,7 +55,7 @@ public:
 
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
+        SetRefMode(FuncTestUtils::RefMode::INTERPRETER);
 
         StaticShapeNMSParam NMSParams;
         std::tie(NMSParams, inPrc, targetDevice) = this->GetParam();

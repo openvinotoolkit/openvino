@@ -10,6 +10,8 @@ namespace CommonTestUtils {
 
 class TestsCommon : public ::testing::Test {
 protected:
+    virtual void Run() {}
+
     TestsCommon();
 
     ~TestsCommon() override;

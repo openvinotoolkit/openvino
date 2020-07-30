@@ -32,7 +32,7 @@ std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLaye
 }
 
 void NonZeroLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+    SetRefMode(FuncTestUtils::RefMode::CONSTANT_FOLDING);
     auto inputShape     = std::vector<std::size_t>{};
     auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(inputShape, inputPrecision, targetDevice) = GetParam();

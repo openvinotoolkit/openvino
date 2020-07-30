@@ -3,7 +3,6 @@
 //
 #pragma once
 
-
 #include <cmath>
 #include <string>
 #include <algorithm>
@@ -11,12 +10,15 @@
 #include <type_traits>
 
 #include <gtest/gtest.h>
+#include <ngraph_functions/pass/convert_prc.hpp>
+#include <common_test_utils/test_common.hpp>
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
 #include "precision_utils.h"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace FuncTestUtils {
 namespace Bf16TestUtils {
@@ -574,7 +576,129 @@ static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
     fillInputsByCosValues(lm.as<float*>(), mblob->size());
     return 0;
 }
+enum RefMode {
+    INTERPRETER,
+    CONSTANT_FOLDING,
+    IE
+};
+class IComparableNGTestCommon : public CommonTestUtils::TestsCommon {
+protected:
+    virtual void Prepare() {}
+    virtual void SetInput() {}
+    virtual void Preproc() {}
+    virtual void Infer() = 0;
+    virtual void Postproc() {}
+    virtual void Validate() {}
+    void Run() final {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        Prepare();
+        SetInput();
+        Preproc();
+        Infer();
+        Postproc();
+        Validate();
+    }
+};
+class ComparableNGTestCommon : public IComparableNGTestCommon {
+protected:
+    float threshold;
+    FuncTestUtils::RefMode refMode = FuncTestUtils::RefMode::INTERPRETER;
 
+    std::shared_ptr<ngraph::Function> function;
+
+    std::vector<std::vector<std::uint8_t>> referenceInputs;
+    std::vector<std::vector<std::uint8_t>> expectedOutputs;
+
+    void SetRefMode(FuncTestUtils::RefMode mode) {
+        refMode = mode;
+    }
+
+    FuncTestUtils::RefMode GetRefMode() {
+        return refMode;
+    }
+
+    virtual void Compare(const std::vector<std::vector<std::uint8_t>>& expectedVector, const std::vector<std::vector<std::uint8_t>>& actualVector,
+            const InferenceEngine::Precision precision) {
+        for (std::size_t idx = 0; idx < expectedVector.size(); ++idx) {
+            const auto& expected = expectedVector[idx];
+            const auto& actual = actualVector[idx];
+            ASSERT_EQ(expectedVector.size(), actualVector.size());
+            const unsigned char *expectedBuffer = expected.data();
+            const unsigned char *actualBuffer = actual.data();
+            auto size = actual.size();
+            CompareValues(expectedBuffer, actualBuffer, size, precision);
+        }
+    }
+    template<class T>
+    void CompareValues(const T *expected, const T *actual, std::size_t size, T thr) {
+        std::cout << std::endl;
+        for (std::size_t i = 0; i < size; ++i) {
+            const auto &ref = expected[i];
+            const auto &res = actual[i];
+            const auto absoluteDifference = std::abs(res - ref);
+            if (absoluteDifference <= thr) {
+                continue;
+            }
+
+            const auto max = std::max(std::abs(res), std::abs(ref));
+            ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= thr))
+                                        << "Relative comparison of values expected: " << ref << " and actual: " << res
+                                        << " at index " << i << " with t " << thr
+                                        << " failed";
+        }
+    }
+
+    template<class T>
+    void CompareValues(const T *expected, const T *actual, std::size_t size, const InferenceEngine::Precision precision) {
+        switch (precision) {
+            case InferenceEngine::Precision::FP32:
+                FuncTestUtils::ComparableNGTestCommon::CompareValues(
+                        reinterpret_cast<const float *>(expected), reinterpret_cast<const float *>(actual),
+                        size, threshold);
+                break;
+            case InferenceEngine::Precision::I32:
+                FuncTestUtils::ComparableNGTestCommon::CompareValues(
+                        reinterpret_cast<const std::int32_t *>(expected),
+                        reinterpret_cast<const std::int32_t *>(actual), size, 0);
+                break;
+            default:
+                FAIL() << "Comparator for " << precision << " precision isn't supported";
+        }
+    }
+
+    virtual std::vector<std::vector<std::uint8_t>> CalculateRefs(std::shared_ptr<ngraph::Function> _function, std::vector<std::vector<std::uint8_t>> _inputs) {
+        // nGraph interpreter does not support f16
+        // IE converts f16 to f32
+        ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(_function);
+        _function->validate_nodes_and_infer_types();
+        return ngraph::helpers::interpreterFunction(_function, _inputs, ::ngraph::element::Type_t::undefined);
+    }
+
+    void FillByteVectorRandomly(std::vector<std::vector<std::uint8_t>> &inputVector, unsigned seed = 1) {
+        int modulo4 = 0;
+        int randInt;
+        unsigned char randUChar;
+        uint8_t randByte;
+        for (auto vecIt = inputVector.begin(); vecIt != referenceInputs.end(); vecIt++) {
+            for (auto byteIt = vecIt->begin(); byteIt != vecIt->end(); byteIt++) {
+                switch (modulo4) {
+                    case 0: randInt = rand_r(&seed);
+                        randUChar = (unsigned char)randInt;
+                        break;
+                    case 1: randUChar = (unsigned char)randInt >> 8;
+                        break;
+                    case 2: randUChar = (unsigned char)randInt >> 16;
+                        break;
+                    case 3: randUChar = (unsigned char)randInt >> 24;
+                        break;
+                }
+                randByte = reinterpret_cast<uint8_t>(randUChar);
+                *byteIt = randByte;
+                modulo4++;
+            }
+        }
+    }
+};
 
 namespace Bf16TestUtils {
 static float reducePrecisionBitwise(const float in) {
