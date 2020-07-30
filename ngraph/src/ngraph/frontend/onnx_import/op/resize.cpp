@@ -271,10 +271,10 @@ namespace ngraph
                         axes.push_back(ax);
                     }
 
-                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
+                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
                     {
                         const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales->shared_from_this());
+                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
 
                         auto scales_vector = scales_const->cast_vector<float>();
                         auto data_static_shape = data_shape.to_shape();
