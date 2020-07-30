@@ -516,8 +516,7 @@ namespace ngraph
 /// C++ RTTI.
 /// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
 /// matching for them. Accepts necessary type identification details like type of the operation,
-/// version and
-/// parent class.
+/// version and parent class.
 ///
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
 /// identification namespace;
