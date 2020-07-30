@@ -38,6 +38,7 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+#include <transformations/tensor_iterator_transformations/tensor_iterator_transformations.hpp>
 
 #endif
 #endif
@@ -85,6 +86,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.register_pass<ngraph::pass::TensorIteratorTransformations>(manager);
 
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);

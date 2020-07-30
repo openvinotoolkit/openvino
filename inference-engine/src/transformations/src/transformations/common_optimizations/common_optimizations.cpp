@@ -10,7 +10,6 @@
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/unroll_tensor_iterator.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>

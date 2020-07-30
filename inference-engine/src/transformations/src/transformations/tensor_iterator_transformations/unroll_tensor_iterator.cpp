@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/unroll_tensor_iterator.hpp"
+#include "transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
