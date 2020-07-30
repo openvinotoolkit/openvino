@@ -559,8 +559,7 @@ zoo_models = [
         "url": _GITHUB_MODELS_LTS + "vision/classification/zfnet-512/model/zfnet512-8.tar.gz",
     },
     {
-        "model_name": ""
-                      "",
+        "model_name": "zfnet512_opset9",
         "url": _GITHUB_MODELS_LTS + "vision/classification/zfnet-512/model/zfnet512-9.tar.gz",
     },
 ]
