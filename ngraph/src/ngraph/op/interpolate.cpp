@@ -348,7 +348,7 @@ namespace
         }
         else
         {
-            result = pad;
+            result = p;
             result.insert(result.end(), rank - pad_len, 0);
         }
 

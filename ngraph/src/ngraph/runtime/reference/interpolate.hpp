@@ -263,7 +263,7 @@ namespace ngraph
                 runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
                 runtime::NDimRange coords_range{out_limits};
                 runtime::NDimArrayView<T> result{out};
-                for(const auto& coordinates : coords_range)
+                for (const auto& coordinates : coords_range)
                 {
                     runtime::NDimIndex input_coords{coordinates};
                     for (std::size_t axis : m_axes)
@@ -272,13 +272,12 @@ namespace ngraph
                         float scale = m_scales[axis];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
                         float length_original = static_cast<float>(m_input_data_shape[axis]);
-                        float in_coord = m_get_original_coord(coordinate,
-                                                              scale,
-                                                              length_resized,
-                                                              length_original);
+                        float in_coord = m_get_original_coord(
+                            coordinate, scale, length_resized, length_original);
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
-                        input_coords[axis] = std::max(0,
-                                                      std::min(nearest_pixel, length_original - 1));
+                        int64_t clipped_coord =
+                            std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1);
+                        input_coords[axis] = std::max(0, clipped_coord);
                     }
                     result[coordinates] = input_data[input_coords];
                 }
@@ -299,8 +298,7 @@ namespace ngraph
                           target_spatial_shape,
                           axes,
                           out,
-                          out_shape,
-                          attrs);
+                          out_shape);
             }
         }
     }
