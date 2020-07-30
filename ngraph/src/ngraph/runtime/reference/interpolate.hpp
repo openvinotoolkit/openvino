@@ -241,6 +241,23 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_func(const T* input_data, T* out)
             {
+                std::size_t num_of_axes = m_axes.size();
+                bool is_downsample = false;
+                for (std::size_t axis : m_axes)
+                {
+                    is_downsample = is_downsample || (m_scales[axis] < 1.0);
+                }
+
+                bool antialias = is_downsample && m_antialias;
+
+                std::vector<float> a(num_of_axes);
+                std::vector<int64_t> r(num_of_axes);
+                float prod_a = 1;
+                for (std::size_t i = 0; i < num_of_axes; ++i)
+                {
+                    a[i] = antialias ? m_scales[axis[i]] : 1.0;
+                    prod_a *= a[i];
+                }
             }
 
             template <typename T>
