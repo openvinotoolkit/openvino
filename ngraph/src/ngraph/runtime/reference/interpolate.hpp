@@ -64,14 +64,6 @@ namespace ngraph
                 {
                     switch (mode)
                     {
-                    case Nearest_mode::round_prefer_floor:
-                        return [](float x_original, bool) {
-                            if (x_original == static_cast<int64_t>(x_original) + 0.5f)
-                            {
-                                return static_cast<int64_t>(std::floor(x_original));
-                            }
-                            return static_cast<int64_t>(std::round(x_original));
-                        };
                     case Nearest_mode::round_prefer_ceil:
                         return [](float x_original, bool) {
                             return static_cast<int64_t>(std::round(x_original));
@@ -80,12 +72,10 @@ namespace ngraph
                         return [](float x_original, bool) {
                             return static_cast<int64_t>(std::floor(x_original));
                         };
-                        break;
                     case Nearest_mode::ceil:
                         return [](float x_original, bool) {
                             return static_cast<int64_t>(std::ceil(x_original));
                         };
-                        break;
                     case Nearest_mode::simple:
                         return [](float x_original, bool is_downsample) {
                             if (is_downsample)
@@ -97,8 +87,16 @@ namespace ngraph
                                 return static_cast<int64_t>(x_original);
                             }
                         };
-                        break;
+                    default:
+                        ;
                     }
+                    return [](float x_original, bool) {
+                        if (x_original == static_cast<int64_t>(x_original) + 0.5f)
+                        {
+                            return static_cast<int64_t>(std::floor(x_original));
+                        }
+                        return static_cast<int64_t>(std::round(x_original));
+                    };
                 }
             };
 
@@ -136,11 +134,6 @@ namespace ngraph
                 {
                     switch (mode)
                     {
-                    case Transform_mode::half_pixel:
-                        return [](float x_resized, float x_scale, float, float) {
-                            return ((x_resized + 0.5f) / x_scale) - 0.5f;
-                        };
-                        break;
                     case Transform_mode::pytorch_half_pixel:
                         return [](float x_resized, float x_scale, float length_resized, float) {
                             return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
@@ -164,7 +157,12 @@ namespace ngraph
                                        : x_resized * (length_original - 1) / (length_resized - 1);
                         };
                         break;
+                    default:
+                        ;
                     }
+                    return [](float x_resized, float x_scale, float, float) {
+                        return ((x_resized + 0.5f) / x_scale) - 0.5f;
+                    };
                 }
             };
 
@@ -262,7 +260,7 @@ namespace ngraph
                     output_shape = m_out_shape;
                     scales = m_scales;
                 }
-                std::size_t output_height = self.output_shape[2];
+                std::size_t output_height = output_shape[2];
                 std::size_t output_width = output_shape[3];
                 std::size_t input_height = input_shape[2];
                 std::size_t input_width = input_shape[3];
@@ -283,6 +281,26 @@ namespace ngraph
 
                 std::vector<float> y_original(output_height);
                 std::vector<float> x_original(output_width);
+
+                for (std::size_t y = 0; y < output_height)
+                {
+                    float in_y = m_get_original_coord(static_cast<float>(y),
+                                                      height_scale,
+                                                      static_cast<float>(output_height),
+                                                      static_cast<float>(input_height));
+                    y_original[y] = in_y;
+                    in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
+                    in_y1[y] = std::min(static_cast<int64_t>(in_y), input_height - 1);
+                    in_y2[y] = std::min(in_y1[y] + 1, input_height - 1);
+                    dy1[y] = std::fabs(in_y - in_y1[y]);
+                    dy2[y] = std::fabs(in_y - in_y2[y]);
+
+                    if (in_y1[y] == in_y2[y])
+                    {
+                        dy1[y] = 0.5f
+                        dy2[y] = 0.5f
+                    }
+                }
             }
 
             template <typename T>
@@ -303,6 +321,7 @@ namespace ngraph
                 runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
                 runtime::NDimRange coords_range{out_limits};
                 runtime::NDimArrayView<T> result{out};
+                runtime::NDimArrayView<T> input_view{input_data};
                 for (const auto& coordinates : coords_range)
                 {
                     runtime::NDimIndex input_coords{coordinates};
@@ -317,7 +336,7 @@ namespace ngraph
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
                         input_coords[axis] = clip_coord(nearest_pixel, length_original);
                     }
-                    result[coordinates] = input_data[input_coords];
+                    result[coordinates] = input_view[input_coords];
                 }
             }
 
