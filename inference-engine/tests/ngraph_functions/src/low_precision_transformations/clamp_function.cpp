@@ -75,8 +75,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getReference(
     std::shared_ptr<ngraph::opset1::Clamp> clamp;
     if (quantizationOpBefore->get_output_element_type(0) == precisionAfterOperation) {
         clamp = std::make_shared<ngraph::opset1::Clamp>(quantizationOpBefore, 0, 10);
-    }
-    else {
+    } else {
         clamp = std::make_shared<op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
     }
