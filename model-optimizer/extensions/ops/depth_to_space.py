@@ -42,10 +42,7 @@ class DepthToSpaceOp(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        if self.ir_version == 10:
-            return ['mode', 'block_size']
-        else:
-            return []
+        return ['mode', 'block_size']
 
     @staticmethod
     def infer(node: Node):

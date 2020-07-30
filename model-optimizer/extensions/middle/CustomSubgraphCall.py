@@ -51,10 +51,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param graph: graph to operate on
         :return: None
         """
-        for node_name in graph.nodes():
-            node = Node(graph, node_name)
-            if node.kind == 'op' and node.has_valid('op') and node.op == 'TFCustomSubgraphCall':
-                CustomSubgraphCall.update_placeholder_shape_and_add_transpose(node)
+        for node in graph.get_op_nodes(op='TFCustomSubgraphCall'):
+            CustomSubgraphCall.update_placeholder_shape_and_add_transpose(node)
 
     @staticmethod
     def update_placeholder_shape_and_add_transpose(node: Node):
@@ -116,10 +114,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param graph: graph to operate on
         :return: None
         """
-        for node_name in graph.nodes():
-            node = Node(graph, node_name)
-            if node.kind == 'op' and node.has_valid('op') and node.op == 'TFCustomSubgraphCall':
-                CustomSubgraphCall.add_sub_graph_call_output_tensors_transposes(node)
+        for node in graph.get_op_nodes(op='TFCustomSubgraphCall'):
+            CustomSubgraphCall.add_sub_graph_call_output_tensors_transposes(node)
 
     @staticmethod
     def make_shape_4d(shape: np.array):
@@ -263,21 +259,19 @@ class CustomSubgraphCall(MiddleReplacementPattern):
                     src_node.shape, dst_node.type))
                 CustomSubgraphCall.add_reshape_before_op_node(graph, src_node_name, dst_node_name, edge_attrs)
 
-        for node_name in list(graph.nodes()):
-            node = Node(graph, node_name)
-            if node['kind'] == 'op' and node.has_and_set('type') and node.type == 'TFCustomSubgraphCall':
-                for index, data_node in node.out_nodes().items():
-                    real_dims_count = len(data_node.shape)
-                    if real_dims_count != 4:
-                        log.info(
-                            "There is an data tensor of shape '{}' with real dims count '{}' which goes out of '{}' "
-                            "node".format(data_node.shape, real_dims_count, node.name))
-                        CustomSubgraphCall.add_reshape_after_data_node(graph, data_node.id)
+        for node in graph.get_op_nodes(op='TFCustomSubgraphCall'):
+            for index, data_node in node.out_nodes().items():
+                real_dims_count = len(data_node.shape)
+                if real_dims_count != 4:
+                    log.info(
+                        "There is an data tensor of shape '{}' with real dims count '{}' which goes out of '{}' "
+                        "node".format(data_node.shape, real_dims_count, node.name))
+                    CustomSubgraphCall.add_reshape_after_data_node(graph, data_node.id)
 
-                        # need to update shape of the op so IE generates XML with 4D tensors
-                        out_shape = CustomSubgraphCall.make_shape_4d(data_node['shape'])
+                    # need to update shape of the op so IE generates XML with 4D tensors
+                    out_shape = CustomSubgraphCall.make_shape_4d(data_node['shape'])
 
-                        data_node['shape'] = out_shape
+                    data_node['shape'] = out_shape
 
     @staticmethod
     def add_sub_graph_call_output_tensors_transposes(node: Node):

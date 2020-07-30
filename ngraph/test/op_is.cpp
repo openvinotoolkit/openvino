@@ -691,15 +691,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-    void op_is_Recv()
-    {
-        op::Recv node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
     void op_is_Range()
     {
         op::Range node;
@@ -793,15 +784,6 @@ namespace
     void op_is_Selu()
     {
         op::Selu node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Send()
-    {
-        op::Send node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
