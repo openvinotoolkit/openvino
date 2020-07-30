@@ -602,9 +602,22 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
     for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
-        if ( LayerInfo(outLayer.second).isConcat() ) {
-            connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
+        auto concatCandidate = outLayer.second;
+        if (LayerInfo(concatCandidate).isNonFunctional()) {
+            // searching for next concat
+            auto isNonFunctional = [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional();
+            };
+            if (!CNNNetHasNextLayerSkipCertain(concatCandidate, 0, 0, isNonFunctional)) {
+                continue;
+            }
+            concatCandidate = CNNNetGetNextLayerSkipCertain(concatCandidate, 0, 0, isNonFunctional).first;
         }
+        if (!LayerInfo(concatCandidate).isConcat()) {
+            continue;
+        }
+        gnalog() << "Cascaded concat connection found from: " << layer->name << ", to: " << concatCandidate->name << std::endl;
+        connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
     }
 
     size_t idx = 0;
@@ -625,21 +638,22 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
+            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
             if (concatLayerInfo.input_allocated) {
                 // for concat input allocated only once, so lets mark this specific input layer also as allocated
                 // we will bind it to offset further in connectInput
                 // size need to be equal to full layer in order to pass checks
-                inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name] = concatLayerInfo.reserved_size;
+                bytesAllocated = concatLayerInfo.reserved_size;
             }
 
             connectInput(layer, &concatLayerInfo.gna_ptr,
                          concatLayerInfo.reserved_size, -static_cast<int32_t>(inputLayer.offset), idx);
 
             // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
-            inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr) layerInfo)->name] = inputLayer.tensorSize;
+            bytesAllocated = inputLayer.tensorSize;
 
             concatLayerInfo.input_allocated = true;
-        } else  if (layerInfo.isMemory()) {
+        } else if (layerInfo.isMemory()) {
             connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, -static_cast<int>(inputLayer.offset), idx);
 
             concatLayerInfo.input_allocated = true;
