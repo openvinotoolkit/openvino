@@ -167,6 +167,30 @@ namespace ngraph
         /// on deep networks.
         void safe_delete(NodeVector& nodes, bool recurse);
 
+        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output shapes, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to know which nodes must be statically
+        /// evaluated in order to complete shape specialization. (For example, the shape input of
+        /// DynReshape must be evaluated statically in order for the output shape to be
+        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
+        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
+        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
+
+        /// \brief Marks an input as being relevant or irrelevant to the output values of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output values, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to cut short evaluation in cases where
+        /// an input value does not actually have any effect on the output value of the node. (As
+        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
+        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
+        /// function to mark value-irrelevant inputs.
+        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
+
     public:
         virtual ~Node();
 
@@ -195,6 +219,10 @@ namespace ngraph
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
 
+        void set_output_type(size_t i,
+                             const element::Type& element_type,
+                             const PartialShape& pshape);
+
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
 
@@ -220,45 +248,6 @@ namespace ngraph
         ///        set_friendly_name then the node's unique name is returned.
         /// \returns A const reference to the node's friendly name.
         const std::string& get_friendly_name() const;
-
-        /// Return true if this has the same implementing class as node. This
-        /// will be used by the pattern matcher when comparing a pattern
-        /// graph against the graph.
-        bool is_same_op_type(const std::shared_ptr<Node>& node) const
-        {
-            return get_type_info() == node->get_type_info();
-        }
-
-        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output shapes, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to know which nodes must be statically
-        /// evaluated in order to complete shape specialization. (For example, the shape input of
-        /// DynReshape must be evaluated statically in order for the output shape to be
-        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
-        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
-
-        /// \brief Marks an input as being relevant or irrelevant to the output values of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output values, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to cut short evaluation in cases where
-        /// an input value does not actually have any effect on the output value of the node. (As
-        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
-        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
-        /// function to mark value-irrelevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
-
-        // TODO(amprocte): should this be protected?
-        void set_output_type(size_t i,
-                             const element::Type& element_type,
-                             const PartialShape& pshape);
 
         virtual bool is_dynamic() const;
         size_t get_instance_id() const { return m_instance_id; }
