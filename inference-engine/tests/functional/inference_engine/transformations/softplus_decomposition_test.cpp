@@ -40,10 +40,8 @@ TEST(TransformationTests, SoftPlusDecomposition) {
         auto add = std::make_shared<ngraph::opset4::Add>(exp,
             ngraph::opset4::Constant::create(ngraph::element::f64, ngraph::Shape{ 1 }, { -1 }));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
-        auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mul }, ngraph::ParameterVector{ input });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ log }, ngraph::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref);
