@@ -20,10 +20,11 @@
 
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/tensor_iterator_transformations/tensor_iterator_transformations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -39,8 +40,6 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 
 #endif
 #endif
