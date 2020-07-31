@@ -75,10 +75,8 @@ namespace ngraph
             void set_axes_high_limit(int64_t limit, std::size_t axis)
             {
                 m_high_limit[axis] = limit;
-
             }
             void set_axes_low_limit(int64_t limit, std::size_t axis) { m_low_limit[axis] = limit; }
-
             NDimIndex after_high_limit() const;
 
             friend std::ostream& operator<<(std::ostream& ostr, const NDimIndex& index);

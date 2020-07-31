@@ -237,10 +237,7 @@ namespace ngraph
                                     std::min(coord, static_cast<int64_t>(length) - 1));
                 }
 
-                float triangle_coeff(float dz)
-                {
-                    return std::max(0.0f, 1.0f - std::fabs(dz));
-                }
+                float triangle_coeff(float dz) { return std::max(0.0f, 1.0f - std::fabs(dz)); }
             };
 
             template <typename T>
@@ -265,13 +262,17 @@ namespace ngraph
                 {
                     a[i] = antialias ? m_scales[m_axes[i]] : 1.0;
                     prod_a *= a[i];
-                    r[i] = (m_scales[m_axes[i]] > 1.0) ? static_cast<int64_t>(2) : static_cast<int64_t>(std::ceil(2.0f/a[i]));
+                    r[i] = (m_scales[m_axes[i]] > 1.0)
+                               ? static_cast<int64_t>(2)
+                               : static_cast<int64_t>(std::ceil(2.0f/a[i]));
                     low_limits_vector[i] = -r[i];
                     high_limits_vector[i] = r[i];
                 }
 
-                runtime::NDimIndex minimal_indices{low_limits_vector, low_limits_vector, high_limits_vector};
-                runtime::NDimIndex maximal_indices{high_limits_vector, low_limits_vector, high_limits_vector};
+                runtime::NDimIndex minimal_indices{
+                    low_limits_vector, low_limits_vector, high_limits_vector};
+                runtime::NDimIndex maximal_indices{
+                    high_limits_vector, low_limits_vector, high_limits_vector};
 
                 std::vector<int64_t> coords_limits_vector(input_rank);
                 for (std::size_t i = 0; i < input_rank; ++i)
@@ -327,7 +328,10 @@ namespace ngraph
                                         (inner_coords[axis] < m_input_data_shape[axis]);
                         }
 
-                        if (!condition) { continue; }
+                        if (!condition)
+                        {
+                            continue;
+                        }
 
                         std::vector<float> dz(num_of_axes);
                         for (std::size_t i = 0; i < num_of_axes; ++i)
@@ -443,7 +447,7 @@ namespace ngraph
                         T* out_data_ptr_nc = out + n * num_channels * output_height * output_width +
                                              c * output_height * output_width;
                         const T* in_data_ptr_nc = input_data +
-                                                  n * num_channels * input_height * input_width  +
+                                                  n * num_channels * input_height * input_width +
                                                   c * input_height * input_width;
                         for (std::size_t y = 0; y < output_height; ++y)
                         {
