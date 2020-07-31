@@ -1097,13 +1097,14 @@ protected:
         case OP_TYPEID::Slice:
         {
             const op::Slice* slice = static_cast<const op::Slice*>(&node);
-            reference::slice<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                node.get_input_shape(0),
-                                slice->get_lower_bounds(),
-                                slice->get_upper_bounds(),
-                                slice->get_strides(),
-                                node.get_output_shape(0));
+            reference::slice(args[0]->get_data_ptr<const char>(),
+                             out[0]->get_data_ptr<char>(),
+                             node.get_input_shape(0),
+                             slice->get_lower_bounds(),
+                             slice->get_upper_bounds(),
+                             slice->get_strides(),
+                             node.get_output_shape(0),
+                             args[0]->get_element_type());
             break;
         }
         case OP_TYPEID::Sqrt:

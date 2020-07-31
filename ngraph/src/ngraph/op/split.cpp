@@ -24,7 +24,6 @@
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/type/element_type_traits.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -193,19 +192,19 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
 
 namespace
 {
-    template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& in,
                          const HostTensorPtr& out,
                          const Coordinate& lower_bounds,
                          const Coordinate& upper_bounds)
     {
-        runtime::reference::slice(in->get_data_ptr<ET>(),
-                                  out->get_data_ptr<ET>(),
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
                                   in->get_shape(),
                                   lower_bounds,
                                   upper_bounds,
                                   Strides(lower_bounds.size(), 1),
-                                  out->get_shape());
+                                  out->get_shape(),
+                                  in->get_element_type());
 
         return true;
     }
@@ -235,36 +234,7 @@ namespace
         for (const auto& output : outputs)
         {
             output->set_shape(output_shape);
-            switch (data_tensor->get_element_type())
-            {
-                TYPE_CASE(i8)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(i16)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(i32)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(i64)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(u8)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(u16)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(u32)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(u64)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(bf16)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(f16)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(f32)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(f64)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-                TYPE_CASE(boolean)(data_tensor, output, lower_bounds, upper_bounds);
-                break;
-            default: rc = false; break;
-            }
+            evaluate(data_tensor, output, lower_bounds, upper_bounds);
             lower_bounds.at(normalized_axis) += part_length;
             upper_bounds.at(normalized_axis) += part_length;
         }

@@ -529,6 +529,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/slice.cpp
+    runtime/reference/slice.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
     shape.cpp

@@ -21,23 +21,26 @@
 using namespace std;
 using namespace ngraph;
 
-template <class T>
-shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
-                                             shared_ptr<op::Slice> slice)
+namespace
 {
-    const Shape& out_shape = slice->get_shape();
-    runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
-    T* data_ptr = buffer.get_ptr<T>();
+    shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
+                                                 shared_ptr<op::Slice> slice)
+    {
+        const Shape& out_shape = slice->get_shape();
+        runtime::AlignedBuffer buffer(shape_size(out_shape) * constant->get_element_type().size());
+        char* data_ptr = buffer.get_ptr<char>();
 
-    runtime::reference::slice<T>(constant->get_data_ptr<T>(),
-                                 data_ptr,
-                                 constant->get_shape(),
-                                 slice->get_lower_bounds(),
-                                 slice->get_upper_bounds(),
-                                 slice->get_strides(),
-                                 out_shape);
+        runtime::reference::slice(constant->get_data_ptr<const char>(),
+                                  data_ptr,
+                                  constant->get_shape(),
+                                  slice->get_lower_bounds(),
+                                  slice->get_upper_bounds(),
+                                  slice->get_strides(),
+                                  out_shape,
+                                  constant->get_element_type());
 
-    return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
+        return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
+    }
 }
 
 void pass::ConstantFolding::construct_constant_slice()
@@ -71,46 +74,8 @@ void pass::ConstantFolding::construct_constant_slice()
         case element::Type_t::u1:
             NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_slice");
             break;
-        case element::Type_t::boolean:
-            replacement = fold_constant_slice<char>(data_node, slice);
-            break;
-        case element::Type_t::bf16:
-            replacement = fold_constant_slice<bfloat16>(data_node, slice);
-            break;
-        case element::Type_t::f16:
-            replacement = fold_constant_slice<float16>(data_node, slice);
-            break;
-        case element::Type_t::f32:
-            replacement = fold_constant_slice<float>(data_node, slice);
-            break;
-        case element::Type_t::f64:
-            replacement = fold_constant_slice<double>(data_node, slice);
-            break;
-        case element::Type_t::i8:
-            replacement = fold_constant_slice<int8_t>(data_node, slice);
-            break;
-        case element::Type_t::i16:
-            replacement = fold_constant_slice<int16_t>(data_node, slice);
-            break;
-        case element::Type_t::i32:
-            replacement = fold_constant_slice<int32_t>(data_node, slice);
-            break;
-        case element::Type_t::i64:
-            replacement = fold_constant_slice<int64_t>(data_node, slice);
-            break;
-        case element::Type_t::u8:
-            replacement = fold_constant_slice<uint8_t>(data_node, slice);
-            break;
-        case element::Type_t::u16:
-            replacement = fold_constant_slice<uint16_t>(data_node, slice);
-            break;
-        case element::Type_t::u32:
-            replacement = fold_constant_slice<uint32_t>(data_node, slice);
-            break;
-        case element::Type_t::u64:
-            replacement = fold_constant_slice<uint64_t>(data_node, slice);
-            break;
         }
+        replacement = fold_constant_slice(data_node, slice);
 
         replace_node(m.get_match_root(), replacement);
         return true;
