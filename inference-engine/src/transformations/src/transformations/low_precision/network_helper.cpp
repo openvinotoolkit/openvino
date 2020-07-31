@@ -473,7 +473,8 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex) {
     std::shared_ptr<Node> dataNode = node->input_value(parentIndex).get_node_shared_ptr();
 
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply = (dataNode->get_input_size() > 1ul) && is_type<opset1::Constant>(dataNode->get_input_node_ptr(1)) ?
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply =
+        (dataNode->get_input_size() > 1ul) && is_type<opset1::Constant>(dataNode->get_input_node_ptr(1)) ?
         as_type_ptr<ngraph::opset1::Multiply>(dataNode) :
         nullptr;
     if (multiply != nullptr) {
