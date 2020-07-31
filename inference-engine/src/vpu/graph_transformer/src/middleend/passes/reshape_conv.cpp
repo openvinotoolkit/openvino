@@ -37,6 +37,11 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
+        if (stage->attrs().get<int>("kernelSizeX") != 1
+        || stage->attrs().get<int>("kernelSizeY") != 1) {
+            continue;
+        }
+
         auto input = stage->input(0);
         auto output = stage->output(0);
 
@@ -52,6 +57,11 @@ void PassImpl::run(const Model& model) {
         if (input->desc().dim(Dim::W) != 60
         || input->desc().dim(Dim::H) != 34
         || input->desc().dim(Dim::C) != 608) {
+            continue;
+        }
+
+        if (output->desc().dim(Dim::W) != 60
+        || output->desc().dim(Dim::H) != 34) {
             continue;
         }
 
