@@ -28,13 +28,13 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 const std::vector<LayerTestsDefinitions::ClampTransformationParam> params{
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
-        { 0.0 },
-        { 127.0 }
+        0.0,
+        127.0
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { 0.f }, { 255.f } },
-        { 0.0 },
-        { 255.0 }
+        0.0,
+        255.0
     },
     {
         {
@@ -45,8 +45,8 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params{
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f, 255.f }
         },
-        { 0.0 },
-        { 128.0 }
+        0.0,
+        128.0
     }
 };
 
