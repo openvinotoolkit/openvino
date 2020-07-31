@@ -14,5 +14,23 @@
         "HTTPS_PROXY": null,
         "NO_PROXY": "localhost,127.0.0.1,.intel.com"
     },
-    "DRY_RUN": false
+    "DRY_RUN": false,
+    "TEAM_TO_LABEL": {
+        "openvino-admins": "category: CI",
+        "openvino-maintainers": "category: IE common",
+        "openvino-docs-maintainers": "category: docs",
+        "openvino-ie-maintainers": "category: IE common",
+        "openvino-ie-cpu-maintainers": "category: CPU",
+        "openvino-ie-gna-maintainers": "category: GNA",
+        "openvino-ie-gpu-maintainers": "category: GPU",
+        "openvino-ie-lpt-maintainers": "category: LP transformations",
+        "openvino-ie-multi-maintainers": "category: MULTI",
+        "openvino-ie-python-api-maintainers": "category: python api",
+        "openvino-ie-tests-maintainers": "category: IE Tests",
+        "openvino-ie-vpu-maintainers": "category: VPU",
+        "openvino-mo-maintainers": "category: MO",
+        "openvino-ngraph-maintainers": "category: nGraph",
+        "openvino-tests-maintainers": "category: IE Tests",
+        "openvino-tools-maintainers": "category: tools"
+    }
 }
