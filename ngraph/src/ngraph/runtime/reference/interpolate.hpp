@@ -239,7 +239,6 @@ namespace ngraph
                 }
 
                 float triangle_coeff(float dz) { return std::max(0.0f, 1.0f - std::fabs(dz)); }
-
                 std::array<float, 4> get_cubic_coeff(float s, float a)
                 {
                     std::array<float, 4> coeff;
@@ -527,7 +526,7 @@ namespace ngraph
                                 clip_coord(input_coords[axis] + index[i] - 1, axis);
                             coeffs_prod *= cubic_coeffs[axis][index[i]];
                         }
-                        summa += coeff_prod * input_view[coords_for_sum];
+                        summa += coeffs_prod * input_view[coords_for_sum];
                     }
 
                     result[coordinates] = static_cast<T>(summa);
