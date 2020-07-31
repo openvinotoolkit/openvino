@@ -34,6 +34,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "op/group_conv.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
@@ -194,14 +195,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{1, 1},
+                                                            CoordinateDiff{0, 0},
+                                                            CoordinateDiff{0, 0},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -222,14 +223,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_striding)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{2, 2},
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{2, 2},
+                                                            Strides{1, 1},
+                                                            CoordinateDiff{0, 0},
+                                                            CoordinateDiff{0, 0},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -250,14 +251,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_window_dilation)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{2, 2},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{2, 2},
+                                                            CoordinateDiff{0, 0},
+                                                            CoordinateDiff{0, 0},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -278,14 +279,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_data_dilation)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{2, 2},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{1, 1},
+                                                            CoordinateDiff{0, 0},
+                                                            CoordinateDiff{0, 0},
+                                                            Strides{2, 2},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -306,14 +307,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{1, 0},
-                                                        CoordinateDiff{0, 1},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{1, 1},
+                                                            CoordinateDiff{1, 0},
+                                                            CoordinateDiff{0, 1},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -334,14 +335,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding_and_window_dilation)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{2, 2},
-                                                        CoordinateDiff{1, 0},
-                                                        CoordinateDiff{0, 1},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{2, 2},
+                                                            CoordinateDiff{1, 0},
+                                                            CoordinateDiff{0, 1},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -362,14 +363,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_shape_variation)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 4, 1});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{2, 2},
-                                                        CoordinateDiff{1, 0},
-                                                        CoordinateDiff{0, 1},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{2, 2},
+                                                            CoordinateDiff{1, 0},
+                                                            CoordinateDiff{0, 1},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -390,14 +391,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_data_variation)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 3});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{2, 2},
-                                                        CoordinateDiff{1, 0},
-                                                        CoordinateDiff{0, 1},
-                                                        Strides{1, 1},
-                                                        2);
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{2, 2},
+                                                            CoordinateDiff{1, 0},
+                                                            CoordinateDiff{0, 1},
+                                                            Strides{1, 1},
+                                                            2);
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -421,13 +422,13 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_groups_included_in_shape)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 4, 2, 2});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 1, 2, 1, 1});
-    auto group_conv = make_shared<op::GroupConvolution>(data,
-                                                        filters,
-                                                        Strides{1, 1},
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
+                                                            filters,
+                                                            Strides{1, 1},
+                                                            Strides{1, 1},
+                                                            CoordinateDiff{0, 0},
+                                                            CoordinateDiff{0, 0},
+                                                            Strides{1, 1});
     auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
