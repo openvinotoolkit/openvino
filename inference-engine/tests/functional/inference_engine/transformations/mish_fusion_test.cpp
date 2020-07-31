@@ -34,10 +34,8 @@ TEST(TransformationTests, MishFusing) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
         ngraph::pass::Manager manager;
-        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/imironov/projects/dpd_vcp_dl/svg_debug/before.svg");
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MishFusion>();
-        //manager.register_pass<ngraph::pass::VisualizeTree>("/home/imironov/projects/dpd_vcp_dl/svg_debug/after.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
