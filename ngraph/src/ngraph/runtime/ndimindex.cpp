@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ndimindex.hpp"
+#include <string>
 
 using namespace ngraph;
 

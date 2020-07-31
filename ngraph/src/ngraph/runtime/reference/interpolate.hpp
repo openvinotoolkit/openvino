@@ -246,8 +246,8 @@ namespace ngraph
                     float abs_s = std::fabs(s);
                     coeff[0] = a * (abs_s - 1.0f) * (abs_s - 1.0f) * abs_s;
                     coeff[1] = ((a + 2.0f) * abs_s - (a + 3.0f)) * abs_s * abs_s + 1.0;
-                    coeff[2] = (((-a - 2.0f) * abs_s+ (2.0f * a + 3.0f)) * abs_s - a) * abs_s;
-                    coeff[3] = - a * abs_s * abs_s * (abs_s - 1.0f);
+                    coeff[2] = (((-a - 2.0f) * abs_s + (2.0f * a + 3.0f)) * abs_s - a) * abs_s;
+                    coeff[3] = -a * abs_s * abs_s * (abs_s - 1.0f);
                     return coeff;
                 }
             };
@@ -495,7 +495,43 @@ namespace ngraph
 
                 std::vector<int64_t> maximal_indices_vector(num_of_axes, 3);
                 runtime::NDimIndex maximal_indices{maximal_indices_vector, maximal_indices_vector};
-                runtime::NDimRange indices{maximal_indices};
+
+                for (const auto& coordinates : coords_range)
+                {
+                    runtime::NDimIndex input_coords{coordinates};
+                    std::vector<std::array<float, 4>> cubic_coeffs(input_rank);
+                    for (std::size_t axis : m_axes)
+                    {
+                        float coordinate = static_cast<float>(coordinates[axis]);
+                        float scale = m_scales[axis];
+                        float length_resized = static_cast<float>(m_out_shape[axis]);
+                        float length_original = static_cast<float>(m_input_data_shape[axis]);
+                        float in_coord = m_get_original_coord(
+                            coordinate, scale, length_resized, length_original);
+                        int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
+                        input_coords[axis] = in_coord_int;
+                        cubic_coeffs[axis] = get_cubic_coeff(in_coord - in_coord_int, m_cube_coeff);
+                        input_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
+                    }
+
+                    float summa = 0.0f;
+                    runtime::NDimRange indices{maximal_indices};
+                    for (const auto& index : indices)
+                    {
+                        runtime::NDimIndex coords_for_sum{input_coords};
+                        float coeffs_prod = 1.0;
+                        for (std::size_t i = 0; i < num_of_axes; ++i)
+                        {
+                            std::size_t axis = m_axes[i];
+                            coords_for_sum[axis] =
+                                clip_coord(input_coords[axis] + index[i] - 1, axis);
+                            coeffs_prod *= cubic_coeffs[axis][index[i]];
+                        }
+                        summa += coeff_prod * input_view[coords_for_sum];
+                    }
+
+                    result[coordinates] = static_cast<T>(summa);
+                }
             }
 
             template <typename T>
