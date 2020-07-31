@@ -9,7 +9,6 @@
 #       nGraph ONNX C++ Importer unit tests
 #
 #-------------------------------------------------------------------------------
-IE_CPU.onnx_dyn_model_hardmax
 
 # Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
