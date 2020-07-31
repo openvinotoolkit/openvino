@@ -32,7 +32,7 @@ struct Config {
                max_dynamic_batch(1),
                customLayers({}),
                tuningConfig(),
-               graph_dumps_dir("graph_dumps"),
+               graph_dumps_dir(""),
                sources_dumps_dir(""),
                device_id("") {
         adjustKeyMapValues();
