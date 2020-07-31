@@ -14,11 +14,11 @@
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
-    namespace pass {
+namespace pass {
 
-        class TRANSFORMATIONS_API SoftPlusDecomposition;
+class TRANSFORMATIONS_API SoftPlusDecomposition;
 
-    }  // namespace pass
+}  // namespace pass
 }  // namespace ngraph
 
 class ngraph::pass::SoftPlusDecomposition : public ngraph::pass::MatcherPass {
