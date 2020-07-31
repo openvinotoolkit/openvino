@@ -25,7 +25,7 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 def _get_default_additional_models_dir():
     onnx_home = os.path.expanduser(os.getenv("ONNX_HOME", os.path.join("~", ".onnx")))
-    return os.path.join(onnx_home, "additonal_models")
+    return os.path.join(onnx_home, "additional_models")
 
 
 MODELS_ROOT_DIR = tests.ADDITIONAL_MODELS_DIR
@@ -33,6 +33,7 @@ if len(MODELS_ROOT_DIR) == 0:
     MODELS_ROOT_DIR = _get_default_additional_models_dir()
 
 zoo_models = []
+# rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     mdir, file = os.path.split(path)
     if not file.startswith("."):
