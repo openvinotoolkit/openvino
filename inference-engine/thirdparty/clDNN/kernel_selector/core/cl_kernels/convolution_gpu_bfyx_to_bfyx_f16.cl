@@ -106,8 +106,8 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     vec_t dst = UNIT_VAL_ZERO;
 #endif
 
-    UNIT_TYPE line_cache[3 * INPUT_BLOCK_SIZE];
-    for (int ic = 0; ic < 3; ic++)
+    UNIT_TYPE line_cache[NUM_OF_CHANNELS * INPUT_BLOCK_SIZE];
+    for (int ic = 0; ic < NUM_OF_CHANNELS; ic++)
     {
         __attribute__((opencl_unroll_hint(INPUT_BLOCK_SIZE)))
         for (int i = 0; i < INPUT_BLOCK_SIZE; i++)
@@ -133,13 +133,12 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
         for (int kw = 0; kw < FILTER_SIZE_X; kw++)
         {
-            MAKE_VECTOR_TYPE(UNIT_TYPE, 2) wei = UNIT_BLOCK_READ2(weights, filter_offset +
-                                                                           kh * filter_y_pitch +
-                                                                           kw * filter_x_pitch);
-            UNIT_TYPE wei2 = UNIT_BLOCK_READ(weights, filter_offset +
-                                                      kh * filter_y_pitch +
-                                                      kw * filter_x_pitch +
-                                                      2 * filter_isv_pitch);
+            uint offset = filter_offset + kh * filter_y_pitch + kw * filter_x_pitch;
+
+            UNIT_TYPE wei[NUM_OF_CHANNELS];
+            for (int ic = 0; ic < NUM_OF_CHANNELS; ic++)
+                //wei.s01 = UNIT_BLOCK_READ2(weights, offset);
+                wei[ic] = UNIT_BLOCK_READ(weights, offset + ic * filter_isv_pitch);
 
             __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
             for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++)
@@ -147,13 +146,11 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
                 const uint buf_offset = (kw*DILATION_SIZE_X + STRIDE_SIZE_X * i + (kh) * INPUT_LINE_SIZE) / SUB_GROUP_SIZE;
                 const uint buf_group  = (kw*DILATION_SIZE_X + STRIDE_SIZE_X * i + (kh) * INPUT_LINE_SIZE) % SUB_GROUP_SIZE;
 
-                UNIT_TYPE src0 = intel_sub_group_shuffle(line_cache[0 * INPUT_BLOCK_SIZE + buf_offset], buf_group);
-                UNIT_TYPE src1 = intel_sub_group_shuffle(line_cache[1 * INPUT_BLOCK_SIZE + buf_offset], buf_group);
-                UNIT_TYPE src2 = intel_sub_group_shuffle(line_cache[2 * INPUT_BLOCK_SIZE + buf_offset], buf_group);
-
-                dst[i] = mad(wei[0], src0, dst[i]);
-                dst[i] = mad(wei[1], src1, dst[i]);
-                dst[i] = mad(wei2, src2, dst[i]);
+                UNIT_TYPE src[NUM_OF_CHANNELS];
+                for (int ic = 0; ic < NUM_OF_CHANNELS; ic++) {
+                    src[ic] = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
+                    dst[i] = mad(wei[ic], src[ic], dst[i]);
+                }
             }
         }
     }

@@ -169,6 +169,7 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
     if (params.output.Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
+    jit.AddConstant(MakeJitConstant("NUM_OF_CHANNELS", input.Feature().v));
 
     return jit;
 }
