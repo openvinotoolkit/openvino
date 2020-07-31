@@ -46,7 +46,9 @@ public:
     Expected expected;
 };
 
-class SubtrcatMultiplyToMultiplyAddTransformation : public LayerTransformation, public testing::WithParamInterface<SubtrcatMultiplyToMultiplyAddTransformationTestValues> {
+class SubtrcatMultiplyToMultiplyAddTransformation :
+    public LayerTransformation,
+    public testing::WithParamInterface<SubtrcatMultiplyToMultiplyAddTransformationTestValues> {
 public:
     void SetUp() override {
         SubtrcatMultiplyToMultiplyAddTransformationTestValues testValues = GetParam();
