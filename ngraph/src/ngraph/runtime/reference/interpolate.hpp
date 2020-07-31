@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -238,6 +239,17 @@ namespace ngraph
                 }
 
                 float triangle_coeff(float dz) { return std::max(0.0f, 1.0f - std::fabs(dz)); }
+
+                std::array<float, 4> get_cubic_coeff(float s, float a)
+                {
+                    std::array<float, 4> coeff;
+                    float abs_s = std::fabs(s);
+                    coeff[0] = a * (abs_s - 1.0f) * (abs_s - 1.0f) * abs_s;
+                    coeff[1] = ((a + 2.0f) * abs_s - (a + 3.0f)) * abs_s * abs_s + 1.0;
+                    coeff[2] = (((-a - 2.0f) * abs_s+ (2.0f * a + 3.0f)) * abs_s - a) * abs_s;
+                    coeff[3] = - a * abs_s * abs_s * (abs_s - 1.0f);
+                    return coeff;
+                }
             };
 
             template <typename T>
@@ -264,7 +276,7 @@ namespace ngraph
                     prod_a *= a[i];
                     r[i] = (m_scales[m_axes[i]] > 1.0)
                                ? static_cast<int64_t>(2)
-                               : static_cast<int64_t>(std::ceil(2.0f/a[i]));
+                               : static_cast<int64_t>(std::ceil(2.0f / a[i]));
                     low_limits_vector[i] = -r[i];
                     high_limits_vector[i] = r[i];
                 }
@@ -469,6 +481,21 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::cubic_func(const T* input_data, T* out)
             {
+                std::size_t input_rank = m_input_data_shape.size();
+                std::size_t num_of_axes = m_axes.size();
+                std::vector<int64_t> coords_limits_vector(input_rank);
+                for (std::size_t i = 0; i < input_rank; ++i)
+                {
+                    coords_limits_vector[i] = m_out_shape[i] - 1;
+                }
+                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
+                runtime::NDimRange coords_range{out_limits};
+                runtime::NDimArrayView<T> result{out};
+                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
+
+                std::vector<int64_t> maximal_indices_vector(num_of_axes, 3);
+                runtime::NDimIndex maximal_indices{maximal_indices_vector, maximal_indices_vector};
+                runtime::NDimRange indices{maximal_indices};
             }
 
             template <typename T>

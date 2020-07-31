@@ -30,7 +30,7 @@ bool runtime::NDimIndex::operator!=(const NDimIndex& rhs) const
            std::tie(rhs.m_value, rhs.m_low_limit, rhs.m_high_limit);
 }
 
-NDimIndex& runtime::NDimIndex::operator++()
+runtime::NDimIndex& runtime::NDimIndex::operator++()
 {
     int64_t carry = 1;
     auto high_limit_it = m_high_limit.rbegin();
@@ -55,14 +55,14 @@ NDimIndex& runtime::NDimIndex::operator++()
     return *this;
 }
 
-NDimIndex runtime::NDimIndex::operator++(int)
+runtime::NDimIndex runtime::NDimIndex::operator++(int)
 {
     NDimIndex old_value{*this};
     ++(*this);
     return old_value;
 }
 
-NDimIndex runtime::NDimIndex::next() const
+runtime::NDimIndex runtime::NDimIndex::next() const
 {
     NDimIndex temp{*this};
     ++temp;
@@ -95,7 +95,7 @@ std::ostream& runtime::operator<<(std::ostream& ostr, const NDimIndex& index)
     return ostr;
 }
 
-NDimIndex runtime::NDimIndex::after_high_limit() const
+runtime::NDimIndex runtime::NDimIndex::after_high_limit() const
 {
     NDimIndex temp{m_high_limit, m_low_limit, m_high_limit};
     ++temp;
