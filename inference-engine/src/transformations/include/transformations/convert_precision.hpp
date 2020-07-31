@@ -27,8 +27,28 @@ class TRANSFORMATIONS_API ConvertPrecision;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertPrecision transformation removes StridedSlice operations
- * with equal input and output shapes.
+ * @brief ConvertPrecision transformation convert precision for entire ngraph::Function
+ * List of supported precision conversion:
+ *    FROM -> TO
+ *      u8 -> i32
+ *     u16 -> i32
+ *     u32 -> i32
+ *     u64 -> i32
+ *     i64 -> i32
+ *     f16 -> f32
+ * For all operations from opset1-opset4 this conversions can be applied without adding Conversion operations.
+ * That is possible because all operations that produces "FROM" type can produce "TO" type. And for this operations
+ * we have created special fuse_type_into_<type> functoin (can be found in cpp file) that performs type fusion
+ * into operation.
+ * List of operations that are supported by this transformations:
+ *     opset4::Parameter
+ *     opset4::Convert
+ *     opset4::ShapeOf
+ *     opset3::NonMaxSuppression
+ *     opset4::NonMaxSuppression
+ *     opset4::TopK
+ *     opset4::NonZero
+ *     opset4::Bucketize
  */
 
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {

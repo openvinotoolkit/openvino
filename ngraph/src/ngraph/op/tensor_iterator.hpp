@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "ngraph/factory_adapter.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"

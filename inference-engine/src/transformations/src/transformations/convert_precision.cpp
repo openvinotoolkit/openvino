@@ -24,8 +24,8 @@ bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element:
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
-        {opset3::Parameter::type_info, fuse_type_to_parameter},
-        {opset3::Convert::type_info, fuse_type_to_convert},
+        {opset4::Parameter::type_info, fuse_type_to_parameter},
+        {opset4::Convert::type_info, fuse_type_to_convert},
         {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
         {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
         {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
@@ -74,7 +74,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
                 // Create Convert operation and reconnect consumers
                 auto consumers = output.get_target_inputs();
-                auto convert = std::make_shared<opset3::Convert>(output, m_to);
+                auto convert = std::make_shared<opset4::Convert>(output, m_to);
                 for (auto & input : consumers) {
                     input.replace_source_output(convert);
                 }
@@ -95,7 +95,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     convert_function_precision(f);
 
     for (auto &node : f->get_ordered_ops()) {
-        if (auto convert = std::dynamic_pointer_cast<opset3::Convert>(node)) {
+        if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
             if (convert->input(0).get_element_type() == convert->get_convert_element_type()) {
                 replace_output_update_name(convert->output(0), convert->input_value(0));
             }
@@ -105,7 +105,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 }
 
 bool fuse_type_to_shapeof(std::shared_ptr<Node> & node, element::Type to, size_t idx) {
-    if (auto shapeof = as_type_ptr<opset3::ShapeOf>(node)) {
+    if (auto shapeof = as_type_ptr<opset4::ShapeOf>(node)) {
         if (to == element::i32 || to == element::i64) {
             shapeof->set_output_type(to);
             return true;
@@ -115,7 +115,7 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> & node, element::Type to, size_t
 }
 
 bool fuse_type_to_parameter(std::shared_ptr<Node> & node, element::Type to, size_t idx) {
-    if (auto param = as_type_ptr<opset3::Parameter>(node)) {
+    if (auto param = as_type_ptr<opset4::Parameter>(node)) {
         param->set_element_type(to);
         return true;
     }
@@ -123,7 +123,7 @@ bool fuse_type_to_parameter(std::shared_ptr<Node> & node, element::Type to, size
 }
 
 bool fuse_type_to_convert(std::shared_ptr<Node> & node, element::Type to, size_t idx) {
-    if (auto convert = as_type_ptr<opset3::Convert>(node)) {
+    if (auto convert = as_type_ptr<opset4::Convert>(node)) {
         convert->set_convert_element_type(to);
         return true;
     }
@@ -177,7 +177,7 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
 }
 
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
-std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset3::Constant> & constant) {
+std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant> & constant) {
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
@@ -191,11 +191,11 @@ std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset3::Constant
                            return static_cast<dst_type>(val);
                        }
                    });
-    return std::make_shared<ngraph::opset3::Constant>(PREC_TO, constant->get_shape(), final_data);
+    return std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape(), final_data);
 }
 
 bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const std::vector<Input<Node>> & consumers) {
-    if (auto constant = as_type_ptr<opset3::Constant>(node)) {
+    if (auto constant = as_type_ptr<opset4::Constant>(node)) {
         auto from = constant->get_element_type();
         std::shared_ptr<Node> new_const;
         if (from == element::u64 && to == element::i32) {

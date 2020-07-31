@@ -19,6 +19,11 @@ class TRANSFORMATIONS_API ApplyTransformationsToTIBody;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Applies transformations from given pass::Manager for each TensorIterator body
+ */
+
 class ngraph::pass::ApplyTransformationsToTIBody: public ngraph::pass::MatcherPass {
 public:
     explicit ApplyTransformationsToTIBody(ngraph::pass::Manager & manager);
