@@ -25,10 +25,12 @@
 
 namespace ngraph
 {
+    NGRAPH_API
     Strides conv_default_strides(const Node* node,
                                  const PartialShape& data_batch_shape,
                                  const PartialShape& filters_shape);
 
+    NGRAPH_API
     CoordinateDiff conv_default_padding(const Node* node,
                                         const PartialShape& data_batch_shape,
                                         const PartialShape& filters_shape);

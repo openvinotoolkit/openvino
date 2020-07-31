@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "op/group_conv.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
@@ -48,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
     auto padding_end = CoordinateDiff{0, 0};
     size_t groups = 3;
 
-    auto conv_bprop_data = make_shared<op::GroupConvolutionBackpropData>(
+    auto conv_bprop_data = make_shared<op::v0::GroupConvolutionBackpropData>(
         data_batch, filters, deltas, strides, dilations, padding_begin, padding_end, groups);
 
     auto f = make_shared<Function>(conv_bprop_data, ParameterVector{data_batch, filters, deltas});

@@ -27,6 +27,8 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -59,7 +61,7 @@ namespace
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Convolution> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
     {
         auto strides = node->get_window_movement_strides();
         auto dilations = node->get_window_dilation_strides();
@@ -88,7 +90,7 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::ConvolutionBackpropData> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
         auto strides = node->get_window_movement_strides_forward();
