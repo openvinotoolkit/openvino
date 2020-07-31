@@ -569,12 +569,7 @@ public:                                                                         
 #define NGRAPH_RTTI_DEFINITION(CLASS)                                                              \
     constexpr ::ngraph::Node::type_info_t CLASS::type_info_constexpr;                              \
     const ::ngraph::Node::type_info_t CLASS::type_info(CLASS::type_info_constexpr);                \
-        const ::ngraph::Node::type_info_t&                                                         \
-        CLASS::get_type_info() const                                                               \
-    {                                                                                              \
-        return type_info;                                                                          \
-    }
-
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { return type_info; }
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
     {
