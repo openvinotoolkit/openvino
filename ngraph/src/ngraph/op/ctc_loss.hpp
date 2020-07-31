@@ -50,6 +50,14 @@ namespace ngraph
                         const Output<Node>& logit_length,
                         const Output<Node>& labels,
                         const Output<Node>& label_length,
+                        const bool preprocess_collapse_repeated = false,
+                        const bool ctc_merge_repeated = true,
+                        const bool unique = false);
+
+                CTCLoss(const Output<Node>& logits,
+                        const Output<Node>& logit_length,
+                        const Output<Node>& labels,
+                        const Output<Node>& label_length,
                         const Output<Node>& blank_index,
                         const bool preprocess_collapse_repeated = false,
                         const bool ctc_merge_repeated = true,
@@ -72,6 +80,5 @@ namespace ngraph
                 bool unique_;
             };
         }
-        using v4::CTCLoss;
     }
 }
