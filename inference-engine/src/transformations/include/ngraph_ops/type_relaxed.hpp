@@ -103,7 +103,7 @@ public:
 template <typename BaseOp>
 class TRANSFORMATIONS_API TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
-    NGRAPH_RTTI_DECLARATION("TypeRelaxed", BaseOp, 0);
+    NGRAPH_RTTI_DECLARATION;
 
     using BaseOp::BaseOp;
 
@@ -192,7 +192,13 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 }
 
 template <typename BaseOp>
-NGRAPH_RTTI_DEFINITION(TypeRelaxed<BaseOp>);
+const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return type_info; }
+template <typename BaseOp>
+    const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() { return type_info; }
+    template <typename BaseOp>
+    const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info{
+        // TODO: Incorrect name 'TypeRelaxed', should be different for various BaseOp
+        "TypeRelaxed", 0, &BaseOp::type_info};
 
 }  // namespace op
 }  // namespace ngraph

@@ -230,6 +230,8 @@ if(WIN32)
 
     # Disable noisy warnings
 
+    ie_add_compiler_flags(/Zc:externConstexpr)
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4251 needs to have dll-interface to be used by clients of class
         ie_add_compiler_flags(/wd4251)

@@ -33,6 +33,8 @@ def test_ngraph_function_api():
     model = (parameter_a + parameter_b) * parameter_c
     function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
+    function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
+
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
@@ -41,6 +43,7 @@ def test_ngraph_function_api():
     assert function.get_output_op(0).get_type_name() == "Result"
     assert function.get_output_element_type(0) == parameter_a.get_element_type()
     assert list(function.get_output_shape(0)) == [2, 2]
+    assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
     assert len(function.get_parameters()) == 3
     assert len(function.get_results()) == 1
     assert function.get_friendly_name() == "TestFunction"

@@ -96,7 +96,7 @@ bool op::v0::Subtract::evaluate(const HostTensorVector& outputs, const HostTenso
 
 // ------------------------------- v1 ------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Subtract);
+NGRAPH_RTTI_DEFINITION(op::v1::Subtract, "Subtract", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Subtract::Subtract(const Output<Node>& arg0,
                            const Output<Node>& arg1,

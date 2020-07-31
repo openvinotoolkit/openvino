@@ -30,7 +30,7 @@ namespace ngraph
             class NGRAPH_API Concat : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION("Concat", 0);
+                NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs a concatenation operation.
                 Concat() = default;
