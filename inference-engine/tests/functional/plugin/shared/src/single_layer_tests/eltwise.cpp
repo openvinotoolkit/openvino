@@ -14,25 +14,12 @@
 #include "single_layer_tests/eltwise.hpp"
 
 namespace LayerTestsDefinitions {
-std::ostream& operator<<(std::ostream & os, EltwiseParams::OpType type) {
-    switch (type) {
-        case EltwiseParams::OpType::SCALAR:
-            os << "SCALAR";
-            break;
-        case EltwiseParams::OpType::VECTOR:
-            os << "VECTOR";
-            break;
-        default:
-            THROW_IE_EXCEPTION << "NOT_SUPPORTED_OP_TYPE";
-    }
-    return os;
-}
 
 std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     ngraph::helpers::InputLayerType secondaryInputType;
-    EltwiseParams::OpType opType;
+    CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
@@ -52,7 +39,7 @@ void EltwiseLayerTest::SetUp() {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     ngraph::helpers::InputLayerType secondaryInputType;
-    EltwiseParams::OpType opType;
+    CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     std::map<std::string, std::string> additional_config;
     std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, targetDevice, additional_config) = this->GetParam();
@@ -73,11 +60,11 @@ void EltwiseLayerTest::SetUp() {
 
     std::vector<size_t> shape_input_secondary;
     switch (opType) {
-        case EltwiseParams::OpType::SCALAR: {
+        case CommonTestUtils::OpType::SCALAR: {
             shape_input_secondary = std::vector<size_t>({1});
             break;
         }
-        case EltwiseParams::OpType::VECTOR:
+        case CommonTestUtils::OpType::VECTOR:
             shape_input_secondary = inputShape2;
             break;
         default:
