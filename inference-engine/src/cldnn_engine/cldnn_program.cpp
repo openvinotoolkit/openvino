@@ -575,6 +575,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "HSwish", HSwish },
         { "Mish" , Mish },
         { "Gelu" , Gelu },
         { "Atanh" , Atanh },
@@ -1162,6 +1163,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case HSwish:
         case Mish:
         case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
@@ -2780,6 +2782,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "hswish")  {
+            activationType = HSwish;
         } else if (activation_type == "mish")  {
             activationType = Mish;
         } else if (activation_type == "gelu")  {
@@ -2975,6 +2979,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case HSwish:
+    {
+        func = cldnn::activation_func::hswish;
         break;
     }
     case Mish:
