@@ -80,7 +80,7 @@ void BackEnd::getMetaData(
         }
 
         if (stage->origLayer() == nullptr) {
-            stageMeta.layerName = "<Extra>";
+            stageMeta.layerName = "";
             stageMeta.layerType = "<Extra>";
         } else {
             const auto& origLayer = stage->origLayer();

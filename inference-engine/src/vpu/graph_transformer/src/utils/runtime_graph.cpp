@@ -227,7 +227,7 @@ namespace {
         serializationInfo[ExecGraphInfoSerialization::IMPL_TYPE] = stageMeta.stageType;
         serializationInfo[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(stageMeta.execOrder);
         serializationInfo[ExecGraphInfoSerialization::LAYER_TYPE] = stageMeta.layerType;
-        if (stageMeta.execOrder < 0) {
+        if (stageMeta.execOrder < 0 || stageMeta.execTime == 0) {
             serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";
         } else {
             serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(stageMeta.execTime);
