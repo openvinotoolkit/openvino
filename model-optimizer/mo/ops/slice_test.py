@@ -43,6 +43,10 @@ class TestSliceOp(unittest.TestCase):
             (None, [np.iinfo(np.int32).min, 2], [3, 3], [0, 1], [1, 1], [3, 1, 6], [4, 5, 6]),
             # 1D input
             ([1, 3, 224, 224], [1], [2], [0], [1], [3]),
+            # 1D input with negative starts
+            (None, [-1], [1], [0], [-1], [2], [4]),
+            # 1D input with negative ends
+            (None, [1], [-1], [0], [1], [2], [4]),
             # case when output shape has zero elements
             (None, [1], [1], [0], [1], [0], [4])
         ])

@@ -191,19 +191,18 @@ def normalize_slice_indices(size: int, start: int, end: int):
 
 def convert_negative_indices(size: int, val: int):
     """
-    Converts negative indices of a tensors: e.g. if val == -1 then convert it to size
-    If val is -1 and we expect it to the start then returned val = size should be clipped by `clip_indices`
-    Note: returned value is not always positive and it's expected behaviour
+    Converts negative indices of a tensors: e.g. if val == -1 then convert it to size - 1.
+    Note: returned value is not always positive and it's expected behaviour.
     """
     if val < 0:
-        return val + size + 1
+        return val + size
     else:
         return val
 
 
 def clip_indices(size: int, val: int):
     # if slice starts and/or ends exceed indices bounds of a tensor this routine cuts them to size or 0
-    # Note: returned value is not always positive and it's expected behaviour
+    # Note: returned value is not always positive and it's expected behaviour.
     if val >= size:
         return size
     elif val < 0:
