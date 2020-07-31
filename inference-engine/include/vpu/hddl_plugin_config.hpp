@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "ie_api.h"
 #include "ie_plugin_config.hpp"
 
 //
