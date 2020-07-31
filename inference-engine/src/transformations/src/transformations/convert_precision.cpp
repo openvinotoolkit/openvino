@@ -94,6 +94,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
     convert_function_precision(f);
 
+    // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
     for (auto &node : f->get_ordered_ops()) {
         if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
             if (convert->input(0).get_element_type() == convert->get_convert_element_type()) {
