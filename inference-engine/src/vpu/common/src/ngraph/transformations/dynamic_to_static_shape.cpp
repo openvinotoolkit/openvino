@@ -117,7 +117,7 @@ DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransf
     transformations.emplace(ngraph::opset3::Result::type_info, [](const std::shared_ptr<ngraph::Node>&){});
 }
 
-void DynamicToStaticShape::transform(std::shared_ptr<ngraph::Function> function) const {
+bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> function) {
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {
             continue;
