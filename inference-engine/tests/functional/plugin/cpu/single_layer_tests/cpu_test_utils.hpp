@@ -24,7 +24,7 @@ typedef enum {
     undef
 } cpu_memory_format_t;
 
-const char *cpu_fmt2str(cpu_memory_format_t v) {
+inline const char *cpu_fmt2str(cpu_memory_format_t v) {
     if (v == nchw) return "nchw";
     if (v == nChw8c) return "nChw8c";
     if (v == nChw16c) return "nChw16c";
@@ -35,7 +35,7 @@ const char *cpu_fmt2str(cpu_memory_format_t v) {
     return "undef";
 }
 
-cpu_memory_format_t cpu_str2fmt(const char *str) {
+inline cpu_memory_format_t cpu_str2fmt(const char *str) {
 #define CASE(_fmt) do { \
     if (!strcmp(#_fmt, str) \
             || !strcmp("mkldnn_" #_fmt, str)) \
@@ -52,7 +52,7 @@ cpu_memory_format_t cpu_str2fmt(const char *str) {
     return undef;
 }
 
-std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
+inline std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
     std::string str;
     for (auto &fmt : fmts) {
         ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
@@ -61,7 +61,7 @@ std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts) {
     return str;
 }
 
-std::string impls2str(const std::vector<std::string> &priority) {
+inline std::string impls2str(const std::vector<std::string> &priority) {
     std::string str;
     for (auto &impl : priority) {
         ((str += "cpu:") += impl) += ",";
@@ -124,7 +124,7 @@ void inline CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::strin
 }
 IE_SUPPRESS_DEPRECATED_END
 
-std::map<std::string, std::shared_ptr<ngraph::Variant>> setCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<cpu_memory_format_t> outFmts,
+inline std::map<std::string, std::shared_ptr<ngraph::Variant>> setCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<cpu_memory_format_t> outFmts,
                                       std::vector<std::string> priority) {
     std::map<std::string, std::shared_ptr<ngraph::Variant>> cpuInfo;
 
