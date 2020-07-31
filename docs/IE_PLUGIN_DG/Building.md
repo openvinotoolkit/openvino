@@ -16,22 +16,23 @@ $ cmake -DCMAKE_BUILD_TYPE=Release ../dldt
 Once the commands above are executed, the Inference Engine Developer Package is generated in the `dldt-release-build` folder. It consists of several files:
  - `InferenceEngineDeveloperPackageConfig.cmake` - the main CMake script which imports targets and provides compilation flags and CMake options.
  - `InferenceEngineDeveloperPackageConfig-version.cmake` - a file with a package version.
- - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the Deep Learning Deployment Toolkit (DLDT) build tree. This file is included by `InferenceEngineDeveloperPackageConfig.cmake` to import the following targets:
+ - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by `InferenceEngineDeveloperPackageConfig.cmake` to import the following targets:
    - Libraries for plugin development:
-	   * `IE::ngraph` - shared nGraph library
-	   * `IE::inference_engine` - shared Inference Engine library
-	   * `IE::inference_engine_preproc` - shared library with Inference Engine preprocessing plugin
-	   * `IE::inference_engine_plugin_api` - interface library with Inference Engine Plugin API headers
-	   * `IE::inference_engine_lp_transformations` - shared library with low-precision transformations
-	   * `IE::pugixml` - static Pugixml library
-	   * `IE::xbyak` - interface library with Xbyak headers
+       * `IE::ngraph` - shared nGraph library
+       * `IE::inference_engine` - shared Inference Engine library
+       * `IE::inference_engine_transformations` - shared library with Inference Engine ngraph-based Transformations
+       * `IE::inference_engine_preproc` - shared library with Inference Engine preprocessing plugin
+       * `IE::inference_engine_plugin_api` - interface library with Inference Engine Plugin API headers
+       * `IE::inference_engine_lp_transformations` - shared library with low-precision transformations
+       * `IE::pugixml` - static Pugixml library
+       * `IE::xbyak` - interface library with Xbyak headers
    - Libraries for tests development:
-	   * `IE::gtest`, `IE::gtest_main`, `IE::gmock` - Google Tests framework libraries
-	   * `IE::commonTestUtils` - static library with common tests utilities 
-	   * `IE::funcTestUtils` - static library with functional tests utilities 
-	   * `IE::unitTestUtils` - static library with unit tests utilities 
-	   * `IE::ngraphFunctions` - static library with the set of Ngraph Functions builders
-	   * `IE::funcSharedTests` - static library with common functional tests
+       * `IE::gtest`, `IE::gtest_main`, `IE::gmock` - Google Tests framework libraries
+       * `IE::commonTestUtils` - static library with common tests utilities 
+       * `IE::funcTestUtils` - static library with functional tests utilities 
+       * `IE::unitTestUtils` - static library with unit tests utilities 
+       * `IE::ngraphFunctions` - static library with the set of `ngraph::Function` builders
+       * `IE::funcSharedTests` - static library with common functional tests
 
 > **Note:** it's enough just to run `cmake --build . --target ie_dev_targets` command to build only targets from the
 > Inference Engine Developer package.
@@ -68,24 +69,20 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
-	include(CTest)
-	enable_testing()
+    include(CTest)
+    enable_testing()
 
-	if(ENABLE_FUNCTIONAL_TESTS)
-	    add_subdirectory(tests/functional)
-	endif()
-
-	if(ENABLE_BEH_TESTS)
-	    add_subdirectory(tests/behavior)
-	endif()
+    if(ENABLE_FUNCTIONAL_TESTS)
+        add_subdirectory(tests/functional)
+    endif()
 endif()
 ```
 
-> **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS`, `ENABLE_BEH_TESTS` options are shared via the Inference Engine Developer Package and they are the same as for the main DLDT build tree. You can override them during plugin build using the command below:
+> **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the Inference Engine Developer Package and they are the same as for the main DLDT build tree. You can override them during plugin build using the command below:
 
-	```bash
-	$ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
-	``` 
+    ```bash
+    $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
+    ``` 
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 

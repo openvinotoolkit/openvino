@@ -112,7 +112,7 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::Squeeze::decompose_op() const
+OutputVector op::Squeeze::decompose_op() const
 {
     NODE_VALIDATION_CHECK(
         this,

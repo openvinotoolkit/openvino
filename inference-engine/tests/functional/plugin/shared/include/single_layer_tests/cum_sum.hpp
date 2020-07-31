@@ -20,7 +20,7 @@ typedef std::tuple<
         bool,                        // Reverse
         std::string> cumSumParams;   // Device name
 
-class CumSumLayerTest : public testing::WithParamInterface<cumSumParams>, public LayerTestsUtils::LayerTestsCommon {
+class CumSumLayerTest : public testing::WithParamInterface<cumSumParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<cumSumParams> obj);
 

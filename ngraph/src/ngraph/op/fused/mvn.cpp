@@ -70,7 +70,7 @@ void op::MVN::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-NodeVector op::MVN::decompose_op() const
+OutputVector op::MVN::decompose_op() const
 {
     auto data = input_value(0);
     auto data_shape = data.get_shape(); // assume that data has n and c channels.
@@ -95,7 +95,7 @@ NodeVector op::MVN::decompose_op() const
         variance = variance + eps_node;
         variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
 
-        return as_node_vector({mean_normalization / variance});
+        return OutputVector{mean_normalization / variance};
     }
 }
 

@@ -8,10 +8,7 @@
 #include <algorithm>
 #include <vector>
 
-#include <ie_layouts.h>
-#include <ie_iextension.h>
-#include <ie_blob.h>
-
+#include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
 
 #define CUSTOM_RELU_TYPE "CustomReLU"

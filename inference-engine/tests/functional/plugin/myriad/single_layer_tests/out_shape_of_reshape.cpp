@@ -32,7 +32,7 @@ using OutShapeOfReshapeTestParam = std::tuple<
 namespace LayerTestsDefinitions {
 
 class OutShapeOfReshapeLayerTest : public testing::WithParamInterface<OutShapeOfReshapeTestParam>,
-                                   public LayerTestsUtils::LayerTestsCommon {
+                                   virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OutShapeOfReshapeTestParam>& obj) {
         OutShapeOfReshapeParam shapesParam;

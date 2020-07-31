@@ -9,10 +9,10 @@
  */
 #pragma once
 
-#include <ie_api.h>
+#include "ie_api.h"
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-#include <codecvt>
+# include <codecvt>
 #endif
 
 #include <locale>

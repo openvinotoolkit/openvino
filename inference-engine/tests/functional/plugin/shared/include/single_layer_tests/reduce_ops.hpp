@@ -24,7 +24,7 @@ typedef std::tuple<
 > reduceMeanParams;
 
 class ReduceOpsLayerTest : public testing::WithParamInterface<reduceMeanParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
+                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj);
 
