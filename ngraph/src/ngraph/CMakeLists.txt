@@ -510,6 +510,8 @@ set (SRC
     runtime/aligned_buffer.hpp
     runtime/host_tensor.cpp
     runtime/host_tensor.hpp
+    runtime/ndimindex.cpp
+    runtime/ndimindex.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
     runtime/reference/eval_helpers.cpp
