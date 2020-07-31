@@ -42,4 +42,12 @@ void regclass_pyngraph_op_Parameter(py::module m)
     parameter.def(py::init<const ngraph::element::Type&, const ngraph::Shape&>());
     parameter.def(py::init<const ngraph::element::Type&, const ngraph::PartialShape&>());
     //    parameter.def_property_readonly("description", &ngraph::op::Parameter::description);
+
+    parameter.def("get_partial_shape",
+                  (const ngraph::PartialShape& (ngraph::op::Parameter::*)() const) &
+                      ngraph::op::Parameter::get_partial_shape);
+    parameter.def("get_partial_shape",
+                  (ngraph::PartialShape & (ngraph::op::Parameter::*)()) &
+                      ngraph::op::Parameter::get_partial_shape);
+    parameter.def("set_partial_shape", &ngraph::op::Parameter::set_partial_shape);
 }
