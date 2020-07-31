@@ -37,4 +37,3 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 
 # Copy local configs to BIN_FOLDER
 configure_file(local_configs/test_config.xml ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/stress_tests_configs/unittests/test_config.xml COPYONLY)
-configure_file(local_configs/env_config.xml ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/stress_tests_configs/unittests/env_config.xml COPYONLY)

@@ -1,8 +1,7 @@
-<?xml version="1.0"?>
 <attributes>
     <processes>
         <value>1</value>
-        <!--<value>2</value>-->
+        
     </processes>
     <threads>
         <value>1</value>
@@ -16,8 +15,8 @@
         <value>GPU</value>
     </devices>
     <models>
-        <value>public/alexnet/FP32/alexnet.xml</value>
-        <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>
-        <!--<value>public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml</value>-->
+        <model name="alexnet" source="omz" />
+        <model name="mobilenet-ssd" source="omz" />
+        
     </models>
 </attributes>

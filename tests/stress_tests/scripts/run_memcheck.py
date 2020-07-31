@@ -14,11 +14,13 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from memcheck_upload import create_memcheck_records, \
     upload_memcheck_records, \
     create_memcheck_report, \
-    metadata_from_manifest
+    metadata_from_manifest, \
+    info_from_test_config
 from compare_memcheck_2_runs import compare_memcheck_2_runs, \
     get_memcheck_records, get_db_memcheck_records
 
@@ -164,6 +166,15 @@ def main():
         logging.info('Prepared %d records', len(records))
         if len(records) != len(logs):
             logging.warning('Skipped %d logs of %d', len(logs) - len(records), len(logs))
+
+        # extend memcheck records with info from test config
+        test_conf_parser = argparse.ArgumentParser()
+        test_conf_parser.add_argument('--test_conf')
+        test_conf = test_conf_parser.parse_known_args(binary_args)[0].test_conf
+        if test_conf:
+            info = info_from_test_config(test_conf)
+            for record in records:
+                record.update(info.get(Path(record["model"]), {}))
 
         # upload
         if args.upload:
