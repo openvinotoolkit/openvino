@@ -39,6 +39,22 @@ TEST(type_prop, ctc_loss)
     EXPECT_TRUE(ctc_loss->get_output_partial_shape(0).same_scheme(PartialShape{10}));
 }
 
+TEST(type_prop, ctc_loss_no_blank_index)
+{
+    // create inputs
+    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
+
+    // create CTCLoss node
+    auto ctc_loss = make_shared<op::v4::CTCLoss>(logits, logit_length, labels, label_length);
+
+    // check type and shape infer
+    EXPECT_EQ(ctc_loss->get_element_type(), element::f32);
+    EXPECT_TRUE(ctc_loss->get_output_partial_shape(0).same_scheme(PartialShape{10}));
+}
+
 TEST(type_prop, ctc_loss_output_type)
 {
     // create inputs
