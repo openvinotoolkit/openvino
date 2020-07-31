@@ -37,6 +37,9 @@ namespace ngraph
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = arg0[i] ? arg1[i] : arg2[i];
+
+                    std::cout << "out=" << out[i] << ", cond=" << arg0[i] << ", arg1=" << arg1[i]
+                              << ", arg2=" << arg2[i] << "\n";
                 }
             }
 

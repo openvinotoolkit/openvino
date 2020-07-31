@@ -19,7 +19,7 @@
 
 #include <memory>
 
-#include "ngraph/opsets/opset0.hpp"
+#include "default_opset.hpp"
 #include "round.hpp"
 
 namespace ngraph
@@ -30,10 +30,34 @@ namespace ngraph
         {
             namespace set_1
             {
+                // Current version is:
+                // data_floor = floor(data)
+                // diff = data - data_floor
+                // if(diff < 0.5f)
+                //   return data_floor
+                // else
+                //   return data_floor + 1.0f
+                //
+                // The correct version should contain condition:
+                // if (diff < 0.5f || (diff == 0.5f && static_cast<int>(data_floor) % 2 == 0))
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    return {std::make_shared<ngraph::opset0::Round>(data)};
+
+                    const auto data_floor = std::make_shared<default_opset::Floor>(data);
+                    const auto data_floor_plus_one = std::make_shared<default_opset::Add>(
+                        data_floor, default_opset::Constant::create(element::f32, {}, {1.0f}));
+
+                    const auto diff = std::make_shared<default_opset::Add>(
+                        data, std::make_shared<default_opset::Negative>(data_floor));
+                    const auto half_const =
+                        default_opset::Constant::create(element::f32, {}, {0.5f});
+                    const auto less_than_half =
+                        std::make_shared<default_opset::Less>(diff, half_const);
+
+                    // NOTICE If diff equals 0.5f, the result can not be correct
+                    return {std::make_shared<default_opset::Select>(
+                        less_than_half, data_floor, data_floor_plus_one)};
                 }
             } // namespace set_1
 

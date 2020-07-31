@@ -189,8 +189,8 @@ add_library(onnx_importer SHARED
         op/rnn.hpp
         op/roi_align.cpp
         op/roi_align.hpp
-        # op/round.cpp
-        # op/round.hpp
+        op/round.cpp
+        op/round.hpp
         # op/scatter_nd.cpp
         # op/scatter_nd.hpp
         op/scatter_elements.cpp
