@@ -61,16 +61,14 @@ function(ie_headers_compilation_with_custom_flags)
     if(NOT CLDNN__IOCL_ICD_INCDIRS)
         list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                             "gpu/gpu_context_api_ocl.hpp"
-                                            "gpu/gpu_context_api_va.hpp")
+                                            "gpu/gpu_context_api_dx.hpp")
+    endif()
+    if(WIN32)
+        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp")
     endif()
 
     set(content "\n")
     foreach(header_file IN LISTS header_files)
-        # d3d is not available
-        if(header_file STREQUAL "gpu/gpu_context_api_dx.hpp")
-            continue()
-        endif()
-
         # skip user-passed headers
         set(skip_current_file OFF)
         foreach(skip_file IN LISTS IE_TEST_HEADERS_TO_SKIP)
