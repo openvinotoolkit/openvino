@@ -2,41 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief POSIX compatible loader for a shared object
- * 
- * @file lin_shared_object_loader.h
- */
-#pragma once
-
 #include <dlfcn.h>
 
-#include "ie_api.h"
 #include "details/ie_exception.hpp"
 #include "details/os/os_filesystem.hpp"
+#include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 namespace details {
 
-/**
- * @brief This class provides an OS shared module abstraction
- */
-class SharedObjectLoader {
+class SharedObjectLoader::Impl {
 private:
     void* shared_object = nullptr;
 
 public:
-    /**
-     * @brief A shared pointer to SharedObjectLoader
-     */
-    using Ptr = std::shared_ptr<InferenceEngine::details::SharedObjectLoader>;
-
-    /**
-     * @brief Loads a library with the name specified. The library is loaded according to
-     *        the POSIX rules for dlopen
-     * @param pluginName Full or relative path to the library
-     */
-    explicit SharedObjectLoader(const char* pluginName) {
+    explicit Impl(const char* pluginName) {
         shared_object = dlopen(pluginName, RTLD_LAZY);
 
         if (shared_object == nullptr)
@@ -44,17 +24,11 @@ public:
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Loads a library with the name specified. The library is loaded according to
-     *        the POSIX rules for dlopen
-     * @param pluginName Full or relative path to the library
-     */
-    explicit SharedObjectLoader(const wchar_t* pluginName) : SharedObjectLoader(wStringtoMBCSstringChar(pluginName).c_str()) {
+    explicit Impl(const wchar_t* pluginName) : Impl(wStringtoMBCSstringChar(pluginName).c_str()) {
     }
-
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
-    ~SharedObjectLoader() noexcept(false) {
+    ~Impl() noexcept(false) {
         if (0 != dlclose(shared_object)) {
             THROW_IE_EXCEPTION << "dlclose failed: " << dlerror();
         }
@@ -75,6 +49,23 @@ public:
         return procAddr;
     }
 };
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
+    _impl.reset(new Impl(pluginName));
+}
+#endif
+
+SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
+    _impl.reset(new Impl(pluginName));
+}
+
+SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
+}
+
+void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    return _impl->get_symbol(symbolName);
+}
 
 }  // namespace details
 }  // namespace InferenceEngine

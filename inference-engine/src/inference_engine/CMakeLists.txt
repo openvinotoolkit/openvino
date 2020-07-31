@@ -31,7 +31,6 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
-list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
 
 if (LINUX)
     file (GLOB LIBRARY_SRC
@@ -42,6 +41,10 @@ if (LINUX)
          ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.hpp)
 endif()
 
+if(UNIX)
+    list(APPEND IE_BASE_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/lin_shared_object_loader.cpp)
+endif()
+
 if (WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
@@ -49,7 +52,10 @@ if (WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.hpp)
+    list(APPEND IE_BASE_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/os/win/win_shared_object_loader.cpp)
 endif()
+
+list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
 
 file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
