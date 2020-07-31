@@ -146,28 +146,29 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+static const char* cannot_define_axes = "Cannot define axes of interpolation when there is "
+                                        "only two inputs and input data have dynamic rank";
+
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
 {
-    std::vector<int64_t> result;
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-    if (input_shape.rank().is_dynamic())
-    {
-        throw std::invalid_argument("Cannot get dynamic rank of input node.");
-    }
-    const auto input_rank = input_shape.rank().get_length();
-    std::vector<int64_t> default_value(input_rank);
-    for (int64_t i = 0; i < input_rank; ++i)
-    {
-        default_value[i] = i;
-    }
-    result = default_value;
-
     auto inputs = input_values();
     if (inputs.size() <= 2)
     {
-        return result;
+        PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+        if (input_shape.rank().is_dynamic())
+        {
+            throw std::invalid_argument(cannot_define_axes);
+        }
+        const auto input_rank = input_shape.rank().get_length();
+        std::vector<int64_t> default_value(input_rank);
+        for (int64_t i = 0; i < input_rank; ++i)
+        {
+            default_value[i] = i;
+        }
+        return default_value;
     }
 
+    std::vector<int64_t> result;
     if (auto axes_node = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr()))
     {
         result = axes_node->cast_vector<int64_t>();
