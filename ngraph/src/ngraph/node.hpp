@@ -490,14 +490,18 @@ namespace ngraph
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
 
 #define EXPAND(X) X
+#define _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)                   \
+    static const ::ngraph::Node::type_info_t type_info;
 #define _NGRAPH_RTTI_DECLARATION_WITH_PARENT(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)              \
 public:                                                                                            \
-    static constexpr ::ngraph::Node::type_info_t type_info{                                        \
+    static constexpr ::ngraph::Node::type_info_t type_info_constexpr{                              \
         TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
+    _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS);                      \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
 #define _NGRAPH_RTTI_DECLARATION_NO_PARENT(TYPE_NAME, _VERSION_INDEX)                              \
 public:                                                                                            \
-    static constexpr ::ngraph::Node::type_info_t type_info{TYPE_NAME, _VERSION_INDEX};             \
+    static constexpr ::ngraph::Node::type_info_t type_info_constexpr{TYPE_NAME, _VERSION_INDEX};   \
+    _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS);                      \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
 #define _NGRAPH_RTTI_DECLARATION_SELECTOR(_1, _2, _3, NAME, ...) NAME
 
@@ -562,7 +566,9 @@ public:                                                                         
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define NGRAPH_RTTI_DEFINITION(CLASS) constexpr ::ngraph::Node::type_info_t CLASS::type_info
+#define NGRAPH_RTTI_DEFINITION(CLASS)                                                              \
+    constexpr ::ngraph::Node::type_info_t CLASS::type_info_constexpr;                              \
+    const ::ngraph::Node::type_info_t CLASS::type_info(CLASS::type_info_constexpr)
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
