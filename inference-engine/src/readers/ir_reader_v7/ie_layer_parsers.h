@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "details/caseless.hpp"
 #include "ie_format_parser.h"
 #include "xml_parse_utils.h"
 

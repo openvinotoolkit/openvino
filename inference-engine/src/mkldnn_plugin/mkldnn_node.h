@@ -14,7 +14,6 @@
 #include <ie_common.h>
 #include <ie_profiling.hpp>
 #include <ie_layers_property.hpp>
-#include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
