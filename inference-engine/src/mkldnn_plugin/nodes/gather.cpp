@@ -119,7 +119,9 @@ private:
         size_t len = dataLength * dictionary->getTensorDesc().getPrecision().size();
 
         parallel_for(src_indexSize, [&](size_t i) {
-            unsigned int idx = Conversion()(src_index[i]);
+            int idx = Conversion()(src_index[i]);
+            if (idx < 0)
+                idx += indexRange;
 
             //  Index clipping
             if (idx < indexRange) {

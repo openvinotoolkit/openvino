@@ -2204,6 +2204,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_negative_indices)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/gather_negative_indices.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5});
+    test_case.add_input<int32_t>({2, 5, -9});
+    test_case.add_expected_output<float>(Shape{3}, {1.5, 3, 1});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gatherND_int32)
 {
     const auto function = onnx_import::import_onnx_model(
