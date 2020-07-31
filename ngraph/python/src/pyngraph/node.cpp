@@ -18,11 +18,11 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/variant.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
+#include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/variant.hpp"
 
@@ -89,7 +89,10 @@ void regclass_pyngraph_Node(py::module m)
     node.def("outputs",
              (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
                  ngraph::Node::outputs);
-    node.def("get_rt_info", (ngraph::Node::RTMap&(ngraph::Node::*)()) &ngraph::Node::get_rt_info);
+    node.def("get_rt_info",
+             (ngraph::Node::RTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info);
+    node.def("get_rt_info",
+             (const ngraph::Node::RTMap& (ngraph::Node::*)() const) & ngraph::Node::get_rt_info);
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
