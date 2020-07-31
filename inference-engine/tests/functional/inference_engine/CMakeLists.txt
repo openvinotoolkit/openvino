@@ -100,7 +100,7 @@ function(ie_headers_compilation_with_custom_flags)
 
     # OpenCL headers if any
     if(CLDNN__IOCL_ICD_INCDIRS)
-        target_include_directories(${target_name} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+        target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
     endif()
 
     set_target_properties(${target_name} PROPERTIES
@@ -131,6 +131,9 @@ if(UNIX)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
+                                             HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
+                                                             "gpu/gpu_context_api_ocl.hpp"
+                                                             "gpu/gpu_context_api_dx.hpp"
                                              FLAGS "/we4996 /W4 /WX")
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX Unicode
                                              DEFINITIONS UNICODE _UNICODE)

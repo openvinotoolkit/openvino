@@ -104,7 +104,7 @@ inline int parallel_get_num_threads() {
 inline int parallel_get_thread_num() {
     return 0;
 }
-inline void parallel_set_num_threads(int n) {
+inline void parallel_set_num_threads(int) {
     return;
 }
 #endif
