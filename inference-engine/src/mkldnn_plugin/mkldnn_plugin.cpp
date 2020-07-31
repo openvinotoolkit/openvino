@@ -23,6 +23,7 @@
 #include <ie_ngraph_utils.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -78,15 +79,14 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
             return fc_op->input_value(0).get_shape().size() == 3ul;
         }
 
-        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+        return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-    // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -110,7 +110,15 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);
 
+    // Apply all transformations to TensorIterator body
+    ngraph::pass::Manager ti_manager;
+    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.run_passes(nGraphFunc);
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+
+    // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
+    // so we temporary have to call CNNNetwork ConvertPrecision transformation
     NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions

@@ -60,6 +60,10 @@ namespace ngraph
                     }
                     BodyLambda() = default;
                     virtual bool visit_attributes(AttributeVisitor& visitor);
+                    std::shared_ptr<Function> to_function()
+                    {
+                        return std::make_shared<Function>(get_results(), get_parameters());
+                    }
                 };
 
                 /// \brief Describes a connection between a TensorIterator input and the body.

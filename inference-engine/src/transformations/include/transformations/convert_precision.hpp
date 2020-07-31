@@ -25,6 +25,12 @@ class TRANSFORMATIONS_API ConvertPrecision;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConvertPrecision transformation removes StridedSlice operations
+ * with equal input and output shapes.
+ */
+
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
     ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to)
