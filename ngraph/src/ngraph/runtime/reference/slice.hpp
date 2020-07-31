@@ -16,10 +16,6 @@
 
 #pragma once
 
-#include <cmath>
-
-#include "ngraph/check.hpp"
-
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
