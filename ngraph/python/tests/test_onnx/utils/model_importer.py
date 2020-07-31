@@ -25,8 +25,9 @@ from collections import defaultdict
 from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
+from onnx.backend.test.runner import TestItem
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
-from typing import Any, Dict, List, Optional, Text, Type, Union
+from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
