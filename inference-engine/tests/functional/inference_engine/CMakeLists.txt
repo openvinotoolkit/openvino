@@ -61,10 +61,13 @@ function(ie_headers_compilation_with_custom_flags)
     if(NOT CLDNN__IOCL_ICD_INCDIRS)
         list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                             "gpu/gpu_context_api_ocl.hpp"
+                                            "gpu/gpu_context_api_va.hpp"
                                             "gpu/gpu_context_api_dx.hpp")
     endif()
     if(WIN32)
         list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp")
+    else()
+        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp")
     endif()
 
     set(content "\n")
