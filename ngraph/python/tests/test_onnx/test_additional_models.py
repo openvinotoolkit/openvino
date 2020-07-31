@@ -34,7 +34,7 @@ if len(MODELS_ROOT_DIR) == 0:
 
 zoo_models = []
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
-    mdir, file = os.path.split(path)
+    mdir, file = os.path.split(str(path))
     if not file.startswith("."):
         zoo_models.append({"model_name": path, "model_file": file, "dir": str(mdir)})
 
