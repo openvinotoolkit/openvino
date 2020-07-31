@@ -19,7 +19,7 @@ from configs import Config
 class PrType(Enum):
     """Constants for type of GitHub pull request by author membership"""
     EXTERNAL = 'ExternalPR'
-    INTEL = 'IntelPR'
+    INTEL = 'ExternalIntelPR'
     ORG = 'OpenvinoPR'
     BAD = 'BadPR'
 
@@ -37,8 +37,7 @@ def set_pr_labels(pull, labels):
     if not labels or Config().DRY_RUN:
         return
     print(f'Set PR labels:', labels)
-    # TODO: Review labels and enable. Check setting existing labels
-    #pull.set_labels(labels)
+    pull.set_labels(labels)
 
 
 def get_pr_type_by_labels(pull):
