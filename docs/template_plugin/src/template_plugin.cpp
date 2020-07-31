@@ -53,7 +53,7 @@ Plugin::~Plugin() {
 
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
-    const bool shareConsts = false, constFolding = false;
+    const bool constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
     std::vector<::ngraph::PartialShape> new_shapes;
 

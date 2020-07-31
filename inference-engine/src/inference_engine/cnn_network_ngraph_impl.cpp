@@ -62,7 +62,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
-    // Copy nGraph function and create CNNNetworkNGraphImpl
+    // Create CNNNetworkNGraphImpl
     network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
