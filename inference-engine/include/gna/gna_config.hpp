@@ -11,16 +11,7 @@
 
 #pragma once
 
-#include <string>
 #include "ie_plugin_config.hpp"
-
-#ifdef GNA_LIB_VER
-#if GNA_LIB_VER == 2
-#define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
-#else
-#define DISABLE_TEST_ON_GNA2
-#endif
-#endif
 
 namespace InferenceEngine {
 

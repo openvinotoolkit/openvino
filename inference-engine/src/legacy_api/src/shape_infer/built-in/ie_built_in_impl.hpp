@@ -15,8 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "details/caseless.hpp"
-
 namespace InferenceEngine {
 namespace ShapeInfer {
 

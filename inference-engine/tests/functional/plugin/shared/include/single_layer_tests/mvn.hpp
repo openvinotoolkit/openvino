@@ -22,7 +22,7 @@ typedef std::tuple<
         std::map<std::string, std::string>      // Config
         > mvnParams;
 
-class MvnLayerTest : public testing::WithParamInterface<mvnParams>, public LayerTestsUtils::LayerTestsCommon {
+class MvnLayerTest : public testing::WithParamInterface<mvnParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<mvnParams> obj);
 protected:

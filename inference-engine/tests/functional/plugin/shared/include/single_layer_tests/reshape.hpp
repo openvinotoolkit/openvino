@@ -24,7 +24,7 @@ typedef std::tuple<
 > reshapeParams;
 
 class ReshapeLayerTest : public testing::WithParamInterface<reshapeParams>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<reshapeParams> obj);
 

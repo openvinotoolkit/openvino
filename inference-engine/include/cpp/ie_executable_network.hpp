@@ -18,9 +18,9 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
+#include "ie_iexecutable_network.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
-#include "ie_iexecutable_network.hpp"
 
 namespace InferenceEngine {
 
