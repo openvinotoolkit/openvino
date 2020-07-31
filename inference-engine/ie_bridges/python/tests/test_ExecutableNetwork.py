@@ -42,7 +42,7 @@ def test_infer_net_from_buffer(device):
         bin = f.read()
     with open(test_net_xml, 'rb') as f:
         xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin, init_from_buffer=True)
+    net = ie_core.read_network(model=xml, weights=bin)
     net2 = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     exec_net2 = ie_core.load_network(net2, device)

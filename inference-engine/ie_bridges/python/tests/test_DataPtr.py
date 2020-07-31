@@ -1,4 +1,5 @@
 import pytest
+import warnings
 
 from openvino.inference_engine import IECore, IENetLayer, DataPtr
 from conftest import model_path
@@ -49,6 +50,7 @@ def test_input_to():
     assert len(input_to) == 1
     assert input_to[0].name == '27'
 
+
 def test_input_to_via_input_info():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
@@ -58,14 +60,22 @@ def test_input_to_via_input_info():
     assert len(input_to) == 1
     assert input_to[0].name == '19/Fused_Add_'
 
+
 def test_input_to_via_inputs():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    inputs = net.inputs
-    assert len(inputs) == 1
-    input_to = inputs['data'].input_to
-    assert len(input_to) == 1
-    assert input_to[0].name == '19/Fused_Add_'
+    with warnings.catch_warnings(record=True) as w:
+        inputs = net.inputs
+        assert len(inputs) == 1
+        input_to = inputs['data'].input_to
+        assert len(input_to) == 1
+        assert input_to[0].name == '19/Fused_Add_'
+    assert len(w) == 1
+    assert "'inputs' property of IENetwork class is deprecated. " \
+               "To access DataPtrs user need to use 'input_data' property " \
+               "of InputInfoPtr objects which " \
+               "can be accessed by 'input_info' property." in str(w[-1].message)
+
 
 def test_creator_layer():
     ie = IECore()

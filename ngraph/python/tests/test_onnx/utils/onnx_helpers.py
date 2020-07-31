@@ -36,7 +36,7 @@ def import_onnx_model(model: onnx.ModelProto) -> Function:
     model_byte_string = model.SerializeToString()
 
     ie = IECore()
-    ie_network = ie.read_network(model=model_byte_string, weights=b"", init_from_buffer=True)
+    ie_network = ie.read_network(model=model_byte_string, weights=b"")
 
     ng_function = ng.function_from_cnn(ie_network)
     return ng_function

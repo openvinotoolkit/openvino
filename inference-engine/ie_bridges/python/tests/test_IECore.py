@@ -147,9 +147,15 @@ def test_get_metric_str():
                                    "metric must be string but {} is returned".format(type(param))
 
 
-def test_read_network_from_xml():
+def test_read_network_from_xml_and_bin():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(net, IENetwork)
+
+
+def test_read_network_from_xml():
+    ie = IECore()
+    net = ie.read_network(test_net_xml)
     assert isinstance(net, IENetwork)
 
 
@@ -159,25 +165,35 @@ def test_read_network_as_path():
     assert isinstance(net, IENetwork)
 
 
+def test_read_only_model_as_path():
+    ie = IECore()
+    net = ie.read_network(model=Path(model_path()[0]))
+    assert isinstance(net, IENetwork)
+
+
 def test_read_network_from_onnx():
     ie = IECore()
     net = ie.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
+
 
 def test_read_network_from_onnx_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_prototxt():
     ie = IECore()
     net = ie.read_network(model=test_net_prototxt)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_prototxt_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_prototxt))
     assert isinstance(net, IENetwork)
+
 
 def test_incorrect_xml():
     ie = IECore()
@@ -190,7 +206,7 @@ def test_incorrect_bin():
     ie = IECore()
     with pytest.raises(Exception) as e:
         ie.read_network(model=test_net_xml, weights="./model.bin")
-    assert "Path to the weights ./model.bin doesn't exist or it's a directory" in str(e.value)
+    assert "Weights file ./model.bin cannot be opened!" in str(e.value)
 
 
 def test_read_net_from_buffer():
@@ -199,7 +215,7 @@ def test_read_net_from_buffer():
         bin = f.read()
     with open(model_path()[0], 'rb') as f:
         xml = f.read()
-    net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
+    net = ie.read_network(model=xml, weights=bin)
     assert isinstance(net, IENetwork)
 
 
@@ -209,7 +225,7 @@ def test_net_from_buffer_valid():
         bin = f.read()
     with open(model_path()[0], 'rb') as f:
         xml = f.read()
-    net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
+    net = ie.read_network(model=xml, weights=bin)
     net2 = ie.read_network(model=test_net_xml, weights=test_net_bin)
     for name, layer in net.layers.items():
         for blob, data in layer.blobs.items():

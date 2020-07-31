@@ -245,12 +245,8 @@ cdef class IECore:
         return versions
 
     ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
-    #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
-    #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
-    #                  bytes with file content.
-    #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
-    #                           If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
-    #                           of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
+    #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or a 'bytes' object which contains a model.
+    #  @param weights: A `.bin` file of the IR. Can be a string path or bytes with file content.
     #  @return An `IENetwork` object
     #
     #  Usage example:\n
@@ -258,35 +254,28 @@ cdef class IECore:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
-    cpdef IENetwork read_network(self, model: [str, bytes, Path], weights: [str, bytes, Path] = "", init_from_buffer: bool = False):
-        cdef uint8_t*bin_buffer
-        cdef string weights_
-        cdef string model_
+    cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ""):
         cdef IENetwork net = IENetwork()
-        if init_from_buffer:
+        cdef uint8_t*bin_buffer
+        if isinstance(model, Path):
+            if not model.is_file():
+                raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+            model_ = bytes(model)
+            if isinstance(weights, Path) :
+                weights_ = bytes(weights)
+            else:
+                weights_ = weights.encode()
+        elif isinstance(model, bytes):
             bin_buffer = <uint8_t *> malloc(len(weights))
             memcpy(bin_buffer, <uint8_t *> weights, len(weights))
-            model_ = bytes(model)
-            net.impl = self.impl.readNetwork(model_, bin_buffer, len(weights))
+            net.impl = self.impl.readNetwork(model, bin_buffer, len(weights))
+            return net
         else:
-            weights_ = "".encode()
-            if isinstance(model, Path) and (isinstance(weights, Path) or not weights):
-                if not model.is_file():
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if model.suffix not in [ ".onnx", ".prototxt"]:
-                    if not weights.is_file():
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = bytes(weights)
-                model_ = bytes(model)
-            else:
-                if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
-                    if not os.path.isfile(weights):
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = weights.encode()
-                model_ = model.encode()
-            net.impl =  self.impl.readNetwork(model_, weights_)
+            if not os.path.isfile(model):
+                raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+            model_ = model.encode()
+            weights_ = weights.encode()
+        net.impl =  self.impl.readNetwork(model_, weights_)
         return net
 
     ## Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
