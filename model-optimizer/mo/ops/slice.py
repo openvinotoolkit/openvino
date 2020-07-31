@@ -180,6 +180,15 @@ def get_shape_after_slice(input_shape: int, slice_idx: int):
     return output_shape
 
 
+def normalize_slice_indices(size: int, start: int, end: int):
+    # converts slice indices to format in which size of slice can be calculated
+    start = convert_negative_indices(size, start)
+    end = convert_negative_indices(size, end)
+    start = clip_indices(size, start)
+    end = clip_indices(size, end)
+    return start, end
+
+
 def convert_negative_indices(size: int, val: int):
     """
     Converts negative indices of a tensors: e.g. if val == -1 then convert it to size
@@ -201,13 +210,4 @@ def clip_indices(size: int, val: int):
         return 0
     else:
         return val
-
-
-def normalize_slice_indices(size: int, start: int, end: int):
-    # convert slice_indices to format in which size of slice can calculated
-    start = convert_negative_indices(size, start)
-    end = convert_negative_indices(size, end)
-    start = clip_indices(size, start)
-    end = clip_indices(size, end)
-    return start, end
 
