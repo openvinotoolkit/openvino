@@ -99,7 +99,7 @@ class TestSliceOp(unittest.TestCase):
                 if val is not None:
                     return valued_const_with_data(name, int64_array(val))
                 else:
-                    return shaped_const_with_data(name, [0]) #fake shape
+                    return shaped_const_with_data(name, [0])  #fake shape
 
             starts = convert_args(starts, 'starts')
             ends = convert_args(ends, 'ends')

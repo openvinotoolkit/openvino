@@ -13,18 +13,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.ops.elementwise import Add
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node
 from mo.graph.port import Port
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.squeeze import Squeeze
-import numpy as np
 
 
 def get_canonical_axis_index_node(rank: Node, axis: int) -> Node:
@@ -221,43 +222,3 @@ def get_shape_and_rank_nodes_by_port(port: Port, return_as_a_scalar: bool = True
                                             rank_1_d)
     return shape, rank
 
-
-def convert_negative_indices(size, val):
-    """
-    Converts negative indices of a tensors: e.g. if val == -1 then convert it to size
-    Note: not necessary returns positive value and it's expected behaviour
-    """
-    if val < 0:
-        return val + size + 1
-    else:
-        return val
-
-
-def check_ind_boundaries(size, val):
-    """if slice starts and/or ends exceed indices bounds of a tensor this routine cuts them to size or 0"""
-    if val >= size:
-        return size
-    elif val < 0:
-        return 0
-    else:
-        return val
-
-
-def check_values(size, start, end):
-    start = convert_negative_indices(size, start)
-    end = convert_negative_indices(size, end)
-    start = check_ind_boundaries(size, start)
-    end = check_ind_boundaries(size, end)
-    return start, end
-
-
-def get_shape_after_slice(input_shape, slice_idx):
-    """
-    Calculate shape of a tensor after slicing without actually creating the resulting tensor.
-    Is introduced to save memory.
-    """
-    output_shape = np.zeros(len(input_shape))
-    for i, s in enumerate(slice_idx):
-        start, end = check_values(input_shape[i], s.start, s.stop)
-        output_shape[i] = (end - start) / s.step
-    return output_shape

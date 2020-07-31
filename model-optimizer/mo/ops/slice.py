@@ -19,23 +19,22 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
-from mo.utils.shape import get_shape_after_slice
 
 """
-In each framework (or in different opsets of the same framework) Slice operation either has different semantic or 
-different parameters, or/and they specified differently in one case as attributes in other case as inputs. To 
-distinguish them and not confuse with OpenVINO Slice these operations were added. OpenVINO Slice operation is same as 
-ONNX Slice in opset >= 10. To unify all of them before middle phase these replacements take place on the front phase:
-    AttributedSlice, TFSlice -> Slice 
-    CaffeSlice -> Split 
-    MXSlice -> StridedSlice 
+Slicing operations have different semantic or different parameters/inputs in different frameworks. To distinguish them 
+and not confuse with OpenVINO Slice several Model Optimizer internal operations are introduced. OpenVINO Slice operation 
+behaves as ONNX Slice in opset >= 10. A number of transformations take place on the front phase to convert framework slicing 
+operations to OpenVINO operations from opset:
+ - AttributedSlice, TFSlice -> Slice 
+ - CaffeSlice -> Split 
+ - MXSlice -> StridedSlice 
 """
 
 
 class AttributedSlice(Op):
     """
-    AttributedSlice is used in old versions of ONNX models (opset version < 10). This operation is
-    used only for extracting. On the front phase is replaced with Slice.
+    AttributedSlice is used in old versions of ONNX models (opset version < 10).
+    The operation is replaced with the OpenVINO Slice operation on the front phase.
     """
     op = 'AttributedSlice'
     enabled = False
@@ -57,7 +56,7 @@ class CaffeSlice(Op):
     """
     Slice in Caffe is equivalent to Split operation in OpenVINO.
     https://caffe.berkeleyvision.org/tutorial/layers/slice.html
-    After extracting operations on the front phase CaffeSlices are replaced with OpenVINO Splits operation.
+    The operation is replaced with the OpenVINO Split operation on the front phase.
     """
     op = 'CaffeSlice'
     enabled = False
@@ -80,7 +79,8 @@ class TFSlice(Op):
     Slice operation in Tensorflow is different from Slice in ONNX, Caffe and MXNet. It has begin and size inputs while
     OpenVINO Slice has start, end, step and axis parameters specified as inputs.
     https://www.tensorflow.org/api_docs/python/tf/slice
-    On the front phase it is replaced with Slice operation. If size[i] == -1 is replaced to int32_max value for the end.
+    The operation is replaced with the OpenVINO Slice operation on the front phase.
+    If size[i] == -1 is replaced to int32_max value for the end.
     """
     op = 'TFSlice'
     enabled = False
@@ -99,6 +99,7 @@ class MXSlice(Op):
     """
     Slice operation in MXNet is different from ONNX, Caffe, Tensorflow. It has begin, end & step attributes
     https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
+    The operation is replaced with the OpenVINO StridedSlice operation on the front phase.
     """
     op = 'MXSlice'
     enabled = False
@@ -165,3 +166,48 @@ class Slice(Op):
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
+
+
+def get_shape_after_slice(input_shape: int, slice_idx: int):
+    """
+    Calculate shape of a tensor after slicing without actually creating the resulting tensor.
+    Is introduced to save memory.
+    """
+    output_shape = np.zeros(len(input_shape), dtype=np.int32)
+    for i, s in enumerate(slice_idx):
+        start, end = normalize_slice_indices(input_shape[i], s.start, s.stop)
+        output_shape[i] = (end - start) / s.step
+    return output_shape
+
+
+def convert_negative_indices(size: int, val: int):
+    """
+    Converts negative indices of a tensors: e.g. if val == -1 then convert it to size
+    If val is -1 and we expect it to the start then returned val = size should be clipped by `clip_indices`
+    Note: returned value is not always positive and it's expected behaviour
+    """
+    if val < 0:
+        return val + size + 1
+    else:
+        return val
+
+
+def clip_indices(size: int, val: int):
+    # if slice starts and/or ends exceed indices bounds of a tensor this routine cuts them to size or 0
+    # Note: returned value is not always positive and it's expected behaviour
+    if val >= size:
+        return size
+    elif val < 0:
+        return 0
+    else:
+        return val
+
+
+def normalize_slice_indices(size: int, start: int, end: int):
+    # convert slice_indices to format in which size of slice can calculated
+    start = convert_negative_indices(size, start)
+    end = convert_negative_indices(size, end)
+    start = clip_indices(size, start)
+    end = clip_indices(size, end)
+    return start, end
+

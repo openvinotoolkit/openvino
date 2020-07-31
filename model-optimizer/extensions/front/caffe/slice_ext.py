@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.slice import CaffeSlice
-from mo.front.common.partial_infer.utils import int64_array
 
 
 class SliceFrontExtractor(FrontExtractorOp):
