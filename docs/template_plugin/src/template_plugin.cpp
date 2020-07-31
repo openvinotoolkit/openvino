@@ -62,10 +62,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto clonedNetwork = ngraph::clone_function(*function);
-
-    auto transformedNetwork = clonedNetwork;
-    transformedNetwork->set_friendly_name(function->get_friendly_name());
+    auto transformedNetwork = ngraph::clone_function(*function);
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;

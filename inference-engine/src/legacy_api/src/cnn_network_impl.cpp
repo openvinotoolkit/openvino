@@ -93,7 +93,6 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
     auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
-    graph->set_friendly_name(ngraphImpl.getFunction()->get_friendly_name());
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 

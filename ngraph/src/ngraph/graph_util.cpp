@@ -432,7 +432,9 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     }
 
     // create and return cloned function
-    return std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    result->set_friendly_name(func.get_friendly_name());
+    return result;
 }
 
 bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant)
