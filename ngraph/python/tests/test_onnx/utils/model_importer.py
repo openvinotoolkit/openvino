@@ -38,9 +38,9 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     ) -> None:
         self.backend = backend
         self._parent_module = parent_module
-        self._include_patterns = set()  # type : Set[Pattern[Text]]
-        self._exclude_patterns = set()  # type : Set[Pattern[Text]]
-        self._test_items = defaultdict(dict)  # type : Dict[Text, Dict[Text, TestItem]]
+        self._include_patterns = set()  # type: Set[Pattern[Text]]
+        self._exclude_patterns = set()  # type: Set[Pattern[Text]]
+        self._test_items = defaultdict(dict)  # type: Dict[Text, Dict[Text, TestItem]]
 
         for model in models:
             test_name = "test_{}".format(model["model_name"])
