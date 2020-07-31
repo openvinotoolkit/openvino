@@ -80,7 +80,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv4_int8)(
                 }
 
             __attribute__((opencl_unroll_hint(FILTER_OFM_MAX / 4)))
-                for (int ofm = 0; ofm < FILTER_OFM_MAX; ofm += packed_values) {
+                for (int ofm = 0; ofm < FILTER_OFM_MAX && (ofm + iter * FILTER_OFM_MAX) < FILTER_OFM_NUM; ofm += packed_values) {
 
 #if BIAS_TERM
                     ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(out1[ofm + 0]) + TO_ACTIVATION_TYPE(bias[(iter * FILTER_OFM_MAX) + ofm + 0]);

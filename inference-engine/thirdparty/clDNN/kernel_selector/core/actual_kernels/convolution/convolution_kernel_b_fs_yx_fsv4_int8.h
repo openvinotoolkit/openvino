@@ -31,7 +31,6 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
-        //return WeightsLayout::iyxo;
         return WeightsLayout::os_is_yx_osv16_isv4;
     }
 

@@ -35,7 +35,6 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
@@ -88,7 +87,6 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolut
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
-
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
