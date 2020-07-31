@@ -118,7 +118,7 @@ bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorV
 
 // ------------------------------ v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Divide);
+NGRAPH_RTTI_DEFINITION(op::v1::Divide, "Divide", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Divide::Divide(const Output<Node>& arg0,
                        const Output<Node>& arg1,

@@ -33,7 +33,7 @@ using namespace ngraph;
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolution);
+NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const
 {

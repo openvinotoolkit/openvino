@@ -121,11 +121,11 @@ TEST(GraphRewriteTest, ManagerCallback2)
 class PrivateDivide : public ngraph::opset3::Divide
 {
 public:
-    NGRAPH_RTTI_DECLARATION("PrivateDivide", 0, ngraph::opset3::Divide);
+    NGRAPH_RTTI_DECLARATION;
     using ngraph::opset3::Divide::Divide;
 };
 
-NGRAPH_RTTI_DEFINITION(PrivateDivide);
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
 
 std::shared_ptr<Function> get_derived_function()
 {

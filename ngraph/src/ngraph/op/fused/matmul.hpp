@@ -30,7 +30,7 @@ namespace ngraph
             class NGRAPH_API MatMul : public ngraph::op::util::FusedOp
             {
             public:
-                NGRAPH_RTTI_DECLARATION("MatMul", 0);
+                NGRAPH_RTTI_DECLARATION;
                 MatMul() = default;
                 /// \brief Constructs an Matrix Multiplication operation.
                 ///

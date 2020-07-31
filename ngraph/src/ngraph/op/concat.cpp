@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Concat);
+NGRAPH_RTTI_DEFINITION(op::Concat, "Concat", 0);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis)
     : Op(args)

@@ -58,7 +58,7 @@ namespace ngraph
             class NGRAPH_API Multiply : public util::BinaryElementwiseArithmetic
             {
             public:
-                NGRAPH_RTTI_DECLARATION("Multiply", 1, util::BinaryElementwiseArithmetic);
+                NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs a multiplication operation.
                 Multiply()

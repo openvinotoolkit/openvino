@@ -490,20 +490,6 @@ namespace ngraph
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
 
 #define EXPAND(X) X
-#define _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)                   \
-    static const ::ngraph::Node::type_info_t type_info;
-#define _NGRAPH_RTTI_DECLARATION_WITH_PARENT(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)              \
-public:                                                                                            \
-    static constexpr ::ngraph::Node::type_info_t type_info_constexpr{                              \
-        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info_constexpr};                            \
-    _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS);                      \
-    const ::ngraph::Node::type_info_t& get_type_info() const override;
-#define _NGRAPH_RTTI_DECLARATION_NO_PARENT(TYPE_NAME, _VERSION_INDEX)                              \
-public:                                                                                            \
-    static constexpr ::ngraph::Node::type_info_t type_info_constexpr{TYPE_NAME, _VERSION_INDEX};   \
-    _NGRAPH_RTTI_DECLARATION_COMMON(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS);                      \
-    const ::ngraph::Node::type_info_t& get_type_info() const override;
-#define _NGRAPH_RTTI_DECLARATION_SELECTOR(_1, _2, _3, NAME, ...) NAME
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
@@ -548,10 +534,24 @@ public:                                                                         
 ///
 /// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
-#define NGRAPH_RTTI_DECLARATION(...)                                                               \
-    EXPAND(_NGRAPH_RTTI_DECLARATION_SELECTOR(__VA_ARGS__,                                          \
-                                             _NGRAPH_RTTI_DECLARATION_WITH_PARENT,                 \
-                                             _NGRAPH_RTTI_DECLARATION_NO_PARENT)(__VA_ARGS__))
+#define NGRAPH_RTTI_DECLARATION                                                                    \
+    static const ::ngraph::Node::type_info_t type_info;                                            \
+    const ::ngraph::Node::type_info_t& get_type_info() const override;                             \
+    const ::ngraph::Node::type_info_t& get_type_info_static();
+
+#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                                                      \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { return type_info; }          \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)        \
+    const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
+        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                        \
+    const ::ngraph::Node::type_info_t CLASS::type_info{TYPE_NAME, _VERSION_INDEX};                 \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// NGRAPH_RTTI_DECLARATION.
@@ -566,10 +566,11 @@ public:                                                                         
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define NGRAPH_RTTI_DEFINITION(CLASS)                                                              \
-    constexpr ::ngraph::Node::type_info_t CLASS::type_info_constexpr;                              \
-    const ::ngraph::Node::type_info_t CLASS::type_info(CLASS::type_info_constexpr);                \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { return type_info; }
+#define NGRAPH_RTTI_DEFINITION(...)                                                                \
+    EXPAND(_NGRAPH_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                                           \
+                                            _NGRAPH_RTTI_DEFINITION_WITH_PARENT,                   \
+                                            _NGRAPH_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
+
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
     {

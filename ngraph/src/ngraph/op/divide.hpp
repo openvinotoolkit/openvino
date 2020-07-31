@@ -74,7 +74,7 @@ namespace ngraph
             class NGRAPH_API Divide : public util::BinaryElementwiseArithmetic
             {
             public:
-                NGRAPH_RTTI_DECLARATION("Divide", 1, util::BinaryElementwiseArithmetic);
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a division operation.
                 Divide()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
