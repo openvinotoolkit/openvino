@@ -58,24 +58,16 @@ function(ie_headers_compilation_with_custom_flags)
         set(IE_TEST_CXX_STANDARD ${CMAKE_CXX_STANDARD})
     endif()
 
+    if(NOT CLDNN__IOCL_ICD_INCDIRS)
+        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
+                                            "gpu/gpu_context_api_ocl.hpp"
+                                            "gpu/gpu_context_api_va.hpp")
+    endif()
+
     set(content "\n")
     foreach(header_file IN LISTS header_files)
-        # OpenCL is not available
-        if(header_file STREQUAL "ie_parallel.hpp" OR
-           header_file STREQUAL "gpu/gpu_ocl_wrapper.hpp" OR
-           header_file STREQUAL "gpu/gpu_context_api_ocl.hpp" OR
-           header_file STREQUAL "gpu/gpu_context_api_dx.hpp" OR
-           header_file STREQUAL "gpu/gpu_context_api_va.hpp")
-            continue()
-        endif()
-
-        # Skip Windows header on Unix
-        if(UNIX AND header_file STREQUAL "details/os/win_shared_object_loader.h")
-            continue()
-        endif()
-
-        # Skip Unix heaeder on Windows
-        if(WIN32 AND header_file STREQUAL "details/os/lin_shared_object_loader.h")
+        # d3d is not available
+        if(header_file STREQUAL "gpu/gpu_context_api_dx.hpp")
             continue()
         endif()
 
@@ -104,7 +96,15 @@ function(ie_headers_compilation_with_custom_flags)
     add_library(${target_name} OBJECT ${source_file})
     target_include_directories(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
-    
+
+    # To include TBB headers as system
+    set_ie_threading_interface_for(${target_name})
+
+    # OpenCL headers if any
+    if(CLDNN__IOCL_ICD_INCDIRS)
+        target_include_directories(${target_name} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+    endif()
+
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
                           CXX_STANDARD_REQUIRED OFF)
