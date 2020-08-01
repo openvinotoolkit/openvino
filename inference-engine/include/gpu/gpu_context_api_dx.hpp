@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 
-#include "ie_core.hpp"
 #include "gpu/gpu_context_api_ocl.hpp"
 
 #include <d3d11.h>
