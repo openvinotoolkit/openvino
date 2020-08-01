@@ -150,11 +150,6 @@ endif()
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-if(WIN32)
-    # To disable min/max macro in windows.h
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DNOMINMAX)
-endif()
-
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library file from object library
