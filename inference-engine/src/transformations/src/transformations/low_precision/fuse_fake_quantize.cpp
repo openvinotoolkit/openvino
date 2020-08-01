@@ -84,7 +84,6 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handleDequ
     replace_node(fakeQuantize, newFakeQuantize);
 
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
-    // updateOutput(context, newFakeQuantize, fakeQuantize);
     return newFakeQuantize;
 }
 
@@ -92,10 +91,16 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handleAdd(
     TransformationContext& context,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
     const std::shared_ptr<Node> parent = fakeQuantize->get_input_node_shared_ptr(0);
-    const std::shared_ptr<opset1::Add> addWithConstant = (parent->get_input_size() > 1ul) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(1)) ?
-        as_type_ptr<opset1::Add>(fakeQuantize->get_input_node_shared_ptr(0)) :
-        nullptr;
+    const std::shared_ptr<opset1::Add> addWithConstant =
+        (parent->get_input_size() > 1ul) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(1)) ?
+            as_type_ptr<opset1::Add>(parent) :
+            nullptr;
     if (addWithConstant == nullptr) {
+        return fakeQuantize;
+    }
+
+    if (is_type<opset1::Convolution>(addWithConstant->get_input_node_shared_ptr(0)) ||
+        is_type<opset1::GroupConvolution>(addWithConstant->get_input_node_shared_ptr(0))) {
         return fakeQuantize;
     }
 
