@@ -15,8 +15,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-const static bool convertPowerToScaleShift = true;
-
 void SubtractMultiplyToMultiplyAddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addSingleNodePattern<opset1::Multiply>(pass, context);
     addSingleNodePattern<opset1::Subtract>(pass, context);
@@ -96,6 +94,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         }
     }
 
+    const bool convertPowerToScaleShift = true;
     if ((constShapeVolume == 1ul) && convertPowerToScaleShift) {
         const Shape shape = dequantization.multiply->get_input_node_ptr(0)->get_output_shape(NetworkHelper::getInputIndex(
             dequantization.multiply->get_input_node_shared_ptr(0),
