@@ -24,6 +24,10 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+
+    void set_output_type(size_t i,
+        const element::Type& element_type,
+        const PartialShape& pshape) override;
 };
 
 }  // namespace op

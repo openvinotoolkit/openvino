@@ -40,3 +40,10 @@ void op::ScaleShiftIE::validate_and_infer_types() {
 
     set_output_type(0, data_et, get_input_partial_shape(0));
 }
+
+void op::ScaleShiftIE::set_output_type(size_t i,
+    const element::Type& element_type,
+    const PartialShape& pshape) {
+    element::Type weights_et = get_input_element_type(1);
+    Op::set_output_type(i, weights_et, pshape);
+}
