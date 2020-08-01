@@ -135,6 +135,7 @@ public:
         const FakeQuantizeDequantization& dequantization,
         const bool removeConvert);
 
+    // TODO: rename: fuseConvertIfPossible
     static void removeConvertIfPossible(
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization);

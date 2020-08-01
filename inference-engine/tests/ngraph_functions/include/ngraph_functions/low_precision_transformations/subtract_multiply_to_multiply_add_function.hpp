@@ -25,6 +25,11 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const ngraph::element::Type precisionAfterDequantization);
 
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::Shape& inputShape,
+        const ngraph::element::Type precision,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData);
+
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,

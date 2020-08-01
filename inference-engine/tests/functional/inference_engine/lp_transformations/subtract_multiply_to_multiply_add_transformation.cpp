@@ -24,7 +24,7 @@ using namespace ngraph::builder::subgraph;
 
 namespace {
 
-class SubtrcatMultiplyToMultiplyAddTransformationTestValues {
+class SubtractMultiplyToMultiplyAddTransformationTestValues {
 public:
     class Actual {
     public:
@@ -46,12 +46,12 @@ public:
     Expected expected;
 };
 
-class SubtrcatMultiplyToMultiplyAddTransformation :
+class SubtractMultiplyToMultiplyAddTransformation :
     public LayerTransformation,
-    public testing::WithParamInterface<SubtrcatMultiplyToMultiplyAddTransformationTestValues> {
+    public testing::WithParamInterface<SubtractMultiplyToMultiplyAddTransformationTestValues> {
 public:
     void SetUp() override {
-        SubtrcatMultiplyToMultiplyAddTransformationTestValues testValues = GetParam();
+        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = GetParam();
 
         actualFunction = SubtractMultiplyToMultiplyAddFunction::getOriginal(
             testValues.shape,
@@ -60,7 +60,7 @@ public:
             testValues.actual.precisionAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::SubtrcatMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(
+        transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
@@ -73,8 +73,8 @@ public:
             testValues.expected.add);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<SubtrcatMultiplyToMultiplyAddTransformationTestValues> obj) {
-        SubtrcatMultiplyToMultiplyAddTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationTestValues> obj) {
+        SubtractMultiplyToMultiplyAddTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
         result <<
@@ -88,13 +88,13 @@ public:
     }
 };
 
-TEST_P(SubtrcatMultiplyToMultiplyAddTransformation, CompareFunctions) {
+TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<SubtrcatMultiplyToMultiplyAddTransformationTestValues> testValues = {
+const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
     // U8
     {
         {1, 3, 299, 299},
@@ -116,8 +116,8 @@ const std::vector<SubtrcatMultiplyToMultiplyAddTransformationTestValues> testVal
 
 INSTANTIATE_TEST_CASE_P(
     LPT,
-    SubtrcatMultiplyToMultiplyAddTransformation,
+    SubtractMultiplyToMultiplyAddTransformation,
     ::testing::ValuesIn(testValues),
-    SubtrcatMultiplyToMultiplyAddTransformation::getTestCaseName);
+    SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
 
 } // namespace

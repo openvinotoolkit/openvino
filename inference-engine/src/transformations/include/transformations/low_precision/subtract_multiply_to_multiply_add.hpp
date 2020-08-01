@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <algorithm>
-
+#include <ngraph/ngraph.hpp>
 #include "transformations/low_precision/layer_transformation.hpp"
 #include "transformations/low_precision/eltwise_base_transformation.hpp"
 
@@ -13,10 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API SubtrcatMultiplyToMultiplyAddTransformation : public EltwiseBaseTransformation {
+class TRANSFORMATIONS_API SubtractMultiplyToMultiplyAddTransformation : public LayerTransformation {
 public:
-    SubtrcatMultiplyToMultiplyAddTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
-    ~SubtrcatMultiplyToMultiplyAddTransformation() override {}
+    SubtractMultiplyToMultiplyAddTransformation(const Params& params) : LayerTransformation(params) {}
+    ~SubtractMultiplyToMultiplyAddTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
