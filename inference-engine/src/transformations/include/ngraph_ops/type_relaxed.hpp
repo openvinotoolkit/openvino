@@ -101,7 +101,7 @@ public:
 };
 
 template <typename BaseOp>
-class TRANSFORMATIONS_API TypeRelaxed : public BaseOp, public TypeRelaxedBase {
+class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
