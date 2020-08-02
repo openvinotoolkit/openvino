@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,11 @@ void SubtractTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
 }
 
 void SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
     std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
     const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(subtract);
     if (dequantization.multiply != nullptr) {
-        // TODO: NO TESTS!!!
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
@@ -59,7 +56,6 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     if (dequantization.subtract != nullptr) {
-        // TODO: NO TESTS!!!
         std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.subtract->get_input_node_shared_ptr(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Add>(
@@ -79,10 +75,6 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
             newSubtract->get_input_node_shared_ptr(0),
             newSubtract->get_input_node_shared_ptr(1)));
     }
-
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
-    // TODO: NAMES!
 }
 
 } // namespace low_precision

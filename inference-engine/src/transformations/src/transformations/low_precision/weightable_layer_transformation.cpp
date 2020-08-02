@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             }
         }
     } else {
-        // TODO: move scale values validation to standalone method for FullyConnected & GEMM
         const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr());
         if (multiply == nullptr) {
             return false;
@@ -71,8 +70,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         }
 
         // exactly cast vector as original code has a conversion;
-        // TODO: optimize cast;
-        // FIXME: two branches depending on real type of the constant?
+        // optimize cast:
+        // two branches depending on real type of the constant?
         const auto scalesBuffer = multiplyConst->cast_vector<float>();
         size_t scalesBufferSize = shape_size(multiplyConst->get_output_shape(0));
         for (size_t i = 1lu; i < scalesBufferSize; ++i) {
@@ -120,7 +119,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 }
 
 bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    // TODO: not completed
     return true;
 }
 

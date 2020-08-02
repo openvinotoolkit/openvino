@@ -240,7 +240,6 @@ public:
 
     void setQuantizationIntervalAsymmetryThreshold(const float value);
     void setZeroThreshold(const float value);
-    void setDequantizationShiftToZeroRatioTreshold(const float value);
     void setMinQuantizationLevels(const size_t levels);
 
     const std::vector<element::Type>& getPrecisionsOnActivations() const;
@@ -275,20 +274,6 @@ protected:
         const std::vector<float>& dequantizationScales,
         const std::vector<float>& dequantizationShifts);
 #endif
-    void addDequantizationLayer(
-        TransformationContext& context,
-        const std::shared_ptr<Node> layer,
-        const FakeQuantizeDequantization& dequantization) const;
-
-    void fillFromQuantizationDetails(
-            const QuantizationDetails& quantizationDetails,
-            const DataPrecision& dataPrecision,
-            std::vector<float>& dequantizationScales,
-            std::vector<float>& dequantizationShifts) const;
-
-    void checkAndUpdateDequantizationShiftWithZero(
-            const QuantizationDetails& quantizationDetails,
-            std::vector<float>& dequantizationShifts) const;
 
     bool updatePrecisions;
     QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
@@ -301,8 +286,6 @@ protected:
     float quantizationIntervalAsymmetryThreshold;
     // absolute value, used to determine zero
     float zeroThreshold;
-    // relative value, used to replace quantization shift to zero
-    float dequantizationShiftToZeroRatioTreshold;
     size_t minQuantizationLevels;
 
     static const char originalLayerPostfix[];

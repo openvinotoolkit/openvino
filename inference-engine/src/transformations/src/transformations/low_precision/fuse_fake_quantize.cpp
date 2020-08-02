@@ -1,17 +1,10 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
-
-#include <algorithm>
 #include <memory>
-#include <string>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-#include <cassert>
-
+#include <ngraph/ngraph.hpp>
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
@@ -34,8 +27,8 @@ bool eltwiseWithConstant(const std::shared_ptr<Node> eltwise)  {
     return (eltwise->get_input_size() > 1ul) && is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
 }
 
-std::shared_ptr<Node> updateShape(std::shared_ptr<Node>& op, const Shape& targetShape) {
-    Shape shape = op->get_output_shape(0);
+std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetShape) {
+    const Shape shape = op->get_output_shape(0);
     if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
         op = fold<opset1::Unsqueeze>(
             op,

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,6 @@ LayerTransformation::LayerTransformation(const Params& params) :
     paramsManager(nullptr),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
-    dequantizationShiftToZeroRatioTreshold(4.e-4f),
     minQuantizationLevels(2ul) {}
 
 void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
@@ -108,109 +107,12 @@ void LayerTransformation::printDequantizationValues(
 }
 #endif
 
-void LayerTransformation::addDequantizationLayer(
-    TransformationContext& context,
-    const std::shared_ptr<Node> layer,
-    const FakeQuantizeDequantization& dequantization) const {
-    //
-}
-
-void LayerTransformation::fillFromQuantizationDetails(
-    const QuantizationDetails& quantizationDetails,
-    const DataPrecision& dataPrecision,
-    std::vector<float>& dequantizationScales,
-    std::vector<float>& dequantizationShifts) const {
-    // TODO: refactor: make optional
-    const float minQuantizationScale = 1e-32f;
-    const float maxQuantizationScale = 1e32f;
-
-    bool denormalOutputValuesWasUpdated = false;
-    dequantizationScales.resize(quantizationDetails.outputChannelsCount);
-    dequantizationShifts.resize(quantizationDetails.outputChannelsCount);
-
-    for (size_t channel = 0lu; channel < quantizationDetails.outputChannelsCount; ++channel) {
-        float dequantizationScale = 0.f;
-        float dequantizationShift = 0.f;
-        if (dataPrecision.precision.is_signed()) {
-            // I8
-            dequantizationScale =
-                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
-                (dataPrecision.max - dataPrecision.min);
-            const float quantValue =
-                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
-                (dataPrecision.max - dataPrecision.min);
-
-            const float actualLowPartQuantValue = std::fabs(quantizationDetails.getOutputLowValue(channel) / dataPrecision.min);
-            const float actualHighPartQuantValue = std::fabs(quantizationDetails.getOutputHighValue(channel) / dataPrecision.max);
-
-            if (dataPrecision.hasZeroPoint) {
-                if (actualLowPartQuantValue < actualHighPartQuantValue) {
-                    dequantizationShift = quantizationDetails.getOutputLowValue(channel) - dataPrecision.min * quantValue;
-                } else {
-                    dequantizationShift = quantizationDetails.getOutputHighValue(channel) - dataPrecision.max * quantValue;
-                }
-            }
-        } else {
-            // U8
-            dequantizationScale =
-                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
-                (dataPrecision.max - dataPrecision.min);
-            if (dataPrecision.hasZeroPoint) {
-                dequantizationShift = quantizationDetails.getOutputLowValue(channel);
-            }
-        }
-
-        if (fabs(dequantizationScale) < minQuantizationScale) {
-            dequantizationScales[channel] = minQuantizationScale;
-            denormalOutputValuesWasUpdated = true;
-        } else if (fabs(dequantizationScale) > maxQuantizationScale) {
-            dequantizationScales[channel] = dequantizationScale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
-            denormalOutputValuesWasUpdated = true;
-        } else {
-            dequantizationScales[channel] = dequantizationScale;
-        }
-
-        dequantizationShifts[channel] = dequantizationShift;
-    }
-}
-
-void LayerTransformation::checkAndUpdateDequantizationShiftWithZero(
-    const QuantizationDetails& quantizationDetails,
-    std::vector<float>& dequantizationShifts) const {
-    auto compare = [](float value1, float value2) { return (std::fabs(value1) < std::fabs(value2)); };
-
-    const auto maxShiftIt = std::max_element(dequantizationShifts.begin(), dequantizationShifts.end(), compare);
-    if (maxShiftIt == dequantizationShifts.end()) {
-        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization shifts max value";
-    }
-
-    const auto maxOutputLowIt = std::max_element(quantizationDetails.outputLowValues.begin(), quantizationDetails.outputLowValues.end(), compare);
-    if (maxOutputLowIt == quantizationDetails.outputLowValues.end()) {
-        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization output low value";
-    }
-
-    const auto maxOutputHighIt = std::max_element(quantizationDetails.outputHighValues.begin(), quantizationDetails.outputHighValues.end(), compare);
-    if (maxOutputHighIt == quantizationDetails.outputHighValues.end()) {
-        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization output high value";
-    }
-
-    const float maxOutputIt = std::max(std::fabs(*maxOutputLowIt), std::fabs(*maxOutputHighIt));
-    const float relative = std::fabs(*maxShiftIt) / std::fabs(maxOutputIt);
-    if (relative < dequantizationShiftToZeroRatioTreshold) {
-        std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
-    }
-}
-
 void LayerTransformation::setQuantizationIntervalAsymmetryThreshold(const float value) {
     this->quantizationIntervalAsymmetryThreshold = value;
 }
 
 void LayerTransformation::setZeroThreshold(const float value) {
     this->zeroThreshold = value;
-}
-
-void LayerTransformation::setDequantizationShiftToZeroRatioTreshold(const float value) {
-    this->dequantizationShiftToZeroRatioTreshold = value;
 }
 
 void LayerTransformation::setMinQuantizationLevels(const size_t levels) {

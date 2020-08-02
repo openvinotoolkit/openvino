@@ -85,8 +85,6 @@ void SqueezeTransformation::SetUp() {
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ function });
-
     if (version == LptVersion::cnnNetwork) {
         validate();
     }

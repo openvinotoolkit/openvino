@@ -1,18 +1,15 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/low_precision/concat_multi_channels.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <map>
 #include <memory>
 #include <string>
-#include <utility>
+#include <unordered_map>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 #include "transformations/low_precision/common/fake_quantize_dequantization.hpp"
@@ -29,7 +26,7 @@ bool isMultiChannel(const std::vector<ngraph::opset1::Concat*>& concatLayers) {
         std::shared_ptr<ngraph::Node> concatPtr = concat->shared_from_this();
         const std::vector<std::shared_ptr<ngraph::Node>> children = NetworkHelper::getChildrenRecursivelyExceptTypes(
             concatPtr,
-            { "Pooling", "Resample" });
+            { "MaxPool", "Resample" });
 
         for (const std::shared_ptr<ngraph::Node>& child : children) {
             if (is_type<ngraph::opset1::Convolution>(child.get())) {
@@ -70,7 +67,6 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         return;
     }
 
-    // TODO: use raw pointer instead names
     std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
 
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
