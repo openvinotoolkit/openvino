@@ -20,13 +20,13 @@ public:
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 
 private:
-    std::shared_ptr<opset1::FakeQuantize> handleDequantization(
+    std::shared_ptr<opset1::FakeQuantize> handle(
         TransformationContext& context,
         const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 
-    std::shared_ptr<opset1::FakeQuantize> handleAdd(
-        TransformationContext& context,
-        const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
+    //std::shared_ptr<opset1::FakeQuantize> handleAdd(
+    //    TransformationContext& context,
+    //    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision

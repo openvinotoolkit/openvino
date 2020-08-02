@@ -25,98 +25,80 @@ void FuseFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, Trans
 
 void FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
-    fakeQuantize = handleDequantization(context, fakeQuantize);
-    handleAdd(context, fakeQuantize);
+    do {
+        fakeQuantize = handle(context, fakeQuantize);
+    } while (fakeQuantize != nullptr);
 }
 
-std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handleDequantization(
+bool eltwiseWithConstant(const std::shared_ptr<Node> eltwise)  {
+    return (eltwise->get_input_size() > 1ul) && is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+}
+
+std::shared_ptr<Node> updateShape(std::shared_ptr<Node>& op, const Shape& targetShape) {
+    Shape shape = op->get_output_shape(0);
+    if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
+        op = fold<opset1::Unsqueeze>(
+            op,
+            std::make_shared<opset1::Constant>(ngraph::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
+    }
+    return op;
+}
+
+std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     TransformationContext& context,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(fakeQuantize->shared_from_this());
-    if (dequantization.empty()) {
-        return fakeQuantize;
-    }
+    const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    std::shared_ptr<Node> parent;
     std::shared_ptr<Node> inputLowConst = fakeQuantize->get_input_node_shared_ptr(1);
     std::shared_ptr<Node> inputHightConst = fakeQuantize->get_input_node_shared_ptr(2);
 
-    if (dequantization.multiply != nullptr) {
-        inputLowConst = fold<opset1::Divide>(inputLowConst, dequantization.multiply->get_input_node_shared_ptr(1));
-        inputHightConst = fold<opset1::Divide>(inputHightConst, dequantization.multiply->get_input_node_shared_ptr(1));
+    if (is_type<opset1::Multiply>(eltwise) && eltwiseWithConstant(eltwise)) {
+        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            eltwise->get_input_node_shared_ptr(1) :
+            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
 
-        Shape shape = inputLowConst->get_output_shape(0);
-        if ((shape.size() < fakeQuantize->get_output_shape(0).size()) && (shape.size() > 1ul)) {
-            inputLowConst = fold<opset1::Unsqueeze>(
-                inputLowConst,
-                std::make_shared<opset1::Constant>(
-                    ngraph::element::i32,
-                    Shape{ 1 },
-                    std::vector<size_t>({ 0ul })));
+        inputLowConst = updateShape(fold<opset1::Divide>(inputLowConst, value), fakeQuantize->get_output_shape(0));
+        inputHightConst = updateShape(fold<opset1::Divide>(inputHightConst, value), fakeQuantize->get_output_shape(0));
+    } else if (is_type<opset1::Divide>(eltwise) && eltwiseWithConstant(eltwise)) {
+        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            eltwise->get_input_node_shared_ptr(1) :
+            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
 
-            inputHightConst = fold<opset1::Unsqueeze>(
-                inputHightConst,
-                std::make_shared<opset1::Constant>(
-                    ngraph::element::i32,
-                    Shape{ 1 },
-                    std::vector<size_t>({ 0ul })));
+        inputLowConst = updateShape(fold<opset1::Multiply>(inputLowConst, value), fakeQuantize->get_output_shape(0));
+        inputHightConst = updateShape(fold<opset1::Multiply>(inputHightConst, value), fakeQuantize->get_output_shape(0));
+    } else if (is_type<opset1::Subtract>(eltwise) && eltwiseWithConstant(eltwise)) {
+        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            eltwise->get_input_node_shared_ptr(1) :
+            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
+
+        inputLowConst = updateShape(fold<opset1::Add>(inputLowConst, value), fakeQuantize->get_output_shape(0));
+        inputHightConst = updateShape(fold<opset1::Add>(inputHightConst, value), fakeQuantize->get_output_shape(0));
+    } else if (is_type<opset1::Add>(eltwise) && eltwiseWithConstant(eltwise)) {
+        if (is_type<opset1::Convolution>(eltwise->get_input_node_shared_ptr(0)) ||
+            is_type<opset1::GroupConvolution>(eltwise->get_input_node_shared_ptr(0))) {
+            return nullptr;
         }
-        parent = dequantization.multiply->get_input_node_shared_ptr(0);
-    }
 
-    if (dequantization.subtract != nullptr) {
-        inputLowConst = fold<opset1::Add>(inputLowConst, dequantization.subtract->get_input_node_shared_ptr(1));
-        inputHightConst = fold<opset1::Add>(inputHightConst, dequantization.subtract->get_input_node_shared_ptr(1));
-        parent = dequantization.subtract->get_input_node_shared_ptr(0);
-    }
+        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            eltwise->get_input_node_shared_ptr(1) :
+            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
 
-    if (dequantization.convert != nullptr) {
-        parent = dequantization.convert->get_input_node_shared_ptr(0);
+        inputLowConst = updateShape(fold<opset1::Subtract>(inputLowConst, value), fakeQuantize->get_output_shape(0));
+        inputHightConst = updateShape(fold<opset1::Subtract>(inputHightConst, value), fakeQuantize->get_output_shape(0));
+    } else if (is_type<opset1::Convert>(eltwise)) {
+        //
+    } else {
+        return nullptr;
     }
 
     std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        parent,
+        eltwise->get_input_node_shared_ptr(0),
         inputLowConst,
         inputHightConst,
         fakeQuantize->input_value(3),
         fakeQuantize->input_value(4) }));
 
     replace_node(fakeQuantize, newFakeQuantize);
-
-    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
-    return newFakeQuantize;
-}
-
-std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handleAdd(
-    TransformationContext& context,
-    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
-    const std::shared_ptr<Node> parent = fakeQuantize->get_input_node_shared_ptr(0);
-    const std::shared_ptr<opset1::Add> addWithConstant =
-        (parent->get_input_size() > 1ul) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(1)) ?
-            as_type_ptr<opset1::Add>(parent) :
-            nullptr;
-    if (addWithConstant == nullptr) {
-        return fakeQuantize;
-    }
-
-    if (is_type<opset1::Convolution>(addWithConstant->get_input_node_shared_ptr(0)) ||
-        is_type<opset1::GroupConvolution>(addWithConstant->get_input_node_shared_ptr(0))) {
-        return fakeQuantize;
-    }
-
-    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(addWithConstant->get_input_node_shared_ptr(1));
-    const std::shared_ptr<Node> inputLowConst = fold<opset1::Subtract>(fakeQuantize->get_input_node_shared_ptr(1), constant);
-    const std::shared_ptr<Node> inputHightConst = fold<opset1::Subtract>(fakeQuantize->get_input_node_shared_ptr(2), constant);
-
-    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        addWithConstant->get_input_node_shared_ptr(0),
-        inputLowConst,
-        inputHightConst,
-        fakeQuantize->input_value(3),
-        fakeQuantize->input_value(4) }));
-
-    replace_node(fakeQuantize, newFakeQuantize);
-
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
     return newFakeQuantize;
 }

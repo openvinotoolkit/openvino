@@ -186,7 +186,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        // addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params).
+        addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params).
         // workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
