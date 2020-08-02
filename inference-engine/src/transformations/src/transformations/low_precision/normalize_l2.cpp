@@ -19,6 +19,8 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
+namespace {
+
 template<typename T>
 std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
     std::vector<T> source = originalConst.cast_vector<T>();
@@ -30,6 +32,8 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 
     const ngraph::element::Type type = originalConst.get_output_element_type(0);
     return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
+}
+
 }
 
 bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
