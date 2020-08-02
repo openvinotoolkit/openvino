@@ -95,21 +95,72 @@ TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareFunctions) {
 }
 
 const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
-    // U8
+    // Multiply {} -> Multiply + Subtract {1x3x1x1}
     {
         {1, 3, 299, 299},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
-            {{ngraph::element::f32}, {{128}}, {{0.1f}}},
+            {{ngraph::element::f32}, {}, {0.1f}},
             ngraph::element::f32,
         },
         {
             ngraph::element::f32,
             {},
             ngraph::element::f32,
-            {{{0.1f}}, {ngraph::element::f32}},
-            {{{-12.8f}}, {ngraph::element::f32}}
+            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
+            {{0.f, 0.f, 0.f}, {ngraph::element::f32}}
+        },
+    },
+    // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{ngraph::element::f32}, {128}, {0.1f}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
+            {{-12.8f, -12.8f, -12.8f}, {ngraph::element::f32}}
+        },
+    },
+    // U8 Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
+            {{0.f, 0.f, 0.f}, {ngraph::element::f32}}
+        },
+    },
+    // U8 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
+            {{-12.8f, -12.8f, -12.8f}, {ngraph::element::f32}}
         },
     },
 };

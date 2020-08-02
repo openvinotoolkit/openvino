@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/subtract_multiply_to_multiply_add.hpp"
+#include "low_precision_transformations/subtract_multiply_to_multiply_add_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -17,12 +17,14 @@ namespace LayerTestsDefinitions {
 
 std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams> obj) {
     std::string targetDevice;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = obj.param;
+    std::tie(targetDevice, version, testValues) = obj.param;
 
     std::ostringstream result;
     result <<
         targetDevice << "_" <<
+        version << "_" <<
         testValues.inputShape << "_" <<
         testValues.precision << "_" <<
         testValues.fqOnData;
@@ -30,16 +32,40 @@ std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(testing
 }
 
 void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    std::tie(targetDevice, version, testValues) = this->GetParam();
 
-    ConfigurePlugin(LptVersion::nGraph);
+    ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);
 
+    if (version == LptVersion::cnnNetwork) {
+        validateCNNNetwork();
+    } else {
+        validateNGraph();
+    }
+}
+
+void SubtractMultiplyToMultiplyAddTransformation::validateNGraph() {
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
+    std::tie(targetDevice, version, testValues) = this->GetParam();
+
+    const ngraph::pass::low_precision::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    auto transformed = transformNGraph(params);
+
+    ASSERT_EQ(1ul, transformed->get_output_size());
+    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
+    std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShift", typeName);
+}
+
+void SubtractMultiplyToMultiplyAddTransformation::validateCNNNetwork() {
     IE_SUPPRESS_DEPRECATED_START
 
     const ngraph::pass::low_precision::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();

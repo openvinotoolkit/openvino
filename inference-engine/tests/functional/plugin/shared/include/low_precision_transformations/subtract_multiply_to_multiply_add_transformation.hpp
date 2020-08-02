@@ -21,6 +21,7 @@ public:
 
 typedef std::tuple<
     std::string,
+    LayerTestsUtils::LayerTransformation::LptVersion,
     SubtractMultiplyToMultiplyAddTransformationTestValues> SubtractMultiplyToMultiplyAddTransformationParams;
 
 class SubtractMultiplyToMultiplyAddTransformation :
@@ -31,6 +32,8 @@ public:
 
 protected:
     void SetUp() override;
+    void validateNGraph();
+    void validateCNNNetwork();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -18,6 +18,7 @@ public:
     ~SubtractMultiplyToMultiplyAddTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
 } // namespace low_precision

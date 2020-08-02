@@ -4,53 +4,58 @@
 
 #include <vector>
 
-#include "low_precision_transformations/transpose_transformation.hpp"
+#include "low_precision_transformations/subtract_multiply_to_multiply_add_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
-};
 
-
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-const std::vector<TransposeTransformationTestValues> testValues = {
-    // U8: per-tensor quantization
+const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
+    // U8: Multiply {} => Multiply (ScaleShift)
     {
-        ngraph::Shape({ 1, 1000, 1, 1}),
-        { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {1, 3, 16, 16},
         ngraph::element::f32,
-        {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
     },
-    // U8: per-channel quantization
+    // U8: Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
     {
-        ngraph::Shape({ 1, 3, 1, 1}),
-        { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {1, 3, 16, 16},
         ngraph::element::f32,
         {
-            256,
-            {1, 3, 1, 1},
+            256ul,
+            ngraph::Shape({1, 3, 1, 1}),
             {0.f, 0.f, 0.f},
-            {25.5f, 25.5f, 25.5f},
-            {0.f, 12.5f, 25.5f},
-            {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
-        }
-    }
+            {2.55f, 2.55f / 2.f, 2.55f / 3.f},
+            {0.f, 0.f, 0.f},
+            {2.55f, 2.55f / 2.f, 2.55f / 3.f}
+        },
+    },
+    // U8: Subtract + Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
+    {
+        {1, 3, 16, 16},
+        ngraph::element::f32,
+        {
+            256ul,
+            ngraph::Shape({1, 3, 1, 1}),
+            {2.55f / 2, 2.55f / 4.f, 2.55f / 6.f},
+            {2.55f, 2.55f / 2.f, 2.55f / 3.f},
+            {2.55f / 2, 2.55f / 4.f, 2.55f / 6.f},
+            {2.55f, 2.55f / 2.f, 2.55f / 3.f}
+        },
+    },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, TransposeTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(versions),
+        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
-    TransposeTransformation::getTestCaseName);
+    SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
+
 }  // namespace

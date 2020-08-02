@@ -4,21 +4,26 @@
 
 #include <vector>
 
-#include "low_precision_transformations/subtract_multiply_to_multiply_add.hpp"
+#include "low_precision_transformations/subtract_multiply_to_multiply_add_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
 
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+};
+
 const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
-    // U8: Multiply { 1 } => Multiply (ScaleShift)
+    // U8: Multiply {} => Multiply (ScaleShift)
     {
         {1, 3, 16, 16},
         ngraph::element::f32,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
     },
-    // U8: Multiply { 1 x 3 x 1 x 1 } => Multiply + Add (ScaleShift)
+    // U8: Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
     {
         {1, 3, 16, 16},
         ngraph::element::f32,
@@ -31,7 +36,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {2.55f, 2.55f / 2.f, 2.55f / 3.f}
         },
     },
-    // U8: Subtract + Multiply { 1 x 3 x 1 x 1 } => Multiply + Add (ScaleShift)
+    // U8: Subtract + Multiply { 1x3x1x1 } => Multiply + Add (ScaleShift)
     {
         {1, 3, 16, 16},
         ngraph::element::f32,
@@ -46,9 +51,10 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, SubtractMultiplyToMultiplyAddTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
 
