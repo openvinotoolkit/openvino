@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,16 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
 #include "layer_transformation.hpp"
 #include "iparams_manager.hpp"
 #include "ilayer_transformations_manager.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
 
 class TRANSFORMATIONS_API LowPrecisionTransformations {
 public:

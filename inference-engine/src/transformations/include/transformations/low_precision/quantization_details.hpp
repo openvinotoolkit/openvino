@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
+#include <memory>
+#include <ostream>
 #include <vector>
 
 #include <transformations_visibility.hpp>

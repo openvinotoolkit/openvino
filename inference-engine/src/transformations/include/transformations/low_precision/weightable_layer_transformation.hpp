@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <vector>
-
+#include <ngraph/ngraph.hpp>
 #include "transformation_context.hpp"
 #include "layer_transformation.hpp"
 

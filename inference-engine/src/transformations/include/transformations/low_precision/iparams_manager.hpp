@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <algorithm>
-#include <map>
-#include <memory>
-#include <string>
 #include <vector>
+#include <ngraph/ngraph.hpp>
 #include <transformations_visibility.hpp>
-
 
 namespace ngraph {
 namespace pass {

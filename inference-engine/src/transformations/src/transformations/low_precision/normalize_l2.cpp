@@ -4,7 +4,6 @@
 
 #include "transformations/low_precision/normalize_l2.hpp"
 
-#include <algorithm>
 #include <string>
 #include <memory>
 #include <cmath>

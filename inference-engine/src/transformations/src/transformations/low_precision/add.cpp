@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,8 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <cassert>
 
 #include "ngraph_ops/type_relaxed.hpp"
 
@@ -24,7 +22,6 @@ namespace low_precision {
 void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addSingleNodePattern<opset1::Add>(pass, context);
 }
-
 
 void AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());

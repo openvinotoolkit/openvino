@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,9 +177,9 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
-        // TODO: Make such replacements in advance for all supported polymorphic layer types
+        // Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
-        // FIXME: OperationType should be a real type of an object, otherwise it will lead to undefined behavior
+        // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);

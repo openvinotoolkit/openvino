@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
-#include <algorithm>
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+#include <ngraph/ngraph.hpp>
 
 #include "concat.hpp"
 #include "common/subgraph.hpp"

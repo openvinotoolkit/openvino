@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
+#include <tuple>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 namespace ngraph {

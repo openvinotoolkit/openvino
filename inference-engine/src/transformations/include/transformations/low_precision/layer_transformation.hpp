@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "ilayer_transformations_manager.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
-#include <transformations/low_precision/common/ie_lpt_exception.hpp>
+#include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
 /*****************************************************
@@ -37,7 +37,6 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
 
 class TRANSFORMATIONS_API DataPrecision {
 public:
@@ -144,7 +143,6 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
     os << value.precision << ", min: " << value.min << ", max: " << value.max;
     return os;
 }
-
 
 // Base class for all LP transformations, holds some common data structures
 class TRANSFORMATIONS_API LayerTransformation {

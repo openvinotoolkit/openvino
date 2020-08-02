@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <map>
 #include <memory>
-#include <string>
-#include <vector>
-
 #include <ngraph/node.hpp>
 #include "transformations_visibility.hpp"
 

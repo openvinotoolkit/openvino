@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/check.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "../ilayer_transformations_manager.hpp"

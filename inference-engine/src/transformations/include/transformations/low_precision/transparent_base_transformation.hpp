@@ -1,17 +1,12 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "layer_transformation.hpp"
-
-#include <map>
 #include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include <algorithm>
+#include <ngraph/ngraph.hpp>
+#include "layer_transformation.hpp"
 
 namespace ngraph {
 namespace pass {
