@@ -14,8 +14,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::PowerIE::type_info;
 
-op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift)
-    : Op({data_batch}), scale(scale), power(power), shift(shift) {
+op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift, const element::Type output_type)
+    : Op({data_batch}), scale(scale), power(power), shift(shift), output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -24,7 +24,13 @@ std::shared_ptr<Node> op::PowerIE::copy_with_new_args(const NodeVector& new_args
         throw ngraph_error("Incorrect number of new arguments");
     }
 
-    return make_shared<PowerIE>(new_args.at(0), this->power, this->scale, this->shift);
+    return make_shared<PowerIE>(new_args.at(0), this->power, this->scale, this->shift, this->output_type);
+}
+
+void op::PowerIE::set_output_type(size_t i,
+    const element::Type& element_type,
+    const PartialShape& pshape) {
+    Op::set_output_type(i, output_type == element::undefined ? element_type : output_type, pshape);
 }
 
 void op::PowerIE::validate_and_infer_types() {
