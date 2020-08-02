@@ -34,7 +34,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
     return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
 }
 
-}
+} // namespace
 
 bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
