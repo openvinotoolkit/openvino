@@ -134,11 +134,15 @@ if(UNIX)
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
 else()
+    set(warningsAreErrorsOptions "/we4996 /W4 /WX")
+    if(CMAKE_CXX_COMPILER STREQUAL "Intel")
+        set(warningsAreErrorsOptions "/Qdiag-disable:1879 ${warningsAreErrorsOptions}")
+    endif()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
                                              HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                              "gpu/gpu_context_api_ocl.hpp"
                                                              "gpu/gpu_context_api_dx.hpp"
-                                             FLAGS "/we4996 /W4 /WX")
+                                             FLAGS  ${warningsAreErrorsOptions})
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX Unicode
                                              DEFINITIONS UNICODE _UNICODE)
 endif()
