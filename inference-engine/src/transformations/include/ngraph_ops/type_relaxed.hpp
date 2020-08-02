@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #include <transformations_visibility.hpp>
 
@@ -192,13 +193,18 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return type_info; }
+const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
+
 template <typename BaseOp>
-    const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() { return type_info; }
-    template <typename BaseOp>
-    const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info{
-        // TODO: Incorrect name 'TypeRelaxed', should be different for various BaseOp
-        "TypeRelaxed", 0, &BaseOp::type_info};
+const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
+    static const std::string name = std::string("TypeRelaxed<") + BaseOp::get_type_info_static().name + ">";
+    static const ::ngraph::Node::type_info_t type_info_static{
+        name.c_str(), 0, &BaseOp::get_type_info_static()};
+    return type_info_static;
+}
+
+template <typename BaseOp>
+const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
 
 }  // namespace op
 }  // namespace ngraph
