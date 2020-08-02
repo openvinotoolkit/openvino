@@ -96,7 +96,7 @@
 #  if defined _MSC_VER && defined _MSVC_LANG && _MSVC_LANG < 201703L
 #   define ENABLE_UNICODE_PATH_SUPPORT
 #  endif
-# elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+# elif defined(__GNUC__) || defined(__clang__)
 #  define ENABLE_UNICODE_PATH_SUPPORT
 # endif
 #endif
