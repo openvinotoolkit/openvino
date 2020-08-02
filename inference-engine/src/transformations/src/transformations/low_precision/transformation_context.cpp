@@ -8,7 +8,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-TransformationContext::TransformationContext(std::shared_ptr<Function> network) : network(network) {
+TransformationContext::TransformationContext(std::shared_ptr<Function> function) : function(function) {
 }
 
 }  // namespace low_precision

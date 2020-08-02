@@ -340,9 +340,7 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveMultiplyAfter(
     return result.newOperation;
 }
 
-void LayerTransformation::removeConvertIfPossible(
-    TransformationContext &context,
-    const std::shared_ptr<ngraph::Node>& operation) const {
+void LayerTransformation::removeConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(operation, 0);
     if ((dequantization.subtract != nullptr) &&
         NetworkHelper::checkConstantValuePrecision(
@@ -358,9 +356,9 @@ void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    const size_t outputSize = context.network->get_output_size();
+    const size_t outputSize = context.function->get_output_size();
     for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.network->get_output_op(i);
+        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
         std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
         if (outputNode.get() == lastNode.get()) {
             const std::string originalName = originalNode->get_friendly_name();

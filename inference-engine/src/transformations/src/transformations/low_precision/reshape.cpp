@@ -58,7 +58,7 @@ void reshapeDequantizationConstant(std::shared_ptr<Node>& reshape) {
 void ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> reshape = m.get_match_root();
     if (!canBeTransformed(context, reshape)) {
-        removeConvertIfPossible(context, reshape);
+        removeConvertIfPossible(reshape);
         return;
     }
 

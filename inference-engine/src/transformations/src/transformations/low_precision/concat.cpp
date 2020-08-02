@@ -206,8 +206,8 @@ void ConcatTransformation::addDequantizationLayers(
         const std::string originalLayerName,
         std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const {
     std::unordered_map<std::string, ngraph::Node*> outputs;
-    for (size_t i = 0; i < context.network->get_output_size(); ++i) {
-        ngraph::Node* node = context.network->get_output_op(i).get();
+    for (size_t i = 0; i < context.function->get_output_size(); ++i) {
+        ngraph::Node* node = context.function->get_output_op(i).get();
         if (node->get_input_size() != 1ul) {
             THROW_IE_LPT_EXCEPTION(*node) << "unexpected inputs count for result node";
         }

@@ -15,8 +15,8 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API TransformationContext {
 public:
-    explicit TransformationContext(std::shared_ptr<Function> network);
-    std::shared_ptr<Function> network;
+    explicit TransformationContext(std::shared_ptr<Function> function);
+    std::shared_ptr<Function> function;
     std::unordered_set<std::string> quantizedFakeQuantizeNames;
 };
 
