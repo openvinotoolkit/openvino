@@ -39,9 +39,9 @@ using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::va
  */
 inline const std::string wStringtoMBCSstringChar(const std::wstring& wstr) {
 #ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
     std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);  // NOLINT
     return strTo;
 #else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
