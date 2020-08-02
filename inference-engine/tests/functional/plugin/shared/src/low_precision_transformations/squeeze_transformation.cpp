@@ -15,6 +15,8 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/squeeze_function.hpp"
 
+#include <ngraph/pass/visualize_tree.hpp>
+
 namespace LayerTestsDefinitions {
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -82,6 +84,8 @@ void SqueezeTransformation::SetUp() {
         squeezeParam.squeezeAxes);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ function });
 
     if (version == LptVersion::cnnNetwork) {
         validate();

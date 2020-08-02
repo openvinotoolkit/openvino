@@ -32,7 +32,14 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         }
     }
 
-    const auto operationConst = std::make_shared<ngraph::opset1::Constant>(data->get_output_element_type(0), shape, description.values);
+    // TODO: remove
+    // const auto operationConst = std::make_shared<ngraph::opset1::Constant>(data->get_output_element_type(0), shape, description.values);
+
+    // TODO: uncomment
+    const auto operationConst = std::make_shared<ngraph::opset1::Constant>(
+        description.outPrecision,
+        shape,
+        description.values);
 
     std::shared_ptr<Operation> operation;
     if ((description.outPrecision == element::undefined) || (description.outPrecision == data->get_output_element_type(0))) {
@@ -40,6 +47,13 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
     } else {
         operation = std::make_shared<op::TypeRelaxed<Operation>>(data, operationConst);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
+    }
+
+    // TODO: uncomment
+    if (is_type<ngraph::opset1::Subtract>(operation) || is_type<ngraph::opset1::Add>(operation)) {
+        replace_node(
+            operationConst,
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(operationConst, data->get_output_element_type(0)));
     }
 
     return operation;

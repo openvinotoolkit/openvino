@@ -123,12 +123,12 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine
     return InferenceEngine::CNNNetwork(implNetwork);
 }
 
-std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(InferenceEngine::details::LayerTransformation::Params& params) {
+std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::nGraph);
 
     InferenceEngine::NetPass::ConvertPrecision(*clonedNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
 
-    auto transformer = getLowPrecisionTransformerNGraph(toNGraph(params));
+    auto transformer = getLowPrecisionTransformerNGraph(params);
     transformer.transform(clonedNetwork->getFunction());
 
     return clonedNetwork->getFunction();

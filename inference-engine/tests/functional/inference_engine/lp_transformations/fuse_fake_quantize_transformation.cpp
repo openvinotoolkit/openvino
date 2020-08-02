@@ -144,7 +144,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             element::f32,
-            { 128 },
+            { {128}, element::f32 },
             element::f32,
             { {}, {}, { 0.01f } },
             element::f32,
@@ -210,7 +210,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             element::f32,
-            { 128 },
+            { {128}, element::f32 },
             element::f32,
             { {element::f32}, { -128 }, { 0.01f } },
             element::f32,
