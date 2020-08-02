@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
-
 #include <string>
 #include <vector>
 #include <memory>
