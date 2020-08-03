@@ -261,13 +261,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW
         // When layer layout is in NHWC it means that is was created by PassManager
-        THROW_GNA_LAYER_EXCEPTION(layer) << "in_height != 1 This case require additional Permute and not implemented yet";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "in_height != 1 This case requires additional Permute and it is not implemented yet";
     }
     if (convolution._kernel_x > in_width * in_height) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "kernel_x > in_width * in_height";
-    }
-    if (convolution._kernel_y > in_channels) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "kernel_y > in_channels";
     }
 
     auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
@@ -283,7 +280,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
     std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
     if (out_width * in_height != calculated_out_width) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid output configuration";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid output configuration. " << calculated_out_width << " != " << out_width * in_height;
     }
 
     uint32_t total_conv_kernel_size = convolution._kernel_x * convolution._kernel_y * convolution._out_depth;
@@ -318,15 +315,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
     uint32_t num_filter_rows = (num_filter_coefficients - num_conv_kernel_padding) / num_feature_map_columns;
     uint32_t num_columns_in = num_inputs + num_input_padding;
-    uint32_t num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
-    uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
-
-    // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
-    while (num_columns_out < out_batch * out_channels * out_height * out_width) {
-        num_input_padding += 8;
-        num_columns_in = num_inputs + num_input_padding;
-        num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
-    }
+    uint32_t num_columns_out = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
 
     if (num_input_padding == 0) {
         gnalog() << LAYER_NAME(layer) << "Inputs are aligned \n";
@@ -335,7 +324,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
     // In most cases CNN padded to meet GNA constraints produces extra outputs that must be ignored
     // so here we only check that the unpadded size matches.
-    if (num_columns_out_unpadded != out_batch * out_channels * out_height * out_width) {
+    if (num_columns_out != out_batch * out_channels * out_height * out_width) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "number columns out not equal to output tensor size";
     }
 
@@ -403,7 +392,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    std::vector<uint8_t > transposedWeights;
+    std::vector<uint8_t> transposedWeights;
     bool doTransposeWeights = false;
     if (doTransposeWeights) {
         for (uint32_t k = 0; k < convolution._out_depth; k++) {

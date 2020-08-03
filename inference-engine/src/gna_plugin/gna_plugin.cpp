@@ -382,6 +382,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
+        passes->registerPass<AddConvolutionKernelPadPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
