@@ -512,8 +512,12 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/opt_kernel/reshape.cpp
+    runtime/opt_kernel/reshape.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
+    runtime/reference/reshape.cpp
+    runtime/reference/reshape.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
