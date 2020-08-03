@@ -34,6 +34,28 @@ using namespace ngraph;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
+Node::Node(const Node& node)
+    : m_control_dependents(node.m_control_dependents)
+    , m_control_dependencies(node.m_control_dependencies)
+    // skip m_node_type -- will be generated automatically
+    , m_instance_id(m_next_instance_id.fetch_add(1))
+    , m_friendly_name(node.m_friendly_name)
+    // skip m_unique_name -- will be generated automatically
+    , m_provenance_tags(node.m_provenance_tags)
+    , m_provenance_group(node.m_provenance_group)
+    , m_inputs(node.m_inputs) // will be modified in the body
+    // skip m_outputs -- should be initialized outside
+    , m_op_annotations(node.m_op_annotations)
+    , m_rt_info(node.m_rt_info)
+{
+    // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
+    for (auto& input : m_inputs)
+    {
+        input = descriptor::Input(this, input.get_index(), input.get_output());
+        input.get_output().add_input(&input);
+    }
+}
+
 Node::Node(size_t output_size)
     : Node()
 {

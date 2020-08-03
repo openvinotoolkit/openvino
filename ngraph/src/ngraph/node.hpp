@@ -155,6 +155,9 @@ namespace ngraph
     protected:
         /// \brief Construct an unitialized Node
         Node() {}
+        /// \brief Copying a node
+        Node(const Node&);
+
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
         Node(size_t output_size);
@@ -464,15 +467,6 @@ namespace ngraph
                                  const Output<Node>& graph_value);
 
         virtual bool match_node(pattern::Matcher* matcher, const Output<Node>& graph_value);
-
-        void update_inputs_after_copy_tmp()
-        {
-            for (auto& input : m_inputs)
-            {
-                input = descriptor::Input(this, input.get_index(), input.get_output());
-                input.get_output().add_input(&input);
-            }
-        }
 
     private:
         descriptor::Input& get_input_descriptor(size_t position);

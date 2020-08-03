@@ -142,10 +142,6 @@ public:
 
 private:
     void init() {
-        // reset all output ports as they contain references to original base_op instance
-        // number of output ports will be restored in validate_and_infer_types
-        BaseOp::set_output_size(0);
-        BaseOp::update_inputs_after_copy_tmp();
         validate_and_infer_types();
     }
 };
@@ -177,7 +173,6 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 }
-
 
 
 template <typename BaseOp>
