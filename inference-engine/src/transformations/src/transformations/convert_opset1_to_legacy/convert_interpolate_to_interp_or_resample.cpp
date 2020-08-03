@@ -34,7 +34,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
             return false;
         }
 
-        auto out_spatial_shape = out_shape_node->get_vector<int64_t> ();
+        auto out_spatial_shape = out_shape_node->cast_vector<int64_t> ();
 
         std::size_t num_of_spatial_vars = input_shape.size() - 2;
         auto interpolate_axes = interpolate_attrs.axes;

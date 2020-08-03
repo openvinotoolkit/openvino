@@ -223,7 +223,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     }
 
     try {
-        for (const auto layer : _ngraph_function->get_ops()) {
+        for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
                 auto& results = const_cast<::ngraph::ResultVector&>(_ngraph_function->get_results());
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
@@ -233,13 +233,9 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
                 }
-                if (_data.find(outputName) != _data.end()) {
-                    addOutput(outputName);
-                    if (cnnNetwork)
-                        return cnnNetwork->addOutput(layerName, outputIndex, resp);
-                } else {
+                if (_outputData.count(outputName) == 0) {
                     reshape();
-                    addOutput(outputName);
+                    addOutput(layer->output(outputIndex));
                 }
                 return OK;
             }
@@ -250,13 +246,16 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const string& dataName) {
-    auto it = _data.find(dataName);
-    if (it == _data.end()) {
-        THROW_IE_EXCEPTION << "data [" << dataName << "] doesn't exist";
+void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
+    auto outputNode = output.get_node_shared_ptr();
+    auto dataName = outputNode->get_friendly_name();
+    if (outputNode->get_output_size() != 1) {
+        dataName += "." + std::to_string(output.get_index());
     }
-    auto data = it->second;
-    assert(data->getName() == dataName);
+
+    DataPtr data;
+    createDataForResult(output, dataName, data);
+    _data[dataName] = data;
     _outputData[dataName] = data;
 }
 
@@ -365,25 +364,17 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             }
 #endif
             std::unordered_set<std::string> opName;
-            for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
-                if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->inputs().size() == 1);
-                    const auto& output = layer->input(0).get_source_output();
-                    std::string outName = output.get_node()->get_friendly_name();
-                    if (output.get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(output.get_index());
-                    addOutput(outName);
-                    continue;
-                }
-                if (opName.find(layer->get_friendly_name()) != opName.end())
+            for (const auto & result : specialized_ngraph_function->get_results()) {
+                addOutput(result->input_value(0));
+            }
+
+            for (const auto & parameter : specialized_ngraph_function->get_parameters()) {
+                const auto & outName = parameter->get_friendly_name();
+                if (opName.find(outName) != opName.end()) {
                     THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
-                opName.insert(layer->get_friendly_name());
-                for (const auto& output : layer->outputs()) {
-                    std::string outName = layer->get_friendly_name();
-                    if (layer->outputs().size() != 1)
-                        outName += "." + std::to_string(output.get_index());
-                    createDataForResult(output, outName, _data[outName]);
                 }
+                opName.insert(outName);
+                createDataForResult(parameter, outName, _data[outName]);
             }
         }
     } catch (std::exception& ex) {

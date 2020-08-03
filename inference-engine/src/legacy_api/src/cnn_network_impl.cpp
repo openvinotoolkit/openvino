@@ -29,6 +29,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include "convert_function_to_cnn_network.hpp"
 
 using namespace std;
@@ -95,10 +96,17 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::CommonOptimizations>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.run_passes(graph);
+
+    ::ngraph::pass::Manager ti_manager;
+    ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.run_passes(graph);
+
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 

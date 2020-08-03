@@ -67,7 +67,7 @@ public:
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
-    void addOutput(const std::string& dataName);
+    void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
     void Release() noexcept override {
         delete this;
