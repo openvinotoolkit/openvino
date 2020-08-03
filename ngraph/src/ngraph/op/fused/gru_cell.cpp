@@ -108,11 +108,14 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
     const auto& ht_pshape = get_input_partial_shape(1);
     const auto& w_pshape = get_input_partial_shape(2);
     const auto& r_pshape = get_input_partial_shape(3);
+    const auto& b_pshape = get_input_partial_shape(4);
 
-    NODE_VALIDATION_CHECK(this,
-                          (x_pshape.is_static() || w_pshape.is_static() || r_pshape.is_static() ||
-                           ht_pshape.is_static()),
-                          "GRUCell supports only static input tensors.");
+    set_output_type(0,
+                    get_input_element_type(0),
+                    PartialShape{Dimension::dynamic(), Dimension(get_hidden_size())});
+    if (x_pshape.is_dynamic() || w_pshape.is_dynamic() || r_pshape.is_dynamic() ||
+        ht_pshape.is_dynamic() || b_pshape.is_dynamic())
+        return;
 
     const Shape& x_shape{x_pshape.to_shape()};
 
@@ -151,8 +154,6 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
                           w_shape,
                           ".");
 
-    const auto& b_pshape = get_input_partial_shape(4);
-
     NODE_VALIDATION_CHECK(
         this, b_pshape.is_static(), "GRUCell supports only static input tensors.");
 
@@ -166,6 +167,8 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
         "). Actual shape is:",
         b_shape,
         ".");
+
+    set_output_type(0, get_input_element_type(0), Shape{batch_size, get_hidden_size()});
 }
 
 OutputVector op::v3::GRUCell::decompose_op() const
