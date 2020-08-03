@@ -32,12 +32,12 @@ public:
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
 
-    interpAttributes(ngraph::AxisSet axes,
-        std::string mode,
-        bool align_corners,
-        bool antialias,
-        std::vector<size_t> pads_begin,
-        std::vector<size_t> pads_end
+    interpAttributes(const ngraph::AxisSet& axes,
+        const std::string& mode,
+        const bool& align_corners,
+        const bool& antialias,
+        const std::vector<size_t>& pads_begin,
+        const std::vector<size_t>& pads_end
         ) : axes(axes), mode(mode), align_corners(align_corners),
         antialias(antialias), pads_begin(pads_begin), pads_end(pads_end) {}
 };
