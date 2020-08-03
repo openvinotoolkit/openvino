@@ -29,7 +29,6 @@ target_include_directories(${TARGET_NAME} PRIVATE
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine
     IE::inference_engine_transformations
-    ${INTEL_ITT_LIBS}
     ${NGRAPH_LIBRARIES})
 
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example

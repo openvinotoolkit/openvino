@@ -10,6 +10,7 @@
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
+#include "mkldnn_itt.h"
 #include "bf16transformer.h"
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
@@ -44,6 +45,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
+
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 
