@@ -23,6 +23,7 @@
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
 #include "template_plugin.hpp"
+#include "template_itt.hpp"
 
 using namespace TemplatePlugin;
 using namespace InferenceEngine;
@@ -40,12 +41,12 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
 
     std::string name = _executableNetwork->_function->get_friendly_name() + "_Req" + requestID;
-    _profilingTask = { {
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Preprocess") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Postprocess") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_StartPipline") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_WaitPipline") },
-    } };
+    _profilingTask = {
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Preprocess"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Postprocess"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_StartPipline"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_WaitPipline"),
+    };
 
     _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->_function);
     _parameters = _executableNetwork->_function->get_parameters();
@@ -171,7 +172,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 
 // ! [infer_request:infer_preprocess]
 void TemplateInferRequest::inferPreprocess() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[Preprocess]);
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
     // NOTE: After InferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
@@ -210,7 +211,7 @@ void TemplateInferRequest::inferPreprocess() {
 
 // ! [infer_request:start_pipeline]
 void TemplateInferRequest::startPipeline() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[StartPipeline])
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[StartPipeline])
     auto start = Time::now();
     _executable->call(_outputTensors, _inputTensors);
     _durations[StartPipeline] = Time::now() - start;
@@ -218,7 +219,7 @@ void TemplateInferRequest::startPipeline() {
 // ! [infer_request:start_pipeline]
 
 void TemplateInferRequest::waitPipeline() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[WaitPipeline])
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[WaitPipeline])
     auto start = Time::now();
     // TODO: Wait pipeline using driver API or other synchronizations methods
     // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
@@ -227,7 +228,7 @@ void TemplateInferRequest::waitPipeline() {
 
 // ! [infer_request:infer_postprocess]
 void TemplateInferRequest::inferPostprocess() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[Postprocess]);
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
