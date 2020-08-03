@@ -67,7 +67,13 @@ public:
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::Shape shape = std::get<1>(obj.param);
         const MaxPoolTransformationTestValues testValues = std::get<2>(obj.param);
-        return LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params);
+
+        std::ostringstream result;
+        result <<
+            LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
+            testValues.subtractValues.size() << "_" <<
+            testValues.mutliplyValues.size() << "_";
+        return result.str();
     }
 };
 
@@ -90,7 +96,9 @@ const std::vector<ngraph::Shape> shapes = {
 
 const std::vector<MaxPoolTransformationTestValues> testValues = {
     { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
+    { LayerTransformation::createParamsU8I8(), {}, { 0.02f } },
     { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
+    { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), {}, { 0.02f } },
     { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
 };
 

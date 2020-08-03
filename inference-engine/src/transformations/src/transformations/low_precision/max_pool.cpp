@@ -44,7 +44,7 @@ void MaxPoolTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), true);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
 }
 
 bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

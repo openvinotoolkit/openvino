@@ -73,10 +73,10 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const ExpectedValues& values) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
+    auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<op::TypeRelaxed<ngraph::opset1::MaxPool>>(
+    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::opset1::MaxPool>(
         parent,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -85,27 +85,21 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
         op::RoundingType::FLOOR);
     parent = maxPool;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-    parent = convert;
+    if (parent->get_output_element_type(0) != originalFunctionPrecision) {
+        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
+        parent = convert;
+    }
 
     if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
         parent = subtract;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-
-    if (values.activationPrecision != originalFunctionPrecision) {
-        input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
-            input,
-            std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape))));
-
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(maxPool, values.activationPrecision);
-    }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");

@@ -219,8 +219,8 @@ template <typename T, typename... Args>
 std::shared_ptr<Node> fold(Args&&... args) {
     auto node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
-        OutputVector folded;
-        if (node->constant_fold(folded, {})) {
+        OutputVector folded(node->get_output_size());
+        if (node->constant_fold(folded, node->input_values())) {
             return folded[0].get_node_shared_ptr();
         }
     }
