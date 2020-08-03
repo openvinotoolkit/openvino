@@ -95,15 +95,17 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
         parent1 = multiply1;
     }
 
-    auto input2 = std::make_shared<ngraph::opset1::Parameter>(
-        precision, ngraph::Shape(inputShape));
+    auto input2 = std::make_shared<ngraph::opset1::Parameter>(expectedValues.precision2, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent2 = input2;
 
-    const auto add = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::Add> >(parent1, parent2);
+    auto addOriginal = ngraph::opset1::Add(
+        ngraph::op::TemporaryReplaceOutputType(parent1, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(parent2, element::f32).get());
 
-    // const auto relaxedInput2 = as_type_ptr < ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> > (
-    //    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
-    input2->set_output_type(0, expectedValues.precision2, input2->get_output_partial_shape(0));
+    auto add = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
+        addOriginal,
+        std::vector<element::Type>{ element::f32, element::f32 },
+        std::vector<element::Type>{});
 
     const auto multiply = std::make_shared< ngraph::opset1::Multiply >(
         add,
