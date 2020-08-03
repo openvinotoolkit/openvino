@@ -145,7 +145,7 @@ private:
         // reset all output ports as they contain references to original base_op instance
         // number of output ports will be restored in validate_and_infer_types
         BaseOp::set_output_size(0);
-        BaseOp::update_inputs_after_copy_tmp(); // ugly?
+        BaseOp::update_inputs_after_copy_tmp();
         validate_and_infer_types();
     }
 };
@@ -182,8 +182,6 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
 template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
-    //auto clone = make_shared<TypeRelaxed<BaseOp>>();
-    std::cerr << "TypeRelaxed<BaseOp>::copy_with_new_args from my template\n";
     // copy then modify inputs
     std::shared_ptr<Node> new_node = std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
