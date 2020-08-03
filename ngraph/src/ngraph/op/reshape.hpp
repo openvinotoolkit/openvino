@@ -105,9 +105,6 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 AxisVector m_input_order;
                 Shape m_output_shape;
                 bool m_is_transpose{false};
@@ -124,8 +121,7 @@ namespace ngraph
             class NGRAPH_API Reshape : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Reshape", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Reshape() = default;
                 /// \brief Constructs a dynamic reshape operation. This operation does not perform
                 ///        transpose.
@@ -155,10 +151,6 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
-            private:
                 bool m_special_zero;
             };
         }

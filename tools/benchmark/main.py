@@ -5,7 +5,7 @@ from datetime import datetime
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
-    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BIN_EXTENSION, BLOB_EXTENSION
+    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import set_inputs
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
@@ -299,6 +299,13 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
+        duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
+        logger.info("First inference took {} ms".format(duration_ms))
+        if statistics:
+            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                    [
+                                        ('first inference time (ms)', duration_ms)
+                                    ])
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------

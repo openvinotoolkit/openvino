@@ -48,12 +48,9 @@ namespace ngraph
                 /// stacked.
                 Stack(const NodeVector& args, int64_t axis);
 
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
-
                 virtual void pre_validate_and_infer_types() override;
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

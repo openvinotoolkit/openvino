@@ -23,7 +23,11 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+<<<<<<< HEAD
 #include "ngraph_ops/fully_connected.hpp"
+=======
+#include <ngraph/pass/manager.hpp>
+>>>>>>> slyalin/slyalin/type_relaxed
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "common_test_utils/common_utils.hpp"
@@ -68,7 +72,6 @@ ngraph::pass::low_precision::LowPrecisionTransformations LayerTransformation::ge
 std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Function> function, LayerTransformation::LptVersion lptVersion) {
     auto net1 = InferenceEngine::CNNNetwork(function);
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(net1);
-
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
@@ -92,12 +95,18 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        if (lptVersion == LayerTransformation::LptVersion::cnnNetwork) {
+            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        }
+
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
 
         if (lptVersion == LayerTransformation::LptVersion::cnnNetwork) {
-            ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
             clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
         }
     }
@@ -143,7 +152,9 @@ InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const
 }
 
 InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
-    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+    // convert to old representation
+    InferenceEngine::CNNNetwork ngraphNetwork(function);
+    auto cnnNetworkImp = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNetwork);
 
     InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
 

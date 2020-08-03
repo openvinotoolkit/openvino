@@ -47,13 +47,8 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual bool is_commutative() const override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
         } // namespace v0
 
@@ -63,8 +58,8 @@ namespace ngraph
             class NGRAPH_API Multiply : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Multiply", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a multiplication operation.
                 Multiply()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
@@ -84,13 +79,8 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual bool is_commutative() const override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
         } // namespace v1
 

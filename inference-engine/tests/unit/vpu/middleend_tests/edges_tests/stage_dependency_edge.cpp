@@ -403,4 +403,37 @@ TEST_F(StageDependencyEdgeProcessingTests, RemoveStageDependencyUpdatesNextPrevS
     ASSERT_EQ(it, nextStages.end());
 }
 
+TEST_F(StageDependencyEdgeProcessingTests, RemoveStageDependencyViaDataToShapeEdgeUpdatesNextPrevStages) {
+    //
+    //                    -> [Data] -> (Stage) -> [Output]
+    // [Input] -> (Stage)                            |
+    //                    -> [Data] ------------> (Stage) -> [Output]
+    //
+
+    const DataDesc desc{1};
+
+    _testModel.createInputs({desc});
+    _testModel.createOutputs({desc, desc});
+
+    _testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc),
+                                                     OutputInfo::intermediate(desc)});
+    auto dependentStage = _testModel.addStage({InputInfo::fromPrevStage(0).output(0)}, {OutputInfo::fromNetwork(0)});
+    auto dependencyProducer = _testModel.addStage({InputInfo::fromPrevStage(0).output(1)}, {OutputInfo::fromNetwork(1)});
+
+    auto model = _testModel.getBaseModel();
+
+    ASSERT_NO_THROW(model->addStageDependency(dependentStage, dependencyProducer->output(0)));
+
+    ASSERT_NO_THROW(model->removeStageDependency(dependentStage, dependencyProducer->output(0)));
+
+    const auto prevStages = dependentStage->prevStages();
+    const auto nextStages = dependencyProducer->prevStages();
+
+    auto it = std::find(prevStages.begin(), prevStages.end(), dependencyProducer);
+    ASSERT_EQ(it, prevStages.end());
+
+    it = std::find(nextStages.begin(), nextStages.end(), dependentStage);
+    ASSERT_EQ(it, nextStages.end());
+}
+
 } // namespace vpu

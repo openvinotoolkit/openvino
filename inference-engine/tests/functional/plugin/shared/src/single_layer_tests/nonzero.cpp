@@ -22,7 +22,8 @@ std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLaye
     std::vector<size_t> inputShape;
     InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
-    std::tie(inputShape, inputPrecision, targetDevice) = obj.param;
+    ConfigMap additionalConfig;
+    std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
@@ -35,7 +36,10 @@ void NonZeroLayerTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     auto inputShape     = std::vector<std::size_t>{};
     auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(inputShape, inputPrecision, targetDevice) = GetParam();
+    ConfigMap additionalConfig;
+    std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = GetParam();
+
+    configuration.insert(additionalConfig.cbegin(), additionalConfig.cend());
 
     const auto& precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     const auto& paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));

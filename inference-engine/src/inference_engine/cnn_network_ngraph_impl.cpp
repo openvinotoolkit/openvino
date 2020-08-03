@@ -9,12 +9,12 @@
 #include <math.h>
 
 #include <cassert>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <vector>
 #include <unordered_set>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
@@ -28,7 +28,7 @@
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
@@ -70,14 +70,13 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-// WA: for cnnNetwork ngraph constructor
-CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     if (graph == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
-    // Copy nGraph function
-    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
+    // Create CNNNetworkNGraphImpl
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -100,7 +99,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
-        ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
 
@@ -145,12 +144,33 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     }
 }
 
-CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
-    for (auto& data : _data) {
-        if (!data.second) continue;
-        if (auto nData = std::dynamic_pointer_cast<NGraphData>(data.second)) {
-            nData->reset();
-        }
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
+    if (network.getFunction() == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
+    }
+
+    _ngraph_function = copyFunction(network.getFunction(), false, {});
+    InputsDataMap inputs;
+    OutputsDataMap outputs;
+    network.getInputsInfo(inputs);
+    network.getOutputsInfo(outputs);
+
+    for (const auto& outputInfo : outputs) {
+        const auto& name = outputInfo.second->getName();
+        DataPtr output = std::make_shared<Data>(name, outputInfo.second->getTensorDesc());
+        _outputData[name] = output;
+        _data[name] = output;
+    }
+    for (const auto& inputInfo : inputs) {
+        InputInfo::Ptr info = std::make_shared<InputInfo>();
+        const auto& name = inputInfo.second->getInputData()->getName();
+        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        _data[name] = input;
+        info->setInputData(input);
+        info->getPreProcess() = inputInfo.second->getPreProcess();
+        info->setPrecision(inputInfo.second->getPrecision());
+        info->setLayout(inputInfo.second->getLayout());
+        _inputData[name] = info;
     }
 }
 
@@ -194,17 +214,6 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
     if (cnnNetwork) return cnnNetwork->layerCount();
     return _ngraph_function->get_ops().size();
-}
-
-void CNNNetworkNGraphImpl::addLayer(const CNNLayerPtr& layer) noexcept {
-    try {
-        if (!cnnNetwork) {
-            convertToCNNNetworkImpl();
-        }
-        cnnNetwork->addLayer(layer);
-    } catch (...) {
-        return;
-    }
 }
 
 void CNNNetworkNGraphImpl::validate(int version) {
@@ -318,7 +327,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
-                ::ngraph::pass::ConvertOneHotToOneHotIE().run_on_function(specialized_ngraph_function);
+                ::ngraph::pass::Manager manager;
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
 
@@ -363,11 +374,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->get_inputs().size() == 1);
-                    const auto& input = layer->get_inputs()[0];
-                    std::string outName = input.get_output().get_node()->get_friendly_name();
-                    if (input.get_output().get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(input.get_output().get_index());
+                    IE_ASSERT(layer->inputs().size() == 1);
+                    const auto& output = layer->input(0).get_source_output();
+                    std::string outName = output.get_node()->get_friendly_name();
+                    if (output.get_node()->get_output_size() != 1)
+                        outName += "." + std::to_string(output.get_index());
                     addOutput(outName);
                     continue;
                 }
@@ -391,8 +402,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    auto network = cnnNetwork;
-    if (!network) {
+    if (!cnnNetwork) {
         // TODO: once Serialization::Serialize supports true IR v10
         // remove this conversion and WA for execution graph
         try {
@@ -415,11 +425,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         } catch (...) {
             return DescriptionBuffer(UNEXPECTED, resp);
         }
-
-        network = std::make_shared<details::CNNNetworkImpl>(*this);
     }
-    if (!network) return GENERAL_ERROR;
-    return network->serialize(xmlPath, binPath, resp);
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

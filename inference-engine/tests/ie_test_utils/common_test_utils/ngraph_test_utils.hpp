@@ -10,6 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/dimension.hpp>
+#include <ngraph/pass/pass.hpp>
 
 #include "test_common.hpp"
 
@@ -53,3 +54,26 @@ std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) 
 
     return nodes;
 }
+
+namespace ngraph {
+namespace pass {
+
+class InjectionPass;
+
+} // namespace pass
+} // namespace ngraph
+
+class ngraph::pass::InjectionPass : public ngraph::pass::FunctionPass {
+public:
+    using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
+
+    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+        m_callback(f);
+        return false;
+    }
+
+private:
+    injection_callback m_callback;
+};

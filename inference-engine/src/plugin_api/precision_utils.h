@@ -12,6 +12,9 @@
 #include <ie_api.h>
 
 #include <cstddef>
+#include <type_traits>
+#include <limits>
+#include <algorithm>
 
 /**
  * @brief Inference Engine Plugin API namespace
@@ -49,6 +52,9 @@ namespace InferenceEngine {
  * 
  * @defgroup ie_dev_api_system_conf System configuration utilities
  * @brief API to get information about the system, core processor capabilities
+ * 
+ * @defgroup ie_dev_exec_graph Execution graph utilities
+ * @brief Contains `ExecutionNode` and its properties
  * 
  * @defgroup ie_dev_api_error_debug Error handling and debug helpers
  * @brief Utility methods to works with errors or exceptional situations
@@ -122,6 +128,67 @@ f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, 
  */
 INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ */
+template <class OutT, class InT, typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_signed<InT>::value &&
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
+    if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max() &&
+        std::numeric_limits<OutT>::min() < std::numeric_limits<InT>::min()) {
+        return static_cast<OutT>(value);
+    }
+
+    const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
+                    std::numeric_limits<InT>::max();
+    const InT min = std::numeric_limits<OutT>::min() > std::numeric_limits<InT>::min() ? std::numeric_limits<OutT>::min() :
+                    std::numeric_limits<InT>::min();
+
+    return std::min(std::max(value, min), max);
+}
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ */
+template <class OutT, class InT, typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_unsigned<InT>::value &&
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
+    if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max()) {
+        return static_cast<OutT>(value);
+    }
+
+    const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
+                    std::numeric_limits<InT>::max();
+
+    return std::min(value, max);
+}
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ */
+template <class InT>
+inline InT saturate_cast(const InT& value) {
+    return value;
+}
 
 }  // namespace PrecisionUtils
 

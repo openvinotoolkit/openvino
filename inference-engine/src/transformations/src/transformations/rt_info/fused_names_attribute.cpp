@@ -15,6 +15,11 @@
 
 namespace ngraph {
 
+template <typename T>
+VariantImpl<T>::~VariantImpl() { }
+
+template class ngraph::VariantImpl<FusedNames>;
+
 constexpr VariantTypeInfo VariantWrapper<FusedNames>::type_info;
 
 std::string FusedNames::getNames() const {

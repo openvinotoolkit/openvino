@@ -14,10 +14,8 @@
 #include <string>
 
 #include "cpp_interfaces/interface/ie_plugin.hpp"
-#include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "description_buffer.hpp"
-#include "ie_common.h"
 
 namespace InferenceEngine {
 
@@ -27,7 +25,7 @@ namespace InferenceEngine {
  * @tparam T Minimal CPP implementation of IInferencePluginInternal (e.g. InferencePluginInternal)
  */
 template <class T>
-class PluginBase : public IInferencePluginAPI, public IInferencePlugin {
+class PluginBase : public IInferencePlugin {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;

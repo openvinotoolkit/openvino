@@ -20,6 +20,7 @@
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -30,7 +31,6 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate.hpp"
 #include "ngraph/deprecated.hpp"
@@ -42,7 +42,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/output_vector.hpp"
-#include "ngraph/placement.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
@@ -68,13 +67,6 @@ namespace ngraph
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
 
-    // Intermal, controls whether GetOutputElement nodes are elided
-    // Defaults to being elided. Transformer should set to false if
-    // it has passes that depend on GetOutputElement.
-    NGRAPH_API void set_remove_goe(bool value)
-        NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
-    NGRAPH_API bool get_remove_goe() NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
-
     namespace op
     {
         struct AutoBroadcastSpec;
@@ -91,11 +83,6 @@ namespace ngraph
     }
 
     using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
-
-    namespace autodiff
-    {
-        class Adjoints;
-    }
 
     NGRAPH_API
     std::string node_validation_failure_loc_string(const Node* node);
@@ -134,31 +121,13 @@ namespace ngraph
 /// a runtime error.
 
 #define TYPE_CASE(a)                                                                               \
-    case element::Type_t::a:                                                                       \
-        rc = evaluate<element::Type_t::a>
-
-#define RTTI_DECLARATION                                                                           \
-    static const ::ngraph::Node::type_info_t type_info;                                            \
-    static const ::ngraph::Node::type_info_t& get_type_info_static();                              \
-    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
-#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
-    const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
-        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
-
-#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
-#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                            \
-    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                              \
-    RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
+    case element::Type_t::a: rc = evaluate<element::Type_t::a>
 
     /// Nodes are the backbone of the graph of Value dataflow. Every node has
     /// zero or more nodes as arguments and one value, which is either a tensor
     /// or a (possibly empty) tuple of values.
     class NGRAPH_API Node : public std::enable_shared_from_this<Node>
     {
-        // For access to generate_adjoints.
-        friend class autodiff::Adjoints;
-
         // For access to m_outputs.
         friend class descriptor::Input;
 
@@ -183,17 +152,7 @@ namespace ngraph
 
         using type_info_t = DiscreteTypeInfo;
 
-        static const type_info_t type_info;
-        static const type_info_t& get_type_info_static();
-
     protected:
-        std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_arithmetic(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_logical(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-
         /// \brief Construct an unitialized Node
         Node() {}
         /// \brief Construct an unitialized Node
@@ -204,46 +163,50 @@ namespace ngraph
         /// \param arguments Output i will connect to input i
         /// \param output_size Number of outputs for this node
         Node(const OutputVector& arguments, size_t output_size = 1);
-
-        // For back-compatibility
-        virtual void generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas)
-            NGRAPH_DEPRECATED("use OutputVector version instead")
-        {
-            generate_adjoints(adjoints, as_output_vector(deltas));
-        }
-        virtual void generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas) {}
         /// \brief Moves nodes that would be deleted from inputs to nodes to avoid stack overflows
         /// on deep networks.
         void safe_delete(NodeVector& nodes, bool recurse);
+
+        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output shapes, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to know which nodes must be statically
+        /// evaluated in order to complete shape specialization. (For example, the shape input of
+        /// DynReshape must be evaluated statically in order for the output shape to be
+        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
+        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
+        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
+
+        /// \brief Marks an input as being relevant or irrelevant to the output values of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output values, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to cut short evaluation in cases where
+        /// an input value does not actually have any effect on the output value of the node. (As
+        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
+        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
+        /// function to mark value-irrelevant inputs.
+        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
     public:
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
-        virtual bool is_unary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_comparison() const { return false; }
-        virtual bool is_binary_elementwise_logical() const { return false; }
-        /// \returns true if node supports autobroadcast operations
-        virtual bool supports_auto_broadcast() const { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
-        /// \returns true if the node can decompose
-        virtual bool supports_decompose() const { return false; }
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values);
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
-        bool constant_fold(OutputVector& output_values)
-        {
-            return constant_fold(output_values, input_values());
-        }
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
         /// \return A vector of nodes comprising the sub-graph. The order of output
         ///         tensors must match the match output tensors of the FusedOp
-        virtual NodeVector decompose_op() const { return NodeVector(); }
+        virtual OutputVector decompose_op() const { return OutputVector(); }
         /// Returns the NodeTypeInfo for the node's class.
         /// During transition to type_info, returns a dummy type_info for Node if the class
         /// has not been updated yet.
@@ -255,6 +218,10 @@ namespace ngraph
         void set_arguments(const OutputVector& arguments);
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
+
+        void set_output_type(size_t i,
+                             const element::Type& element_type,
+                             const PartialShape& pshape);
 
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
@@ -282,75 +249,13 @@ namespace ngraph
         /// \returns A const reference to the node's friendly name.
         const std::string& get_friendly_name() const;
 
-        /// Return true if this has the same implementing class as node. This
-        /// will be used by the pattern matcher when comparing a pattern
-        /// graph against the graph.
-        bool is_same_op_type(const std::shared_ptr<Node>& node) const
-        {
-            return get_type_info() == node->get_type_info();
-        }
-
-        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output shapes, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to know which nodes must be statically
-        /// evaluated in order to complete shape specialization. (For example, the shape input of
-        /// DynReshape must be evaluated statically in order for the output shape to be
-        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
-        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
-
-        /// \brief Marks an input as being relevant or irrelevant to the output values of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output values, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to cut short evaluation in cases where
-        /// an input value does not actually have any effect on the output value of the node. (As
-        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
-        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
-        /// function to mark value-irrelevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
-
-    public:
-        // TODO(amprocte): should this be protected?
-        virtual void set_output_type(size_t i,
-                             const element::Type& element_type,
-                             const PartialShape& pshape);
-
-    public:
-        virtual bool is_parameter() const { return false; }
-        virtual bool is_output() const;
-        virtual bool is_constant() const;
-        virtual bool is_null() const { return false; }
-        virtual bool is_op() const { return false; }
-        virtual bool is_pattern() const { return false; }
-        virtual bool is_commutative() const { return false; }
         virtual bool is_dynamic() const;
-        virtual bool has_state() const { return false; }
         size_t get_instance_id() const { return m_instance_id; }
         /// \brief Writes a description of a node to a stream
         /// \param os The stream; should be returned
         /// \param depth How many levels of inputs to describe
         /// \returns The stream os
         virtual std::ostream& write_description(std::ostream& os, uint32_t depth = 0) const;
-
-        std::deque<descriptor::Input>& get_inputs() NGRAPH_DEPRECATED("use inputs() instead")
-        {
-            return m_inputs;
-        }
-        const std::deque<descriptor::Input>& get_inputs() const
-            NGRAPH_DEPRECATED("use inputs() instead")
-        {
-            return m_inputs;
-        }
-        std::deque<descriptor::Output>& get_outputs() NGRAPH_DEPRECATED("use outputs() instead");
-        const std::deque<descriptor::Output>& get_outputs() const
-            NGRAPH_DEPRECATED("use outputs() instead");
 
         /// Get control dependencies registered on the node
         const std::vector<std::shared_ptr<Node>>& get_control_dependencies() const;
@@ -425,26 +330,6 @@ namespace ngraph
         /// Returns the tensor name for output i
         const std::string& get_output_tensor_name(size_t i) const;
 
-        /// Checks that there is exactly one output and returns its tensor.
-        descriptor::Tensor& get_output_tensor() const NGRAPH_DEPRECATED(
-            "use node->get_output_tensor(0) instead; insert a check that the node has only one "
-            "output, or update calling code not to assume only one output");
-
-        /// Returns the tensor of output i
-        // TODO: Investigate whether this really needs to be shared_ptr. If so, we'll need a
-        // replacement in Output.
-        std::shared_ptr<descriptor::Tensor> get_output_tensor_ptr(size_t i) const
-            NGRAPH_DEPRECATED("use &node->output(i).get_tensor() instead");
-
-        /// Checks that there is exactly one output and returns its tensor.
-        std::shared_ptr<descriptor::Tensor> get_output_tensor_ptr() const NGRAPH_DEPRECATED(
-            "use &node->output(i).get_tensor() instead; insert a check that the node has only one "
-            "output, or update calling code not to assume only one output");
-
-        /// Returns the set of inputs using output i
-        const std::vector<descriptor::Input*>& get_output_inputs(size_t i) const
-            NGRAPH_DEPRECATED("use node->output(i).get_target_inputs() instead");
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -468,23 +353,12 @@ namespace ngraph
         std::unordered_set<descriptor::Tensor*> liveness_new_list;
         std::unordered_set<descriptor::Tensor*> liveness_free_list;
 
-        virtual NodeVector get_arguments() const NGRAPH_DEPRECATED("Use input_values().");
-        std::shared_ptr<Node> get_argument(size_t index) const
-            NGRAPH_DEPRECATED("use input_value(i).");
-
         Node* get_input_node_ptr(size_t index) const;
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
         Output<Node> get_input_source_output(size_t i) const;
 
-    protected:
-        // Will be replaced with clone_with_new_inputs
-        virtual std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const
-            NGRAPH_DEPRECATED("use copy_with_new_inputs instead");
-
     public:
-        // TODO: When all copy_with_new_args have been replaced with copy_with_new_inputs, make
-        // this pure and remove copy_with_new_args
-        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const;
+        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
         std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
 
@@ -494,12 +368,6 @@ namespace ngraph
 
         /// True if this and node have one output with same element type and shape
         bool has_same_type(std::shared_ptr<const Node> node) const;
-
-        /// Get device placement
-        Placement get_placement() const;
-
-        /// Set device placement
-        void set_placement(Placement placement);
 
         using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
@@ -606,16 +474,13 @@ namespace ngraph
             }
         }
 
-    protected:
-        descriptor::Output& get_output_descriptor(size_t position);
-
     private:
         descriptor::Input& get_input_descriptor(size_t position);
+        descriptor::Output& get_output_descriptor(size_t position);
 
         std::vector<Node*> m_control_dependents;
         std::vector<std::shared_ptr<Node>> m_control_dependencies;
         std::string m_node_type;
-        // TODO: provide correct copying in copy-ctor
         size_t m_instance_id{m_next_instance_id.fetch_add(1)};
         std::string m_friendly_name;
         std::string m_unique_name;
@@ -624,8 +489,6 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        std::unordered_map<Node*, autodiff::Adjoints> m_adjoint_map;
-        Placement m_placement = Placement::DEFAULT;
         std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
     };
@@ -634,6 +497,99 @@ namespace ngraph
 
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node&);
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
+
+#define EXPAND(X) X
+
+/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
+/// Should be used in the scope of class that requires type identification besides one provided by
+/// C++ RTTI.
+/// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
+/// matching for them. Accepts necessary type identification details like type of the operation,
+/// version and optional parent class.
+///
+/// \param TYPE_NAME a string literal of type const char* that names your class in type
+/// identification namespace;
+///        It is your choice how to name it, but it should be unique among all
+///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
+///        used in conjunction with each other in one transformation flow.
+/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
+///        operations that shares the same TYPE_NAME
+/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
+///        it only in case if there is a need to capture any operation from some group of operations
+///        that all derived from some common base class. Don't use Node as a parent, it is a base
+///        class
+///        for all operations and doesn't provide ability to define some perfect subset of
+///        operations.
+///
+/// Use this macro as a public part of the class definition:
+///
+///     class MyOp : public Node
+///     {
+///         public:
+///             // Don't use Node as a parent for type_info, it doesn't have any value and
+///             prohibited
+///             NGRAPH_RTTI_DECLARATION("MyOp", 1);
+///
+///             ...
+///     };
+///
+///     class MyInheritedOp : public MyOp
+///     {
+///         public:
+///             NGRAPH_RTTI_DECLARATION("MyInheritedOp", 1, MyOp)
+///
+///             ...
+///     };
+///
+/// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
+///
+#define NGRAPH_RTTI_DECLARATION                                                                    \
+    static const ::ngraph::Node::type_info_t type_info;                                            \
+    const ::ngraph::Node::type_info_t& get_type_info() const override;                             \
+    static const ::ngraph::Node::type_info_t& get_type_info_static();
+
+#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                                                      \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const                                \
+    {                                                                                              \
+        return get_type_info_static();                                                             \
+    }                                                                                              \
+    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static();
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)        \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    {                                                                                              \
+        static const ::ngraph::Node::type_info_t type_info_static{                                 \
+            TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};                     \
+        return type_info_static;                                                                   \
+    }                                                                                              \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                        \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    {                                                                                              \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX};      \
+        return type_info_static;                                                                   \
+    }                                                                                              \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
+
+/// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
+/// NGRAPH_RTTI_DECLARATION.
+/// Should be used outside the class definition scope in place where ODR is ensured.
+///
+/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied.
+///
+/// Examples (see corresponding declarations in NGRAPH_RTTI_DECLARATION description):
+///
+///     NGRAPH_RTTI_DEFINITION(MyOp)
+///     NGRAPH_RTTI_DEFINITION(MyInheritedOp)
+///
+/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
+///
+#define NGRAPH_RTTI_DEFINITION(...)                                                                \
+    EXPAND(_NGRAPH_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                                           \
+                                            _NGRAPH_RTTI_DEFINITION_WITH_PARENT,                   \
+                                            _NGRAPH_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
@@ -723,11 +679,11 @@ namespace ngraph
     void check_new_args_count(const Node* node, T new_args)
     {
         NODE_VALIDATION_CHECK(node,
-                              new_args.size() == node->get_arguments().size(),
-                              "copy_with_new_args() expected ",
-                              node->get_arguments().size(),
+                              new_args.size() == node->input_values().size(),
+                              "clone_with_new_inputs() expected ",
+                              node->input_values().size(),
                               " argument",
-                              (node->get_arguments().size() == 1 ? "" : "s"),
+                              (node->input_values().size() == 1 ? "" : "s"),
                               " but got ",
                               new_args.size());
     }

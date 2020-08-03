@@ -105,6 +105,9 @@ namespace
         case InferenceEngine::Precision::U16:
             return compare_blobs<uint16_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::U32:
+            return compare_blobs<uint32_t>(computed, expected, tolerance_bits);
+            break;
         case InferenceEngine::Precision::U64:
             return compare_blobs<uint64_t>(computed, expected, tolerance_bits);
             break;
@@ -200,6 +203,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset2.begin(), opset2.end());
     const auto& opset3 = get_opset3().get_type_info_set();
     ie_ops.insert(opset3.begin(), opset3.end());
+    const auto& opset4 = get_opset4().get_type_info_set();
+    ie_ops.insert(opset4.begin(), opset4.end());
     return ie_ops;
 }
 

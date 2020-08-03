@@ -11,5 +11,7 @@
 namespace ngraph {
 namespace op {
 
+TypeRelaxedBase::~TypeRelaxedBase() {}
+
 }  // namespace op
 }  // namespace ngraph

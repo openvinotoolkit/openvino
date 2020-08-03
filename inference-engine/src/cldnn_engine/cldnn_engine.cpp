@@ -25,6 +25,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -35,6 +36,8 @@
 #include <transformations/low_precision/mat_mul.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 
 #undef min
 #undef max
@@ -77,11 +80,16 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
-            // that DepthToSpace impl will handle fused case
+            // that the following primitives will be handled correctly
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
                 return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+            }
+
+            // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+            if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
+                return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
@@ -94,9 +102,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
 
         using namespace ngraph::pass::low_precision;
         if (config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph)) {
@@ -111,7 +122,11 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
             transformer.transform(nGraphFunc);
         }
 
-        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+        manager = ngraph::pass::Manager();
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
+
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
@@ -283,6 +298,10 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
 
     // Verify device id
     GetDeviceInfo(config);
+
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+    }
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (auto layer : sortedLayers) {

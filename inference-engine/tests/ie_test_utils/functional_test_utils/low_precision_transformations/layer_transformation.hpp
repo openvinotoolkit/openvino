@@ -34,7 +34,7 @@ public:
 
 IE_SUPPRESS_DEPRECATED_START
 
-class LayerTransformation : public LayerTestsUtils::LayerTestsCommon {
+class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     enum LptVersion {
         cnnNetwork,

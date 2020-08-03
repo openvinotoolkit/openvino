@@ -5,29 +5,17 @@
 
 #pragma once
 
-#include <utility>
-#include <tuple>
-#include <memory>
-#include <string>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <list>
-
-#include <ie_common.h>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cnn_network_impl.hpp>
-#include <threading/ie_itask_executor.hpp>
-
 #include <ngraph/function.hpp>
 
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_async_infer_request.hpp"
 
+#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
+
 namespace TemplatePlugin {
 
-class Engine;
+class Plugin;
 
 /**
  * @class ExecutableNetwork
@@ -36,11 +24,13 @@ class Engine;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(InferenceEngine::ICNNNetwork&  network,
-                      const Configuration&           cfg);
+    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const Configuration&                           cfg,
+                      const std::shared_ptr<Plugin>&                 plugin);
 
-    ExecutableNetwork(std::istream &                 model,
-                      const Configuration&           cfg);
+    ExecutableNetwork(std::istream&                  model,
+                      const Configuration&           cfg,
+                      const std::shared_ptr<Plugin>& plugin);
 
     ~ExecutableNetwork() override = default;
 
@@ -53,15 +43,18 @@ public:
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
     void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
 
-    std::atomic<std::size_t>                    _requestId = {0};
-    std::string                                 _name;
-    Configuration                               _cfg;
-
 private:
-    void CompileGraph(const std::shared_ptr<const ngraph::Function> & ngraphFunction);
+    friend class TemplateInferRequest;
 
-    std::shared_ptr<Engine>                     _plugin;
-    InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function);
+    void InitExecutor();
+
+    std::atomic<std::size_t>                    _requestId = {0};
+    Configuration                               _cfg;
+    std::shared_ptr<Plugin>                     _plugin;
+    std::shared_ptr<ngraph::Function>           _function;
+    std::map<std::string, std::size_t>          _inputIndex;
+    std::map<std::string, std::size_t>          _outputIndex;
 };
 // ! [executable_network:header]
 

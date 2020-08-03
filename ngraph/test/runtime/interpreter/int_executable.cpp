@@ -20,19 +20,16 @@
 #include "ngraph/cpio.hpp"
 #include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/assign_layout.hpp"
-#include "ngraph/pass/core_fusion.hpp"
-#include "ngraph/pass/fused_op_decomposition.hpp"
-#include "ngraph/pass/like_replacement.hpp"
-#include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
-#include "op/and.hpp"
-#include "op/atan2.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
+#include "pass/fused_op_decomposition.hpp"
+#include "pass/like_replacement.hpp"
+#include "pass/liveness.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -80,6 +77,7 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
         case OP_TYPEID::Clamp:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Squeeze:
+        case OP_TYPEID::PRelu:
         case OP_TYPEID::Unsqueeze: retval = true; break;
         default: break;
         }
@@ -165,7 +163,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (auto op : m_nodes)
     {
         event::Duration d2(op->description(), "Interpreter");
-        if (op->is_parameter())
+        if (op::is_parameter(op))
         {
             continue;
         }

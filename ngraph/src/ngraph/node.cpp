@@ -19,7 +19,6 @@
 #include <typeindex>
 #include <typeinfo>
 
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"
@@ -29,16 +28,9 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/placement.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-const Node::type_info_t Node::type_info{"Node", 0, nullptr};
-const Node::type_info_t& Node::get_type_info_static()
-{
-    return Node::type_info;
-}
 
 atomic<size_t> Node::m_next_instance_id(0);
 
@@ -132,31 +124,6 @@ std::shared_ptr<Node>
     return clone;
 }
 
-std::shared_ptr<Node> Node::copy_with_new_args(const NodeVector& args) const
-{
-    NODE_VALIDATION_CHECK(
-        this, false, "Internal error: copy_with_new_args not replaced by clone_with_new_inputs");
-}
-
-std::shared_ptr<Node> Node::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    NodeVector args;
-    for (const Output<Node>& input : inputs)
-    {
-        args.push_back(get_output_element(input));
-    }
-    std::shared_ptr<Node> clone = copy_with_new_args(args);
-    // Remove the inserted GOEs
-    for (size_t i = 0; i < inputs.size(); ++i)
-    {
-        if (clone->input_value(i) != inputs.at(i))
-        {
-            clone->set_argument(i, inputs.at(i));
-        }
-    }
-    return clone;
-}
-
 void Node::safe_delete(NodeVector& nodes, bool recurse)
 {
     for (auto& input : m_inputs)
@@ -205,7 +172,7 @@ void Node::set_arguments(const OutputVector& arguments)
     for (auto& output : arguments)
     {
         auto output_node = output.get_node();
-        auto& output_descriptor = output_node->get_outputs().at(output.get_index());
+        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
         m_inputs.emplace_back(this, i++, output_descriptor);
     }
 }
@@ -260,7 +227,6 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    // NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
     if (n < m_outputs.size())
     {
         m_outputs.resize(n);
@@ -302,26 +268,6 @@ void Node::set_output_type(size_t i, const element::Type& element_type, const Pa
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
-std::deque<descriptor::Output>& Node::get_outputs()
-{
-    return m_outputs;
-}
-
-const std::deque<descriptor::Output>& Node::get_outputs() const
-{
-    return m_outputs;
-}
-
-bool Node::is_output() const
-{
-    return false;
-}
-
-bool Node::is_constant() const
-{
-    return false;
-}
-
 std::string Node::description() const
 {
     return get_type_name();
@@ -348,16 +294,6 @@ const std::string& Node::get_name() const
 void Node::set_friendly_name(const string& name)
 {
     m_friendly_name = name;
-}
-
-Placement Node::get_placement() const
-{
-    return m_placement;
-}
-
-void Node::set_placement(Placement placement)
-{
-    m_placement = placement;
 }
 
 void Node::add_provenance_group_member(const shared_ptr<Node>& node)
@@ -504,13 +440,6 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement)
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
 }
 
-std::shared_ptr<Node> Node::get_argument(size_t index) const
-{
-    NGRAPH_CHECK(
-        index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
-    return input_value(index).as_single_output_node();
-}
-
 Node* Node::get_input_node_ptr(size_t index) const
 {
     NGRAPH_CHECK(
@@ -528,18 +457,6 @@ std::shared_ptr<Node> Node::get_input_node_shared_ptr(size_t index) const
 Output<Node> Node::get_input_source_output(size_t i) const
 {
     return input(i).get_source_output();
-}
-
-NodeVector Node::get_arguments() const
-{
-    NodeVector result;
-    for (size_t i = 0; i < get_input_size(); ++i)
-    {
-        {
-            result.push_back(get_argument(i));
-        }
-    }
-    return result;
 }
 
 const std::vector<std::shared_ptr<Node>>& Node::get_control_dependencies() const
@@ -714,30 +631,6 @@ const Shape& Node::get_shape() const
     return get_output_shape(0);
 }
 
-shared_ptr<descriptor::Tensor> Node::get_output_tensor_ptr(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_ptr(size_t i)");
-    return m_outputs[i].get_tensor_ptr();
-}
-
-shared_ptr<descriptor::Tensor> Node::get_output_tensor_ptr() const
-{
-    if (get_output_size() != 1)
-    {
-        throw ngraph_error(
-            "get_output_tensor_ptr() must be called on a node with exactly one output.");
-    }
-    return m_outputs[0].get_tensor_ptr();
-}
-
-const std::vector<descriptor::Input*>& Node::get_output_inputs(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_inputs(size_t i)");
-    return m_outputs[i].get_inputs();
-}
-
 std::set<Input<Node>> Node::get_output_target_inputs(size_t i) const
 {
     std::set<Input<Node>> result;
@@ -769,15 +662,6 @@ const string& Node::get_output_tensor_name(size_t i) const
     NGRAPH_CHECK(
         i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
     return m_outputs[i].get_tensor().get_name();
-}
-
-descriptor::Tensor& Node::get_output_tensor() const
-{
-    if (get_output_size() != 1)
-    {
-        throw ngraph_error("get_output_tensor() must be called on a node with exactly one output.");
-    }
-    return get_output_tensor(0);
 }
 
 size_t Node::get_input_size() const
@@ -849,8 +733,7 @@ NodeVector Node::get_users(bool check_is_used) const
 std::string ngraph::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
-    ss << "While validating node '" << *node << "' with friendly_name "
-       << node->get_friendly_name();
+    ss << "While validating node '" << *node << "'with friendly_name " << node->get_friendly_name();
     return ss.str();
 }
 
@@ -886,7 +769,7 @@ NodeVector ngraph::as_node_vector(const OutputVector& values)
     NodeVector node_vector;
     for (auto& value : values)
     {
-        node_vector.push_back(value.as_single_output_node());
+        node_vector.emplace_back(value.get_node_shared_ptr());
     }
     return node_vector;
 }
@@ -901,76 +784,6 @@ ResultVector ngraph::as_result_vector(const OutputVector& values)
                                                    : make_shared<op::Result>(value));
     }
     return result;
-}
-
-std::tuple<element::Type, PartialShape>
-    Node::validate_and_infer_elementwise_args(const op::AutoBroadcastSpec& autob)
-{
-    element::Type element_type = get_input_element_type(0);
-    PartialShape pshape = get_input_partial_shape(0);
-
-    if (get_input_size() > 1)
-    {
-        for (size_t i = 1; i < get_input_size(); ++i)
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                element::Type::merge(element_type, element_type, get_input_element_type(i)),
-                "Argument element types are inconsistent.");
-
-            if (autob.m_type == op::AutoBroadcastType::NONE)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      PartialShape::merge_into(pshape, get_input_partial_shape(i)),
-                                      "Argument shapes are inconsistent.");
-            }
-            else if (autob.m_type == op::AutoBroadcastType::NUMPY ||
-                     autob.m_type == op::AutoBroadcastType::PDPD)
-            {
-                NODE_VALIDATION_CHECK(
-                    this,
-                    PartialShape::broadcast_merge_into(pshape, get_input_partial_shape(i), autob),
-                    "Argument shapes are inconsistent.");
-            }
-            else
-            {
-                NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
-            }
-        }
-    }
-
-    return std::make_tuple(element_type, pshape);
-}
-
-void Node::validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob)
-{
-    auto args_et_pshape = validate_and_infer_elementwise_args(autob);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    NODE_VALIDATION_CHECK(this,
-                          args_et.is_dynamic() || args_et != element::boolean,
-                          "Arguments cannot have boolean element type (argument element type: ",
-                          args_et,
-                          ").");
-
-    set_output_type(0, args_et, args_pshape);
-}
-
-void Node::validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob)
-{
-    auto args_et_pshape = validate_and_infer_elementwise_args(autob);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    NODE_VALIDATION_CHECK(
-        this,
-        args_et.is_dynamic() || args_et == element::boolean,
-        "Operands for logical operators must have boolean element type but have element type ",
-        args_et,
-        ".");
-
-    set_output_type(0, element::boolean, args_pshape);
 }
 
 bool Node::match_value(pattern::Matcher* matcher,
@@ -990,8 +803,21 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-           matcher->match_arguments(this, graph_value.get_node_shared_ptr());
+    // Check if a type of a given node, which produces graph_value, matches the type of `this` node
+    // or `this` node type is an ancestor of that node type. It is not the exact matching, types of
+    // the nodes
+    // may not match, but they are connected by the inheritance relation.
+    // Not exact matching allows using base classes in the patterns and successfully matching such
+    // patterns
+    // with sub-graph of descent nodes types.
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
+        matcher->match_arguments(this, graph_value.get_node_shared_ptr()))
+    {
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        return true;
+    }
+    return false;
 }
 
 // default implementation for the node to check if it contains partial shape
@@ -1147,7 +973,6 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     }
     if (evaluate(output_tensors, input_tensors))
     {
-        output_values.resize(output_tensors.size());
         for (size_t i = 0; i < output_tensors.size(); ++i)
         {
             output_values[i] = make_shared<op::Constant>(output_tensors[i]);

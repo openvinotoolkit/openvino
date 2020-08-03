@@ -27,6 +27,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/frontend/onnx_import/op/lstm.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
@@ -60,7 +61,7 @@ namespace ngraph
 
                 struct LSTMNgInputMap
                 {
-                    using container_type = std::map<LSTMInput, std::shared_ptr<ngraph::Node>>;
+                    using container_type = std::map<LSTMInput, Output<ngraph::Node>>;
                     using iterator = typename container_type::iterator;
 
                     explicit LSTMNgInputMap(const Node& node)
@@ -83,15 +84,15 @@ namespace ngraph
                         m_map[LSTMInput::LSTM_INPUT_R] = ng_inputs.at(2);
 
                         const std::size_t hidden_size =
-                            m_map[LSTMInput::LSTM_INPUT_R]->get_shape().back();
+                            m_map[LSTMInput::LSTM_INPUT_R].get_shape().back();
                         const std::size_t batch_size =
-                            m_map[LSTMInput::LSTM_INPUT_X]->get_shape().at(0);
+                            m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(0);
                         const std::size_t num_directions =
-                            m_map[LSTMInput::LSTM_INPUT_W]->get_shape().front();
+                            m_map[LSTMInput::LSTM_INPUT_W].get_shape().front();
 
                         // ------ Optional inputs ------
                         // The bias tensor for input gate. Shape [num_directions, 4*hidden_size]
-                        if (ng_inputs.size() > 3 && !ng_inputs.at(3)->is_null())
+                        if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                         {
                             auto bias = ng_inputs.at(3);
                             auto split_bias = builder::opset1::split(bias, 2, 1);
@@ -106,7 +107,7 @@ namespace ngraph
                                                    0.f));
                         }
                         // The lengths of the sequences in a batch. Shape [batch_size]
-                        if (ng_inputs.size() > 4 && !ng_inputs.at(4)->is_null())
+                        if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
                         {
                             m_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
                         }
@@ -118,11 +119,11 @@ namespace ngraph
                                     Shape{batch_size},
                                     std::vector<std::int32_t>(
                                         batch_size,
-                                        m_map[LSTMInput::LSTM_INPUT_X]->get_shape().at(1)));
+                                        m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(1)));
                         }
                         // The initial value of the hidden.
                         // Shape [num_directions, batch_size, hidden_size]
-                        if (ng_inputs.size() > 5 && !ng_inputs.at(5)->is_null())
+                        if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                         {
                             m_map[LSTMInput::LSTM_INPUT_INIT_H] =
                                 builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
@@ -136,7 +137,7 @@ namespace ngraph
                         }
                         // The initial value of the cell.
                         // Shape [num_directions, batch_size, hidden_size]
-                        if (ng_inputs.size() > 6 && !ng_inputs.at(6)->is_null())
+                        if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6)))
                         {
                             m_map[LSTMInput::LSTM_INPUT_INIT_C] =
                                 builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
@@ -149,7 +150,7 @@ namespace ngraph
                                 std::vector<float>(batch_size * num_directions * hidden_size, 0.f));
                         }
                         // The weight tensor for peepholes. Shape [num_directions, 3*hidde_size]
-                        if (ng_inputs.size() > 7 && !ng_inputs.at(7)->is_null())
+                        if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7)))
                         {
                             m_map[LSTMInput::LSTM_INPUT_P] = ng_inputs.at(7);
                         }
@@ -163,10 +164,7 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>& at(const LSTMInput& key)
-                    {
-                        return m_map.at(key);
-                    }
+                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_map.at(key); }
                     container_type m_map;
                 };
 
@@ -208,7 +206,7 @@ namespace ngraph
 
             namespace set_1
             {
-                NodeVector lstm(const Node& node)
+                OutputVector lstm(const Node& node)
                 {
                     LSTMNgInputMap input_map{node};
                     LSTMAttributes attributes{node};

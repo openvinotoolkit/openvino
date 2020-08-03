@@ -104,7 +104,7 @@ void op::Clamp::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-NodeVector op::Clamp::decompose_op() const
+OutputVector op::Clamp::decompose_op() const
 {
     const auto data = input_value(0);
     const auto type = data.get_element_type();

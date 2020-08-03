@@ -11,13 +11,10 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "ie_unicode.hpp"
 
 namespace InferenceEngine {
 /**
@@ -27,20 +24,6 @@ namespace InferenceEngine {
  * first.
  */
 using SizeVector = std::vector<size_t>;
-
-/**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 /**
  * @brief The main data representation node

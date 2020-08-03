@@ -14,6 +14,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
@@ -90,6 +91,43 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto relu = std::make_shared<ngraph::opset1::Relu>(data);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
+        auto begin = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
+        auto end = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-6, -7, -8, -9});
+        auto stride = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-1});
+
+        std::vector<int64_t> begin_mask = {1, 1, 1, 1};
+        std::vector<int64_t> end_mask = {0, 0, 0, 0};
+
+        auto ss = std::make_shared<ngraph::opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(ss);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+        ngraph::pass::StridedSliceOptimization().run_on_function(f);
+        ngraph::pass::ConstantFolding().run_on_function(f);
+    }
+    {
+        auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
+        auto begin = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
+        auto end = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-6, -7, -8, -9});
+        auto stride = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-1});
+
+        std::vector<int64_t> begin_mask = {1, 1, 1, 1};
+        std::vector<int64_t> end_mask = {0, 0, 0, 0};
+
+        auto ss = std::make_shared<ngraph::opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(ss);
+
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
     }
 

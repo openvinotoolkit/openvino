@@ -493,8 +493,7 @@ protected:
     }
 
     void updatePaddings(const CNNNetwork &network, conv_test_params& p) {
-        auto & inetwork = static_cast<const ICNNNetwork &>(network);
-        details::CNNNetworkIterator i(&inetwork), end;
+        details::CNNNetworkIterator i(network), end;
         auto found = std::find_if(i, end, [](const CNNLayer::Ptr& layer) {
             return layer->type == "Convolution";
         });

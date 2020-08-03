@@ -14,11 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <exception>
 #include <functional>
 #include <numeric>
 #include <sstream>
 
+#include "exceptions.hpp"
 #include "graph.hpp"
+#include "ngraph/log.hpp"
 #include "node.hpp"
 #include "provenance.hpp"
 #include "utils/common.hpp"
@@ -154,7 +157,7 @@ namespace ngraph
                 m_nodes.emplace_back(node_proto, *this);
                 const Node& node{m_nodes.back()};
 
-                NodeVector ng_nodes{node.get_ng_nodes()};
+                OutputVector ng_nodes{node.get_ng_nodes()};
                 // Iterate over the number of outputs for given node in graph.
                 // Some of them may be optional and trimmed. See:
                 // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
@@ -171,14 +174,14 @@ namespace ngraph
             return m_cache->contains(name);
         }
 
-        std::shared_ptr<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
+        Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
         {
             return m_cache->get_node(name);
         }
 
-        NodeVector Graph::get_ng_outputs() const
+        OutputVector Graph::get_ng_outputs() const
         {
-            NodeVector results;
+            OutputVector results;
             for (const auto& output : m_graph_proto->output())
             {
                 results.emplace_back(get_ng_node_from_cache(output.name()));
@@ -186,12 +189,33 @@ namespace ngraph
             return results;
         }
 
-        NodeVector Graph::make_ng_nodes(const Node& onnx_node) const
+        OutputVector Graph::make_ng_nodes(const Node& onnx_node) const
         {
             const auto ng_node_factory =
                 m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
-
-            const auto ng_node_vector = ng_node_factory(onnx_node);
+            OutputVector ng_node_vector;
+            try
+            {
+                ng_node_vector = ng_node_factory(onnx_node);
+            }
+            catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& exc)
+            {
+                // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
+                throw;
+            }
+            catch (const std::exception& exc)
+            {
+                std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
+                throw ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
+            }
+            catch (...)
+            {
+                std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
+                // Since we do not know anything about current exception data type we can only
+                // notify user in this way.
+                NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
+                std::rethrow_exception(std::current_exception());
+            }
             set_friendly_names(onnx_node, ng_node_vector);
             add_provenance_tags(onnx_node, ng_node_vector);
 
@@ -199,7 +223,7 @@ namespace ngraph
         }
 
         void Graph::set_friendly_names(const Node& onnx_node,
-                                       const NodeVector& ng_node_vector) const
+                                       const OutputVector& ng_node_vector) const
         {
             for (int i = 0; i < ng_node_vector.size(); ++i)
             {
@@ -210,7 +234,7 @@ namespace ngraph
                     break;
                 }
 
-                ng_node_vector[i]->set_friendly_name(onnx_node.output(i));
+                ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
             }
         }
 
@@ -243,7 +267,7 @@ namespace ngraph
         }
 
         void Graph::add_provenance_tags(const Node& onnx_node,
-                                        const NodeVector& ng_node_vector) const
+                                        const OutputVector& ng_node_vector) const
         {
             if (!ngraph::get_provenance_enabled())
             {
@@ -254,9 +278,9 @@ namespace ngraph
             const auto ng_inputs = onnx_node.get_ng_inputs();
 
             ngraph::traverse_nodes(
-                ng_node_vector,
+                as_node_vector(ng_node_vector),
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
-                ng_inputs);
+                as_node_vector(ng_inputs));
         }
 
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,

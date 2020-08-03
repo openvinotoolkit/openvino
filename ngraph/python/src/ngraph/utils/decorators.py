@@ -20,9 +20,9 @@ from ngraph.impl import Node
 from ngraph.utils.types import NodeInput, as_node, as_nodes
 
 
-def _set_node_name(node: Node, **kwargs: Any) -> Node:
+def _set_node_friendly_name(node: Node, **kwargs: Any) -> Node:
     if "name" in kwargs:
-        node.name = kwargs["name"]
+        node.friendly_name = kwargs["name"]
     return node
 
 
@@ -32,7 +32,7 @@ def nameable_op(node_factory_function: Callable) -> Callable:
     @wraps(node_factory_function)
     def wrapper(*args: Any, **kwargs: Any) -> Node:
         node = node_factory_function(*args, **kwargs)
-        node = _set_node_name(node, **kwargs)
+        node = _set_node_friendly_name(node, **kwargs)
         return node
 
     return wrapper
@@ -45,7 +45,7 @@ def unary_op(node_factory_function: Callable) -> Callable:
     def wrapper(input_value: NodeInput, *args: Any, **kwargs: Any) -> Node:
         input_node = as_node(input_value)
         node = node_factory_function(input_node, *args, **kwargs)
-        node = _set_node_name(node, **kwargs)
+        node = _set_node_friendly_name(node, **kwargs)
         return node
 
     return wrapper
@@ -58,7 +58,7 @@ def binary_op(node_factory_function: Callable) -> Callable:
     def wrapper(left: NodeInput, right: NodeInput, *args: Any, **kwargs: Any) -> Node:
         left, right = as_nodes(left, right)
         node = node_factory_function(left, right, *args, **kwargs)
-        node = _set_node_name(node, **kwargs)
+        node = _set_node_friendly_name(node, **kwargs)
         return node
 
     return wrapper

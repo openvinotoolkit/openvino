@@ -17,17 +17,18 @@ class TRANSFORMATIONS_API ScaleShiftIE : public Op {
 public:
     RTTI_DECLARATION;
 
+    // TODO: notcompleted: add output_precision
     ScaleShiftIE(const Output<Node>& data_batch,
                  const Output<Node>& weights,
                  const Output<Node>& bias);
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
-
     void set_output_type(size_t i,
         const element::Type& element_type,
         const PartialShape& pshape) override;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
 }  // namespace op

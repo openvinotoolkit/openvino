@@ -6,9 +6,8 @@
 #include <memory>
 #include <string>
 
-#include <ie_core.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/op/detection_output.hpp>
+#include <inference_engine.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include <samples/ocv_common.hpp>
 

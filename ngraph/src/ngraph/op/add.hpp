@@ -57,13 +57,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual bool is_commutative() const override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
         } // namespace v0
 
@@ -74,7 +69,7 @@ namespace ngraph
             class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
             {
             public:
-                RTTI_DECLARATION;
+                NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs an uninitialized addition operation
                 Add()
@@ -100,36 +95,13 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                // bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual bool is_commutative() const override { return true; }
+                bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
 
         } // namespace v1
-        namespace v2
-        {
-            class NGRAPH_API Add : public v1::Add
-            {
-            public:
-                // FIXME: use constexpr is possible
-                static const NodeTypeInfo type_info;
-
-                using v1::Add::Add;
-
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                // bool visit_attributes(AttributeVisitor& visitor) override;
-                size_t get_version() const override { return 2; }
-            };
-
-        } // namespace v1
-
         using v0::Add;
     } // namespace op
 

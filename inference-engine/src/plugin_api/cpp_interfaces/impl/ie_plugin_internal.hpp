@@ -10,10 +10,7 @@
 #pragma once
 
 #include <ie_plugin_config.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <ie_util_internal.hpp>
 
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,7 +19,6 @@
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "graph_transformer.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -148,7 +144,6 @@ protected:
      * @note The function is used in
      * InferencePluginInternal::LoadNetwork(IExecutableNetwork::Ptr&, const ICNNNetwork&, const std::map<std::string, std::string>&)
      * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param core A pointer to ICore interface.
      * @param network A network object
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object

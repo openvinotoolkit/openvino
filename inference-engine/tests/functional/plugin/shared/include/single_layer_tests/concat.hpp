@@ -24,7 +24,7 @@ using concatParamsTuple = typename std::tuple<
 
 // Multichannel
 class ConcatLayerTest : public testing::WithParamInterface<concatParamsTuple>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<concatParamsTuple> &obj);
 

@@ -21,6 +21,7 @@
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/graph_util.hpp>
 
 #include <ie_util_internal.hpp>
 #include <ie_core.hpp>
@@ -121,6 +122,39 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
+    std::shared_ptr<const ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("data");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<const ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    CNNNetwork cnnNetwork(ngraph::clone_function(*ngraph));
+    std::map<std::string, std::vector<size_t>> shapes;
+    shapes["data"] = {1, 3, 25, 25};
+
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(changedFunction->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+}
+
+TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -149,8 +183,8 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_NE(nullptr, changedFunction);
     ASSERT_EQ(changedFunction->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
     ASSERT_EQ(changedFunction->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
 
 class CustomTestOp: public ngraph::op::Op {
@@ -175,7 +209,7 @@ public:
         set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
             throw ngraph::ngraph_error("Incorrect number of new arguments");
         }
@@ -283,7 +317,8 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = CommonTestUtils::getLayerByName(network, "activation");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
@@ -353,7 +388,8 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = CommonTestUtils::getLayerByName(network, "activation");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
     ASSERT_EQ("false", layer->params["test1"]);
     ASSERT_EQ("3", layer->params["test2"]);

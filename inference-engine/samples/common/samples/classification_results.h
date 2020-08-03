@@ -12,7 +12,7 @@
 #include <utility>
 #include <algorithm>
 
-#include <ie_blob.h>
+#include <inference_engine.hpp>
 
 /**
  * @class ClassificationResult
@@ -103,6 +103,7 @@ private:
             TBLOB_TOP_RESULT(I8);
             TBLOB_TOP_RESULT(U16);
             TBLOB_TOP_RESULT(I32);
+            TBLOB_TOP_RESULT(U32);
             TBLOB_TOP_RESULT(U64);
             TBLOB_TOP_RESULT(I64);
         default:

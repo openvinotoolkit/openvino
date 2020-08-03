@@ -9,11 +9,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertSubtract::convert_subtract() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto sub = std::make_shared<ngraph::opset1::Subtract>(input0, input1);
+ngraph::pass::ConvertSubtract::ConvertSubtract() {
+    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
@@ -33,5 +32,5 @@ void ngraph::pass::ConvertSubtract::convert_subtract() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, "ConvertSubtract");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

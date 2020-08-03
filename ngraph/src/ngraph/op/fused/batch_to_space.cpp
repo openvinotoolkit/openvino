@@ -23,6 +23,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/fused/batch_to_space.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -39,7 +40,7 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::v1::BatchToSpace::decompose_op() const
+OutputVector op::v1::BatchToSpace::decompose_op() const
 {
     auto data = input_value(0);
     auto block = input_value(1);
@@ -141,7 +142,7 @@ NodeVector op::v1::BatchToSpace::decompose_op() const
     vector<int64_t> end_mask(data_shape.size(), 0);
     flat_node = make_shared<op::v1::StridedSlice>(
         flat_node, crops_begin_const, upperbounds, begin_mask, end_mask);
-    return NodeVector{flat_node};
+    return OutputVector{flat_node};
 }
 
 void ngraph::op::v1::BatchToSpace::pre_validate_and_infer_types()
@@ -152,13 +153,13 @@ void ngraph::op::v1::BatchToSpace::pre_validate_and_infer_types()
     auto block = input_value(1);
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
-    NGRAPH_CHECK(block.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(block.get_node()),
                  "block_shape input node is expected to be a static constant");
 
-    NGRAPH_CHECK(crops_begin.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_begin.get_node()),
                  "crops_begin input node is expected to be a static constant");
 
-    NGRAPH_CHECK(crops_end.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_end.get_node()),
                  "crops_end input node is expected to be a static constant");
 
     const auto& data_type = get_input_element_type(0);

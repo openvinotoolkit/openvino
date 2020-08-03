@@ -27,13 +27,13 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector pad(const Node& node);
+                OutputVector pad(const Node& node);
 
             } // namespace set_1
 
             namespace set_11
             {
-                NodeVector pad(const Node& node);
+                OutputVector pad(const Node& node);
 
             } // namespace set_11
 

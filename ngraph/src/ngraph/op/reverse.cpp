@@ -21,6 +21,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reverse.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -61,15 +62,6 @@ shared_ptr<Node> op::v0::Reverse::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     return make_shared<v0::Reverse>(new_args.at(0), m_reversed_axes);
-}
-
-void op::v0::Reverse::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, make_shared<op::Reverse>(delta, m_reversed_axes));
 }
 
 constexpr NodeTypeInfo op::v1::Reverse::type_info;
@@ -142,7 +134,7 @@ void op::v1::Reverse::validate_and_infer_types()
         const auto rank = input_rank.get_length();
         const auto rev_axes_node = input_value(1).get_node_shared_ptr();
 
-        if (rev_axes_node->is_constant())
+        if (op::is_constant(rev_axes_node))
         {
             const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
 
@@ -180,16 +172,6 @@ shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
-}
-
-void op::v1::Reverse::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    const auto delta = deltas.at(0);
-
-    const auto x = input_value(0);
-    const auto reversed_axes = input_value(1);
-
-    adjoints.add_delta(x, make_shared<op::v1::Reverse>(delta, reversed_axes, m_mode));
 }
 
 op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode) const

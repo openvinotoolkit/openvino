@@ -21,7 +21,9 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph
@@ -47,21 +49,22 @@ namespace ngraph
                     ///
                     /// \return true if termination condition is true and it cannot be changed
                     ///         during Loop iterations, false otherwise.
-                    bool is_termination_condition_always_true(
-                        const std::shared_ptr<ngraph::Node>& loop_cond,
-                        const std::shared_ptr<ngraph::Node>& body_cond)
+                    bool is_termination_condition_always_true(const Output<ngraph::Node>& loop_cond,
+                                                              const Output<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if (loop_cond->is_constant() &&
-                            loop_cond->get_element_type() == element::boolean)
+                        if (ngraph::op::is_constant(loop_cond.get_node()) &&
+                            loop_cond.get_element_type() == element::boolean)
                         {
-                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)
+                            loop_cond_value = as_type_ptr<default_opset::Constant>(
+                                                  loop_cond.get_node_shared_ptr())
                                                   ->cast_vector<bool>()
                                                   .at(0);
                         }
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
-                        bool is_loop_cond_true = loop_cond->is_null() || loop_cond_value == true;
+                        bool is_loop_cond_true =
+                            ngraph::op::is_null(loop_cond) || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -72,11 +75,12 @@ namespace ngraph
                         // value of loop_cond - true
                         // Identity op for boolean value is represented by LogicalOr op whose second
                         // input is always false
-                        if (is_type<default_opset::LogicalOr>(body_cond))
+                        if (is_type<default_opset::LogicalOr>(body_cond.get_node_shared_ptr()))
                         {
-                            const auto second_input =
-                                body_cond->input_value(1).get_node_shared_ptr();
-                            if (second_input->is_constant() &&
+                            const auto second_input = body_cond.get_node_shared_ptr()
+                                                          ->input_value(1)
+                                                          .get_node_shared_ptr();
+                            if (ngraph::op::is_constant(second_input) &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()
@@ -89,17 +93,17 @@ namespace ngraph
                     }
                 }
 
-                NodeVector loop(const Node& node)
+                OutputVector loop(const Node& node)
                 {
                     const auto& ng_inputs = node.get_ng_inputs();
                     // optional inputs
-                    const std::shared_ptr<ngraph::Node> trip_count = ng_inputs.at(0);
-                    const std::shared_ptr<ngraph::Node> loop_cond = ng_inputs.at(1);
+                    const Output<ngraph::Node> trip_count = ng_inputs.at(0);
+                    const Output<ngraph::Node> loop_cond = ng_inputs.at(1);
 
                     // At this moment nGraph TensorIterator doesn't have support for conditional
                     // termination of iterations.
                     CHECK_VALID_NODE(node,
-                                     !trip_count->is_null(),
+                                     !ngraph::op::is_null(trip_count),
                                      "Currently nGraph requires trip count input to be provided.");
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
@@ -107,8 +111,7 @@ namespace ngraph
 
                     // required
                     const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
-                    const auto& graph_outputs =
-                        ngraph::as_output_vector(body_graph.get_ng_outputs());
+                    const auto& graph_outputs = body_graph.get_ng_outputs();
                     const auto& graph_inputs = body_graph.get_ng_parameters();
 
                     CHECK_VALID_NODE(
@@ -149,10 +152,10 @@ namespace ngraph
                     // input.
                     const auto loop_trip_count = std::make_shared<default_opset::Range>(
                         default_opset::Constant::create(
-                            trip_count->get_element_type(), Shape{}, {0}),
+                            trip_count.get_element_type(), Shape{}, {0}),
                         ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
                         default_opset::Constant::create(
-                            trip_count->get_element_type(), Shape{}, {1}));
+                            trip_count.get_element_type(), Shape{}, {1}));
 
                     // We iterate over trip_count input.
                     // start=0, stride=1, part_size=1, end=-1, axis=0
@@ -187,7 +190,7 @@ namespace ngraph
                             *graph_outputs_it, 0, 1, 1, -1, 0));
                     }
 
-                    NodeVector node_outputs;
+                    OutputVector node_outputs;
                     for (const auto& v : final_values)
                     {
                         node_outputs.push_back(v.as_single_output_node());

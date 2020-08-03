@@ -43,15 +43,6 @@ shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Cosh>(new_args.at(0));
 }
 
-void op::Cosh::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, delta * (make_shared<op::Sinh>(x)));
-}
-
 namespace
 {
     template <element::Type_t ET>

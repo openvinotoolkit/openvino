@@ -23,13 +23,13 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/dyn_elimination.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/shape_relevance.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
+#include "pass/dyn_elimination.hpp"
+#include "pass/shape_relevance.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -381,13 +381,6 @@ void runtime::dynamic::DynamicTensor::read(void* p, size_t n) const
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "tried to read from a dynamic tensor with no allocated storage");
     m_wrapped_tensor->read(p, n);
-}
-
-void runtime::dynamic::DynamicTensor::copy_from(const ngraph::runtime::Tensor& source)
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "tried to copy_from to a dynamic tensor with no allocated storage");
-    m_wrapped_tensor->copy_from(source);
 }
 
 bool runtime::dynamic::DynamicTensor::has_storage() const

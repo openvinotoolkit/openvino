@@ -32,10 +32,6 @@ namespace ngraph
             /// Basic graph operations do not need parameters attached to a function.
             class NGRAPH_API Parameter : public op::Op
             {
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
             public:
                 static constexpr NodeTypeInfo type_info{"Parameter", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -52,7 +48,6 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                bool is_parameter() const override { return true; }
                 void validate_and_infer_types() override;
 
                 bool get_cacheable() const { return m_cacheable; }

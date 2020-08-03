@@ -14,7 +14,6 @@
 #include <ie_common.h>
 #include <ie_profiling.hpp>
 #include <ie_layers_property.hpp>
-#include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
@@ -75,7 +74,10 @@ enum Type {
     Convert,
     MVN,
     Resample,
-    Normalize
+    Normalize,
+    ScatterUpdate,
+    ScatterElementsUpdate,
+    ScatterNDUpdate
 };
 
 Type TypeFromName(const std::string type);
@@ -158,6 +160,12 @@ static std::string NameFromType(Type type) {
             return "Resample";
         case Normalize:
             return "Normalize";
+        case ScatterUpdate:
+            return "ScatterUpdate";
+        case ScatterElementsUpdate:
+            return "ScatterElementsUpdate";
+        case ScatterNDUpdate:
+            return "ScatterNDUpdate";
         default:
             return "Unknown";
     }

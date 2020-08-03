@@ -21,31 +21,17 @@ set (SRC
     attribute_adapter.hpp
     attribute_visitor.cpp
     attribute_visitor.hpp
-    autodiff/adjoints.cpp
-    autodiff/adjoints.hpp
     axis_set.cpp
     axis_set.hpp
     axis_vector.cpp
     axis_vector.hpp
     builder/autobroadcast.cpp
     builder/autobroadcast.hpp
-    builder/dequantize_builder.cpp
-    builder/dequantize_builder.hpp
     builder/make_constant.hpp
     builder/matmul_factory.cpp
     builder/matmul_factory.hpp
     builder/norm.cpp
     builder/norm.hpp
-    builder/numpy_transpose.cpp
-    builder/numpy_transpose.hpp
-    builder/quantize_builder.cpp
-    builder/quantize_builder.hpp
-    builder/quantized_concat_builder.cpp
-    builder/quantized_concat_builder.hpp
-    builder/quantized_conv_builder.cpp
-    builder/quantized_conv_builder.hpp
-    builder/quantized_dot_builder.cpp
-    builder/quantized_dot_builder.hpp
     builder/quantization_utils.hpp
     builder/quantization_utils.cpp
     builder/reduce_ops.cpp
@@ -54,7 +40,6 @@ set (SRC
     builder/reshape.hpp
     builder/split.cpp
     builder/split.hpp
-    builder/tensor_mask.hpp
     check.hpp
     chrome_trace.cpp
     chrome_trace.hpp
@@ -79,8 +64,6 @@ set (SRC
     descriptor/tensor.hpp
     dimension.cpp
     dimension.hpp
-    distributed/null.cpp
-    distributed/null.hpp
     distributed.cpp
     distributed.hpp
     enum_names.hpp
@@ -90,7 +73,7 @@ set (SRC
     except.hpp
     factory.cpp
     factory.hpp
-    factory_adapter.hpp 
+    factory_adapter.hpp
     file_util.cpp
     file_util.hpp
     function.cpp
@@ -140,7 +123,6 @@ set (SRC
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
-    op/broadcast_distributed.cpp
     op/bucketize.cpp
     op/bucketize.hpp
     op/ceiling.cpp
@@ -161,10 +143,10 @@ set (SRC
     op/cosh.hpp
     op/ctc_greedy_decoder.cpp
     op/ctc_greedy_decoder.hpp
+    op/ctc_loss.cpp
+    op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
-    op/crop_and_resize.cpp
-    op/crop_and_resize.hpp
     op/deformable_convolution.cpp
     op/deformable_convolution.hpp
     op/deformable_psroi_pooling.cpp
@@ -181,8 +163,6 @@ set (SRC
     op/elu.hpp
     op/embeddingbag_offsets_sum.cpp
     op/embeddingbag_offsets_sum.hpp
-    op/embedding_lookup.cpp
-    op/embedding_lookup.hpp
     op/embeddingbag_packedsum.cpp
     op/embeddingbag_packedsum.hpp
     op/embedding_segments_sum.cpp
@@ -234,6 +214,8 @@ set (SRC
     op/min.hpp
     op/minimum.cpp
     op/minimum.hpp
+    op/mish.cpp
+    op/mish.hpp
     op/multiply.cpp
     op/multiply.hpp
     op/negative.cpp
@@ -300,8 +282,6 @@ set (SRC
     op/quantized_dot.hpp
     op/range.cpp
     op/range.hpp
-    op/recv.cpp
-    op/recv.hpp
     op/relu.cpp
     op/relu.hpp
     op/replace_slice.cpp
@@ -314,20 +294,14 @@ set (SRC
     op/reverse.hpp
     op/reverse_sequence.cpp
     op/reverse_sequence.hpp
-    op/scatter_add.cpp
-    op/scatter_add.hpp
     op/scatter_elements_update.cpp
     op/scatter_elements_update.hpp
-    op/scatter_nd_add.cpp
-    op/scatter_nd_add.hpp
     op/scatter_nd_update.cpp
     op/scatter_nd_update.hpp
     op/scatter_update.cpp
     op/scatter_update.hpp
     op/select.cpp
     op/select.hpp
-    op/send.cpp
-    op/send.hpp
     op/shape_of.cpp
     op/shape_of.hpp
     op/sigmoid.cpp
@@ -374,10 +348,6 @@ set (SRC
     op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
     op/fused/clamp.hpp
-    op/fused/conv_fused.cpp
-    op/fused/conv_fused.hpp
-    op/fused/crossentropy.cpp
-    op/fused/crossentropy.hpp
     op/fused/hard_sigmoid.cpp
     op/fused/hard_sigmoid.hpp
     op/fused/depth_to_space.cpp
@@ -386,15 +356,10 @@ set (SRC
     op/fused/fake_quantize.hpp
     op/fused/gelu.cpp
     op/fused/gelu.hpp
-    op/fused/gemm.cpp
-    op/fused/gemm.hpp
     op/fused/grn.cpp
     op/fused/grn.hpp
-    op/fused/group_conv.hpp
     op/fused/gru_cell.cpp
     op/fused/gru_cell.hpp
-    op/fused/layer_norm.cpp
-    op/fused/layer_norm.hpp
     op/fused/lstm_cell.cpp
     op/fused/lstm_cell.hpp
     op/fused/lstm_sequence.cpp
@@ -407,29 +372,18 @@ set (SRC
     op/fused/mvn.hpp
     op/fused/normalize_l2.cpp
     op/fused/normalize_l2.hpp
-    op/fused/partial_slice.cpp
-    op/fused/partial_slice.hpp
     op/fused/prelu.cpp
     op/fused/prelu.hpp
     op/fused/rnn_cell.cpp
     op/fused/rnn_cell.hpp
-    op/fused/scale_shift.cpp
-    op/fused/scale_shift.hpp
-    op/fused/scatter_nd.cpp
-    op/fused/scatter_nd.hpp
-    op/fused/stack.cpp
-    op/fused/stack.hpp
     op/fused/selu.cpp
     op/fused/selu.hpp
     op/fused/shuffle_channels.cpp
     op/fused/shuffle_channels.hpp
-    op/fused/softmax_crossentropy.cpp
-    op/fused/softmax_crossentropy.hpp
     op/fused/space_to_batch.cpp
     op/fused/space_to_batch.hpp
     op/fused/space_to_depth.cpp
     op/fused/space_to_depth.hpp
-    op/fused/split.hpp
     op/fused/squared_difference.cpp
     op/fused/squared_difference.hpp
     op/fused/squeeze.cpp
@@ -452,6 +406,8 @@ set (SRC
     op/util/binary_elementwise_logical.hpp
     op/util/broadcast_base.cpp
     op/util/broadcast_base.hpp
+    op/util/elementwise_args.cpp
+    op/util/elementwise_args.hpp
     op/util/embeddingbag_packed_base.cpp
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp
@@ -473,19 +429,14 @@ set (SRC
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
     op/util/variable.hpp
+    op/util/op_types.cpp
+    op/util/op_types.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp
     partial_shape.hpp
     pass/algebraic_simplification.cpp
     pass/algebraic_simplification.hpp
-    pass/assign_layout.hpp
-    pass/implicit_broadcast_elimination.hpp
-    pass/implicit_broadcast_elimination.cpp
-    pass/batch_fusion.hpp
-    pass/batch_fusion.cpp
-    pass/common_function_collection.cpp
-    pass/common_function_collection.hpp
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
@@ -505,62 +456,25 @@ set (SRC
     pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
-    pass/constant_to_broadcast.cpp
     pass/convert_fp32_to_fp16.hpp
     pass/convert_fp32_to_fp16.cpp
-    pass/core_fusion.cpp
-    pass/core_fusion.hpp
-    pass/cse.cpp
-    pass/cse.hpp
-    pass/dump_sorted.cpp
-    pass/dump_sorted.hpp
-    pass/dyn_elimination.cpp
-    pass/dyn_elimination.hpp
-    pass/fused_op_decomposition.cpp
-    pass/fused_op_decomposition.hpp
     pass/get_output_element_elimination.cpp
     pass/get_output_element_elimination.hpp
     pass/graph_rewrite.cpp
     pass/graph_rewrite.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
-    pass/liveness.cpp
-    pass/liveness.hpp
     pass/manager.cpp
     pass/manager.hpp
     pass/manager_state.hpp
-    pass/memory_layout.cpp
-    pass/memory_layout.hpp
-    pass/memory_visualize.cpp
-    pass/memory_visualize.hpp
     pass/nop_elimination.cpp
     pass/nop_elimination.hpp
     pass/pass.cpp
     pass/pass.hpp
     pass/pass_config.cpp
     pass/pass_config.hpp
-    pass/propagate_cacheability.cpp
-    pass/propagate_cacheability.hpp
-    pass/reshape_elimination.cpp
-    pass/reshape_elimination.hpp
-    pass/reshape_sinking.cpp
-    pass/reshape_sinking.hpp
-    pass/serialize.cpp
-    pass/serialize.hpp
-    pass/shape_relevance.cpp
-    pass/shape_relevance.hpp
-    pass/validate_graph.cpp
-    pass/validate_graph.hpp
     pass/validate.cpp
     pass/validate.hpp
     pass/visualize_tree.cpp
     pass/visualize_tree.hpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/concat_fusion.hpp
-    pass/concat_fusion.cpp
     pass/pass_util.hpp
     pass/pass_util.cpp
     pattern/matcher.cpp
@@ -585,8 +499,8 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
-    placement.cpp
-    placement.hpp
+    pattern/op/wrap_type.hpp
+    pattern/op/wrap_type.cpp
     provenance.cpp
     provenance.hpp
     rank.hpp
@@ -598,6 +512,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/eval_helpers.cpp
+    runtime/reference/eval_helpers.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
@@ -606,10 +522,6 @@ set (SRC
     slice_plan.hpp
     specialize_function.cpp
     specialize_function.hpp
-    state/bernoulli_rng_state.cpp
-    state/bernoulli_rng_state.hpp
-    state/uniform_rng_state.cpp
-    state/uniform_rng_state.hpp
     strides.cpp
     strides.hpp
     type/bfloat16.cpp

@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector split(const Node& node);
+                OutputVector split(const Node& node);
 
             } // namespace set_1
 

@@ -53,6 +53,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // Default int64->int32 conversion is already applied in IE common module.
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U32, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
@@ -105,7 +106,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     // _clonedNetwork->serialize("after_old_LPT.xml", "after_old_LPT.bin", 0);
 
-    if (_cfg.batchLimit > 1) {
+    if (_cfg.enableDynamicBatch) {
         // check topology for applicability
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
@@ -295,7 +296,8 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
-            type != Copy) {
+            type != Copy &&
+            type != MVN) {
             check_result = false;
         }
     }, false);

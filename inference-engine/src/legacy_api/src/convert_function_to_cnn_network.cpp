@@ -39,6 +39,7 @@
 
 #include "ie_profiling.hpp"
 #include "ie_cnn_layer_builder_ngraph.h"
+#include "details/caseless.hpp"
 
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
@@ -91,6 +92,24 @@ public:
         params[name] = std::to_string(adapter.get());
     }
 
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        std::vector<std::string> data = adapter.get();
+        for (auto& str : data) {
+            std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+                return std::tolower(c);
+            });
+        }
+
+        std::stringstream ss;
+        std::copy(data.begin(), data.end(), std::ostream_iterator<std::string>(ss, ","));
+        params[name] = ss.str();
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        auto data = adapter.get();
+        params[name] = joinVec(data);
+    }
+
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
 private:
@@ -118,6 +137,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
         params[name] = joinVec(shape);
+    } else {
+        THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
+                              "Attribute adapter can not be found for " << name << " parameter";
     }
 }
 
@@ -304,7 +326,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         Builder::NodeConverter<::ngraph::op::Constant> converter;
 
-        const auto weightsNode = castedLayer->get_inputs()[1].get_output().get_node();
+        const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
@@ -685,8 +707,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                      const std::unordered_set<std::string> &names,
                                      bool keep_constant) -> bool {
         if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
-            for (const auto &consumerInputPort : constantNode->get_outputs()[0].get_inputs()) {
-                const auto &consumerLayer = consumerInputPort->get_node();
+            for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
+                const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
                 if (names.find(consumerLayer->get_name()) == names.end())
                     continue;
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
@@ -758,7 +780,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
             }
@@ -793,8 +815,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             std::string outName = layer->get_friendly_name();
             if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
-            SizeVector dims;
-            dims = layer->get_output_shape(i);
+            SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
                 if (!dim)
                     THROW_IE_EXCEPTION << cnnLayer->type << " layer " << cnnLayer->name
@@ -802,17 +823,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
             if (!ptr && nGraphImpl && nGraphImpl->_data.find(outName) != nGraphImpl->_data.end()) {
                 ptr = nGraphImpl->_data.at(outName);
-                if (auto nData = std::dynamic_pointer_cast<InferenceEngine::details::NGraphData>(ptr)) {
+                {
                     const auto layout =
-                        dims.size() == nData->getTensorDesc().getDims().size() ?
-                        nData->getTensorDesc().getLayout() :
+                        dims.size() == ptr->getTensorDesc().getDims().size() ?
+                        ptr->getTensorDesc().getLayout() :
                         TensorDesc::getLayoutByDims(dims);
 
-                    nData->reset();
-                    nData->reshape(dims, layout);
-                    nData->setPrecision(details::convertPrecision(layer->get_output_element_type(i)));
-                    // std::cerr << "Set precision 2 " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
-
+                    ptr->reshape(dims, layout);
                 }
                 cnnNetworkImpl->addData(outName.c_str(), ptr);
             }
@@ -821,7 +838,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,
                                     TensorDesc::getLayoutByDims(dims)}));
-                // std::cerr << "Set precision " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
             }
 
             getCreatorLayer(ptr) = cnnLayer;
@@ -838,7 +854,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->get_inputs().size() == 1);
+            IE_ASSERT(layer->inputs().size() == 1);
             const auto &input = layer->input_value(0);
             std::string outName = input.get_node_shared_ptr()->get_friendly_name();
             if (input.get_node_shared_ptr()->get_output_size() != 1)
@@ -896,7 +912,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         // execution ngraph is fake graph and should not be validated
         if (layer->params.count(ExecGraphInfoSerialization::PERF_COUNTER) == 0) {
-            layer->validateLayer();
+            layer->parseParams();
         }
     }
 

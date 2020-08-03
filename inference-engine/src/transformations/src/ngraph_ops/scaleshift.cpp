@@ -19,7 +19,7 @@ op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::ScaleShiftIE::copy_with_new_args(const NodeVector& new_args) const {
+std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 3) {
         throw ngraph_error("Incorrect number of new arguments");
     }

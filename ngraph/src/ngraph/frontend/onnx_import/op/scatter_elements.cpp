@@ -28,7 +28,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector scatter_elements(const Node& node)
+                OutputVector scatter_elements(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
                     const auto indices = node.get_ng_inputs().at(1);

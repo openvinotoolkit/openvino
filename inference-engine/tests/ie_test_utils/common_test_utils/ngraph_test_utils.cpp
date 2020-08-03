@@ -9,6 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
@@ -120,7 +121,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
 
     std::ostringstream err_log;
     for (auto & op : f->get_ops()) {
-        if (op->is_constant()) continue;
+        if (ngraph::op::is_constant(op)) continue;
 
         const auto & rt_info = op->get_rt_info();
         for (const auto & attr_name : attrs_to_check) {

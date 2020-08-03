@@ -31,8 +31,7 @@ namespace ngraph
             class NGRAPH_API LogicalAnd : public util::BinaryElementwiseLogical
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LogicalAnd", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a logical-and operation.
                 LogicalAnd() = default;
 
@@ -54,7 +53,6 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual bool is_commutative() const override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
             };
