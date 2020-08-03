@@ -22,7 +22,7 @@ from tests.test_onnx.utils import (import_onnx_model,
                                    xfail_issue_35916,
                                    xfail_issue_35917,
                                    xfail_issue_35918,
-                                   xfail_issue_35921 
+                                   xfail_issue_35921
                                    )
 
 import pytest
