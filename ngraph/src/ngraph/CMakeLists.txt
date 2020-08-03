@@ -452,7 +452,6 @@ set (SRC
     pass/constant_folding_slice.cpp
     pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
-    pass/constant_folding_tile.cpp
     pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
@@ -514,6 +513,8 @@ set (SRC
     runtime/tensor.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
+    runtime/reference/tile.cpp
+    runtime/reference/tile.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
