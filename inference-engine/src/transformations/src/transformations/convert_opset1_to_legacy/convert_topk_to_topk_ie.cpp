@@ -40,7 +40,7 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
         }
 
         auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
-                                                             topk->get_sort_type());
+                                                            topk->get_sort_type(), topk->get_index_element_type());
         new_ops.push_back(topk_ie);
 
         Output<Node> element_output;

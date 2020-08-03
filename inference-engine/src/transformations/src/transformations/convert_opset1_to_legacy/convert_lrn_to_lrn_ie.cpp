@@ -29,7 +29,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
             return false;
         }
 
-        auto axis_value = axis_const->get_vector<int64_t>();
+        auto axis_value = axis_const->cast_vector<int64_t>();
         std::string region;
         if (axis_value.size() == 1 && axis_value[0] == 1) {
             region = "across";

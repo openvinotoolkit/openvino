@@ -25,7 +25,8 @@ public:
                         const Output<Node>& iou_threshold,
                         const Output<Node>& score_threshold,
                         int center_point_box,
-                        bool sort_result_descending);
+                        bool sort_result_descending,
+                        const ngraph::element::Type& output_type = ngraph::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -35,6 +36,7 @@ public:
 
     int m_center_point_box;
     bool m_sort_result_descending = true;
+    element::Type m_output_type;
 };
 
 class TRANSFORMATIONS_API NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
@@ -48,14 +50,12 @@ public:
                         const Output<Node>& iou_threshold,
                         const Output<Node>& score_threshold,
                         int center_point_box,
-                        bool sort_result_descending);
+                        bool sort_result_descending,
+                        const ngraph::element::Type& output_type = ngraph::element::i64);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
-
-    int m_center_point_box;
-    bool m_sort_result_descending = true;
 };
 
 }  // namespace op

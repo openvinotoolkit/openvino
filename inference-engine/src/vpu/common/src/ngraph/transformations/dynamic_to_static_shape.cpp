@@ -117,7 +117,8 @@ DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransf
     transformations.emplace(ngraph::opset3::Result::type_info, [](const std::shared_ptr<ngraph::Node>&){});
 }
 
-void DynamicToStaticShape::transform(std::shared_ptr<ngraph::Function> function) const {
+bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> function) {
+    bool function_changed = false;
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {
             continue;
@@ -129,10 +130,12 @@ void DynamicToStaticShape::transform(std::shared_ptr<ngraph::Function> function)
             "DynamicToStaticShape transformation encountered dynamic node {} of type {}, but only {} types are supported for dynamic nodes",
             operation->get_friendly_name(), type, getSupportedTypes(transformations));
         transformation->second(operation);
+        function_changed = true;
     }
 
     function->validate_nodes_and_infer_types();
     validateStaticShapes(*function);
+    return function_changed;
 }
 
 }  // namespace vpu

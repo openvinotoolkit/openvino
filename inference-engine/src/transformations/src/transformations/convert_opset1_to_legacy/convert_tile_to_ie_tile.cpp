@@ -27,7 +27,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
         if (!data_node || !tiles_node) return false;
 
-        auto tiles = tiles_node->get_vector<int64_t>();
+        auto tiles = tiles_node->cast_vector<int64_t>();
         auto input_shape = data_node->get_shape();
         int64_t cur_dim_id = tiles.size() - 1;
 

@@ -1487,5 +1487,23 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
     }
 }
 
+void ConvertIOPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    InputsDataMap inputDataMap;
+    net.getInputsInfo(inputDataMap);
+    for (auto & i : inputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
+    }
+
+    OutputsDataMap outputDataMap;
+    net.getOutputsInfo(outputDataMap);
+    for (auto & i : outputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
+    }
+}
+
 }  // namespace NetPass
 }  // namespace InferenceEngine

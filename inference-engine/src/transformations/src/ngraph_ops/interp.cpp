@@ -90,7 +90,7 @@ void op::ResampleV2::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
                               "Layer shape must have rank 4 or 5", const_shape->get_shape());
 
-        auto out_shape = static_cast<const int64_t*>(const_shape->get_data_ptr());
+        auto out_shape = const_shape->cast_vector<int64_t>();
         Shape output_shape;
         for (size_t i = 0; i < const_shape->get_shape()[0]; i++) {
             output_shape.push_back((out_shape[i] > 0) ? out_shape[i] : 0);

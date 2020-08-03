@@ -26,7 +26,7 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
         if (!data_node || !shape_node || !axes_node) return false;
 
-        auto output_shape = shape_node->get_vector<int64_t>();
+        auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node->get_shape();
         int64_t cur_dim_id = output_shape.size() - 1;
         size_t dims_count = output_shape.size();
@@ -48,7 +48,7 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
                     shape.insert(shape.begin(), 1);
                 }
             } else if (broadcast_type == op::AutoBroadcastType::NONE) {
-                auto axes = axes_node->get_vector<int64_t>();
+                auto axes = axes_node->cast_vector<int64_t>();
                 shape.assign(output_shape.size(), 1);
                 for (size_t i = 0; i < input_shape.size(); ++i) {
                     shape[axes[i]] = input_shape[i];

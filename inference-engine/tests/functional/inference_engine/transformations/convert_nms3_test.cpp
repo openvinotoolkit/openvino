@@ -29,14 +29,14 @@ TEST(TransformationTests, ConvertNMS3I32Output) {
         auto max_output_boxes_per_class = opset3::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset3::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset3::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
+        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
         nms->set_friendly_name("nms");
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMS3().run_on_function(f);
+        pass::ConvertNMS1ToNMS3().run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -46,8 +46,8 @@ TEST(TransformationTests, ConvertNMS3I32Output) {
         auto max_output_boxes_per_class = opset3::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset3::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset3::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset2::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
         nms->set_friendly_name("nms");
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
@@ -58,46 +58,5 @@ TEST(TransformationTests, ConvertNMS3I32Output) {
 
     auto result_node_of_converted_f = f->get_output_op(0);
     auto nms_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(nms_node->get_friendly_name() == "nms") << "Transformation ConvertTopK3 should keep output names.\n";
-}
-
-TEST(TransformationTests, ConvertNMS3I64Output) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    {
-        auto boxes = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset3::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset3::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset3::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i64);
-        nms->set_friendly_name("nms");
-
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMS3().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    {
-        auto boxes = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset3::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset3::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset3::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset2::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset2::NonMaxSuppression::BoxEncodingType::CORNER, true);
-        auto convert = std::make_shared<ngraph::opset2::Convert>(nms, element::i64);
-        convert->set_friendly_name("nms");
-
-        f_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
-    }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto nms_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(nms_node->get_friendly_name() == "nms") << "Transformation ConvertTopK3 should keep output names.\n";
+    ASSERT_TRUE(nms_node->get_friendly_name() == "nms") << "Transformation ConvertNMS1ToNMS3 should keep output names.\n";
 }
