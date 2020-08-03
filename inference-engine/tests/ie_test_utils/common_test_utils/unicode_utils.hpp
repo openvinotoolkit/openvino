@@ -23,9 +23,7 @@ static void fixSlashes(std::wstring &str) {
 }
 
 static std::wstring stringToWString(std::string input) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    std::wstring result = converter.from_bytes(input);
-    return result;
+    return InferenceEngine::details::multiByteCharToWString(input.c_str());
 }
 
 static bool copyFile(std::wstring source_path, std::wstring dest_path) {

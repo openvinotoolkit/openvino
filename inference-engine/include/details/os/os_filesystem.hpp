@@ -54,8 +54,8 @@ inline const std::string wStringtoMBCSstringChar(const std::wstring& wstr) {
  */
 inline const std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
-    auto strSize = std::strlen(str);
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, std::strlen(str), NULL, 0);
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
     std::wstring wstrTo(size_needed, 0);
     MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
     return wstrTo;
