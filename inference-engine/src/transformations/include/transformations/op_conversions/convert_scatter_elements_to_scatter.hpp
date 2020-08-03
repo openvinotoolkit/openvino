@@ -30,6 +30,8 @@ public:
         convert_scatter_elements_to_scatter();
     }
 
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
 private:
     void convert_scatter_elements_to_scatter();
 };

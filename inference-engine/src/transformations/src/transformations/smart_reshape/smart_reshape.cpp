@@ -17,6 +17,8 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
+
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SmartReshape");
 

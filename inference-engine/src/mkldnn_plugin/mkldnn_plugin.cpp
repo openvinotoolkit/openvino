@@ -87,11 +87,13 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
+    OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "Prepare");
 
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+    OV_ITT_TASK_NEXT(taskChain, "RegisterPass");
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -151,6 +153,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
 
+    OV_ITT_TASK_SKIP(taskChain);
+
     manager.run_passes(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
@@ -198,6 +202,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     });
     legacyManager.run_passes(nGraphFunc);
 
+    OV_ITT_TASK_NEXT(taskChain, "ConvertPrecision");
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
@@ -210,6 +216,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
+
+    OV_ITT_TASK_CHAIN(taskChain, itt::domains::MKLDNN_LT, "Engine::LoadExeNetworkImpl", "getInputsInfo");
 
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
@@ -230,6 +238,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         }
     }
 
+    OV_ITT_TASK_NEXT(taskChain, "readProperties");
+
     // TODO: handle input precision differently - per input and not one per network...
 
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
@@ -240,14 +250,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
+    OV_ITT_TASK_NEXT(taskChain, "cloneNetwork");
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
-        Transformation(clonedNetwork, conf);
+        OV_ITT_TASK_SKIP(taskChain);
+	Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
+        OV_ITT_TASK_NEXT(taskChain, "IE_OLD_ConstantFolding");
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
@@ -260,6 +274,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
             NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
         }
     }
+
+    OV_ITT_TASK_NEXT(taskChain, "make_shared<MKLDNNExecNetwork>");
 
     return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
 }
