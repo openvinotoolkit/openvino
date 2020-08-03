@@ -27,7 +27,6 @@ reduce_prod = "ReduceProd"
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
-    # (operation, keepdims - True/False, axis)
     None,
     (0,),
     (1,),
@@ -39,11 +38,11 @@ reduce_axis_parameters = [
 ]
 
 reduce_operation_parameters = [
-    reduce_max,
-    reduce_min,
-    reduce_mean,
-    reduce_sum,
-    reduce_prod
+    (reduce_max, np.max),
+    (reduce_min, np.min),
+    (reduce_mean, np.mean),
+    (reduce_sum, np.sum),
+    (reduce_prod, np.prod)
 ]
 
 
@@ -54,16 +53,16 @@ def import_and_compute(op_type, input_data, **node_attrs):
 
 
 @unstrict_xfail_issue_35925
-@pytest.mark.parametrize("operation", reduce_operation_parameters)
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
 @pytest.mark.parametrize("keepdims", [True, False])
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
-def test_reduce_operation(operation, keepdims, axes):
+def test_reduce_operation(operation, ref_operation, keepdims, axes):
     if axes:
         assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=keepdims),
-                              np.max(reduce_data, keepdims=keepdims, axis=axes))
+                              ref_operation(reduce_data, keepdims=keepdims, axis=axes))
     else:
         assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=keepdims),
-                              np.max(reduce_data, keepdims=keepdims))
+                              ref_operation(reduce_data, keepdims=keepdims))
 
 
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])

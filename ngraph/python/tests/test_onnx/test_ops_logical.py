@@ -17,7 +17,6 @@ import numpy as np
 import onnx
 import pytest
 
-# [PARAMETER_MISMATCH] Failed to set Blob with precision FP32
 from tests.test_onnx.utils import run_node, xfail_issue_35914, xfail_issue_35915
 
 

@@ -119,4 +119,4 @@ def test_elu(data, alpha_value):
     def elu(x, alpha):
         return np.where(x < 0, alpha * (np.exp(x) - 1), x)
 
-    assert_onnx_import_equals_callable("Elu", elu, [-2, -1.0, 0.0, 1.0, 2.0], alpha=alpha_value)
+    assert_onnx_import_equals_callable("Elu", elu, data, alpha=alpha_value)

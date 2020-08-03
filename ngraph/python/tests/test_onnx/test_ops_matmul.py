@@ -18,8 +18,12 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import import_onnx_model, xfail_issue_35916, xfail_issue_35917, \
-    xfail_issue_35918, xfail_issue_35921
+from tests.test_onnx.utils import (import_onnx_model,
+                                   xfail_issue_35916,
+                                   xfail_issue_35917,
+                                   xfail_issue_35918,
+                                   xfail_issue_35921 
+                                   )
 
 import pytest
 

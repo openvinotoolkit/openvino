@@ -19,8 +19,13 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node, xfail_issue_35911, \
-    xfail_issue_35912
+from tests.test_onnx.utils import (get_node_model,
+                                   import_onnx_model,
+                                   run_model,
+                                   run_node,
+                                   xfail_issue_35911,
+                                   xfail_issue_35912
+                                   )
 
 
 @pytest.fixture
