@@ -513,36 +513,6 @@ TEST(provenance, empty_group)
     }
 }
 
-TEST(provenance, scaled_quantize_concat_unsigned)
-{
-    ngraph::Shape shape_a{2, 2};
-    auto A = make_shared<ngraph::op::Parameter>(ngraph::element::u8, shape_a);
-    auto An = make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1});
-    auto Ax = make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1});
-    A->add_provenance_tag("in0");
-    An->add_provenance_tag("in1");
-    Ax->add_provenance_tag("in2");
-    ngraph::Shape shape_r{2, 2};
-    auto QConcat = ngraph::builder::QuantizedConcatBuilder({A}, 0, {An}, {Ax});
-    auto f = make_shared<ngraph::Function>(ngraph::OutputVector{QConcat},
-                                           ngraph::ParameterVector{A, An, Ax});
-    QConcat->add_provenance_tag("hello");
-    auto check_if_result = [](shared_ptr<Node> n) {
-        // Pointer will cast to nullptr if this node is not a Result
-        auto ng_node = dynamic_pointer_cast<op::Result>(n);
-        bool is_result = (ng_node != nullptr);
-        return is_result;
-    };
-
-    for (auto n : f->get_ordered_ops())
-    {
-        if (!check_if_result(n))
-        {
-            ASSERT_EQ(n->get_provenance_tags().size(), 1);
-        }
-    }
-}
-
 TEST(provenance, opset1_upgrade_pass_topk)
 {
     test::ProvenanceEnabler provenance_enabler;

@@ -49,6 +49,7 @@ namespace ngraph
         ///
         /// \return     The vector containing multiple outputs we split input node into.
         ///
+        NGRAPH_API
         OutputVector split(const Output<Node>& value, size_t split_parts, int axis = 0);
 
         namespace opset1

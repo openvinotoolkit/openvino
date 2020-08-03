@@ -22,10 +22,11 @@ using ConfigMap = typename std::map<std::string, std::string>;
 using NonZeroLayerTestParamsSet = typename std::tuple<
     InferenceEngine::SizeVector,          // Input shapes
     InferenceEngine::Precision,           // Input precision
-    LayerTestsUtils::TargetDevice>;       // Device name
+    LayerTestsUtils::TargetDevice,        // Device name
+    ConfigMap>;                           // Additional network configuration
 
 class NonZeroLayerTest : public testing::WithParamInterface<NonZeroLayerTestParamsSet>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj);
 
