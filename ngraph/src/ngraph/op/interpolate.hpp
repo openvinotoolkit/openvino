@@ -178,21 +178,21 @@ namespace ngraph
                 Interpolate() = default;
                 /// \brief Constructs a Interpolate operation without 'axes' input.
                 ///
-                /// \param image        Input image
-                /// \param output_shape Output shape of spatial axes
-                /// \param attrs        Interpolation attributes
+                /// \param image  Input image
+                /// \param scales Scales of spatial axes, i.e. output_shape / input_shape
+                /// \param attrs  Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                            const Output<Node>& output_shape,
+                            const Output<Node>& scales,
                             const InterpolateAttrs& attrs);
 
                 /// \brief Constructs a Interpolate operation with 'axes' input.
                 ///
-                /// \param image        Input image
-                /// \param output_shape Output shape of spatial axes
-                /// \param axes        Interpolation axes
-                /// \param attrs        Interpolation attributes
+                /// \param image  Input image
+                /// \param scales Scales of spatial axes, i.e. output_shape / input_shape
+                /// \param axes   Interpolation axes
+                /// \param attrs  Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                            const Output<Node>& output_shape,
+                            const Output<Node>& scales,
                             const Output<Node>& axes,
                             const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;

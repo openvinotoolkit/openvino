@@ -237,7 +237,7 @@ class InterpolateCalculation:
     def shape_infer(self, input_data, scales):
         result = input_data.shape + self.pads_begin + self.pads_end
         for i, axis in enumerate(self.axes):
-            result[axis] = round(scales[i] * input_data.shape[axis])
+            result[axis] = round(scales[i] * result[axis])
         return result
 
     @staticmethod

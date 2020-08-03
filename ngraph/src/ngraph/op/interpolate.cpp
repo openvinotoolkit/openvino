@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <cmath>
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/ndim_array_view.hpp"
@@ -122,17 +123,17 @@ namespace ngraph
 constexpr NodeTypeInfo op::v4::Interpolate::type_info;
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
+                                 const Output<Node>& scales,
                                  const Output<Node>& axes,
-                                 const InterpolateAttrs& attrs)
-    : Op({image, output_shape, axes})
+                                 const op::v4::Interpolate::InterpolateAttrs& attrs)
+    : Op({image, scales, axes})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
+                                 const Output<Node>& scales,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape})
     , m_attrs(attrs)
@@ -214,6 +215,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
 
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
+    PartialShape padded_input_shape = output_shape;
 
     auto axes = get_axes();
     m_attrs.pads_begin = correct_pad(m_attrs.pads_begin);
@@ -228,6 +230,7 @@ void op::v4::Interpolate::validate_and_infer_types()
                 auto new_length =
                     m_attrs.pads_begin[i] + m_attrs.pads_end[i] + output_shape[i].get_length();
                 output_shape[i] = Dimension(new_length);
+                padded_input_shape[i] = output_shape[i];
             }
         }
         for (auto axis : axes)
@@ -237,13 +240,16 @@ void op::v4::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (auto const_scales = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
     {
-        auto out_shape = const_shape->cast_vector<int64_t>();
+        auto scales = const_scales->cast_vector<float>();
         size_t i = 0;
         for (auto axis : axes)
         {
-            output_shape[axis] = Dimension(out_shape[i++]);
+            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
+            int64_t new_dim = static_cast<int64_t>(std::round(padded_len * scales[i]));
+            output_shape[axis] = Dimension(new_dim);
+            ++i;
         }
     }
     set_output_type(0, get_input_element_type(0), output_shape);
@@ -287,37 +293,15 @@ namespace
         return axes;
     }
 
-    std::vector<std::size_t> get_target_spatial_shape_vector(const HostTensorVector& args,
+    std::vector<float> get_scales_vector(const HostTensorVector& args,
                                                              std::size_t num_of_axes)
     {
-        std::vector<std::size_t> target_spatial_shape;
+        std::vector<float> scales;
 
-        std::size_t* target_shape_ptr = args[1]->get_data_ptr<std::size_t>();
-        target_spatial_shape.insert(
-            target_spatial_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+        float* scales_ptr = args[1]->get_data_ptr<float>();
+        scales.insert(scales.end(), target_shape_ptr, scales_ptr + num_of_axes);
 
-        return target_spatial_shape;
-    }
-
-    std::vector<std::size_t> out_shape_infer(const Shape& input_shape,
-                                             const std::vector<std::size_t>& pads_begin,
-                                             const std::vector<std::size_t>& pads_end,
-                                             const std::vector<std::size_t>& axes,
-                                             const std::vector<std::size_t>& target_shape)
-    {
-        std::vector<std::size_t> out_shape = input_shape;
-        std::size_t rank = input_shape.size();
-        for (std::size_t i = 0; i < rank; ++i)
-        {
-            out_shape[i] += pads_begin[i] + pads_end[i];
-        }
-        std::size_t num_of_axes = axes.size();
-        for (std::size_t i = 0; i < axes.size(); ++i)
-        {
-            out_shape[axes[i]] = target_shape[i];
-        }
-
-        return out_shape;
+        return scales;
     }
 
     std::vector<std::size_t> get_padded_input_shape(const Shape& input_shape,
@@ -332,6 +316,24 @@ namespace
         }
 
         return result;
+    }
+
+    std::vector<std::size_t> out_shape_infer(const Shape& input_shape,
+                                             const std::vector<std::size_t>& pads_begin,
+                                             const std::vector<std::size_t>& pads_end,
+                                             const std::vector<std::size_t>& axes,
+                                             const std::vector<float>& scales)
+    {
+        auto out_shape = get_padded_input_shape(input_shape, pads_begin, pads_end);
+        std::size_t num_of_axes = axes.size();
+        for (std::size_t i = 0; i < num_of_axes; ++i)
+        {
+            std::size_t axis = axes[i];
+            float scaled_len = std::round(static_cast<float>(out_shape[axis]) * scales[i]);
+            out_shape[axes[i]] = static_cast<std::size_t>(scaled_len);
+        }
+
+        return out_shape;
     }
 
     std::vector<std::size_t> correct_pad(const std::vector<std::size_t>& p, std::size_t rank)
@@ -368,13 +370,13 @@ namespace
         std::size_t input_rank = input_shape.size();
 
         auto axes = get_axes_vector(args);
-        auto target_spatial_shape = get_target_spatial_shape_vector(args, axes.size());
+        auto scales = get_scales_vector(args, axes.size());
 
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
 
         auto out_shape_vector =
-            out_shape_infer(input_shape, pads_begin, pads_end, axes, target_spatial_shape);
+            out_shape_infer(input_shape, pads_begin, pads_end, axes, scales);
         Shape out_shape{out_shape_vector};
 
         out->set_shape(out_shape);
@@ -406,8 +408,8 @@ namespace
         }
 
         runtime::reference::interpolate<T>(padded_input_data.data(),
-                                           input_shape,
-                                           target_spatial_shape,
+                                           Shape{padded_input_shape},
+                                           scales,
                                            axes,
                                            out->get_data_ptr<ET>(),
                                            out_shape,
