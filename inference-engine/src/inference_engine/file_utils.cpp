@@ -19,6 +19,9 @@
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
+# include <dlfcn.h>
+#else
+# include <Windows.h>
 #endif
 
 #include "details/ie_so_pointer.hpp"
