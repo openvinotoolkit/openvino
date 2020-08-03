@@ -136,12 +136,8 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_D
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()
-
-target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     # To disable min/max macro in windows.h
@@ -164,7 +160,8 @@ add_library(${TARGET_NAME} SHARED
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE fluid PUBLIC inference_engine ${INTEL_ITT_LIBS})
+target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt
+                                     PUBLIC inference_engine)
 
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -194,7 +191,8 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE fluid INTERFACE inference_engine_s ${INTEL_ITT_LIBS})
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
+                                       INTERFACE inference_engine_s)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 

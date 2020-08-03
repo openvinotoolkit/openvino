@@ -14,13 +14,15 @@
 #include <cassert>
 #include <utility>
 #include "threading/ie_thread_local.hpp"
-#include "ie_profiling.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 #include "threading/ie_thread_affinity.hpp"
 #include "details/ie_exception.hpp"
 #include "ie_util_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
+#include <openvino/itt.hpp>
+
+using namespace openvino;
 
 namespace InferenceEngine {
 struct CPUStreamsExecutor::Impl {
@@ -151,7 +153,7 @@ struct CPUStreamsExecutor::Impl {
                     std::back_inserter(_usedNumaNodes));
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
-                annotateSetThreadName((_config._name + "_" + std::to_string(streamId)).c_str());
+                itt::threadName(_config._name + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
                     Task task;
                     {
