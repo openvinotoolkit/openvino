@@ -35,9 +35,6 @@
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
 
-#include <ngraph/pass/visualize_tree.hpp>
-#include "ngraph_ops/subgraph.hpp"
-
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
 #include <intrin.h>
