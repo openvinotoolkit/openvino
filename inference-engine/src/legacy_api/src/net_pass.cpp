@@ -1402,20 +1402,22 @@ void convertLayerPrecision(const CNNLayerPtr& layer) {
 }
 
 template <typename NET>
-bool isOutput(NET& net, CNNLayerPtr layer) {
-    return false;
+void RemoveConverts(NET& net, std::vector<CNNLayerPtr>& to_remove) {
+    for (auto& layer : to_remove) {
+        RemoveLayer(layer, net);
+    }
 }
 
-bool isOutput(InferenceEngine::ICNNNetwork& net, CNNLayerPtr layer) {
+template <>
+void RemoveConverts(ICNNNetwork& net, std::vector<CNNLayerPtr>& to_remove) {
     OutputsDataMap outputs;
     net.getOutputsInfo(outputs);
-    return std::any_of(outputs.begin(), outputs.end(),
-        [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; });
-}
-
-bool isOutput(details::CNNSubnet& net, CNNLayerPtr layer) {
-    return std::any_of(net.outputs.begin(), net.outputs.end(),
-        [layer](DataPtr d) { return d->getName() == layer->name; });
+    for (auto& layer : to_remove) {
+        if (!std::any_of(outputs.begin(), outputs.end(),
+            [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; })) {
+            RemoveLayer(layer, net);
+        }
+    }
 }
 
 template <typename NET>
@@ -1439,10 +1441,7 @@ void fixConvertLayers(NET &net) {
             }
         }
     }
-    for (auto &layer : to_remove) {
-        if (!isOutput(net, layer))
-            RemoveLayer(layer, net);
-    }
+    RemoveConverts(net, to_remove);
 }
 
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO, typename NET>
