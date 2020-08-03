@@ -2,36 +2,59 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
-
 #include <cstring>
 #include <fstream>
 #include <string>
-
-#include "details/ie_exception.hpp"
 
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
 
-// for PATH_MAX
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
 # include <dlfcn.h>
+# include <codecvt>
+# include <locale>
 #else
 # include <Windows.h>
 #endif
 
-#include "details/ie_so_pointer.hpp"
-#include "details/os/os_filesystem.hpp"
+#include <file_utils.h>
+#include <details/ie_so_pointer.hpp>
+#include <details/os/os_filesystem.hpp>
+#include <details/ie_exception.hpp>
 
-#if defined(WIN32) || defined(WIN64)
-// Copied from linux libc sys/stat.h:
-#define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::string InferenceEngine::details::wStringtoMBCSstringChar(const std::wstring& wstr) {
+#ifdef _WIN32
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);  // NOLINT
+    return strTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
+    return wstring_decoder.to_bytes(wstr);
 #endif
+}
+
+std::wstring InferenceEngine::details::multiByteCharToWString(const char* str) {
+#ifdef _WIN32
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
+    std::wstring result = wstring_encoder.from_bytes(str);
+    return result;
+#endif
+}
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
 long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
