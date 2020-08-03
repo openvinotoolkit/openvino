@@ -666,6 +666,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::HARD_SIGMOID;
         case cldnn::activation_func::swish:
             return kernel_selector::activation_function::SWISH;
+        case cldnn::activation_func::hswish:
+            return kernel_selector::activation_function::HSWISH;
         case cldnn::activation_func::mish:
             return kernel_selector::activation_function::MISH;
         case cldnn::activation_func::gelu:
