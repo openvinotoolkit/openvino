@@ -134,14 +134,14 @@ void SplitTransformation::updateOutputs(
     TransformationContext& context,
     std::vector<std::shared_ptr<ngraph::Node>> lastNodes,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    const size_t outputSize = context.network->get_output_size();
+    const size_t outputSize = context.function->get_output_size();
     if (outputSize == 1) {
         updateOutput(context, lastNodes[0], originalNode);
     } else {
         const std::string originalName = originalNode->get_friendly_name();
         for (auto& lastNode : lastNodes) {
             for (size_t i = 0; i < outputSize; ++i) {
-                std::shared_ptr<ngraph::Node> result = context.network->get_output_op(i);
+                std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
                 std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
                 if (outputNode.get() == lastNode.get()) {
                     std::ostringstream oss;
