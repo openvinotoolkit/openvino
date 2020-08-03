@@ -21,6 +21,11 @@ class TRANSFORMATIONS_API MishFusion;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MishFusion transformation replaces group of
+ * operations: x * tanh(log(exp(x) + 1)) to Mish op.
+ */
 class ngraph::pass::MishFusion: public ngraph::pass::MatcherPass {
 public:
     MishFusion();
