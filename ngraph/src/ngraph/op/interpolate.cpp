@@ -135,7 +135,7 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& scales,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
-    : Op({image, output_shape})
+    : Op({image, scales})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
@@ -293,13 +293,12 @@ namespace
         return axes;
     }
 
-    std::vector<float> get_scales_vector(const HostTensorVector& args,
-                                                             std::size_t num_of_axes)
+    std::vector<float> get_scales_vector(const HostTensorVector& args, std::size_t num_of_axes)
     {
         std::vector<float> scales;
 
         float* scales_ptr = args[1]->get_data_ptr<float>();
-        scales.insert(scales.end(), target_shape_ptr, scales_ptr + num_of_axes);
+        scales.insert(scales.end(), scales_ptr, scales_ptr + num_of_axes);
 
         return scales;
     }
@@ -375,8 +374,7 @@ namespace
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
 
-        auto out_shape_vector =
-            out_shape_infer(input_shape, pads_begin, pads_end, axes, scales);
+        auto out_shape_vector = out_shape_infer(input_shape, pads_begin, pads_end, axes, scales);
         Shape out_shape{out_shape_vector};
 
         out->set_shape(out_shape);
