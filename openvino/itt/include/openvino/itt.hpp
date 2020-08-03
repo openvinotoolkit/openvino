@@ -20,8 +20,8 @@
  */
 
 #pragma once
-#include "function_name.hpp"
-#include "macro_overload.hpp"
+#include <openvino/function_name.hpp>
+#include <openvino/macro_overload.hpp>
 #include <string>
 
 namespace openvino
@@ -113,13 +113,14 @@ namespace openvino
          * @class ScopedTask
          * @ingroup ie_dev_profiling
          * @brief Used to annotate section of code which would be named at runtime
+         * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
          */
         template <domain_t(*domain)()>
         struct ScopedTask
         {
-        /**
-        * @brief Construct ScopedTask with defined annotation handle
-        */
+            /**
+             * @brief Construct ScopedTask with defined annotation handle
+             */
             ScopedTask(handle_t taskHandle) noexcept
             {
                 internal::taskBegin(domain(), taskHandle);

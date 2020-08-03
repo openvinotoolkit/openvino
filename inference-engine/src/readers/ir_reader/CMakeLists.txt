@@ -31,8 +31,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              inference_engine_reader_api
                                              inference_engine_plugin_api
                                              inference_engine
-					     pugixml
-					     openvino::itt)
+                                             pugixml
+                                             openvino::itt)
 
 # code style
 
