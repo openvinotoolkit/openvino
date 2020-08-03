@@ -154,9 +154,6 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
                           w_shape,
                           ".");
 
-    NODE_VALIDATION_CHECK(
-        this, b_pshape.is_static(), "GRUCell supports only static input tensors.");
-
     const Shape& b_shape{b_pshape.to_shape()};
 
     NODE_VALIDATION_CHECK(
