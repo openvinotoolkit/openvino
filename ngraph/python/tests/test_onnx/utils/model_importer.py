@@ -39,9 +39,9 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     ) -> None:
         self.backend = backend
         self._parent_module = parent_module
-        self._include_patterns: Set[Pattern[Text]] = set()
-        self._exclude_patterns: Set[Pattern[Text]] = set()
-        self._test_items: Dict[Text, Dict[Text, TestItem]] = defaultdict(dict)
+        self._include_patterns = set()  # type: Set[Pattern[Text]]
+        self._exclude_patterns = set()  # type: Set[Pattern[Text]]
+        self._test_items = defaultdict(dict)  # type: Dict[Text, Dict[Text, TestItem]]
 
         for model in models:
             test_name = "test_{}".format(model["model_name"])
@@ -71,7 +71,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_import_test(self, model_test: OnnxTestCase, kind: Text) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker: List[Optional[Union[ModelProto, NodeProto]]] = [None]
+        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_import(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
@@ -118,7 +118,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_execution_test(self, model_test: OnnxTestCase, kind: Text) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker: List[Optional[Union[ModelProto, NodeProto]]] = [None]
+        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_execution(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
