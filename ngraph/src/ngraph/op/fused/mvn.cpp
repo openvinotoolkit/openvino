@@ -27,7 +27,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::MVN::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
 
 op::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : FusedOp({data})

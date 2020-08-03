@@ -44,7 +44,10 @@ public:
     static bool onWeights(std::shared_ptr<Node> layer);
 
     template <typename OperationType>
-    static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType>, const element::Type& precision);
+    static std::shared_ptr<Node> setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> operation, const element::Type& precision);
+
+    template <typename OperationType>
+    static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType> operation, const element::Type& precision);
 
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
@@ -170,6 +173,18 @@ void NetworkHelper::copyInfo(const Operation1& source, Operation2& target) {
 }
 
 template <typename OperationType>
+std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
+    // check if it already exteded operation node
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+        relaxed_layer->set_overriden_output_type(precision);
+        std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        return layer;
+    } else {
+        THROW_IE_LPT_EXCEPTION(*layer) << "TypeRelaxed type is expected";
+    }
+}
+
+template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
@@ -205,7 +220,7 @@ std::shared_ptr<Node> fold(Args&&... args) {
     auto node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
         OutputVector folded;
-        if (node->constant_fold(folded)) {
+        if (node->constant_fold(folded, {})) {
             return folded[0].get_node_shared_ptr();
         }
     }
@@ -217,7 +232,8 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
         OutputVector folded;
-        if (node->input_value(0).get_node_shared_ptr()->is_constant() && node->input_value(1).get_node_shared_ptr()->is_constant()) {
+        if (is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
+            is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
             return std::make_shared<opset1::Constant>(
                     node->get_input_element_type(0),
                     Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
@@ -232,11 +248,11 @@ std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
         OutputVector folded;
-        if (node->input_value(0).get_node_shared_ptr()->is_constant() &&
-            node->input_value(1).get_node_shared_ptr()->is_constant() &&
-            node->input_value(2).get_node_shared_ptr()->is_constant() &&
-            node->input_value(3).get_node_shared_ptr()->is_constant() &&
-            node->input_value(4).get_node_shared_ptr()->is_constant() &&
+        if (is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
+            is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr()) &&
+            is_type<opset1::Constant>(node->input_value(2).get_node_shared_ptr()) &&
+            is_type<opset1::Constant>(node->input_value(3).get_node_shared_ptr()) &&
+            is_type<opset1::Constant>(node->input_value(4).get_node_shared_ptr()) &&
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr()), 0) &&
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(2).get_node_shared_ptr()), 254) &&
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr()), -127) &&

@@ -29,8 +29,7 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 void FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
 
-    const std::deque<descriptor::Output> outputs = layer->get_outputs();
-    const ngraph::element::Type precision = outputs.begin()->get_element_type();
+    const ngraph::element::Type precision = layer->get_output_element_type(0);
     if ((precision == ngraph::element::i8) || (precision == ngraph::element::u8)) {
         return;
     }
@@ -82,7 +81,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     }
 #endif
 
-    std::shared_ptr<ngraph::Node> dequantize = as_type_ptr<ngraph::Node>(std::get<1>(QDQ));
+    std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
     updateOutput(context, dequantize, layer);
 }
 

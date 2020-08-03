@@ -342,7 +342,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             sub,
         scale);
 
-    auto outputs = newFQ->get_outputs();
     //NetworkHelper::setOutDataPrecision(newFQ, precision);
 
     // sub->set_overriden_output_type(element::f32);
@@ -535,9 +534,10 @@ std::vector<std::shared_ptr<Node>> NetworkHelper::getChildrenRecursivelyExceptTy
     const std::unordered_set<std::string>& exceptionLayerTypes) {
     std::queue<std::shared_ptr<Node>> notHandledChildren;
 
-    for (const ngraph::descriptor::Output& output : layer->get_outputs()) {
-        for (const ngraph::descriptor::Input* input : output.get_inputs()) {
-            std::shared_ptr<Node> child = input->get_node();
+    for (size_t i = 0; i < layer->get_output_size(); ++i) {
+        auto inputs = layer->get_output_target_inputs(i);
+        for (auto input : inputs) {
+            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
             notHandledChildren.emplace(child);
         }
     }
@@ -554,9 +554,10 @@ std::vector<std::shared_ptr<Node>> NetworkHelper::getChildrenRecursivelyExceptTy
             continue;
         }
 
-        for (auto output : operation->get_outputs()) {
-            for (auto input : output.get_inputs()) {
-                std::shared_ptr<Node> child = input->get_node();
+        for (size_t i = 0; i < operation->get_output_size(); ++i) {
+            auto inputs = operation->get_output_target_inputs(i);
+            for (auto input : inputs) {
+                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
                 notHandledChildren.emplace(child);
             }
         }
@@ -679,7 +680,15 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     replace_node(operation, parent);
 
     if (updatePrecision) {
-        NetworkHelper::setOutDataPrecision(newOperation, newOperation->get_input_element_type(0));
+        // TODO: refactor
+        auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
+        if (op == nullptr) {
+            // TODO: handle error
+        }
+        op->set_overriden_output_type(newOperation->get_input_element_type(0));
+        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+
+        // NetworkHelper::setOutDataPrecision(op, newOperation->get_input_element_type(0));
     }
 
     return InsertDequantizationResult(newOperation, parent);

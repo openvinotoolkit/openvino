@@ -43,7 +43,8 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params) {
-        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        const std::string typeName = typeid(Operation).name();
 
         const auto it = branchSpecificTransformations.find(typeName);
         if (it != branchSpecificTransformations.end()) {
@@ -60,7 +61,8 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& add(const LayerTransformation::Params& params) {
-        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        const std::string typeName = typeid(Operation).name();
 
         const auto it = transformations.find(typeName);
         if (it != transformations.end()) {
@@ -77,7 +79,8 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params) {
-        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        const std::string typeName = typeid(Operation).name();
 
         const auto it = cleanupTransformations.find(typeName);
         if (it != cleanupTransformations.end()) {
@@ -90,7 +93,8 @@ public:
 
     template <class Operation>
     static std::string getType() {
-        return typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        // return typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        return typeid(Operation).name();
     }
 
     static std::string getType(const Node& operation) {

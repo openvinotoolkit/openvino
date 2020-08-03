@@ -28,15 +28,15 @@ bool FakeQuantizeDequantization::empty() const {
 }
 
 bool FakeQuantizeDequantization::isShared() const {
-    if ((convert != nullptr) && (convert->get_output_inputs(0).size() > 1ul)) {
+    if ((convert != nullptr) && (convert->get_output_target_inputs(0).size() > 1ul)) {
         return true;
     }
 
-    if ((subtract != nullptr) && (subtract->get_output_inputs(0).size() > 1ul)) {
+    if ((subtract != nullptr) && (subtract->get_output_target_inputs(0).size() > 1ul)) {
         return true;
     }
 
-    if ((multiply != nullptr) && (multiply->get_output_inputs(0).size() > 1ul)) {
+    if ((multiply != nullptr) && (multiply->get_output_target_inputs(0).size() > 1ul)) {
         return true;
     }
 

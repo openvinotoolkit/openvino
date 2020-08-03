@@ -24,8 +24,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Clamp::type_info;
-
 namespace
 {
     template <element::Type_t ET, typename T>
@@ -88,6 +86,8 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }
+
+NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : FusedOp({data})

@@ -32,8 +32,7 @@ bool isBranchWithTargetType(const std::shared_ptr<opset1::FakeQuantize>& fakeQua
 
     const std::shared_ptr<Node> parent = fakeQuantize->get_input_node_shared_ptr(0);
 
-    const std::deque<descriptor::Output>& parentOutputs = parent->get_outputs();
-    if ((parentOutputs.size() != 1ul) || (parentOutputs.begin()->get_inputs().size() != 1ul)) {
+    if ((parent->get_output_size() != 1ul) || (parent->get_output_target_inputs(0).size() != 1ul)) {
         return false;
     }
 

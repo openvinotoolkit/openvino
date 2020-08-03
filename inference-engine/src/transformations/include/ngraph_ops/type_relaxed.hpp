@@ -19,7 +19,7 @@ namespace op {
 /// A base class for templated TypeRelaxed that maintains overriden input types and outtypes for an operations.
 class TRANSFORMATIONS_API TypeRelaxedBase {
 public:
-    virtual ~TypeRelaxedBase();
+    virtual ~TypeRelaxedBase() {};
 
     TypeRelaxedBase(
             const std::vector<element::Type>& _input_data_types = {},

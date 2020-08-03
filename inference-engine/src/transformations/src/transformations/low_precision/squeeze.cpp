@@ -32,9 +32,9 @@ void SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
     auto squeezeOnConstant = [](const std::shared_ptr<ngraph::Node>& squeeze,
                                 const std::shared_ptr<ngraph::Node>& dequantizationOperation,
                                 const ngraph::Shape& inputShape) {
-        std::shared_ptr<ngraph::Node> dequantizationOpConstant = dequantizationOperation->get_argument(1);
+        const std::shared_ptr<ngraph::Node> dequantizationOpConstant = dequantizationOperation->get_input_node_shared_ptr(1);
         if (dequantizationOpConstant->get_shape() == inputShape && dequantizationOpConstant->get_shape().size() > 1) {
-            return fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->get_argument(1));
+            return fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->get_input_node_shared_ptr(1));
         }
         return dequantizationOpConstant;
     };

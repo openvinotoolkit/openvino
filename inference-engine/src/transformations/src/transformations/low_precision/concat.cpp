@@ -185,7 +185,7 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     if (updatePrecisions) {
         for (const auto it : subgraph.layers) {
             ngraph::Node* node = it.second;
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(node->shared_from_this(), dataPrecision.precision);
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(node->shared_from_this(), dataPrecision.precision);
         }
     }
 

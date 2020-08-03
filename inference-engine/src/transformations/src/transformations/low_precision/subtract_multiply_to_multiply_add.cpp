@@ -83,7 +83,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     std::shared_ptr<Node> lastNew = dequantization.data;
     element::Type lastNewPrecision = precisionBeforeDequantization;
     std::shared_ptr<Node> lastPrevious = dequantization.multiply != nullptr ?
-        as_type_ptr<Node>(dequantization.multiply) :
+        std::dynamic_pointer_cast<Node>(dequantization.multiply) :
         dequantization.subtract;
 
     Shape constShape = dequantization.multiply != nullptr ?
@@ -119,7 +119,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
         if (lastNewPrecision != precisionAfterDequantization) {
             lastNew = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(lastNew, multiplyConstant);
-            NetworkHelper::setOutDataPrecision(lastNew, precisionAfterDequantization);
+            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<opset1::Multiply>(lastNew, multiplyConstant);
         }
@@ -150,7 +150,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
         if (lastNewPrecision != precisionAfterDequantization) {
             lastNew = std::make_shared<op::TypeRelaxed<opset1::Add>>(lastNew, subtractConstant);
-            NetworkHelper::setOutDataPrecision(lastNew, precisionAfterDequantization);
+            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Add>(lastNew), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<opset1::Add>(lastNew, subtractConstant);
         }
@@ -163,7 +163,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     }
 
     const std::shared_ptr<Node> lastOriginal = dequantization.multiply == nullptr ?
-        as_type_ptr<Node>(dequantization.subtract) :
+        std::dynamic_pointer_cast<Node>(dequantization.subtract) :
         dequantization.multiply;
     replace_node(lastOriginal, lastNew);
 
