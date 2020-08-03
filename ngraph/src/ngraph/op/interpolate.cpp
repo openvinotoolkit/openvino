@@ -335,7 +335,8 @@ namespace
         return out_shape;
     }
 
-    std::vector<std::size_t> correct_pad(const std::vector<std::size_t>& p, std::size_t rank)
+    template <typename T>
+    std::vector<T> correct_pad(const std::vector<T>& p, std::size_t rank)
     {
         std::size_t pad_len = p.size();
         if (pad_len == rank)
@@ -343,7 +344,7 @@ namespace
             return p;
         }
 
-        std::vector<std::size_t> result;
+        std::vector<T> result;
 
         if (pad_len > rank)
         {
