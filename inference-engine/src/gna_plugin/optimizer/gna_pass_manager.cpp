@@ -757,8 +757,7 @@ void AddConvolutionKernelPadPass::run() {
         auto cropName = l->name + std::string("/crop_") + std::to_string(numOfadditionalConcatCropLayers++);
         if (!next) {
             gnalog() << "Inserted " << cropName << " after: " << prev->name << "\n" << std::flush;
-        }
-        else {
+        } else {
             gnalog() << "Inserted " << cropName << " between: " << prev->name << " and " << next->name << "\n" << std::flush;
         }
 
