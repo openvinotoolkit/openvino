@@ -113,11 +113,7 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
     const auto& ht_pshape = get_input_partial_shape(1);
     const auto& w_pshape = get_input_partial_shape(2);
     const auto& r_pshape = get_input_partial_shape(3);
-
-    NODE_VALIDATION_CHECK(this,
-                          (x_pshape.is_static() || w_pshape.is_static() || r_pshape.is_static() ||
-                           ht_pshape.is_static()),
-                          "GRUCell supports only static input tensors.");
+    const auto& b_pshape = get_input_partial_shape(4);
 
     const Shape& x_shape{x_pshape.to_shape()};
 
@@ -156,13 +152,7 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
                           w_shape,
                           ".");
 
-    const auto& b_pshape = get_input_partial_shape(4);
-
-    NODE_VALIDATION_CHECK(
-        this, b_pshape.is_static(), "GRUCell supports only static input tensors.");
-
     const Shape& b_shape{b_pshape.to_shape()};
-
     NODE_VALIDATION_CHECK(
         this,
         (b_shape == Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()}),
