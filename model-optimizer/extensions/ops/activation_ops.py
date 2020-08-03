@@ -240,3 +240,17 @@ class SoftPlus(Op):
             'infer': None
         }
         super().__init__(graph, mandatory_props, attrs)
+
+
+class Mish(Op):
+    op = 'Mish'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': self.op,
+            'type': None,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }
+        super().__init__(graph, mandatory_props, attrs)
