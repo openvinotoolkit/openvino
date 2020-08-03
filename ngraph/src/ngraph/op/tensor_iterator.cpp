@@ -660,8 +660,8 @@ std::shared_ptr<Node>
 
     op->m_num_iterations = m_num_iterations;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
-    auto spec_func = specialize_function(
-        func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr), false, true);
+    auto spec_func =
+        specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
     op->m_body =
         std::make_shared<BodyLambda>(spec_func->get_results(), spec_func->get_parameters());
 

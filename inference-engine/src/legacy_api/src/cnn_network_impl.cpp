@@ -21,6 +21,7 @@
 #include "network_serializer_v7.hpp"
 #include "exec_graph_info.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include <ngraph/graph_util.hpp>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
@@ -90,7 +91,7 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraphImplPtr->cloneFunction();
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 

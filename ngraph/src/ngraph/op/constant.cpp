@@ -317,8 +317,9 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
 }
 
 op::Constant::Constant(const Constant& other)
-    : Constant(other.m_element_type, other.m_shape)
 {
+    m_element_type = other.m_element_type;
+    m_shape = other.m_shape;
     m_data = other.m_data;
     m_all_elements_bitwise_identical = other.m_all_elements_bitwise_identical;
     constructor_validate_and_infer_types();

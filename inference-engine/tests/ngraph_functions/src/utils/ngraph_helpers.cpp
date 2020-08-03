@@ -6,9 +6,10 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -125,7 +126,8 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                        return const_cast<std::uint8_t *>(input.data());
                    });
 
-    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
+    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",

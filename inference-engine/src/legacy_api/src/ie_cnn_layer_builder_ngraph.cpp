@@ -264,7 +264,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         auto result = results[desc->m_body_value_index]->input(0).get_source_output();
 
         // GetOutputElement layer can be inserted by ngraph deep copy functions
-        // (e.g. specialize_function, clone_function)
         // Take the previous layer.
         if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
             result = result.get_node()->input(0).get_source_output();
@@ -329,7 +328,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
                 auto result = results[input_desc->m_body_value_index]->inputs()[0].get_source_output();
 
                 // GetOutputElement layer can be inserted by ngraph deep copy functions
-                // (e.g. specialize_function, clone_function)
                 // Take the previous layer.
                 if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
                     result = result.get_node()->input(0).get_source_output();

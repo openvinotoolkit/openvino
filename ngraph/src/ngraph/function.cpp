@@ -154,14 +154,7 @@ const std::string& Function::get_name() const
 
 void Function::set_friendly_name(const string& name)
 {
-    if (m_name.empty())
-    {
-        m_name = name;
-    }
-    else
-    {
-        throw ngraph_error("Function name may be set exactly once");
-    }
+    m_name = name;
 }
 
 std::ostream& operator<<(std::ostream& out, const Function& f)
