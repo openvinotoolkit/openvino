@@ -3760,16 +3760,48 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
     int axis = gatherLayer->GetParamAsInt("axis", 0);
 
     // Be careful, TensorFlow consist negative axis interpretation bug. Here: -3 = b, -2 = f, -1 = y, but must be -3 = f, -2 = y, -1 = x
-    auto cldnnAxisFromIE = [](int axis) {
-        switch (axis) {
-            case 0: return cldnn::gather::gather_axis::along_b;
-            case 1: return cldnn::gather::gather_axis::along_f;
-            case 2: return cldnn::gather::gather_axis::along_y;
-            case 3: return cldnn::gather::gather_axis::along_x;
-            case -1: return cldnn::gather::gather_axis::along_y;
-            case -2: return cldnn::gather::gather_axis::along_f;
-            case -3: return cldnn::gather::gather_axis::along_b;
-            default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+    auto cldnnAxisFromIE = [](int axis, cldnn::format inputFormat) {
+        if (axis == 0) {
+            return cldnn::gather::gather_axis::along_b;
+        } else if (axis == 1) {
+            return cldnn::gather::gather_axis::along_f;
+        }
+
+        if (inputFormat == cldnn::format::bfyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_y;
+                case 3: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_f;
+                case -3: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else if (inputFormat == cldnn::format::bfzyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_z;
+                case 3: return cldnn::gather::gather_axis::along_y;
+                case 4: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_z;
+                case -3: return cldnn::gather::gather_axis::along_f;
+                case -4: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else if (inputFormat == cldnn::format::bfwzyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_w;
+                case 3: return cldnn::gather::gather_axis::along_z;
+                case 4: return cldnn::gather::gather_axis::along_y;
+                case 5: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_z;
+                case -3: return cldnn::gather::gather_axis::along_w;
+                case -4: return cldnn::gather::gather_axis::along_f;
+                case -5: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else {
+            THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
         }
     };
 
@@ -3798,127 +3830,18 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     }
 
-    auto indicesDims = layer->insData[1].lock()->getTensorDesc().getDims();
-    auto indicesLayout = layer->insData[1].lock()->getTensorDesc().getLayout();
-    auto indicesFormat = FormatFromLayout(indicesLayout);
-
-    auto inputDims = layer->insData[0].lock()->getTensorDesc().getDims();
     auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
-    auto inputFormat = FormatFromLayout(inputLayout);
-
-    auto outDimsOriginal = layer->outData[0]->getTensorDesc().getDims();
-    auto outputLayoutOriginal = layer->outData[0]->getTensorDesc().getLayout();
-    auto outputFormatOriginal = FormatFromLayout(outputLayoutOriginal);
-
-    auto outDims = outDimsOriginal;
-    auto targetDatatype = DataTypeFromPrecision(layer->precision);
-
-    auto nonNegativeAxis = (axis >= 0) ? axis : axis + 3;
-
-    // following vector is needed just to check if we can apply bfyx WA
-    SizeVector originalRequiredDims;
-    for (size_t d = 0; d < inputDims.size(); d++) {
-        if ((d == nonNegativeAxis) || (inputDims[d] > 1)) {
-            originalRequiredDims.push_back(d);
-        }
-    }
-
-    if (originalRequiredDims.size() < 4) {
-        // make sure that we will have at least 4 required dimensions
-        auto originalAxesIt = originalRequiredDims.begin();
-        for (size_t i = 0; i < 4; i++) {
-            int dimFoundAtIndex = -1;
-            for (size_t j = 0; j < originalRequiredDims.size(); j++) {
-                if (originalRequiredDims[j] == i) {
-                    dimFoundAtIndex = j;
-                }
-            }
-            if (dimFoundAtIndex == -1) {
-                originalAxesIt = originalRequiredDims.insert(originalAxesIt, i);
-            }
-            originalAxesIt++;
-        }
-    }
-
-    // clDNN primitive is missing proper support of 5d/6d inputs
-    // but we can still fall back to bfyx format in some cases
-    bool bfyx_wa = ((inputFormat == cldnn::format::bfzyx || inputFormat == cldnn::format::bfwzyx) &&
-                    (originalRequiredDims.size() == 4) &&
-                    (indicesFormat == cldnn::format::bfyx));
-
-    if (bfyx_wa) {
-        if (indicesDims.size() > 1) {
-            // reshape the indices dims to 1D (along batch axis)
-            size_t indDimAcc = std::accumulate(indicesDims.begin(), indicesDims.end(), 1, std::multiplies<size_t>());
-            SizeVector targetIndDims{ indDimAcc, 1, 1, 1 };
-
-            auto reshapeName = reorderedInputs[1] + "_" + layer->name + "_reshape";
-            auto targetTensor = CldnnTensorFromIEDims(targetIndDims);
-            auto reshapePrim = cldnn::reshape(reshapeName, reorderedInputs[1], CldnnTensorFromIEDims(targetIndDims));
-            topology.add(reshapePrim);
-            AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
-            reorderedInputs[1] = reshapeName;
-
-            // adjust expected output dims
-            outDims[nonNegativeAxis] = indDimAcc;
-            outDims.erase(outDims.begin() + nonNegativeAxis + 1, outDims.begin() + nonNegativeAxis + indicesDims.size());
-        }
-
-        // reorder input to bfyx
-        auto reorderName = reorderedInputs[0] + "_" + layer->name + "_format_reorder";
-        auto reorderPrim = cldnn::reorder(reorderName, reorderedInputs[0], cldnn::format::bfyx, targetDatatype);
-        topology.add(reorderPrim);
-        AddInnerPrimitiveToProfiler(reorderName, gatherLayerName, layer);
-        reorderedInputs[0] = reorderName;
-
-        // calculate new input/output dims in bfyx format
-        SizeVector targetInDims(4);
-        SizeVector targetOutDims(4);
-        for (size_t d = 0; d < 4; d++) {
-            targetInDims[d] = inputDims[originalRequiredDims[d]];
-            targetOutDims[d] = outDims[originalRequiredDims[d]];
-        }
-        outDims = targetOutDims;
-
-        // calculate new axis in bfyx format
-        for (size_t d = 0; d < originalRequiredDims.size(); d++) {
-            if (originalRequiredDims[d] == nonNegativeAxis) {
-                axis = d;
-            }
-        }
-
-        // reshape the input dims to the ones expected in bfyx format
-        auto reshapeName = reorderedInputs[0] + "_" + layer->name + "_reshape";
-        auto targetTensor = CldnnTensorFromIEDims(targetInDims);
-        auto reshapePrim = cldnn::reshape(reshapeName, reorderedInputs[0], CldnnTensorFromIEDims(targetInDims));
-        topology.add(reshapePrim);
-        AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
-        reorderedInputs[0] = reshapeName;
-    }
+    auto outDims = layer->outData[0]->getTensorDesc().getDims();
 
     auto gatherPrim = cldnn::gather(
         gatherLayerName,
         reorderedInputs[0],
         reorderedInputs[1],
-        cldnnAxisFromIE(axis),
+        cldnnAxisFromIE(axis, FormatFromLayout(inputLayout)),
         CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
     AddPrimitiveToProfiler(gatherLayerName, layer);
-
-    if (bfyx_wa) {
-        // reorder output back to original format
-        auto reorderName = gatherLayerName + "_" + layer->name + "_format_reorder";
-        auto reorderPrim = cldnn::reorder(reorderName, gatherPrim, outputFormatOriginal, targetDatatype);
-        topology.add(reorderPrim);
-        AddInnerPrimitiveToProfiler(reorderName, gatherLayerName, layer);
-
-        // reshape output back to original dims
-        auto reshapeName = gatherLayerName + "_" + layer->name + "_reshape";
-        auto reshapePrim = cldnn::reshape(reshapeName, reorderName, CldnnTensorFromIEDims(outDimsOriginal));
-        topology.add(reshapePrim);
-        AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
-    }
 }
 
 void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology, InferenceEngine::CNNLayerPtr & layer) {
