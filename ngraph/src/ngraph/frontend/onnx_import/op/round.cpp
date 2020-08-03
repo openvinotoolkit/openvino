@@ -41,20 +41,28 @@ namespace ngraph
                 //
                 // The correct version should contain condition:
                 // if (diff < 0.5f || (diff == 0.5f && static_cast<int>(data_floor) % 2 == 0))
-                //
-                // Current version supports only f32 element type
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
 
+                    Output<ngraph::Node> one_const =
+                        default_opset::Constant::create(element::f32, {}, {1.0f});
+                    Output<ngraph::Node> half_const =
+                        default_opset::Constant::create(element::f32, {}, {0.5f});
+                    if (data.get_element_type() != element::f32)
+                    {
+                        one_const = std::make_shared<default_opset::Convert>(
+                            one_const, data.get_element_type());
+                        half_const = std::make_shared<default_opset::Convert>(
+                            half_const, data.get_element_type());
+                    }
+
                     const auto data_floor = std::make_shared<default_opset::Floor>(data);
-                    const auto data_floor_plus_one = std::make_shared<default_opset::Add>(
-                        data_floor, default_opset::Constant::create(element::f32, {}, {1.0f}));
+                    const auto data_floor_plus_one =
+                        std::make_shared<default_opset::Add>(data_floor, one_const);
 
                     const auto diff = std::make_shared<default_opset::Add>(
                         data, std::make_shared<default_opset::Negative>(data_floor));
-                    const auto half_const =
-                        default_opset::Constant::create(element::f32, {}, {0.5f});
                     const auto less_than_half =
                         std::make_shared<default_opset::Less>(diff, half_const);
 
