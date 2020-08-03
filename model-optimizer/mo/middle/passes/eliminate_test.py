@@ -39,9 +39,6 @@ nodes_attributes = {'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': '
                     'data_node_4': {'value': None, 'kind': 'data'},
                     'data_node_5': {'value': None, 'shape': None, 'kind': 'data'},
                     'data_node_6': {'value': None, 'shape': None, 'kind': 'data'},
-                    'tf_call_1': {'type': 'TFCustomSubgraphCall', 'kind': 'op', 'op': 'TFCustomSubgraphCall'},
-                    'tf_call_2': {'type': 'TFCustomSubgraphCall', 'kind': 'op', 'op': 'TFCustomSubgraphCall'},
-                    'tf_call_3': {'type': 'TFCustomSubgraphCall', 'kind': 'op', 'op': 'TFCustomSubgraphCall'},
                     'op_output': {'kind': 'op', 'op': 'Result'},
                     'op_output_1': {'kind': 'op', 'op': 'Result'},
                     'op_output_2': {'kind': 'op', 'op': 'Result'}

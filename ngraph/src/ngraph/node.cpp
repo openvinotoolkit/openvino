@@ -766,7 +766,7 @@ NodeVector ngraph::as_node_vector(const OutputVector& values)
     NodeVector node_vector;
     for (auto& value : values)
     {
-        node_vector.push_back(value.as_single_output_node());
+        node_vector.emplace_back(value.get_node_shared_ptr());
     }
     return node_vector;
 }
@@ -800,8 +800,14 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
-           matcher->match_arguments(this, graph_value.get_node_shared_ptr());
+    if (graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
+        matcher->match_arguments(this, graph_value.get_node_shared_ptr()))
+    {
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        return true;
+    }
+    return false;
 }
 
 // default implementation for the node to check if it contains partial shape

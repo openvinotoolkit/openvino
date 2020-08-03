@@ -13,24 +13,22 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
+ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
     auto input = std::make_shared<pattern::op::Label>(element::i32, Shape{1, 1, 1, 1});
     auto depth = std::make_shared<pattern::op::Label>(element::i64, Shape{});
     auto on_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto off_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto one_hot = std::make_shared<ngraph::opset1::OneHot>(input, depth, on_value, off_value, 1);
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto one_hot = std::dynamic_pointer_cast<ngraph::opset1::OneHot> (m.get_match_root());
         if (!one_hot) {
             return false;
         }
 
-        element::Type output_type = is_f16 ? element::f16 : element::f32;
-
-        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(1).get_source_output().get_node_shared_ptr());
-        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(2).get_source_output().get_node_shared_ptr());
-        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(3).get_source_output().get_node_shared_ptr());
+        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(1).get_node_shared_ptr());
+        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(2).get_node_shared_ptr());
+        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(3).get_node_shared_ptr());
 
         // can be converted iff inputs with depth, on/off values are constants
         if (depth_node == nullptr || on_value_node == nullptr || off_value_node == nullptr) return false;
@@ -40,11 +38,11 @@ void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
         auto off_value = std::stof(off_value_node->convert_value_to_string(0));
 
         auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->input_value(0),
-                                                                 one_hot->get_axis(), depth_value, on_value, off_value, output_type);
+                                                                 one_hot->get_axis(), depth_value, on_value, off_value, m_output_type);
         one_hot_ie->set_friendly_name(one_hot->get_friendly_name());
 
         // insert Convert layer to cast output to a correct data type defined by the on/off values
-        if (on_value_node->get_element_type() != output_type) {
+        if (on_value_node->get_element_type() != m_output_type) {
             auto convert = std::make_shared<ngraph::opset1::Convert>(one_hot_ie, on_value_node->get_element_type());
             convert->set_friendly_name(one_hot->get_friendly_name() + "/Convert");
             ngraph::copy_runtime_info(one_hot, {one_hot_ie, convert});
@@ -58,10 +56,9 @@ void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(one_hot, "ConvertOneHotToOneHotIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-bool ngraph::pass::ConvertOneHotToOneHotIE::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    is_f16 = ngraph::op::util::has_f16_constants(f);
-    return GraphRewrite::run_on_function(f);
+void ngraph::pass::ConvertOneHotToOneHotIEMatcher::detect_output_type(const std::shared_ptr<ngraph::Function> &f) {
+    m_output_type  = ngraph::op::util::has_f16_constants(f) ? element::Type_t::f16 : element::Type_t::f32;
 }

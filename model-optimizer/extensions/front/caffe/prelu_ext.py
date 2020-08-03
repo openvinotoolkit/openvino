@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.prelu import PreluOp
+from extensions.ops.prelu import PReLU
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.caffe.extractors.utils import weights_biases
 from mo.front.common.extractors.utils import layout_attrs
@@ -57,5 +57,5 @@ class PreluFrontExtractor(FrontExtractorOp):
         mapping_rule.update(layout_attrs())
 
         # update the attributes of the node
-        PreluOp.update_node_stat(node, mapping_rule)
+        PReLU.update_node_stat(node, mapping_rule)
         return cls.enabled

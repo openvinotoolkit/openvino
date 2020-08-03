@@ -17,6 +17,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             unitTestUtils
+            inference_engine_transformations
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
         DEPENDENCIES
@@ -24,6 +25,3 @@ addIeTargetTest(
         LABELS
             IE
 )
-
-target_include_directories(${TARGET_NAME} PRIVATE
-    $<TARGET_PROPERTY:inference_engine_ir_v7_reader,INTERFACE_INCLUDE_DIRECTORIES>)
