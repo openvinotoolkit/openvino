@@ -28,7 +28,7 @@ TEST(type_prop, interpolate_v4)
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {15, 30});
+    auto scales = op::Constant::create<int64_t>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
@@ -39,7 +39,7 @@ TEST(type_prop, interpolate_v4)
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
-    auto op = std::make_shared<op::v4::Interpolate>(image, output_shape, axes, attrs);
+    auto op = std::make_shared<op::v4::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(op->get_shape(), (Shape{2, 2, 15, 30}));
 }

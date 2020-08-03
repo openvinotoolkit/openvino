@@ -184,25 +184,19 @@ namespace ngraph
 
                 void operator()(const T* input_data,
                                 const Shape& input_data_shape,
-                                const std::vector<std::size_t>& target_spatial_shape,
+                                const std::vector<float>& scales,
                                 const std::vector<std::size_t>& axes,
                                 T* out,
                                 const Shape& out_shape)
                 {
                     m_input_data_shape = input_data_shape;
-                    m_target_spatial_shape = target_spatial_shape;
                     m_axes = axes;
                     m_out_shape = out_shape;
 
                     std::size_t output_data_size = shape_size(out_shape);
-
                     std::fill(out, out + output_data_size, T{});
 
-                    for (std::size_t i = 0; i < input_data_shape.size(); ++i)
-                    {
-                        m_scales[i] = static_cast<float>(m_out_shape[i]) /
-                                      static_cast<float>(m_input_data_shape[i]);
-                    }
+                    m_scales = scales;
 
                     switch (m_interp_mode)
                     {
@@ -221,7 +215,6 @@ namespace ngraph
                 bool m_antialias;
 
                 Shape m_input_data_shape;
-                std::vector<std::size_t> m_target_spatial_shape;
                 std::vector<std::size_t> m_axes;
                 Shape m_out_shape;
 
@@ -569,14 +562,14 @@ namespace ngraph
             template <typename T>
             void interpolate(const T* input_data,
                              const Shape& input_data_shape,
-                             const std::vector<std::size_t>& target_spatial_shape,
+                             const std::vector<float>& scales,
                              const std::vector<std::size_t>& axes,
                              T* out,
                              const Shape& out_shape,
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
             {
                 InterpolateEval<T> evaluator{attrs};
-                evaluator(input_data, input_data_shape, target_spatial_shape, axes, out, out_shape);
+                evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
             }
         }
     }
