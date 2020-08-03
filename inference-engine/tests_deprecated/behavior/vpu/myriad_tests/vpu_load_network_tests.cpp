@@ -64,10 +64,10 @@ TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenPlatformConflictWithPr
     auto device_to_load = devices[0];
 
     IE_SUPPRESS_DEPRECATED_START
-    if(isMyriadXDevice(device_to_load)) {
-        wrong_platform = VPU_MYRIAD_2450;
-    } else {
+    if(isMyriad2Device(device_to_load)) {
         wrong_platform = VPU_MYRIAD_2480;
+    } else {
+        wrong_platform = VPU_MYRIAD_2450;
     }
     IE_SUPPRESS_DEPRECATED_END
 

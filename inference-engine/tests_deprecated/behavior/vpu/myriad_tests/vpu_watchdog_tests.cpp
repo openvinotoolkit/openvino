@@ -60,10 +60,10 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         int total() const {return booted + unbooted;}
     };
 
-    DevicesState queryDevices() {
+    DevicesState queryDevices(ncDeviceProtocol_t protocol = NC_USB) {
         DevicesState devicesState;
-        devicesState.booted = getAmountOfBootedDevices(NC_USB);
-        devicesState.unbooted = getAmountOfUnbootedDevices(NC_USB);
+        devicesState.booted = getAmountOfBootedDevices(protocol);
+        devicesState.unbooted = getAmountOfUnbootedDevices(protocol);
         return devicesState;
     }
 
@@ -103,7 +103,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
 #define ASSERT_BOOTED_DEVICES_ONE_MORE() {\
     std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;\
-    auto q = queryDevices();\
+    auto q = queryDevices(NC_ANY_PROTOCOL);\
     cout << "BOOTED=" << q.booted << "\n";\
     cout << "TOTAL=" << q.total() << "\n";\
     ASSERT_EQ(q.booted, startup_devices.booted + 1);\
@@ -112,7 +112,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
 #define ASSERT_BOOTED_DEVICES_SAME() {\
     std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;\
-    auto q = queryDevices();\
+    auto q = queryDevices(NC_ANY_PROTOCOL);\
     cout << "BOOTED=" << q.booted << "\n";\
     cout << "TOTAL=" << q.total() << "\n";\
     ASSERT_EQ(q.booted, startup_devices.booted);\
@@ -121,8 +121,10 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
 TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 
-    auto startup_devices = queryDevices();
-    ASSERT_GE(startup_devices.unbooted, 1);
+    auto startup_devices = queryDevices(NC_ANY_PROTOCOL);
+    if (startup_devices.unbooted < 1) {
+        GTEST_SKIP();
+    }
 
     auto ctime = Time::now();
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
@@ -150,7 +152,9 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 
 TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
     auto startup_devices = queryDevices();
-    ASSERT_GE(startup_devices.unbooted, 1);
+    if (startup_devices.unbooted < 1) {
+        GTEST_SKIP();
+    }
 
     auto ctime = Time::now();
 
@@ -180,12 +184,14 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
 TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto startup_devices = queryDevices();
+    if (startup_devices.unbooted < 1) {
+        GTEST_SKIP();
+    }
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
         auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
@@ -213,12 +219,14 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
 
 TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto startup_devices = queryDevices();
+    if (startup_devices.unbooted < 1) {
+        GTEST_SKIP();
+    }
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
         auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
         CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
-        ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();

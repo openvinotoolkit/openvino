@@ -93,8 +93,5 @@ TEST_F(VPUGetMetric, smoke_MyriadGetAvailableDevices) {
     for (size_t i = 0; i < availableDevices.size(); ++i) {
         const auto deviceName = "MYRIAD." + availableDevices[i];
         ASSERT_NO_THROW(result = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
-
-        deviceNames[i] = result.as<std::string>();
-        ASSERT_TRUE(deviceNames[i] != availableDevices[i]);
     }
 }
