@@ -30,6 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
+                // WARNING!
                 // Current version is:
                 // data_floor = floor(data)
                 // diff = data - data_floor
@@ -40,6 +41,8 @@ namespace ngraph
                 //
                 // The correct version should contain condition:
                 // if (diff < 0.5f || (diff == 0.5f && static_cast<int>(data_floor) % 2 == 0))
+                //
+                // Current version supports only f32 element type
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
@@ -55,7 +58,6 @@ namespace ngraph
                     const auto less_than_half =
                         std::make_shared<default_opset::Less>(diff, half_const);
 
-                    // NOTICE If diff equals 0.5f, the result can not be correct
                     return {std::make_shared<default_opset::Select>(
                         less_than_half, data_floor, data_floor_plus_one)};
                 }

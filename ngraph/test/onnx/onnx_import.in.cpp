@@ -2270,6 +2270,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round)
     test_case.run();
 }
 
+// CASES NOT CORRECTLY HANDLED BY CURRENT IMPLEMENTATION OF ROUND
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even)
 {
     const auto function = onnx_import::import_onnx_model(
