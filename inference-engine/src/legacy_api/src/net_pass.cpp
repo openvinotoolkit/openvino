@@ -24,6 +24,8 @@
 #include "ie_memcpy.h"
 #include "precision_utils.h"
 
+#include "ie_legacy_itt.hpp"
+
 namespace InferenceEngine {
 namespace NetPass {
 
@@ -1450,6 +1452,8 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer) {
 }
 
 void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "NetPass::ConvertPrecision");
+
     auto compare = getPrecisionMask(from, to);
     switch (compare) {
         case getPrecisionMask(Precision::U32, Precision::I32):

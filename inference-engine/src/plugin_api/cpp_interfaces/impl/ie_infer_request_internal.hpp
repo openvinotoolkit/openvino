@@ -18,6 +18,7 @@
 #include "ie_compound_blob.h"
 #include "ie_memcpy.h"
 #include "ie_preprocess_data.hpp"
+#include "ie_plugin_itt.hpp"
 
 namespace InferenceEngine {
 
@@ -69,7 +70,7 @@ public:
      * precision and size.
      */
     void SetBlob(const char* name, const Blob::Ptr& data) override {
-        IE_PROFILING_AUTO_SCOPE(SetBlob)
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
         if (name == nullptr) {
             THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
         }
@@ -138,7 +139,7 @@ public:
      * @note if ROI blob was previously set it is returned (without dimensions checks) instead of default blob.
      */
     void GetBlob(const char* name, Blob::Ptr& data) override {
-        IE_PROFILING_AUTO_SCOPE(GetBlob)
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "GetBlob");
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         const SizeVector oneVector = { 1 };
