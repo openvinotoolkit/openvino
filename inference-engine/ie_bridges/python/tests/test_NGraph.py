@@ -22,7 +22,7 @@ def test_CreateIENetworkFromNGraph():
     caps = Function.to_capsule(func)
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
-    assert ng.get_function(cnnNetwork) != None
+    assert ng.function_from_cnn(cnnNetwork) != None
     assert len(cnnNetwork.layers) == 2
 
 def test_GetIENetworkFromNGraph():
@@ -33,6 +33,6 @@ def test_GetIENetworkFromNGraph():
     caps = Function.to_capsule(func)
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
-    assert ng.get_function(cnnNetwork) != None
-    func2 = ng.get_function(cnnNetwork)
+    assert ng.function_from_cnn(cnnNetwork) != None
+    func2 = ng.function_from_cnn(cnnNetwork)
     assert func2 != None
