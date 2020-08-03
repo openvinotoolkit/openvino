@@ -11,7 +11,6 @@
 
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -53,7 +52,6 @@ Plugin::~Plugin() {
 
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
-    const bool constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
     std::vector<::ngraph::PartialShape> new_shapes;
 
@@ -66,9 +64,6 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
-    if (constFolding) {
-        passManager.register_pass<ngraph::pass::ConstantFolding>();
-    }
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Example: register plugin specific transformation
