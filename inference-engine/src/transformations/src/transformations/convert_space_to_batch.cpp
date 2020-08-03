@@ -7,17 +7,13 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/builder/reshape.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = ngraph::opset3::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
-    auto input2 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto input3 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto space_to_batch = std::make_shared<ngraph::opset3::SpaceToBatch>(input0, input1, input2, input3);
-
+    auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
         if (!space_to_batch) {
@@ -102,12 +98,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 }
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = ngraph::opset3::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
-    auto input2 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto input3 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto space_to_batch = std::make_shared<ngraph::opset3::SpaceToBatch>(input0, input1, input2, input3);
-
+    auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
         if (!space_to_batch) {

@@ -23,7 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, BatchToSpaceDecomposition) {
+TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -79,7 +79,7 @@ TEST(TransformationTests, BatchToSpaceDecomposition) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SpaceToBatchDecomposition) {
+TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
