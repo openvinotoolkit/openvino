@@ -313,7 +313,8 @@ std::vector<std::shared_ptr<ngraph::Node>>
             {
                 cloned_node->validate_and_infer_types();
             }
-            cloned_node->get_rt_info() = node->get_rt_info();
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
 
             for (auto tag : node->get_provenance_tags())
             {
@@ -380,7 +381,8 @@ std::list<std::shared_ptr<ngraph::Node>>
                 {
                     cloned_node->validate_and_infer_types();
                 }
-                cloned_node->get_rt_info() = node->get_rt_info();
+                auto rt_info = node->get_rt_info();
+                cloned_node->get_rt_info() = rt_info;
 
                 for (auto tag : node->get_provenance_tags())
                 {
