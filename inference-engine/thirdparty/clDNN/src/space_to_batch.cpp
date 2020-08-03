@@ -35,11 +35,16 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node) 
     auto input_layout = node.input(0).get_output_layout();
     auto input_format = input_layout.format;
 
-    const size_t dims_num = format::dimension(input_format);
+    auto output_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+
+    if (node.has_fused_primitives())
+        output_type = node.get_fused_output_layout().data_type;
+
+    const size_t spatial_num = format::spatial_num(input_format);
 
     const auto& block_shape = desc->block_shape;
-    const auto& pads_begin =  desc->pads_begin;
-    const auto& pads_end =  desc->pads_end;
+    const auto& pads_begin = desc->pads_begin;
+    const auto& pads_end = desc->pads_end;
 
     if (block_shape.batch[0] != 1)
         CLDNN_ERROR_MESSAGE(node.id(),
@@ -56,16 +61,16 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node) 
             "pads_end[0] is expected to be 0. Actual pads_end[0] is " +
             std::to_string(pads_end.batch[0]));
 
-    if ((input_layout.size.sizes(input_format)[1] + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0)
+    if ((input_layout.size.feature[0] + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Input feature shape after padding must be divisible by block_shape");
 
-    for (size_t i = 2; i < dims_num; ++i)
-        if ((input_layout.size.sizes(input_format)[dims_num - i + 1] + pads_begin.sizes()[i] + pads_end.sizes()[i]) % block_shape.sizes()[i] != 0)
+    for (size_t i = 0; i < spatial_num; ++i)
+        if ((input_layout.size.spatial[i] + pads_begin.spatial[i] + pads_end.spatial[i]) % block_shape.spatial[i] != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Input spatial shapes after padding must be divisible by block_shape");
 
-    return layout{input_layout.data_type, input_format, desc->out_size};
+    return layout{output_type, input_format, desc->out_size};
 }
 
 std::string space_to_batch_inst::to_string(space_to_batch_node const& node) {
