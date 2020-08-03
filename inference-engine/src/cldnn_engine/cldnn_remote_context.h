@@ -14,6 +14,11 @@
 #include <api/memory.hpp>
 #include <api/engine.hpp>
 #include "cldnn_common_utils.h"
+
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+
 #ifdef WIN32
 #include <gpu/gpu_context_api_dx.hpp>
 #else

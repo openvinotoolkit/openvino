@@ -15,6 +15,7 @@
 
 #include "ie_compound_blob.h"
 #include "ie_remote_context.hpp"
+#include "ie_core.hpp"
 
 #include "gpu/gpu_params.hpp"
 #include "gpu/gpu_ocl_wrapper.hpp"
@@ -265,6 +266,6 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
-};  // namespace gpu
+}  // namespace gpu
 
-};  // namespace InferenceEngine
+}  // namespace InferenceEngine

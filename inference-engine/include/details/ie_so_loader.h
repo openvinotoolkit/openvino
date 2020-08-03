@@ -9,8 +9,53 @@
  */
 #pragma once
 
-#ifndef _WIN32
-# include "os/lin_shared_object_loader.h"
-#else
-# include "os/win_shared_object_loader.h"
+#include <memory>
+
+#include "ie_api.h"
+
+namespace InferenceEngine {
+namespace details {
+
+/**
+ * @brief This class provides an OS shared module abstraction
+ */
+class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
+    class Impl;
+    std::shared_ptr<Impl> _impl;
+
+public:
+    /**
+     * @brief A shared pointer to SharedObjectLoader
+     */
+    using Ptr = std::shared_ptr<SharedObjectLoader>;
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Loads a library with the wide char name specified.
+     * @param pluginName Full or relative path to the plugin library
+     */
+    explicit SharedObjectLoader(const wchar_t* pluginName);
 #endif
+
+    /**
+     * @brief Loads a library with the name specified.
+     * @param pluginName Full or relative path to the plugin library
+     */
+    explicit SharedObjectLoader(const char * pluginName);
+
+    /**
+     * @brief A destructor
+     */
+    ~SharedObjectLoader() noexcept(false);
+
+    /**
+     * @brief Searches for a function symbol in the loaded module
+     * @param symbolName Name of function to find
+     * @return A pointer to the function if found
+     * @throws InferenceEngineException if the function is not found
+     */
+    void* get_symbol(const char* symbolName) const;
+};
+
+}  // namespace details
+}  // namespace InferenceEngine

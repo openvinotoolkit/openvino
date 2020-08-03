@@ -7,7 +7,6 @@
 #include <map>
 #include <functional>
 #include <utility>
-#include <api/detection_output.hpp>  // todo: find a way to remove this
 #include <description_buffer.hpp>
 #include "cldnn_infer_request.h"
 #include "cldnn_remote_context.h"

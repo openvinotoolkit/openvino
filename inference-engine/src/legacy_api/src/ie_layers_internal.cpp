@@ -63,7 +63,7 @@ Paddings getPaddingsInternal(const Layer& layer) {
                 bool is_deconv = (layer.type == "Deconvolution");
 
                 for (size_t i = 0; i < layer._kernel.size(); i++) {
-                    float PA = 0;
+                    int PA = 0;
                     int kernel = getKernel(layer, i);
 
                     int stride = layer._stride.size() > i ? layer._stride[i] : 1;

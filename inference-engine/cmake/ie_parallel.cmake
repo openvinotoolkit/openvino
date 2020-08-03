@@ -63,7 +63,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(omp_lib_name iomp5)
         endif ()
 
-        if (NOT(IE_MAIN_SOURCE_DIR))
+        if (NOT IE_MAIN_SOURCE_DIR)
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})

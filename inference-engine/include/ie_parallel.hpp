@@ -22,9 +22,14 @@
 #define IE_THREAD_TBB_AUTO 3
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#define TBB_PREVIEW_LOCAL_OBSERVER 1
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+#ifndef TBB_PREVIEW_LOCAL_OBSERVER
+# define TBB_PREVIEW_LOCAL_OBSERVER 1
+#endif
 #ifndef TBB_PREVIEW_NUMA_SUPPORT
-#define TBB_PREVIEW_NUMA_SUPPORT 1
+# define TBB_PREVIEW_NUMA_SUPPORT 1
 #endif
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
@@ -44,7 +49,7 @@ inline int parallel_get_num_threads() {
 inline int parallel_get_thread_num() {
     return tbb::this_task_arena::current_thread_index();
 }
-inline void parallel_set_num_threads(int n) {
+inline void parallel_set_num_threads(int) {
     return;
 }
 inline int parallel_get_env_threads() {
@@ -104,7 +109,7 @@ inline int parallel_get_num_threads() {
 inline int parallel_get_thread_num() {
     return 0;
 }
-inline void parallel_set_num_threads(int n) {
+inline void parallel_set_num_threads(int) {
     return;
 }
 #endif

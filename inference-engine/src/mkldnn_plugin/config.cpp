@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// avoiding clash of the "max" macro with std::max
-#define NOMINMAX
-
 #include "config.h"
 
 #include <string>

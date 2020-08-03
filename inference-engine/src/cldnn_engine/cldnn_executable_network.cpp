@@ -26,7 +26,6 @@
 #include <utility>
 #include <sys/types.h>
 
-#include <exec_graph_info.hpp>
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
 
