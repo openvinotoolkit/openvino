@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <cmath>
 #include "ngraph/op/interpolate.hpp"
+#include <cmath>
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/ndim_array_view.hpp"
 #include "ngraph/runtime/ndimindex.hpp"
