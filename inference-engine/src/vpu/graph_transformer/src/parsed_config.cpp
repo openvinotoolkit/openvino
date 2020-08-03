@@ -83,6 +83,12 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME,
         ie::MYRIAD_DUMP_INTERNAL_GRAPH_DIRECTORY,
         ie::MYRIAD_DUMP_ALL_PASSES,
+
+        //
+        // Private deprecated options
+        //
+
+        VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -226,6 +232,7 @@ IE_SUPPRESS_DEPRECATED_START
     setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
     setOption(_printReceiveTensorTime,                       switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG

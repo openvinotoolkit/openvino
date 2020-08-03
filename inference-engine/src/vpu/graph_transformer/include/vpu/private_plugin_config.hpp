@@ -7,6 +7,7 @@
 #include <string>
 
 #include <vpu/myriad_config.hpp>
+#include <vpu/vpu_plugin_config.hpp>
 
 namespace InferenceEngine {
 
@@ -100,5 +101,14 @@ DECLARE_VPU_CONFIG(MYRIAD_WATCHDOG);
 DECLARE_VPU_CONFIG(MYRIAD_PLUGIN_LOG_FILE_PATH);
 
 DECLARE_VPU_CONFIG(MYRIAD_DEVICE_CONNECT_TIMEOUT);
+
+namespace VPUConfigParams {
+
+IE_SUPPRESS_DEPRECATED_START
+// Used to update API usage in the dependent repos.
+DECLARE_VPU_CONFIG_KEY(DETECT_NETWORK_BATCH);
+IE_SUPPRESS_DEPRECATED_END
+
+}  // namespace VPUConfigParams
 
 }  // namespace InferenceEngine
