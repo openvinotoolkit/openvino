@@ -68,6 +68,7 @@ enum class activation_func {
     softplus,             // ln(exp(val) + 1)
     softsign,             // (val/(1+|val|))
     swish,                // (val*sigmoid(val))
+    hswish,               // val * min(max(0, val + 3), 6) / 6
     mish,                 // val*tanh(ln(1 + exp(val)))
     gelu                  // (0.5*val*(1 + erf(val / sqrt(2)))
 };

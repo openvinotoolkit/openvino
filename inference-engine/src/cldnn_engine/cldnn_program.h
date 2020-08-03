@@ -202,6 +202,7 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        HSwish,
         Mish,
         Gelu,
         Sin,

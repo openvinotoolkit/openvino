@@ -717,6 +717,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                     (input / (one + exp(neg(input)))).str()));
             break;
         }
+        case ActivationFunction::HSWISH: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm three("3." + type_suffix);
+            const JitTerm six("6." + type_suffix);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (input * min_func(max_func(zero, input + three), six) / six).str()));
+            break;
+        }
         case ActivationFunction::MISH: {
             std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
             auto bound = out_dt == Datatype::F32 ? "9.9f"_jit : "4.75h"_jit;
