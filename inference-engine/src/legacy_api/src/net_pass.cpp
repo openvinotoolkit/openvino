@@ -1402,6 +1402,23 @@ void convertLayerPrecision(const CNNLayerPtr& layer) {
 }
 
 template <typename NET>
+bool isOutput(NET& net, CNNLayerPtr layer) {
+    return false;
+}
+
+bool isOutput(InferenceEngine::ICNNNetwork& net, CNNLayerPtr layer) {
+    OutputsDataMap outputs;
+    net.getOutputsInfo(outputs);
+    return std::any_of(outputs.begin(), outputs.end(),
+        [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; });
+}
+
+bool isOutput(details::CNNSubnet& net, CNNLayerPtr layer) {
+    return std::any_of(net.outputs.begin(), net.outputs.end(),
+        [layer](DataPtr d) { return d->getName() == layer->name; });
+}
+
+template <typename NET>
 void fixConvertLayers(NET &net) {
     std::vector<CNNLayerPtr> to_remove;
     auto all_layers = TopolSort(net);
@@ -1423,7 +1440,8 @@ void fixConvertLayers(NET &net) {
         }
     }
     for (auto &layer : to_remove) {
-        RemoveLayer(layer, net);
+        if (!isOutput(net, layer))
+            RemoveLayer(layer, net);
     }
 }
 
