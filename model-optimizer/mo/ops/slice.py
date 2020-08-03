@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from typing import List
 
 import numpy as np
 
@@ -168,7 +169,7 @@ class Slice(Op):
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
 
 
-def get_shape_after_slice(input_shape: np.ndarray, slice_idx: int) -> np.ndarray:
+def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List) -> np.ndarray:
     """
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to save memory.
@@ -180,7 +181,7 @@ def get_shape_after_slice(input_shape: np.ndarray, slice_idx: int) -> np.ndarray
     return output_shape
 
 
-def normalize_slice_indices(size: int, start: int, end: int) -> int:
+def normalize_slice_indices(size: int, start: int, end: int) -> (int, int):
     # converts slice indices to format in which size of Slice can be calculated
     start = size + start if start < 0 else start
     end = size + end if end < 0 else end
