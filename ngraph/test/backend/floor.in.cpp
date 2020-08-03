@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, floor)
 {
@@ -52,18 +49,10 @@ NGRAPH_TEST(${BACKEND_NAME}, floor)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{-2.5f, -2.0f, 0.3f, 4.8f});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{-3.0f, -2.0f, 0.0f, 4.0f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({-2.5f, -2.0f, 0.3f, 4.8f});
+    test_case.add_expected_output<float>(shape, {-3.0f, -2.0f, 0.0f, 4.0f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, floor_int32)
@@ -72,17 +61,10 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_int32)
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape);
-    copy_data(a, vector<int32_t>{-2, -136314888, 0x40000010, 0x40000001});
-    auto result = backend->create_tensor(element::i32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<int32_t>{-2, -136314888, 0x40000010, 0x40000001}),
-              read_vector<int32_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({-2, -136314888, 0x40000010, 0x40000001});
+    test_case.add_expected_output<int32_t>(shape, {-2, -136314888, 0x40000010, 0x40000001});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, floor_int64)
@@ -92,14 +74,8 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_int64)
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto a = backend->create_tensor(element::i64, shape);
-    vector<int64_t> expected{0, 1, 0x4000000000000001};
-    copy_data(a, expected);
-    auto result = backend->create_tensor(element::i64, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ(expected, read_vector<int64_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int64_t>({0, 1, 0x4000000000000001});
+    test_case.add_expected_output<int64_t>(shape, {0, 1, 0x4000000000000001});
+    test_case.run();
 }

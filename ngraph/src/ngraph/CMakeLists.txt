@@ -27,21 +27,11 @@ set (SRC
     axis_vector.hpp
     builder/autobroadcast.cpp
     builder/autobroadcast.hpp
-    builder/dequantize_builder.cpp
-    builder/dequantize_builder.hpp
     builder/make_constant.hpp
     builder/matmul_factory.cpp
     builder/matmul_factory.hpp
     builder/norm.cpp
     builder/norm.hpp
-    builder/numpy_transpose.cpp
-    builder/numpy_transpose.hpp
-    builder/quantize_builder.cpp
-    builder/quantize_builder.hpp
-    builder/quantized_concat_builder.cpp
-    builder/quantized_concat_builder.hpp
-    builder/quantized_dot_builder.cpp
-    builder/quantized_dot_builder.hpp
     builder/quantization_utils.hpp
     builder/quantization_utils.cpp
     builder/reduce_ops.cpp
@@ -50,7 +40,6 @@ set (SRC
     builder/reshape.hpp
     builder/split.cpp
     builder/split.hpp
-    builder/tensor_mask.hpp
     check.hpp
     chrome_trace.cpp
     chrome_trace.hpp
@@ -75,8 +64,6 @@ set (SRC
     descriptor/tensor.hpp
     dimension.cpp
     dimension.hpp
-    distributed/null.cpp
-    distributed/null.hpp
     distributed.cpp
     distributed.hpp
     enum_names.hpp
@@ -295,8 +282,6 @@ set (SRC
     op/quantized_dot.hpp
     op/range.cpp
     op/range.hpp
-    op/recv.cpp
-    op/recv.hpp
     op/relu.cpp
     op/relu.hpp
     op/replace_slice.cpp
@@ -317,8 +302,6 @@ set (SRC
     op/scatter_update.hpp
     op/select.cpp
     op/select.hpp
-    op/send.cpp
-    op/send.hpp
     op/shape_of.cpp
     op/shape_of.hpp
     op/sigmoid.cpp
@@ -539,10 +522,6 @@ set (SRC
     slice_plan.hpp
     specialize_function.cpp
     specialize_function.hpp
-    state/bernoulli_rng_state.cpp
-    state/bernoulli_rng_state.hpp
-    state/uniform_rng_state.cpp
-    state/uniform_rng_state.hpp
     strides.cpp
     strides.hpp
     type/bfloat16.cpp
@@ -579,6 +558,8 @@ set_target_properties(ngraph PROPERTIES
 if(NOT NGRAPH_JSON_ENABLE)
     target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
 endif()
+
+target_link_libraries(ngraph PRIVATE openvino::itt)
 
 add_subdirectory(frontend)
 

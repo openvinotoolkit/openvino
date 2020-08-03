@@ -40,7 +40,7 @@ namespace ngraph
                 Gelu(const Output<Node>& data);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 void pre_validate_and_infer_types() override;
 

@@ -37,14 +37,16 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "ie_profiling.hpp"
 #include "ie_cnn_layer_builder_ngraph.h"
+#include "details/caseless.hpp"
 
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+
+#include "ie_legacy_itt.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -125,7 +127,7 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
         auto shape = static_cast<::ngraph::PartialShape&>(*a);
-        for (size_t i = 0; i < shape.rank().get_length(); i++) {
+        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (!dims.empty()) dims += ",";
             dims += std::to_string(shape[i].get_length());
         }
@@ -532,7 +534,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                  const ICNNNetwork &network,
                                  CNNNetworkImpl* cnnNetworkImpl,
                                  bool keep_constant_inputs) {
-    IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
+
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
         public:
@@ -936,6 +939,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                                              const ICNNNetwork &network,
                                                              bool keep_constant_inputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
+
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);
     return cnnNetworkImpl;

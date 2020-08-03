@@ -31,6 +31,8 @@
 #include "ngraph/type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 #include "opset0_downgrade.hpp"
 #include "pass/implicit_broadcast_elimination.hpp"
 
@@ -309,14 +311,14 @@ namespace
         const auto filters_arg = node->input_value(1);
         const auto strides = node->get_strides();
         const size_t num_spatial_dims = strides.size();
-        auto replacement_node = make_shared<op::GroupConvolution>(data_arg,
-                                                                  filters_arg,
-                                                                  node->get_strides(),
-                                                                  node->get_dilations(),
-                                                                  node->get_pads_begin(),
-                                                                  node->get_pads_end(),
-                                                                  Strides(num_spatial_dims, 1),
-                                                                  node->get_auto_pad());
+        auto replacement_node = make_shared<op::v0::GroupConvolution>(data_arg,
+                                                                      filters_arg,
+                                                                      node->get_strides(),
+                                                                      node->get_dilations(),
+                                                                      node->get_pads_begin(),
+                                                                      node->get_pads_end(),
+                                                                      Strides(num_spatial_dims, 1),
+                                                                      node->get_auto_pad());
         replace_node(node, replacement_node);
         return replacement_node;
     }

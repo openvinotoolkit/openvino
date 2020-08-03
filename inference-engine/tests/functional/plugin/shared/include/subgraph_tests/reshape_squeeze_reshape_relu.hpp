@@ -22,7 +22,7 @@ using ReshapeSqueezeReshapeReluTuple = typename std::tuple<
 
 class ReshapeSqueezeReshapeRelu
         : public testing::WithParamInterface<ReshapeSqueezeReshapeReluTuple>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple> &obj);
 protected:

@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/distributed.hpp"
-#include "ngraph/distributed/null.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
@@ -40,22 +39,4 @@ namespace ngraph
 std::ostream& reduction::operator<<(std::ostream& out, const reduction::Type& obj)
 {
     return out << as_string(obj);
-}
-
-static std::unique_ptr<DistributedInterface> s_distributed_interface;
-
-void ngraph::set_distributed_interface(std::unique_ptr<DistributedInterface> distributed_interface)
-{
-    NGRAPH_DEBUG << "Setting distributed interface to: " << distributed_interface->get_name();
-    s_distributed_interface = std::move(distributed_interface);
-}
-
-DistributedInterface* ngraph::get_distributed_interface()
-{
-    if (nullptr == s_distributed_interface)
-    {
-        set_distributed_interface(
-            std::unique_ptr<DistributedInterface>(new ngraph::distributed::Null()));
-    }
-    return s_distributed_interface.get();
 }

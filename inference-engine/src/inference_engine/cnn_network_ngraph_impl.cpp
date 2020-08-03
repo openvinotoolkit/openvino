@@ -9,7 +9,6 @@
 #include <math.h>
 
 #include <cassert>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <vector>
@@ -28,7 +27,7 @@
 #include "graph_transformer.h"
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "ie_profiling.hpp"
+#include "ie_itt.hpp"
 #include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
@@ -42,6 +41,8 @@ using ngraph::Function;
 static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
                                                       bool constFolding,
                                                       const std::map<std::string, std::vector<size_t>>& inputShapes) {
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "copyFunction");
+
     ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto original_parameters = func->get_parameters();
 
@@ -71,14 +72,15 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-// WA: for cnnNetwork ngraph constructor
-CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
+
     if (graph == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
-    // Copy nGraph function
-    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
+    // Create CNNNetworkNGraphImpl
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -146,6 +148,36 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     }
 }
 
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
+    if (network.getFunction() == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
+    }
+
+    _ngraph_function = copyFunction(network.getFunction(), false, {});
+    InputsDataMap inputs;
+    OutputsDataMap outputs;
+    network.getInputsInfo(inputs);
+    network.getOutputsInfo(outputs);
+
+    for (const auto& outputInfo : outputs) {
+        const auto& name = outputInfo.second->getName();
+        DataPtr output = std::make_shared<Data>(name, outputInfo.second->getTensorDesc());
+        _outputData[name] = output;
+        _data[name] = output;
+    }
+    for (const auto& inputInfo : inputs) {
+        InputInfo::Ptr info = std::make_shared<InputInfo>();
+        const auto& name = inputInfo.second->getInputData()->getName();
+        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        _data[name] = input;
+        info->setInputData(input);
+        info->getPreProcess() = inputInfo.second->getPreProcess();
+        info->setPrecision(inputInfo.second->getPrecision());
+        info->setLayout(inputInfo.second->getLayout());
+        _inputData[name] = info;
+    }
+}
+
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
     if (cnnNetwork) cnnNetwork->setInputInfo(data);
     _inputData[data->name()] = data;
@@ -197,7 +229,8 @@ void CNNNetworkNGraphImpl::validate(int version) {
 
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
-    IE_PROFILING_AUTO_SCOPE(addOutput)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
+
     if (cnnNetwork) {
         return cnnNetwork->addOutput(layerName, outputIndex, resp);
     }
@@ -277,7 +310,8 @@ void CNNNetworkNGraphImpl::reshape() {
 StatusCode
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                         ResponseDesc* responseDesc) noexcept {
-    IE_PROFILING_AUTO_SCOPE(reshape)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+
     if (cnnNetwork)
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
@@ -298,7 +332,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             auto specialized_ngraph_function = cloneFunction(true, inputShapes);
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
-                IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
+                OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
                 ::ngraph::pass::Manager manager;
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
@@ -449,7 +483,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 }
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
-    IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::convertToCNNNetworkImpl");
     if (!cnnNetwork)
         cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
 }
