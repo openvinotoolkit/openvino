@@ -18,7 +18,6 @@
 
 #include "debug.h"
 #include "graph_tools.hpp"
-#include "ie_profiling.hpp"
 #include "network_serializer_v7.hpp"
 #include "exec_graph_info.hpp"
 #include "details/ie_cnn_network_tools.h"

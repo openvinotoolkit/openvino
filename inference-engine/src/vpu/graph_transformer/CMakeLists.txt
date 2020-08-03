@@ -45,7 +45,8 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC pugixml vpu_common_lib)
     endif()
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_lp_transformations)
+    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_lp_transformations
+                                         PRIVATE openvino::itt)
 
     if(WIN32)
         target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)

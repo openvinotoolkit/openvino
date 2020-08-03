@@ -38,14 +38,15 @@ else()
     message(STATUS "INTEL_VTUNE_DIR is not defined")
 endif()
 
-# Handle find_package() arguments, and set INTEL_ITT_FOUND
+# Handle find_package() arguments, and set ITT_FOUND
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(INTEL_ITT
+find_package_handle_standard_args(ITT
     REQUIRED_VARS
         Located_ITT_INCLUDE_DIRS
         Located_ITT_LIBS)
 
-if(INTEL_ITT_FOUND)
+if(ITT_FOUND)
+    set(INTEL_ITT_FOUND ${ITT_FOUND})
     add_library(ittnotify STATIC IMPORTED GLOBAL)
     set_target_properties(ittnotify PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
                                                INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}

@@ -93,6 +93,8 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
@@ -131,11 +133,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-endif()
-
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(ENABLE_MKL_DNN)
@@ -159,7 +156,7 @@ add_library(${TARGET_NAME} SHARED
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads ${INTEL_ITT_LIBS} pugixml
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations
                                      PUBLIC ${CMAKE_DL_LIBS} ${TARGET_NAME}_legacy)
 
@@ -193,17 +190,12 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations
+target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations openvino::itt
 # NOTE: public linkage with ITT is important here! without it binaries that use this library do not
 #       get proper compile flags to support ITT which causes hard-to-detect bugs.
-                                       PUBLIC pugixml ${INTEL_ITT_LIBS} ${CMAKE_DL_LIBS})
+                                       PUBLIC pugixml ${CMAKE_DL_LIBS})
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
-
-if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
-    target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${TARGET_NAME}_s PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-endif()
 
 # export targets
 

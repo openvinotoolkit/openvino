@@ -23,7 +23,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
+                                     PRIVATE openvino::itt)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
 

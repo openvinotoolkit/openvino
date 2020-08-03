@@ -29,7 +29,7 @@ public:
     struct SubRequestDesc {
         InferenceEngine::ExecutableNetwork  _network;
         InferenceEngine::InferRequest::Ptr  _request;
-        InferenceEngine::ProfilingTask      _profilingTask;
+        openvino::itt::handle_t             _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;
 

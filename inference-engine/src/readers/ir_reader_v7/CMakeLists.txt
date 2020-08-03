@@ -30,7 +30,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
                                                   "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
-                                             inference_engine pugixml)
+                                             inference_engine pugixml openvino::itt)
 
 # code style
 

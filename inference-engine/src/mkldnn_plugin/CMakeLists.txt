@@ -171,8 +171,7 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
-                      inference_engine_transformations
-                      ${INTEL_ITT_LIBS} mkldnn)
+                      inference_engine_transformations mkldnn)
 
 ## Cross compiled function
 ## TODO: The same for proposal, proposalONNX, topk
@@ -197,7 +196,8 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 

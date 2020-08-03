@@ -26,6 +26,8 @@
 #include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
 
+#include "ie_legacy_itt.hpp"
+
 using std::string;
 
 namespace InferenceEngine {
@@ -149,6 +151,8 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 }
 
 std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
+
     if (network.getFunction()) {
         return std::make_shared<details::CNNNetworkNGraphImpl>(network);
     }
@@ -157,6 +161,7 @@ std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
 }
 
 details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
     std::shared_ptr<ICNNNetwork> clonedNetwork;
     // Call conversion only on the copy of nGraph function
     if (auto func = origin_network.getFunction()) {
@@ -209,6 +214,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
 }
 
 details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(std::vector<CNNLayerPtr>)");
     auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
 
     // Src to cloned data map

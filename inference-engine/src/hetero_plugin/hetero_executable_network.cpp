@@ -7,6 +7,7 @@
 #include "hetero_async_infer_request.hpp"
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
+#include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
 #include <details/caseless.hpp>
 
@@ -939,7 +940,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     for (auto&& subnetwork : networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
-        desc._profilingTask = ProfilingTask{"Infer" + std::to_string(index++)};
+        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,

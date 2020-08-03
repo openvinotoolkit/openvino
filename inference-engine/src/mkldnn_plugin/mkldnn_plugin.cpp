@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_itt.h"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -56,6 +57,8 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
+    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
+
     const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
         // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
@@ -94,6 +97,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
+
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);

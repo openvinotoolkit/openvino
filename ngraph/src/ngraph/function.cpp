@@ -20,6 +20,7 @@
 
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/util.hpp"
@@ -91,6 +92,8 @@ void Function::validate_nodes_and_infer_types()
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "Function::get_ordered_ops");
+
     vector<shared_ptr<Node>> nodes;
     for (auto& r : get_results())
     {

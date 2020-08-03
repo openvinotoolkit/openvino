@@ -117,6 +117,8 @@ function(build_ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
 
+add_subdirectory(openvino)
+
 build_ngraph()
 
 add_subdirectory(inference-engine)

@@ -8,6 +8,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_divide.hpp>
 #include <transformations/convert_mod.hpp>
+#include <transformations/itt.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp>
@@ -56,6 +57,8 @@
 #include <vector>
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
+
     ngraph::pass::Manager manager;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 

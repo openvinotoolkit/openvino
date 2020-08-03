@@ -69,6 +69,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cfloat>
 #include <algorithm>
 #include "cldnn_program.h"
 #include "simple_math.h"

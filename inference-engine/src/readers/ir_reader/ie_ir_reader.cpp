@@ -13,10 +13,13 @@
 #include <algorithm>
 
 #include "ie_ir_parser.hpp"
+#include "ie_ir_itt.hpp"
 
 using namespace InferenceEngine;
 
 bool IRReader::supportModel(std::istream& model) const {
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::supportModel");
+
     auto version = details::GetIRVersion(model);
 
 #ifdef IR_READER_V10
@@ -32,6 +35,8 @@ CNNNetwork IRReader::read(std::istream& model, const std::vector<IExtensionPtr>&
 }
 
 CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const {
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::read");
+
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load(model);
     if (res.status != pugi::status_ok) {

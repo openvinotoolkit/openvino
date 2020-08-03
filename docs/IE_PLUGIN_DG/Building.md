@@ -26,6 +26,7 @@ Once the commands above are executed, the Inference Engine Developer Package is 
        * `IE::inference_engine_lp_transformations` - shared library with low-precision transformations
        * `IE::pugixml` - static Pugixml library
        * `IE::xbyak` - interface library with Xbyak headers
+       * `IE::itt` - static library with tools for performance measurement using Intel ITT
    - Libraries for tests development:
        * `IE::gtest`, `IE::gtest_main`, `IE::gmock` - Google Tests framework libraries
        * `IE::commonTestUtils` - static library with common tests utilities 

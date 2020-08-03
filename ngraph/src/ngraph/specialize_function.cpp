@@ -16,6 +16,7 @@
 
 #include "ngraph/specialize_function.hpp"
 #include <pass/constant_folding.hpp>
+#include "ngraph/itt.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
@@ -41,6 +42,8 @@ std::shared_ptr<Function>
                                 bool constant_folding,
                                 bool share_constants)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "specialize_function");
+
     NGRAPH_CHECK(f->get_parameters().size() == parameter_shapes.size());
     NGRAPH_CHECK(f->get_parameters().size() == parameter_element_types.size());
     NGRAPH_CHECK(f->get_parameters().size() == parameter_values.size());

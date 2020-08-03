@@ -41,3 +41,5 @@ ie_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR X8
 ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" OFF)
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
+
+ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" OFF "NOT CMAKE_CROSSCOMPILING" OFF)

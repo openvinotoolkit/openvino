@@ -782,7 +782,8 @@ WARN_LOGFILE           =
 
 INPUT                  = . \
 						 ../../inference-engine/src/transformations/include/transformations \
-						 ../../inference-engine/src/plugin_api
+						 ../../inference-engine/src/plugin_api \
+						 ../../openvino/itt/include/openvino
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses

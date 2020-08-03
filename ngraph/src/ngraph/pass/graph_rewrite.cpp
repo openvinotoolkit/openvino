@@ -24,6 +24,7 @@
 
 #include "graph_rewrite.hpp"
 #include "ngraph/env_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 
 using namespace std;
@@ -63,6 +64,8 @@ using namespace ngraph;
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");
+
     bool rewritten = false;
 
     // Initialize execution queue with nodes in topological order

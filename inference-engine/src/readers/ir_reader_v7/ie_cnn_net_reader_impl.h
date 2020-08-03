@@ -12,7 +12,6 @@
 
 #include "cnn_network_impl.hpp"
 #include "ie_memcpy.h"
-#include "ie_profiling.hpp"
 #include "parsers.h"
 #include "ie_util_internal.hpp"
 
@@ -49,10 +48,7 @@ public:
 
     StatusCode ReadWeights(const char* filepath, ResponseDesc* resp) noexcept;
 
-    ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept {
-        IE_PROFILING_AUTO_SCOPE(CNNNetReaderImpl::getNetwork)
-        return network.get();
-    }
+    ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept;
 
     std::shared_ptr<ICNNNetwork> getNetwork() {
         return network;

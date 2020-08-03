@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief Defines API to profile your plugin using Intel VTune.
+ * @brief [DEPRECATED] Defines API to profile your plugin using Intel VTune.
+ * @details This API is still available but deprecated. Use ie_plugin_itt.hpp instead.
  * @file ie_profiling.hpp
  */
 
@@ -21,13 +22,13 @@
 #include <unordered_map>
 #include <utility>
 
-#ifdef ENABLE_PROFILING_ITT
-#include <ittnotify.h>
-#endif
-
 /**
  * @cond
  */
+
+#ifdef ENABLE_PROFILING_ITT
+#include <ittnotify.h>
+#endif
 
 namespace InferenceEngine {
 
@@ -150,10 +151,6 @@ static void annotateBegin(IttStatic&, IttProfilingTask& t);
 static void annotateEnd(IttStatic&, IttProfilingTask& t);
 
 /**
- * @endcond
- */
-
-/**
  * @class ProfilingTask
  * @ingroup ie_dev_profiling
  * @brief Used to annotate section of code which would be named at runtime
@@ -189,10 +186,6 @@ private:
 #endif
 };
 
-/**
- * @cond
- */
-
 inline static void annotateBegin(IttStatic&, IttProfilingTask& t) {
 #ifdef ENABLE_PROFILING_ITT
     __itt_task_begin(t.t->domain, __itt_null, __itt_null, t.t->handle);
@@ -226,11 +219,6 @@ inline static void annotateSetThreadName(const char* name) {
 }
 
 /**
- * @endcond
- */
-
-
-/**
  * @def IE_PROFILING_AUTO_SCOPE(NAME)
  * @ingroup ie_dev_profiling
  * @brief Annotate section of code till scope exit to be profiled using known at compile time @p NAME as section id
@@ -247,5 +235,8 @@ inline static void annotateSetThreadName(const char* name) {
  * @param PROFILING_TASK variable of ProfilingTask type
  */
 #define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK);
-
 }  // namespace InferenceEngine
+
+/**
+ * @endcond
+ */

@@ -3,6 +3,7 @@
 //
 
 #include "template_async_infer_request.hpp"
+#include "template_itt.hpp"
 
 using namespace TemplatePlugin;
 

@@ -13,6 +13,7 @@
 #include "cldnn_remote_context.h"
 #include "inference_engine.hpp"
 #include "cldnn_executable_network.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 
@@ -401,7 +402,7 @@ void CLDNNInferRequest::checkBlobs() {
 }
 
 void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(GetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "GetBlob");
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
@@ -422,7 +423,7 @@ void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
 }
 
 void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "SetBlob");
 
     // perform all common checks first
     if (name == nullptr) {
@@ -808,7 +809,7 @@ void CLDNNInferRequest::execAndParseDyn() {
 }
 
 void CLDNNInferRequest::InferImpl() {
-    IE_PROFILING_AUTO_SCOPE(CLDNN_INFER)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNN_INFER");
     int streamID = 0;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
