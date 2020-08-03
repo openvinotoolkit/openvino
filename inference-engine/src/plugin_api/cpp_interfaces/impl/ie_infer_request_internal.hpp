@@ -12,13 +12,13 @@
 #include <utility>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/plugin_itt.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "debug.h"
 #include "ie_compound_blob.h"
 #include "ie_memcpy.h"
 #include "ie_preprocess_data.hpp"
-#include "ie_plugin_itt.hpp"
 
 namespace InferenceEngine {
 

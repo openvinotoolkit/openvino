@@ -9,10 +9,10 @@
 #include <string>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/plugin_itt.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_profiling.hpp"
-#include "ie_plugin_itt.hpp"
 
 namespace InferenceEngine {
 

@@ -41,16 +41,6 @@ function(openvino_developer_export_targets)
         "Paths to extra Inference Engine plugins" FORCE)
 endfunction()
 
-function(openvino_developer_export)
-    export(TARGETS ${OpenVINODeveloperPackageTargets} NAMESPACE openvino::
-            APPEND FILE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-
-    # Custom target to build only Openvino Developer Package targets
-    add_custom_target(openvino_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets})
-endfunction()
-
 add_subdirectory(itt)
 
 openvino_developer_export_targets(openvino::itt)
-
-openvino_developer_export()

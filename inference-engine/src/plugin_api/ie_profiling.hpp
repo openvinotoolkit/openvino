@@ -4,7 +4,7 @@
 
 /**
  * @brief [DEPRECATED] Defines API to profile your plugin using Intel VTune.
- * @details This API is still available but deprecated. Use ie_plugin_itt.hpp instead.
+ * @details This API is still available but deprecated. Use plugin_itt.hpp instead.
  * @file ie_profiling.hpp
  */
 

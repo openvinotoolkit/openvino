@@ -16,7 +16,7 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file ie_plugin_itt.hpp
+ * @file plugin_itt.hpp
  */
 
 #pragma once
