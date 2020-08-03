@@ -152,30 +152,6 @@ namespace ngraph
                 operand1, shaped_op2_op3.first, shaped_op2_op3.second);
         }
 
-        ///
-        /// \brief      Cast shape of two outputs to make them compatible for an element-wise binary
-        ///             operation.
-        ///
-        /// \note       If necessary the right-hand-side argument will be broadcast to match the
-        ///             shape of left-hand-side argument. The starting of the mutually equal shape
-        ///             is specified by the argument "start_match_axis", and if it is not set suffix
-        ///             matching is assumed.
-        ///
-        /// \note       This style of broadcast was used in ONNX Op sets prior to version 7, where
-        ///             it was replaced by NumPy style auto-broadcasting mechanism.
-        ///
-        /// \param      left              Node which contain input of binary op.
-        /// \param      right             Node which contain input of binary op.
-        /// \param      start_match_axis  Position in shape denoting start of the mutually equal
-        ///                               shape
-        ///
-        /// \return     Left and right node after broadcasting.
-        ///
-        NGRAPH_API
-        OutputVector legacy_broadcast_for_binary_operation(const Output<Node>& left,
-                                                           const Output<Node>& right,
-                                                           size_t start_match_axis);
-
         /// \brief      Broadcast shape of two nodes to make them compatible for a matrix
         ///             multiplication.
         ///

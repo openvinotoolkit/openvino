@@ -49,7 +49,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::SpaceToDepth::decompose_op() const
+OutputVector op::SpaceToDepth::decompose_op() const
 {
     auto data = input_value(0);
     auto data_shape = data.get_shape();
@@ -138,7 +138,7 @@ NodeVector op::SpaceToDepth::decompose_op() const
     squeezed_shape.insert(squeezed_shape.begin() + 1, c_dim * std::pow(m_blocksize, spatial_dims));
     flat_node = builder::opset1::reshape(flat_node, squeezed_shape);
 
-    return NodeVector{flat_node};
+    return OutputVector{flat_node};
 }
 
 shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const

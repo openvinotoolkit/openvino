@@ -31,7 +31,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector logical_and(const Node& node)
+                inline OutputVector logical_and(const Node& node)
                 {
                     return {std::make_shared<default_opset::LogicalAnd>(
                         node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};

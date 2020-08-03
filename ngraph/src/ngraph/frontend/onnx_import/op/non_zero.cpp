@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector non_zero(const Node& node)
+                OutputVector non_zero(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
                     return {std::make_shared<default_opset::NonZero>(data, element::i64)};

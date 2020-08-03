@@ -52,10 +52,7 @@ namespace ngraph
                  const ParameterVector& parameters,
                  const std::string& name = "");
 
-        void init();
-
         virtual ~Function() {}
-    public:
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
 
@@ -97,9 +94,6 @@ namespace ngraph
         void map_unordered_ops(std::function<void(Node*)> f) const;
 
         friend std::ostream& operator<<(std::ostream&, const Function&);
-        size_t get_instance_id() { return m_instance_id; }
-        size_t get_temporary_pool_size();
-        void set_temporary_pool_size(size_t);
         // updates graph and m_results list
         void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
 
@@ -127,16 +121,12 @@ namespace ngraph
             const std::vector<std::shared_ptr<Node>>& root_nodes)>;
         void set_topological_sort(topological_sort_t);
 
-    protected:
-        size_t m_temporary_pool_size;
-
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
 
         static std::atomic<size_t> m_next_instance_id;
-        size_t m_instance_id;
         std::string m_name;
         const std::string m_unique_name;
         size_t m_placement{0};
