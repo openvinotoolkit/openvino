@@ -412,7 +412,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     const std::vector<size_t> padEnd = { 0, 0 };
     const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
     const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
-    std::shared_ptr<ngraph::op::Op> intermediateOp;
+    std::shared_ptr<Node> intermediateOp;
 
     if (transparentIntermediate) {
         intermediateOp = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MaxPool>>(
@@ -487,7 +487,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, fqOnDataPrecision);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, fqOnDataPrecision);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, fqOnDataPrecision);
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(intermediateOp, fqOnDataPrecision);
+
+            auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(intermediateOp);
+            if (intermediateOpTr != nullptr) {
+                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(intermediateOp, fqOnDataPrecision);
+            }
         }
     }
 
@@ -602,7 +606,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, fqOnDataPrecision);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, fqOnDataPrecision);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, fqOnDataPrecision);
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(intermediateOp, fqOnDataPrecision);
+
+            auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(intermediateOp);
+            if (intermediateOpTr != nullptr) {
+                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(intermediateOp, fqOnDataPrecision);
+            }
         }
     }
 

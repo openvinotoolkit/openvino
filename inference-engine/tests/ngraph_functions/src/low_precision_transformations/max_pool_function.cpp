@@ -104,7 +104,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
             input,
             std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape))));
 
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, values.activationPrecision);
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(maxPool, values.activationPrecision);
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };

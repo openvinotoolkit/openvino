@@ -101,15 +101,16 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
 
     const auto add = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::Add> >(parent1, parent2);
 
-    const auto relaxedInput2 = as_type_ptr < ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> > (
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
+    // const auto relaxedInput2 = as_type_ptr < ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> > (
+    //    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
+    input2->set_output_type(0, expectedValues.precision2, input2->get_output_partial_shape(0));
 
     const auto multiply = std::make_shared< ngraph::opset1::Multiply >(
         add,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.mutliplyValuesAfter.size() }), expectedValues.mutliplyValuesAfter));
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, relaxedInput2 }, "AddTransformation");
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AddTransformation");
 }
 
 }  // namespace subgraph

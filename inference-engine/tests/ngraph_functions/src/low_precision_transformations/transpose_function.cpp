@@ -40,7 +40,7 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
         ngraph::Shape(inputShape));
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
-        as_type_ptr<ngraph::Node>(input) :
+        std::dynamic_pointer_cast<ngraph::Node>(input) :
         makeFakeQuantize(input, precisionBeforeFq, fqOnData);
 
     const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(

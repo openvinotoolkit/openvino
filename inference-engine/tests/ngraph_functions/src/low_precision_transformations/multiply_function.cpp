@@ -152,14 +152,15 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
     }
     std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::Multiply> >(parent1, parent2);
 
-    std::shared_ptr<ngraph::op::TypeRelaxed<ngraph::opset1::Parameter>> relaxedInput2;
+    // std::shared_ptr<ngraph::op::TypeRelaxed<ngraph::opset1::Parameter>> relaxedInput2;
     if (!constInput) {
-        relaxedInput2 = as_type_ptr < ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> >(
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
+        // relaxedInput2 = as_type_ptr<ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> >(
+        //    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
+        input2->set_output_type(0, expectedValues.precision2, input2->get_output_partial_shape(0));
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    const auto inputs = constInput ? ngraph::ParameterVector{ input1 } : ngraph::ParameterVector{ input1, relaxedInput2 };
+    const auto inputs = constInput ? ngraph::ParameterVector{ input1 } : ngraph::ParameterVector{ input1, input2 };
 
     return std::make_shared<ngraph::Function>(results, inputs, "MultiplyTransformation");
 }

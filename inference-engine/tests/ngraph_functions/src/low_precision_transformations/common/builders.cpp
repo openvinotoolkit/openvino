@@ -98,7 +98,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues));
 }
 
-std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {

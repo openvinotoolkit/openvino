@@ -23,11 +23,8 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
-<<<<<<< HEAD
 #include "ngraph_ops/fully_connected.hpp"
-=======
 #include <ngraph/pass/manager.hpp>
->>>>>>> slyalin/slyalin/type_relaxed
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "common_test_utils/common_utils.hpp"
@@ -165,7 +162,11 @@ std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(const ngr
             std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
             std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
     };
-    ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.set_callback(transformations_callback);
+    manager.run_passes(nGraphFunc);
 
     return clonedNetwork->getFunction();
 }
