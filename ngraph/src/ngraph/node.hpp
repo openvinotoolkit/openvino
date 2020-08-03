@@ -219,7 +219,7 @@ namespace ngraph
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
 
-        void set_output_type(size_t i,
+        virtual void set_output_type(size_t i,
                              const element::Type& element_type,
                              const PartialShape& pshape);
 

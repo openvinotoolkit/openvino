@@ -237,6 +237,6 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
-void op::MatMul::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
-	get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element::f32, pshape);
-}
+// void op::MatMul::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
+//	get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element::f32, pshape);
+// }

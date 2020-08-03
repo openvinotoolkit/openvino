@@ -15,7 +15,8 @@ namespace op {
 
 class TRANSFORMATIONS_API ScaleShiftIE : public Op {
 public:
-    RTTI_DECLARATION;
+    static constexpr NodeTypeInfo type_info{"ScaleShiftIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     // TODO: notcompleted: add output_precision
     ScaleShiftIE(const Output<Node>& data_batch,

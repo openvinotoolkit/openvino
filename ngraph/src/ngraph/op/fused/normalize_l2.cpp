@@ -28,7 +28,7 @@
 using namespace std;
 using namespace ngraph;
 
-RTTI_DEFINITION("NormalizeL2", op::v0::NormalizeL2, Node, 0);
+NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
