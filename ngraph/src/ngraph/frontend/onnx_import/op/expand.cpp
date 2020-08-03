@@ -30,10 +30,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector expand(const Node& node)
+                OutputVector expand(const Node& node)
                 {
-                    const std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    const std::shared_ptr<ngraph::Node> shape{node.get_ng_inputs().at(1)};
+                    const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
+                    const Output<ngraph::Node> shape{node.get_ng_inputs().at(1)};
 
                     return {std::make_shared<default_opset::Broadcast>(
                         data, shape, ngraph::op::BroadcastType::BIDIRECTIONAL)};

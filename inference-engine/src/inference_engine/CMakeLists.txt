@@ -20,12 +20,15 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_data.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_layouts.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_memcpy.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_parameter.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
@@ -90,6 +93,8 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
@@ -108,6 +113,7 @@ target_include_directories(${TARGET_NAME}_common_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_common_obj SYSTEM PRIVATE
+    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
@@ -126,11 +132,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-
-if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-endif()
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -155,7 +156,7 @@ add_library(${TARGET_NAME} SHARED
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads ${INTEL_ITT_LIBS} pugixml
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations
                                      PUBLIC ${CMAKE_DL_LIBS} ${TARGET_NAME}_legacy)
 
@@ -189,17 +190,12 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations
+target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations openvino::itt
 # NOTE: public linkage with ITT is important here! without it binaries that use this library do not
 #       get proper compile flags to support ITT which causes hard-to-detect bugs.
-                                       PUBLIC pugixml ${INTEL_ITT_LIBS} ${CMAKE_DL_LIBS})
+                                       PUBLIC pugixml ${CMAKE_DL_LIBS})
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
-
-if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
-    target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${TARGET_NAME}_s PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-endif()
 
 # export targets
 

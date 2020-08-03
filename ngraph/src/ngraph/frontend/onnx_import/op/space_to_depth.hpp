@@ -31,9 +31,9 @@ namespace ngraph
                 ///
                 /// \param[in]  node  The ONNX input node describing operation.
                 ///
-                /// \return     NodeVector containing Tensor with shape:
+                /// \return     OutputVector containing Tensor with shape:
                 ///             [N, C * blocksize * blocksize, H / blocksize, W / blocksize]
-                NodeVector space_to_depth(const Node& node);
+                OutputVector space_to_depth(const Node& node);
             } // namespace set_1
 
         } // namespace op

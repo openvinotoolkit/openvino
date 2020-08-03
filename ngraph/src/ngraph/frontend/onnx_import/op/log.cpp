@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector log(const Node& node)
+                OutputVector log(const Node& node)
                 {
                     return {std::make_shared<default_opset::Log>(node.get_ng_inputs().at(0))};
                 }

@@ -29,7 +29,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 
 class EmbeddingSegmentsSumLayerTest : public testing::WithParamInterface<embeddingSegmentsSumLayerTestParamsSet>,
-            public LayerTestsUtils::LayerTestsCommon {
+            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet> obj);
 

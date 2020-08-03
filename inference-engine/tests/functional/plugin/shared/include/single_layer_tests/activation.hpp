@@ -68,6 +68,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Gelu,        "Gelu"},
         {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
         {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
+        {ngraph::helpers::ActivationTypes::Mish,        "Mish"},
 };
 
 typedef std::tuple<
@@ -77,7 +78,7 @@ typedef std::tuple<
         std::string> activationParams;
 
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
-                            public LayerTestsUtils::LayerTestsCommon {
+                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     ngraph::helpers::ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);

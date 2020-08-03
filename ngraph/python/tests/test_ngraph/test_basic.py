@@ -33,6 +33,8 @@ def test_ngraph_function_api():
     model = (parameter_a + parameter_b) * parameter_c
     function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
+    function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
+
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
@@ -41,9 +43,10 @@ def test_ngraph_function_api():
     assert function.get_output_op(0).get_type_name() == "Result"
     assert function.get_output_element_type(0) == parameter_a.get_element_type()
     assert list(function.get_output_shape(0)) == [2, 2]
+    assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
     assert len(function.get_parameters()) == 3
     assert len(function.get_results()) == 1
-    assert function.get_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestFunction"
 
 
 @pytest.mark.parametrize(
@@ -268,15 +271,13 @@ def test_backend_config():
 
 def test_result():
     node = [[11, 10], [1, 8], [3, 4]]
-
-    result = run_op_node([node], ng.ops.result)
+    result = run_op_node([node], ng.result)
     assert np.allclose(result, node)
 
 
 def test_node_friendly_name():
     dummy_node = ng.parameter(shape=[1], name="dummy_name")
 
-    assert(dummy_node.name == "Parameter_0")
     assert(dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")

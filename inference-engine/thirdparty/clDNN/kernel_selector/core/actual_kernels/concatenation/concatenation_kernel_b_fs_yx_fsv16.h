@@ -28,5 +28,6 @@ public:
     DispatchData SetDefault(const concatenation_params& params) const override;
     JitConstants GetJitConstants(const concatenation_params& params) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
+    size_t GetAlignment(const concatenation_params& params) const override;
 };
 }  // namespace kernel_selector

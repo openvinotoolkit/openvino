@@ -12,7 +12,7 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 3. Override the shape inference method `validate_and_infer_types`. This method is called multiple times during graph manipulations to determine the shapes and element types of the outputs of the operations. You can access the input shapes through the `get_input_partial_shape()` method and input element types through the `get_input_element_type()` method of `ngraph::Node`. Set the inferred shape and element type of the output using `set_output_type`.
 
-4. Override the `copy_with_new_args` method, which allows graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
+4. Override the `clone_with_new_inputs` method, which allows graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
 
 5. Override the `visit_attributes` method, which allows serialization and deserialization of attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector` and for existing nGraph defined types.
 
@@ -39,9 +39,9 @@ nGraph operation contains two constructors: a default constructor, which allows 
 
 @snippet op.cpp op:validate
 
-### `copy_with_new_args()`
+### `clone_with_new_inputs()`
 
-`ngraph::Node::copy_with_new_args` method creates a copy of nGraph operation with new inputs.
+`ngraph::Node::clone_with_new_inputs` method creates a copy of nGraph operation with new inputs.
 
 @snippet op.cpp op:copy
 

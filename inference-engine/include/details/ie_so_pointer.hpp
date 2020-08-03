@@ -13,12 +13,13 @@
 #include <string>
 #include <type_traits>
 
+#include "ie_common.h"
+#include "ie_unicode.hpp"
+#include "ie_so_loader.h"
 #include "details/ie_exception.hpp"
 #include "details/ie_no_release.hpp"
 #include "details/ie_irelease.hpp"
 #include "details/os/os_filesystem.hpp"
-#include "ie_common.h"
-#include "ie_so_loader.h"
 
 namespace InferenceEngine {
 namespace details {

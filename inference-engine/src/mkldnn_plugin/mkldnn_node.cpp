@@ -52,6 +52,7 @@
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace openvino;
 
 using namespace InferenceEngine::details;
 namespace MKLDNNPlugin {
@@ -145,7 +146,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(name) {
+          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());

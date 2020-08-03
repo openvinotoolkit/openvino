@@ -167,10 +167,31 @@ namespace ngraph
         /// on deep networks.
         void safe_delete(NodeVector& nodes, bool recurse);
 
+        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output shapes, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to know which nodes must be statically
+        /// evaluated in order to complete shape specialization. (For example, the shape input of
+        /// DynReshape must be evaluated statically in order for the output shape to be
+        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
+        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
+        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
+
+        /// \brief Marks an input as being relevant or irrelevant to the output values of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output values, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to cut short evaluation in cases where
+        /// an input value does not actually have any effect on the output value of the node. (As
+        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
+        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
+        /// function to mark value-irrelevant inputs.
+        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
+
     public:
-        virtual bool is_parameter() const { return false; }
-        virtual bool is_output() const { return false; }
-        virtual bool is_constant() const { return false; }
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
@@ -185,7 +206,7 @@ namespace ngraph
         ///
         /// \return A vector of nodes comprising the sub-graph. The order of output
         ///         tensors must match the match output tensors of the FusedOp
-        virtual NodeVector decompose_op() const { return NodeVector(); }
+        virtual OutputVector decompose_op() const { return OutputVector(); }
         /// Returns the NodeTypeInfo for the node's class.
         /// During transition to type_info, returns a dummy type_info for Node if the class
         /// has not been updated yet.
@@ -197,6 +218,10 @@ namespace ngraph
         void set_arguments(const OutputVector& arguments);
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
+
+        void set_output_type(size_t i,
+                             const element::Type& element_type,
+                             const PartialShape& pshape);
 
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
@@ -224,45 +249,6 @@ namespace ngraph
         /// \returns A const reference to the node's friendly name.
         const std::string& get_friendly_name() const;
 
-        /// Return true if this has the same implementing class as node. This
-        /// will be used by the pattern matcher when comparing a pattern
-        /// graph against the graph.
-        bool is_same_op_type(const std::shared_ptr<Node>& node) const
-        {
-            return get_type_info() == node->get_type_info();
-        }
-
-        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output shapes, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to know which nodes must be statically
-        /// evaluated in order to complete shape specialization. (For example, the shape input of
-        /// DynReshape must be evaluated statically in order for the output shape to be
-        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
-        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
-
-        /// \brief Marks an input as being relevant or irrelevant to the output values of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output values, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to cut short evaluation in cases where
-        /// an input value does not actually have any effect on the output value of the node. (As
-        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
-        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
-        /// function to mark value-irrelevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
-
-        // TODO(amprocte): should this be protected?
-        void set_output_type(size_t i,
-                             const element::Type& element_type,
-                             const PartialShape& pshape);
-
         virtual bool is_dynamic() const;
         size_t get_instance_id() const { return m_instance_id; }
         /// \brief Writes a description of a node to a stream
@@ -270,19 +256,6 @@ namespace ngraph
         /// \param depth How many levels of inputs to describe
         /// \returns The stream os
         virtual std::ostream& write_description(std::ostream& os, uint32_t depth = 0) const;
-
-        std::deque<descriptor::Input>& get_inputs() NGRAPH_DEPRECATED("use inputs() instead")
-        {
-            return m_inputs;
-        }
-        const std::deque<descriptor::Input>& get_inputs() const
-            NGRAPH_DEPRECATED("use inputs() instead")
-        {
-            return m_inputs;
-        }
-        std::deque<descriptor::Output>& get_outputs() NGRAPH_DEPRECATED("use outputs() instead");
-        const std::deque<descriptor::Output>& get_outputs() const
-            NGRAPH_DEPRECATED("use outputs() instead");
 
         /// Get control dependencies registered on the node
         const std::vector<std::shared_ptr<Node>>& get_control_dependencies() const;
@@ -357,22 +330,6 @@ namespace ngraph
         /// Returns the tensor name for output i
         const std::string& get_output_tensor_name(size_t i) const;
 
-        /// Checks that there is exactly one output and returns its tensor.
-        descriptor::Tensor& get_output_tensor() const NGRAPH_DEPRECATED(
-            "use node->get_output_tensor(0) instead; insert a check that the node has only one "
-            "output, or update calling code not to assume only one output");
-
-        /// Returns the tensor of output i
-        // TODO: Investigate whether this really needs to be shared_ptr. If so, we'll need a
-        // replacement in Output.
-        std::shared_ptr<descriptor::Tensor> get_output_tensor_ptr(size_t i) const
-            NGRAPH_DEPRECATED("use &node->output(i).get_tensor() instead");
-
-        /// Checks that there is exactly one output and returns its tensor.
-        std::shared_ptr<descriptor::Tensor> get_output_tensor_ptr() const NGRAPH_DEPRECATED(
-            "use &node->output(i).get_tensor() instead; insert a check that the node has only one "
-            "output, or update calling code not to assume only one output");
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -400,15 +357,8 @@ namespace ngraph
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
         Output<Node> get_input_source_output(size_t i) const;
 
-    protected:
-        // Will be replaced with clone_with_new_inputs
-        virtual std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const
-            NGRAPH_DEPRECATED("use copy_with_new_inputs instead");
-
     public:
-        // TODO: When all copy_with_new_args have been replaced with copy_with_new_inputs, make
-        // this pure and remove copy_with_new_args
-        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const;
+        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
         std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
 
@@ -628,7 +578,7 @@ namespace ngraph
     {
         NODE_VALIDATION_CHECK(node,
                               new_args.size() == node->input_values().size(),
-                              "copy_with_new_args() expected ",
+                              "clone_with_new_inputs() expected ",
                               node->input_values().size(),
                               " argument",
                               (node->input_values().size() == 1 ? "" : "s"),

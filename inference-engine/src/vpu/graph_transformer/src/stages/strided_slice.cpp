@@ -11,19 +11,22 @@ namespace vpu {
 
 namespace {
 
-int maskStrToInt(std::string mask) {
-    int idx = 0, result = 0;
+std::uint32_t maskStrToInt(std::string mask) {
+    std::uint32_t result = 0;
+    int idx = 0;
 
     for (const auto& character : mask) {
-        if (character == ',') continue;
-
-        if (idx++ > 0) {
-            result <<= 1;
-        }
-        if (character == '1') {
-            result = result | 1;
-        } else if (character != '0') {
-            VPU_THROW_FORMAT("Unsupported mask value: only 0 or 1 are supported, but got {} instead", character);
+        switch (character) {
+            case ',':
+                continue;
+            case '1':
+                result |= (0x1 << idx++);
+                break;
+            case '0':
+                idx++;
+                break;
+            default:
+                VPU_THROW_FORMAT("Unsupported mask value: only 0 or 1 are supported, but got {} instead", character);
         }
     }
 

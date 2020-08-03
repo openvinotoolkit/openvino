@@ -5,7 +5,6 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <memory>
@@ -264,12 +263,6 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-// TODO: Issue: 31197 Remove this code
-#if defined(_WIN32) || defined(_WIN64)
-    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
-        GTEST_SKIP();
-    }
-#endif
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(pluginXML, content);

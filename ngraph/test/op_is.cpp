@@ -19,6 +19,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
@@ -106,15 +108,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-    void op_is_BroadcastDistributed()
-    {
-        op::BroadcastDistributed node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
     void op_is_BroadcastLike()
     {
         op::BroadcastLike node;
@@ -171,7 +164,7 @@ namespace
 
     void op_is_Convolution()
     {
-        op::Convolution node;
+        op::v0::Convolution node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -180,7 +173,7 @@ namespace
 
     void op_is_ConvolutionBackpropData()
     {
-        op::ConvolutionBackpropData node;
+        op::v0::ConvolutionBackpropData node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -200,15 +193,6 @@ namespace
     {
         op::Cosh node;
         EXPECT_TRUE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_CropAndResize()
-    {
-        op::CropAndResize node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
@@ -280,15 +264,6 @@ namespace
     void op_is_EmbeddingBagPackedSum()
     {
         op::EmbeddingBagPackedSum node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_EmbeddingLookup()
-    {
-        op::EmbeddingLookup node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -432,7 +407,7 @@ namespace
 
     void op_is_GroupConvolution()
     {
-        op::GroupConvolution node;
+        op::v0::GroupConvolution node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -441,7 +416,7 @@ namespace
 
     void op_is_GroupConvolutionBackpropData()
     {
-        op::GroupConvolutionBackpropData node;
+        op::v0::GroupConvolutionBackpropData node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -718,15 +693,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-    void op_is_Recv()
-    {
-        op::Recv node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
     void op_is_Range()
     {
         op::Range node;
@@ -820,15 +786,6 @@ namespace
     void op_is_Selu()
     {
         op::Selu node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Send()
-    {
-        op::Send node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

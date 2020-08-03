@@ -20,6 +20,7 @@
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/space_to_batch.hpp"
+#include "ngraph/ops.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -67,9 +68,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     auto pads_begin = input_value(2);
     auto pads_end = input_value(3);
 
-    if (block.get_node_shared_ptr()->is_constant() &&
-        pads_begin.get_node_shared_ptr()->is_constant() &&
-        pads_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static())
+    if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
+        ngraph::op::is_constant(pads_begin.get_node_shared_ptr()) &&
+        ngraph::op::is_constant(pads_end.get_node_shared_ptr()) && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 

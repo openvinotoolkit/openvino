@@ -69,9 +69,9 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
 
-    if (block.get_node_shared_ptr()->is_constant() &&
-        crops_begin.get_node_shared_ptr()->is_constant() &&
-        crops_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static())
+    if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
+        ngraph::op::is_constant(crops_begin.get_node_shared_ptr()) &&
+        ngraph::op::is_constant(crops_end.get_node_shared_ptr()) && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 

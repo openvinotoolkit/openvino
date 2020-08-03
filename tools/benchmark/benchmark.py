@@ -85,18 +85,22 @@ class Benchmark:
         self.nireq = len(exe_network.requests)
         return exe_network
 
-    def infer(self, exe_network, batch_size, progress_bar=None):
-        progress_count = 0
-        infer_requests = exe_network.requests
+    def first_infer(self, exe_network):
+        infer_request = exe_network.requests[0]
 
         # warming up - out of scope
         if self.api_type == 'sync':
-            infer_requests[0].infer()
+            infer_request.infer()
         else:
-            infer_requests[0].async_infer()
+            infer_request.async_infer()
             status = exe_network.wait()
             if status != StatusCode.OK:
                 raise Exception("Wait for all requests is failed with status code {}!".format(status))
+        return infer_request.latency
+
+    def infer(self, exe_network, batch_size, progress_bar=None):
+        progress_count = 0
+        infer_requests = exe_network.requests
 
         start_time = datetime.utcnow()
         exec_time = 0

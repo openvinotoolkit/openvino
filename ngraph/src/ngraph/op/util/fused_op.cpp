@@ -43,21 +43,18 @@ void op::util::FusedOp::validate_and_infer_types()
     NodeVector nodes;
     for (auto& val : input_values())
         nodes.emplace_back(val.get_node_shared_ptr());
-    auto subgraph = extract_subgraph(subgraph_outputs, nodes);
+    auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
     validate_nodes_and_infer_types(subgraph);
 
     size_t i = 0;
-    for (auto output_node : subgraph_outputs)
+    for (auto output : subgraph_outputs)
     {
-        for (size_t j = 0; j < output_node->get_output_size(); j++, i++)
+        if (i >= get_output_size())
         {
-            if (i >= get_output_size())
-            {
-                set_output_size(i + 1);
-            }
-            set_output_type(
-                i, output_node->get_output_element_type(j), output_node->get_output_shape(j));
+            set_output_size(i + 1);
         }
+        set_output_type(i, output.get_element_type(), output.get_shape());
+        i++;
     }
 
     post_validate_and_infer_types();
