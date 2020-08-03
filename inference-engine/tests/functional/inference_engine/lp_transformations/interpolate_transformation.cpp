@@ -37,8 +37,8 @@ public:
         const bool& align_corners,
         const bool& antialias,
         const std::vector<size_t>& pads_begin,
-        const std::vector<size_t>& pads_end
-        ) : axes(axes), mode(mode), align_corners(align_corners),
+        const std::vector<size_t>& pads_end) :
+        axes(axes), mode(mode), align_corners(align_corners),
         antialias(antialias), pads_begin(pads_begin), pads_end(pads_end) {}
 };
 
@@ -65,7 +65,6 @@ public:
     interpAttributes interpAttrs;
     Actual actual;
     Expected expected;
-
 };
 
 template <typename T>
@@ -148,8 +147,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             false,
             {0},
-            {0}
-        ),
+            {0}),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -173,8 +171,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             false,
             {0},
-            {0}
-        ),
+            {0}),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -198,8 +195,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             false,
             {0},
-            {0}
-        ),
+            {0}),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -223,8 +219,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             true,
             false,
             {0},
-            {0}
-        ),
+            {0}),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -248,8 +243,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             false,
             false,
             {1},
-            {1}
-        ),
+            {1}),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
