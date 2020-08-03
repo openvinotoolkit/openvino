@@ -32,5 +32,16 @@
         "openvino-ngraph-maintainers": "category: nGraph",
         "openvino-tests-maintainers": "category: IE Tests",
         "openvino-tools-maintainers": "category: tools"
-    }
+    },
+    "LDAP_SERVER": "<Put server:port here or set as arg or as env variable>",
+    "LDAP_USER": "<Put user here or set as arg or as env variable>",
+    "LDAP_PASSWORD": "<Put password here or set as arg or as env variable>",
+    "LDAP_DOMAINS": ["amr", "ccr", "gar", "ger"],
+    "LDAP_PDLs": [
+        "CN=OpenVINO Developers,OU=Delegated,OU=Groups,DC=ccr,DC=corp,DC=intel,DC=com",
+        "CN=OpenVINO Extended Development Team,OU=Delegated,OU=Groups,DC=amr,DC=corp,DC=intel,DC=com",
+        "CN=OpenVINO DL Workbench CW,OU=Delegated,OU=Groups,DC=ccr,DC=corp,DC=intel,DC=com",
+        "CN=IOTG VMC Vision Markets VPU DLCE,OU=Delegated,OU=Groups,DC=amr,DC=corp,DC=intel,DC=com",
+        "CN=IOTG Edge AI ICV All,OU=Delegated,OU=Groups,DC=ccr,DC=corp,DC=intel,DC=com"
+    ]
 }

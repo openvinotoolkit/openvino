@@ -120,7 +120,7 @@ class GithubOrgApi:
         return False
 
     def get_org_emails(self):
-        """Gets and prints all emails of GitHub organization members"""
+        """Gets and prints emails of all GitHub organization members"""
         org_members = self.github_org.get_members()
         org_emails = set()
         org_members_fix = set()
