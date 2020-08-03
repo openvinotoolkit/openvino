@@ -18,6 +18,8 @@ public:
     explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 
+    // Keep this method for backward compatibility with other plugins
+    void transform(std::shared_ptr<ngraph::Function> function) { run_on_function(std::move(function)); }
 private:
     Transformations transformations;
 };
