@@ -109,14 +109,14 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 @pytest.mark.parametrize(
     "data, description",
     [
-        pytest.param(([1, 2], [1, 3]), "vector at vector 1", marks=xfail_issue_35916),
-        (([1, 2, 3], [[4], [5], [6]]), "vector at vector 2"),
-        (([[1, 2, 3]], [1, 2, 3]), "vector at vector 3"),
-        (([1, 2, 3], [[4, 5], [6, 7], [8, 9]]), "vector at matrix"),
-        (([[1, 2, 3], [4, 5, 6]], [[7], [8], [9]]), "matrix at vector"),
-        (([[1, 2], [3, 4]], [[5, 6], [7, 8]]), "matrix at matrix 1"),
-        (([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]]), "matrix at matrix 2"),
-        (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix at matrix 3")
+        pytest.param(([1, 2], [1, 3]), "vector and vector 1", marks=xfail_issue_35916),
+        (([1, 2, 3], [[4], [5], [6]]), "vector and vector 2"),
+        (([[1, 2, 3]], [1, 2, 3]), "vector and vector 3"),
+        (([1, 2, 3], [[4, 5], [6, 7], [8, 9]]), "vector and matrix"),
+        (([[1, 2, 3], [4, 5, 6]], [[7], [8], [9]]), "matrix and vector"),
+        (([[1, 2], [3, 4]], [[5, 6], [7, 8]]), "matrix and matrix 1"),
+        (([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]]), "matrix and matrix 2"),
+        (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix and matrix 3")
     ],
 )
 def test_op_matmul(data, description):

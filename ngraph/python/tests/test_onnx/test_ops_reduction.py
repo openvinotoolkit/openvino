@@ -19,12 +19,6 @@ import pytest
 
 from tests.test_onnx.utils import run_node, unstrict_xfail_issue_35925, strict_xfail_issue_35925
 
-reduce_max = "ReduceMax"
-reduce_min = "ReduceMin"
-reduce_mean = "ReduceMean"
-reduce_sum = "ReduceSum"
-reduce_prod = "ReduceProd"
-
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
     None,
@@ -38,11 +32,11 @@ reduce_axis_parameters = [
 ]
 
 reduce_operation_parameters = [
-    (reduce_max, np.max),
-    (reduce_min, np.min),
-    (reduce_mean, np.mean),
-    (reduce_sum, np.sum),
-    (reduce_prod, np.prod)
+    ("ReduceMax", np.max),
+    ("ReduceMin", np.min),
+    ("ReduceMean", np.mean),
+    ("ReduceSum", np.sum),
+    ("ReduceProd", np.prod)
 ]
 
 
