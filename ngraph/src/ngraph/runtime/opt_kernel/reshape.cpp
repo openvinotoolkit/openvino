@@ -22,7 +22,8 @@
 
 using namespace ngraph;
 
-namespace {
+namespace
+{
     void reshape_in0(const char* in,
                      char* out,
                      const Shape& in_shape,
@@ -50,9 +51,7 @@ namespace {
         }
         for (in_index[0] = 0; in_index[0] < size[0]; ++in_index[0])
         {
-            memcpy(out,
-                   in + *map_index[0] * elem_size,
-                   elem_size);
+            memcpy(out, in + *map_index[0] * elem_size, elem_size);
             out += elem_size;
         }
     }

@@ -440,7 +440,6 @@ set (SRC
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_reshape.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp
@@ -453,7 +452,6 @@ set (SRC
     pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
     pass/constant_folding_tile.cpp
-    pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
     pass/convert_fp32_to_fp16.hpp

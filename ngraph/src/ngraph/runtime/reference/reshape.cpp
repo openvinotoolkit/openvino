@@ -36,7 +36,7 @@ void runtime::reference::reshape(const char* arg,
     Strides in_strides(in_shape.size(), 1);    // (1,...,1)
 
     CoordinateTransform input_transform(
-                                        in_shape, in_start_corner, in_shape, in_strides, in_axis_order);
+        in_shape, in_start_corner, in_shape, in_strides, in_axis_order);
     CoordinateTransform output_transform(out_shape);
 
     NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
