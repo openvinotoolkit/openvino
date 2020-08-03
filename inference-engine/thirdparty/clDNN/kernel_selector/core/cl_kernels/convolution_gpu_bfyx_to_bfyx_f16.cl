@@ -137,7 +137,6 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
 
             UNIT_TYPE wei[NUM_OF_CHANNELS];
             for (int ic = 0; ic < NUM_OF_CHANNELS; ic++)
-                //wei.s01 = UNIT_BLOCK_READ2(weights, offset);
                 wei[ic] = UNIT_BLOCK_READ(weights, offset + ic * filter_isv_pitch);
 
             __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))

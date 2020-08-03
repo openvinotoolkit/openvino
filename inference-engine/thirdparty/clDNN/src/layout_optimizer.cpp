@@ -209,11 +209,15 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         fmt_prev == format::bfyx &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
-        (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
-        (prev_output_layout.size.feature[0] <= 4 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8)))) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] % 16 == 0 && prev_output_layout.size.feature[0] == 3) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3 &&
         (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+        return true;
+
+    if (next.is_type<convolution>() &&
+        fmt_prev == format::bfyx &&
+        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
+        (prev_output_layout.size.feature[0] <= 4 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
         return true;
 
     if (next.is_type<convolution>() &&
