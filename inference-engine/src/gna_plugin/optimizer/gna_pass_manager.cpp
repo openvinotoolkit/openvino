@@ -653,6 +653,17 @@ void AddConvolutionKernelPadPass::run() {
             auto dims = mem->getTensorDesc().getDims();
             return ((dims.size() > (idx)-1) ? dims[dims.size() - (idx)] : 1);
         };
+        auto getDims = [](InferenceEngine::Layout layout, size_t batch, size_t channels, size_t height, size_t width) {
+            switch (layout) {
+            case Layout::NC:
+                return SizeVector{batch, channels};
+            case Layout::NHWC:
+                return SizeVector{batch, height, width, channels};
+            case Layout::NCHW:
+            default:
+                return SizeVector{batch, channels, height, width};
+            }
+        };
         auto inputOrder = getIROrder(inputs->getLayout());
         auto outputOrder = getIROrder(outputs->getLayout());
 
@@ -690,13 +701,10 @@ void AddConvolutionKernelPadPass::run() {
             num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
         }
 
-        if (num_columns_out == out_batch * out_channels * out_height * out_width) {
-            continue;
-        }
-
         //if num_columns_out changed from defined value need to insert concat
         //before conv and crop after conv (or after conv+activation if activation appears)
         auto prev = CNNNetPrevLayer(l);
+        auto layout = inputs->getTensorDesc().getLayout();
         auto concatName = l->name + std::string("/concat_") + std::to_string(numOfadditionalConcatCropLayers);
         gnalog() << "Inserted " << concatName << " between: " << prev->name << " and " << l->name << "\n" << std::flush;
 
@@ -706,10 +714,9 @@ void AddConvolutionKernelPadPass::run() {
             concatLayer;
         concatLayerWithQuant->params["axis"] = std::to_string(inputOrder[3]);
 
-        auto newInputDims = SizeVector({ in_batch, in_channels, in_height, in_width + num_input_padding });
         auto outData = std::make_shared<Data>(concatName,
             TensorDesc(inputs->getTensorDesc().getPrecision(),
-                newInputDims,
+                getDims(layout, in_batch, in_channels, in_height, in_width + num_input_padding),
                 inputs->getTensorDesc().getLayout()));
         getCreatorLayer(outData) = concatLayerWithQuant;
         concatLayerWithQuant->outData.push_back(outData);
@@ -719,18 +726,18 @@ void AddConvolutionKernelPadPass::run() {
         auto constLayerWithQuant = quantized ?
             InferenceEngine::injectData<QuantizedLayerParams>(constLayer) :
             constLayer;
-        std::vector<float_t> paddingVector(in_batch * in_height * in_channels * num_input_padding, 0.f);
-        auto paddingBlob = make_shared_blob<float_t>(
+        std::vector<float> paddingVector(in_batch * in_height * in_channels * num_input_padding, 0.0f);
+        auto paddingBlob = make_shared_blob<float>(
             TensorDesc(
                 inputs->getTensorDesc().getPrecision(),
-                SizeVector{ in_batch, in_channels, in_height, num_input_padding }, //TODO: make order sensitive
+                getDims(layout, in_batch, in_channels, in_height, num_input_padding),
                 inputs->getTensorDesc().getLayout()));
         paddingBlob->allocate();
         CopyVectorToBlob(paddingBlob, paddingVector);
         constLayerWithQuant->blobs["custom"] = paddingBlob;
         auto constOutData = std::make_shared<Data>(constName,
             TensorDesc(inputs->getTensorDesc().getPrecision(),
-                SizeVector{ in_batch, in_channels, in_height, num_input_padding }, //TODO: make order sensitive
+                getDims(layout, in_batch, in_channels, in_height, num_input_padding),
                 inputs->getTensorDesc().getLayout()));
         getCreatorLayer(constOutData) = constLayerWithQuant;
         constLayerWithQuant->outData.push_back(constOutData);
@@ -777,7 +784,6 @@ void AddConvolutionKernelPadPass::run() {
         cropLayerWithQuant->outData.push_back(cropOutData);
 
         CNNNetworkInsertLayer(prev, next, cropLayerWithQuant);
-        //Error: network serialize: The serialize for IR v10 is not implemented
     }
 }
 
