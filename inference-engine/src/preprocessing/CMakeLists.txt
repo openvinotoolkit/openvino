@@ -139,11 +139,6 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_D
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(WIN32)
-    # To disable min/max macro in windows.h
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE NOMINMAX)
-endif()
-
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 # Create shared library file from object library

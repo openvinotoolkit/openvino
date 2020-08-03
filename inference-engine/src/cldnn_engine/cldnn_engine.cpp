@@ -35,9 +35,6 @@
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>
 
-#undef min
-#undef max
-
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
