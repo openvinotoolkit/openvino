@@ -10,11 +10,11 @@
 #pragma once
 
 #include <memory>
-#include "threading/ie_itask_executor.hpp"
-#include "ie_api.h"
-#include "ie_parameter.hpp"
 #include <vector>
 #include <string>
+
+#include "ie_parameter.hpp"
+#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 

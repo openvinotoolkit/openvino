@@ -42,7 +42,7 @@ struct ReleaseProcessMaskDeleter {
 };
 
 /**
- * @brief A unique pointer to CPU set structore with the ReleaseProcessMaskDeleter deleter
+ * @brief A unique pointer to CPU set structure with the ReleaseProcessMaskDeleter deleter
  * @ingroup ie_dev_api_threading
  */
 using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
