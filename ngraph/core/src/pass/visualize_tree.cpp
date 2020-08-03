@@ -22,7 +22,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/pass.hpp"
@@ -162,10 +161,6 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     if (getenv_bool("NGRAPH_VISUALIZE_EDGE_LABELS"))
     {
         size_t output = 0;
-        if (auto goe = as_type_ptr<op::GetOutputElement>(dst))
-        {
-            output = goe->get_as_output().get_index();
-        }
         stringstream label_edge;
         label_edge << "[label=\" " << output << " -> " << arg_index << " \"]";
         ss << label_edge.str();
