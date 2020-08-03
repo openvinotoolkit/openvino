@@ -82,10 +82,11 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         if (_callback) {
             auto infer_request = _publicInterface.lock();
             IE_ASSERT(infer_request != nullptr);
-            auto res = Wait(0);
+            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
             _callback(infer_request, res);
         }
     }
+
 
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
         if (inferRequestIdx == -1) {
