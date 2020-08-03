@@ -706,13 +706,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Checks that node is internal layer for all layers from specific function
     const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node> &node,
-                                     const std::unordered_set<std::string> &names,
                                      bool keep_constant) -> bool {
         if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
             for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
                 const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
-                if (names.find(consumerLayer->get_name()) == names.end())
-                    continue;
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
                     return false;
             }
@@ -736,20 +733,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
-    // Collect all names from current graph
-    // It is necessary in order to differentiate outputs from constant layers when we share constants
-    // (Constant operations contains outputs for converted and original functions)
     const ngraph::NodeVector& nodes = graph->get_ops();
-
-    std::unordered_set<std::string> op_names;
-    for (const auto &layer : nodes)
-        op_names.insert(layer->get_name());
-
     bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     // Create layers and output data
     for (const auto &layer : nodes) {
-        if (isInternalLayer(layer, op_names, keep_constants)) continue;
+        if (isInternalLayer(layer, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs
         auto &rt_info = layer->get_rt_info();
