@@ -480,6 +480,8 @@ enum class ContractMode {
 enum class GatherAxis {
     X,
     Y,
+    Z,
+    W,
     FEATURE,
     BATCH,
 };

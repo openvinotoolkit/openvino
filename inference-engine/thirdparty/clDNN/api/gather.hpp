@@ -35,7 +35,9 @@ struct gather : public primitive_base<gather> {
         along_b,
         along_f,
         along_x,
-        along_y
+        along_y,
+        along_z,
+        along_w
     };
 
     /// @brief Constructs gather primitive.
