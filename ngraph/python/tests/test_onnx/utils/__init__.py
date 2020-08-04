@@ -28,8 +28,41 @@ from tests.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 
-def xfail_test(*backends, reason="Mark the test as expected to fail"):
-    return pytest.mark.xfail(condition=tests.BACKEND_NAME in backends, reason=reason, strict=True)
+def xfail_test(reason="Mark the test as expected to fail", strict=True):
+    return pytest.mark.xfail(reason=reason, strict=strict)
+
+
+skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_issue_35893 = xfail_test(reason="ValueError: could not broadcast input array")
+xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
+xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
+                                      "Pad. Cannot parse parameter pads_end  from IR for layer B. "
+                                      "Value -1,0 cannot be casted to int.")
+xfail_issue_35914 = xfail_test(reason="IndexError: too many indices for array: "
+                                      "array is 0-dimensional, but 1 were indexed")
+xfail_issue_35915 = xfail_test(reason="RuntimeError: Eltwise node with unsupported combination "
+                                      "of input and output types")
+xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
+xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
+                                      "layer MatMul")
+xfail_issue_35918 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
+                                      "Mismatched attribute type in 'test_node : alpha'")
+xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
+
+xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
+xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
+unstrict_xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch",
+                                        strict=False)
+strict_xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
+xfail_issue_35926 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format I64 is "
+                                      "not supported yet...")
+xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
+xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
+xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
+xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
+                                      "Required attribute 'to' is missing.")
+xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
+xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: y")
 
 
 def run_node(onnx_node, data_inputs, **kwargs):

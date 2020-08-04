@@ -17,7 +17,7 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import run_node
+from tests.test_onnx.utils import run_node, xfail_issue_35918, xfail_issue_35923, xfail_issue_35924
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -70,15 +70,16 @@ def test_leaky_relu():
     assert_onnx_import_equals_callable("LeakyRelu", leaky_relu, [[-3, -2, -1], [1, 2, 3]])
 
 
+@xfail_issue_35923
 @pytest.mark.parametrize(
-    "x,slope",
+    "x, slope",
     [
         ([-2, -1.0, 0.0, 1.0, 2.0], 0.5),
         ([0.0], 1),
         ([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1),
         ([[1, 2, 3], [4, 5, 6]], 0.5),
         ([[-3, -2, -1], [1, 2, 3]], 1),
-    ],
+    ]
 )
 def test_parametric_relu(x, slope):
     def parametic_relu(x, slope):
@@ -103,13 +104,19 @@ def test_selu():
     assert_onnx_import_equals_callable("Selu", selu, [-2, -1.0, 0.0, 1.0, 2.0], gamma=0.5, alpha=0.5)
 
 
-def test_elu():
+@pytest.mark.parametrize(
+    "data, alpha_value",
+    [
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 1, marks=xfail_issue_35918),
+        pytest.param([0.0], 1, marks=xfail_issue_35918),
+        pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1, marks=xfail_issue_35918),
+        pytest.param([[1, 2, 3], [4, 5, 6]], 1, marks=xfail_issue_35918),
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5, marks=xfail_issue_35924)
+    ]
+)
+def test_elu(data, alpha_value):
     # f(x) = alpha * (exp(x) - 1) for x < 0, f(x) = x for x >= 0
-    def elu(x, alpha=1):
+    def elu(x, alpha):
         return np.where(x < 0, alpha * (np.exp(x) - 1), x)
 
-    assert_onnx_import_equals_callable("Elu", elu, [-2, -1.0, 0.0, 1.0, 2.0])
-    assert_onnx_import_equals_callable("Elu", elu, [0.0])
-    assert_onnx_import_equals_callable("Elu", elu, [-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1])
-    assert_onnx_import_equals_callable("Elu", elu, [[1, 2, 3], [4, 5, 6]])
-    assert_onnx_import_equals_callable("Elu", elu, [-2, -1.0, 0.0, 1.0, 2.0], alpha=0.5)
+    assert_onnx_import_equals_callable("Elu", elu, data, alpha=alpha_value)

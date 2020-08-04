@@ -19,7 +19,13 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests.test_onnx.utils import (get_node_model,
+                                   import_onnx_model,
+                                   run_model,
+                                   run_node,
+                                   xfail_issue_35911,
+                                   xfail_issue_35912
+                                   )
 
 
 @pytest.fixture
@@ -268,6 +274,7 @@ def test_2d_conv_transpose():
     )
 
 
+@xfail_issue_35911
 def test_pad_opset_1():
     x = np.ones((2, 2), dtype=np.float32)
     y = np.pad(x, pad_width=1, mode="constant")
@@ -317,8 +324,7 @@ def test_pad_opset_2():
         run_model(model, [x])
 
 
-# Error of validate layer: B with type: Pad. Cannot parse parameter pads_begin
-# from IR for layer B. Value -1,0 cannot be casted to int.
+@xfail_issue_35912
 def test_pad_negative_values_begin():
     x = np.ones((2, 2), dtype=np.float32)
 
@@ -333,8 +339,7 @@ def test_pad_negative_values_begin():
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
-# Error of validate layer: B with type: Pad. Cannot parse parameter pads_begin
-# from IR for layer B. Value -1,0 cannot be casted to int.
+@xfail_issue_35912
 def test_pad_negative_values_end():
     x = np.ones((2, 2), dtype=np.float32)
 

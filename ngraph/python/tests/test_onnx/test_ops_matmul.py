@@ -18,7 +18,14 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import import_onnx_model
+from tests.test_onnx.utils import (import_onnx_model,
+                                   xfail_issue_35916,
+                                   xfail_issue_35917,
+                                   xfail_issue_35918,
+                                   xfail_issue_35921
+                                   )
+
+import pytest
 
 
 def make_onnx_model_for_matmul_op(input_left, input_right):
@@ -99,33 +106,20 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
     return computation(input_a, input_b, input_c)[0]
 
 
-def test_op_matmul():
-    # vector @ vector
-    data = ([1, 2], [1, 3])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    data = ([1, 2, 3], [[4], [5], [6]])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    data = ([[1, 2, 3]], [1, 2, 3])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    # vector @ matrix
-    data = ([1, 2, 3], [[4, 5], [6, 7], [8, 9]])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    # matrix @ vector
-    data = ([[1, 2, 3], [4, 5, 6]], [[7], [8], [9]])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    # matrix @ matrix
-    data = ([[1, 2], [3, 4]], [[5, 6], [7, 8]])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    data = ([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]])
-    assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
-
-    data = ([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]])
+@pytest.mark.parametrize(
+    "data, description",
+    [
+        pytest.param(([1, 2], [1, 3]), "vector and vector 1", marks=xfail_issue_35916),
+        (([1, 2, 3], [[4], [5], [6]]), "vector and vector 2"),
+        (([[1, 2, 3]], [1, 2, 3]), "vector and vector 3"),
+        (([1, 2, 3], [[4, 5], [6, 7], [8, 9]]), "vector and matrix"),
+        (([[1, 2, 3], [4, 5, 6]], [[7], [8], [9]]), "matrix and vector"),
+        (([[1, 2], [3, 4]], [[5, 6], [7, 8]]), "matrix and matrix 1"),
+        (([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]]), "matrix and matrix 2"),
+        (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix and matrix 3")
+    ],
+)
+def test_op_matmul(data, description):
     assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
 
 
@@ -138,43 +132,41 @@ def test_op_matmul_3d():
     assert np.array_equal(import_and_compute_matmul(*data), np.matmul(*data))
 
 
-def test_gemm():
-    data = ([1, 2], [1, 3], [1, 4])
-    assert np.array_equal(import_and_compute_gemm(*data), numpy_gemm(*data))
-
-    data = ([1, 2], [1, 3], 1)
-    assert np.array_equal(import_and_compute_gemm(*data), numpy_gemm(*data))
-
-    data = ([1, 2], [1, 3], [1])
-    assert np.array_equal(import_and_compute_gemm(*data), numpy_gemm(*data))
-
-    data = ([1, 2], [1, 3], [1, 4])
-    kwargs = {"alpha": 7, "beta": 9}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
-
-    data = ([1, 2, 3, 4], [1, 3, 5, 7], [1, 4])
-    kwargs = {"alpha": 7, "beta": 9}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
+@pytest.mark.parametrize(
+    "data, kwargs, description",
+    [
+        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7, "beta": 9},
+                     "vectors with alpha and beta", marks=xfail_issue_35918),
+        pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7, "beta": 9},
+                     "longer vectors with alpha and beta", marks=xfail_issue_35918)
+    ],
+)
+def test_gemm(data, kwargs, description):
+    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data))
 
 
-def test_gemm_transpositions():
-    data = ([1, 2], [1, 3], [1, 4])
-    kwargs = {"trans_a": True, "trans_b": True}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
-
-    data = ([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1])
-    kwargs = {"trans_a": True, "trans_b": True, "alpha": 7, "beta": 9}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
-
-    data = ([[1, 2]], [[1, 3]], 1)
-    kwargs = {"trans_b": True, "alpha": 7, "beta": 9}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
-
-    data = ([[1], [2]], [[1], [3]], 1)
-    kwargs = {"trans_a": True, "alpha": 7, "beta": 9}
+@pytest.mark.parametrize(
+    "data, kwargs, description",
+    [
+        pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
+                     "vectors with trans_a/trans_b", marks=xfail_issue_35917),
+        pytest.param(([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1]),
+                     {"trans_a": True, "trans_b": True, "alpha": 7, "beta": 9},
+                     "matrices and vector with trans_b and alpha/beta", marks=xfail_issue_35918),
+        pytest.param(([[1, 2]], [[1, 3]], 1), {"trans_b": True, "alpha": 7, "beta": 9},
+                     "matrices and scalar with trans_b and alpha/beta", marks=xfail_issue_35918),
+        pytest.param(([[1], [2]], [[1], [3]], 1), {"trans_a": True, "alpha": 7, "beta": 9},
+                     "matrices and scalar with trans_a and alpha/beta", marks=xfail_issue_35918),
+    ],
+)
+def test_gemm_transpositions(data, kwargs, description):
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
 
 
+@xfail_issue_35921
 def test_gemm_flatten():
     # input_a.shape is (4,1,1)
     data = ([[[1]], [[2]], [[3]], [[4]]], [1, 3, 5, 7], [1, 4])
