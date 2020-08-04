@@ -965,7 +965,7 @@ namespace
 
     void op_is_Tile()
     {
-        op::Tile node;
+        op::v0::Tile node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

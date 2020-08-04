@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Relu::type_info;
+NGRAPH_RTTI_DEFINITION(op::Relu, "Relu", 0);
 
 op::Relu::Relu(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
