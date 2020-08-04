@@ -18,8 +18,14 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import xfail_issue_34323, skip_segfault, xfail_issue_7, xfail_issue_8, xfail_issue_35923, \
-    xfail_issue_9, xfail_issue_10, xfail_issue_11
+from tests import (xfail_issue_34323,
+                   skip_segfault,
+                   xfail_issue_34327,
+                   xfail_issue_36485,
+                   xfail_issue_35923,
+                   xfail_issue_36486,
+                   xfail_issue_34314,
+                   xfail_issue_36487)
 
 
 @xfail_issue_34323
@@ -145,7 +151,7 @@ def test_depth_to_space():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_7
+@xfail_issue_34327
 def test_space_to_batch():
     runtime = get_runtime()
 
@@ -182,7 +188,7 @@ def test_space_to_batch():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_7
+@xfail_issue_34327
 def test_batch_to_space():
     runtime = get_runtime()
 
@@ -321,7 +327,7 @@ def test_squared_difference_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_8
+@xfail_issue_36485
 def test_shuffle_channels_operator():
     runtime = get_runtime()
 
@@ -450,7 +456,7 @@ def test_selu_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_9
+@xfail_issue_36486
 def test_hard_sigmoid_operator():
     runtime = get_runtime()
 
@@ -472,7 +478,7 @@ def test_hard_sigmoid_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_11
+@xfail_issue_36487
 def test_mvn_operator():
     runtime = get_runtime()
 
@@ -532,7 +538,7 @@ def test_mvn_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_10
+@xfail_issue_34314
 def test_space_to_depth_operator():
     runtime = get_runtime()
 

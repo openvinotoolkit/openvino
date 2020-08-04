@@ -23,8 +23,13 @@ from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, PartialShape, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323, xfail_issue_35929, xfail_issue_35926, xfail_issue_1, xfail_issue_2, \
-    xfail_issue_3, xfail_issue_4
+from tests import (xfail_issue_34323,
+                   xfail_issue_35929,
+                   xfail_issue_35926,
+                   xfail_issue_36476,
+                   xfail_issue_36478,
+                   xfail_issue_36479,
+                   xfail_issue_36480)
 
 
 def test_ngraph_function_api():
@@ -56,14 +61,14 @@ def test_ngraph_function_api():
     [
         np.float32,
         pytest.param(np.float64, marks=xfail_issue_35929),
-        pytest.param(np.int8, marks=xfail_issue_3),
+        pytest.param(np.int8, marks=xfail_issue_36479),
         np.int16,
         np.int32,
         pytest.param(np.int64, marks=xfail_issue_35926),
-        pytest.param(np.uint8, marks=xfail_issue_3),
-        pytest.param(np.uint16, marks=xfail_issue_3),
-        pytest.param(np.uint32, marks=xfail_issue_1),
-        pytest.param(np.uint64, marks=xfail_issue_2),
+        pytest.param(np.uint8, marks=xfail_issue_36479),
+        pytest.param(np.uint16, marks=xfail_issue_36479),
+        pytest.param(np.uint32, marks=xfail_issue_36476),
+        pytest.param(np.uint64, marks=xfail_issue_36478),
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -270,7 +275,7 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
-@xfail_issue_4
+@xfail_issue_36480
 def test_backend_config():
     dummy_config = {"dummy_option": "dummy_value"}
     # Expect no throw

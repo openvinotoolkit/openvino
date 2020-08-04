@@ -61,22 +61,24 @@ xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist"
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
-
-xfail_issue_1 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
-                                  "not supported yet...")
-xfail_issue_2 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
-                                  "not supported yet...")
-xfail_issue_3 = xfail_test(reason="Assertion error - basic computation on ndarrays mismatch")
-xfail_issue_4 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
-                                  "by CPU plugin")
-xfail_issue_5 = xfail_test(reason="TypeError: _get_node_factory() takes from 0 to 1 positional "
-                                  "arguments but 2 were given")
-xfail_issue_6 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                                  "Ceiling name: Ceiling_22669")
-xfail_issue_7 = xfail_test(reason="RuntimeError: '<value>' layer has different IN and OUT channels number")
-xfail_issue_8 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
-                                  "/openvino/ngraph/src/ngraph/op/fused/shuffle_channels.cpp:77:")
-xfail_issue_9 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted to HardSigmoid_IE")
-xfail_issue_10 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
-                                   "supported.RNNCell_21204 should be converted to RNNCellIE operation")
-xfail_issue_11 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
+xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: y")
+xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
+                               "not supported yet...")
+xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
+                               "not supported yet...")
+xfail_issue_36479 = xfail_test(reason="Assertion error - basic computation on ndarrays mismatch")
+xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
+                               "by CPU plugin")
+xfail_issue_36481 = xfail_test(reason="TypeError: _get_node_factory() takes from 0 to 1 positional "
+                               "arguments but 2 were given")
+xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
+                               "Ceiling name: Ceiling_22669")
+xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
+                                      "IN and OUT channels number")
+xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
+                               "/openvino/ngraph/src/ngraph/op/fused/shuffle_channels.cpp:77:")
+xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
+                                      "to HardSigmoid_IE")
+xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
+                               "supported.RNNCell_21204 should be converted to RNNCellIE operation")
+xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")

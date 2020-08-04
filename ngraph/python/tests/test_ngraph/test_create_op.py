@@ -19,7 +19,7 @@ from _pyngraph import PartialShape
 
 import ngraph as ng
 from ngraph.impl import Type
-from tests import xfail_issue_5
+from tests import xfail_issue_36481
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -516,7 +516,7 @@ def test_convert_like():
     assert node.get_output_element_type(0) == Type.i8
 
 
-@xfail_issue_5
+@xfail_issue_36481
 def test_reverse():
     parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
     parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)

@@ -17,10 +17,8 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import (run_node,
-                                   unstrict_xfail_issue_35925,
-                                   strict_xfail_issue_35925,
-                                   xfail_issue_36437)
+from tests.test_onnx.utils import run_node
+from tests import unstrict_xfail_issue_35925, strict_xfail_issue_35925, xfail_issue_36437
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
