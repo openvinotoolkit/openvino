@@ -320,7 +320,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--keep_shape_ops',
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
                                    'This feature makes model reshapable in Inference Engine',
-                              action='store_true', default=False)
+                              action='store_true', default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
                               action='store_true', default=False)
