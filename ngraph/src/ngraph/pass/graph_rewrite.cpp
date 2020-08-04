@@ -77,10 +77,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 
     // Check that all Matchers in MatcherPasses has type bases root node
     bool all_roots_has_type = true;
-    std::unordered_map<NodeTypeInfo, std::vector<std::shared_ptr<MatcherPass>>> type_to_matcher;
-    for (auto& m : m_matchers)
+    std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
+    for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index)
     {
-        auto matcher = m->get_matcher();
+        auto matcher = m_matchers[matcher_index]->get_matcher();
         if (!matcher)
         {
             all_roots_has_type = false;
@@ -112,7 +112,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        type_to_matcher[root_type_info].push_back(m);
+        type_to_matcher[root_type_info].push_back(matcher_index);
+
+        // TODO: traverse parents for root_type_info in order to register complete list of matchers
+        // including ones triggered by parent type info.
     }
 
     // This lambda preforms execution of particular MatcherPass on given node.
@@ -156,6 +159,9 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         return status;
     };
 
+    // list of matchers to run for a node; define here to keep memory allocated
+    std::vector<size_t> matcher_passes_to_run;
+
     while (!nodes_to_run.empty())
     {
         auto node = nodes_to_run.front();
@@ -169,16 +175,34 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // algorithm for finding matchers
         if (all_roots_has_type)
         {
-            auto node_type_info = node->get_type_info();
-            if (type_to_matcher.count(node_type_info))
+            const DiscreteTypeInfo* node_type_info = &node->get_type_info();
+            matcher_passes_to_run.clear();
+            while (node_type_info)
             {
-                for (auto& m_pass : type_to_matcher[node_type_info])
+                auto matchers = type_to_matcher.find(*node_type_info);
+                if (matchers != type_to_matcher.end())
                 {
-                    if (run_matcher_pass(m_pass, node))
-                    {
-                        rewritten = true;
-                        break;
-                    }
+                    // do not run found matchers immediately, need to collect all matchers for
+                    // parents
+                    // and sort them in order of the registration
+                    matcher_passes_to_run.insert(matcher_passes_to_run.end(),
+                                                 matchers->second.begin(),
+                                                 matchers->second.end());
+                }
+                node_type_info = node_type_info->parent;
+            }
+
+            std::sort(matcher_passes_to_run.begin(), matcher_passes_to_run.end());
+
+            // TODO: type_to_matcher with just collected list of matchers to enable
+            // fast processing at the next time when node with the same type will be processed
+
+            for (size_t matcher_index : matcher_passes_to_run)
+            {
+                if (run_matcher_pass(m_matchers[matcher_index], node))
+                {
+                    rewritten = true;
+                    break;
                 }
             }
         }

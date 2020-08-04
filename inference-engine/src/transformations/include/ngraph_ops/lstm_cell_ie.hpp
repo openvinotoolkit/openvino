@@ -17,6 +17,9 @@ namespace op {
 
 class TRANSFORMATIONS_API LSTMCellIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"LSTMCellIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     LSTMCellIE(const Output<Node> &X,
                 const Output<Node> &H_t,
                 const Output<Node> &C_t,
@@ -27,9 +30,6 @@ public:
                 const std::vector<float>& activations_alpha,
                 const std::vector<float>& activations_beta,
                 float clip);
-
-    static constexpr NodeTypeInfo type_info{"LSTMCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     LSTMCellIE() = delete;
 

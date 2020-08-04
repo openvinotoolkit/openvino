@@ -21,6 +21,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
+
 op::util::BinaryElementwiseLogical::BinaryElementwiseLogical()
 {
 }

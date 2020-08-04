@@ -30,7 +30,7 @@ namespace ngraph
 {
     /// Supports three functions, is_type<Type>, as_type<Type>, and as_type_ptr<Type> for type-safe
     /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
-    /// Type must have a static constexpr type_info member and a virtual get_type_info() member that
+    /// Type must have a static type_info member and a virtual get_type_info() member that
     /// returns a reference to its type_info member.
 
     /// Type information for a type system without inheritance; instances have exactly one type not
@@ -39,8 +39,26 @@ namespace ngraph
     {
         const char* name;
         uint64_t version;
+        // A pointer to a parent type info; used for casting and inheritance traversal, not for
+        // exact type identification
+        const DiscreteTypeInfo* parent;
 
-        bool is_castable(const DiscreteTypeInfo& target_type) const { return *this == target_type; }
+        DiscreteTypeInfo() = default;
+
+        constexpr DiscreteTypeInfo(const char* _name,
+                                   uint64_t _version,
+                                   const DiscreteTypeInfo* _parent = nullptr)
+            : name(_name)
+            , version(_version)
+            , parent(_parent)
+        {
+        }
+
+        bool is_castable(const DiscreteTypeInfo& target_type) const
+        {
+            return *this == target_type || (parent && parent->is_castable(target_type));
+        }
+
         // For use as a key
         bool operator<(const DiscreteTypeInfo& b) const
         {

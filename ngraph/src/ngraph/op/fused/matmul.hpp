@@ -30,8 +30,7 @@ namespace ngraph
             class NGRAPH_API MatMul : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"MatMul", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 MatMul() = default;
                 /// \brief Constructs an Matrix Multiplication operation.
                 ///

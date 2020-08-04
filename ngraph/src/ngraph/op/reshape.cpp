@@ -156,7 +156,7 @@ bool op::v0::Reshape::evaluate(const HostTensorVector& outputs, const HostTensor
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
 
-constexpr NodeTypeInfo op::v1::Reshape::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& pattern, bool zero_flag)
     : Op({arg, pattern})

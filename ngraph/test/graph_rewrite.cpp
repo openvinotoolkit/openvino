@@ -117,3 +117,131 @@ TEST(GraphRewriteTest, ManagerCallback2)
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
+
+class PrivateDivide : public ngraph::opset3::Divide
+{
+public:
+    NGRAPH_RTTI_DECLARATION;
+    using ngraph::opset3::Divide::Divide;
+};
+
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
+
+std::shared_ptr<Function> get_derived_function()
+{
+    auto data =
+        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+    auto divide_constant =
+        ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+    auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
+    return std::make_shared<ngraph::Function>(ngraph::NodeVector{divide},
+                                              ngraph::ParameterVector{data});
+}
+
+TEST(GraphRewriteTest, MatcherPassCallbackDerived)
+{
+    auto f = get_derived_function();
+
+    Anchor anchor;
+    anchor.add_matcher<TestPass>()->set_callback(get_callback());
+    anchor.run_on_function(f);
+
+    ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+}
+
+class TypeBasedTestPass : public ngraph::pass::MatcherPass
+{
+public:
+    TypeBasedTestPass()
+        : MatcherPass()
+    {
+        auto divide = std::make_shared<ngraph::opset3::Divide>(
+            std::make_shared<ngraph::pattern::op::Label>(),
+            std::make_shared<ngraph::pattern::op::Label>());
+        //        element::f32, Shape{}, pattern::has_class<opset3::Divide>());
+        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+            if (m_transformation_callback(m.get_match_root()))
+            {
+                auto relu =
+                    std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
+                ngraph::replace_node(m.get_match_root(), relu);
+                return true;
+            }
+            return false;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
+        this->register_matcher(m, callback);
+    }
+};
+
+class TypeBasedTestPassDerived : public ngraph::pass::MatcherPass
+{
+public:
+    TypeBasedTestPassDerived()
+        : MatcherPass()
+    {
+        auto divide =
+            std::make_shared<PrivateDivide>(std::make_shared<ngraph::pattern::op::Label>(),
+                                            std::make_shared<ngraph::pattern::op::Label>());
+        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+            if (m_transformation_callback(m.get_match_root()))
+            {
+                auto tanh =
+                    std::make_shared<ngraph::opset3::Tanh>(m.get_match_root()->input_value(0));
+                ngraph::replace_node(m.get_match_root(), tanh);
+                return true;
+            }
+            return false;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
+        this->register_matcher(m, callback);
+    }
+};
+
+TEST(GraphRewriteTest, TypeBasedMatcherPassCallback)
+{
+    auto f = get_function();
+
+    Anchor anchor;
+    anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    anchor.run_on_function(f);
+
+    ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+}
+
+TEST(GraphRewriteTest, TypeBasedMatcherPassCallbackDerived)
+{
+    auto f = get_derived_function();
+
+    Anchor anchor;
+    anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    anchor.run_on_function(f);
+
+    ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+}
+
+TEST(GraphRewriteTest, TypeBasedMatcherPassOrder1)
+{
+    auto f = get_derived_function();
+
+    Anchor anchor;
+    anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
+    anchor.run_on_function(f);
+
+    ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+}
+
+TEST(GraphRewriteTest, TypeBasedMatcherPassOrder2)
+{
+    auto f = get_derived_function();
+
+    Anchor anchor;
+    anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
+    anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    anchor.run_on_function(f);
+
+    ASSERT_EQ(count_ops_of_type<opset3::Tanh>(f), 1);
+}

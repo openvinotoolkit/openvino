@@ -17,6 +17,9 @@ namespace op {
 
 class TRANSFORMATIONS_API RNNCellIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"RNNCellIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     RNNCellIE(const Output<Node> &X,
               const Output<Node> &H_t,
               const Output<Node> &WR,
@@ -26,9 +29,6 @@ public:
               const std::vector<float>& activations_alpha,
               const std::vector<float>& activations_beta,
               float clip);
-
-    static constexpr NodeTypeInfo type_info{"RNNCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     RNNCellIE() = delete;
 

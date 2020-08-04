@@ -27,14 +27,14 @@ namespace ngraph
             class NGRAPH_API ROIAlign : public Op
             {
             public:
+                static constexpr NodeTypeInfo type_info{"ROIAlign", 3};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 enum class PoolingMode
                 {
                     AVG,
                     MAX
                 };
 
-                static constexpr NodeTypeInfo type_info{"ROIAlign", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 ROIAlign() = default;
                 /// \brief Constructs a ROIAlign node matching the ONNX ROIAlign specification
                 ///

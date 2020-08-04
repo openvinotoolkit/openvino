@@ -47,7 +47,7 @@ bool op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
     return update_auto_padding_succeed;
 }
 
-constexpr NodeTypeInfo op::v1::MaxPool::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", 1);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,

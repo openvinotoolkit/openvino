@@ -111,7 +111,7 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 // ------------------------------- v1 ------------------------------------------
 
-constexpr NodeTypeInfo op::v1::Add::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,

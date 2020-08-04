@@ -21,6 +21,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseArithmetic, "BinaryElementwiseArithmetic", 0);
+
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob)
 {

@@ -53,6 +53,8 @@ namespace ngraph
             class NGRAPH_API BinaryElementwiseLogical : public Op
             {
             protected:
+                NGRAPH_RTTI_DECLARATION;
+
                 BinaryElementwiseLogical();
 
                 /// \brief Constructs a binary elementwise logical operation.

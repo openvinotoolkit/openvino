@@ -37,7 +37,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::FakeQuantize::type_info;
+NGRAPH_RTTI_DEFINITION(op::FakeQuantize, "FakeQuantize", 0);
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
                                const Output<Node>& input_low,

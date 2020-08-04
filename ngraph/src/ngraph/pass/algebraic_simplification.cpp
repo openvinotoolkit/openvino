@@ -283,20 +283,14 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose)
     return true;
 }
 
-static unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> initialize_ops_to_simplifiers()
+bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f)
 {
-    return unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>>(
+    static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
         {{opset3::Gather::type_info, simplify_gather},
          {opset2::ShapeOf::type_info, simplify_gather_shapeof},
          {opset3::ShapeOf::type_info, simplify_gather_shapeof},
-         {opset3::Transpose::type_info, replace_transpose_with_reshape}});
-}
+         {opset3::Transpose::type_info, replace_transpose_with_reshape}};
 
-static unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
-    initialize_ops_to_simplifiers();
-
-bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f)
-{
     bool replaced = false;
     for (auto n : f->get_ordered_ops())
     {
