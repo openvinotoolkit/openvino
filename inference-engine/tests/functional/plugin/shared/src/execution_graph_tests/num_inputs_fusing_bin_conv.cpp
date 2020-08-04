@@ -87,6 +87,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
             if (ngraph::op::is_output(op))
                 continue;
 
+            IE_SUPPRESS_DEPRECATED_START
             InferenceEngine::CNNLayerPtr cnnLayer;
             ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(convertedExecGraph.get(), op->get_friendly_name()));
             ASSERT_EQ(cnnLayer->name, op->get_friendly_name());
@@ -98,6 +99,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
                 auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(op->get_rt_info()[kvp.first]);
                 ASSERT_EQ(variant->get(), kvp.second);
             }
+            IE_SUPPRESS_DEPRECATED_END
         }
     } else {
         IE_SUPPRESS_DEPRECATED_START
