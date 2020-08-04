@@ -24,7 +24,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     auto bn = make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
     ngraph::graph_rewrite_callback callback = [input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
-        auto pattern_map = m.get_pattern_map();
+        auto pattern_map = m.get_pattern_value_map();
 
         auto m_input = pattern_map[input];
         auto m_gamma = pattern_map[gamma];
@@ -32,31 +32,29 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         auto m_mean = pattern_map[mean];
         auto m_var = pattern_map[var];
 
-        // TODO: check that all input shapes are static
-
         auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
-        if (!m_bn) {
+        if (!m_bn || m_input.get_partial_shape().is_dynamic()) {
             return false;
         }
 
         // The code above represents this formulas
         //  scale = 1. / np.sqrt(variance + eps)
         //  shift = (mean * (-1)) * scale
-        auto input_type = m_input->get_element_type();
+        auto input_type = m_input.get_element_type();
         auto scale_add = make_shared<opset1::Add>(m_var, opset1::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()}));
         auto scale_power = make_shared<opset1::Power>(scale_add, opset1::Constant::create(input_type, Shape{}, {0.5}));
         auto scale = make_shared<ngraph::opset1::Divide>(opset1::Constant::create(input_type, Shape{}, {1}), scale_power);
 
-        auto shift_mul = make_shared<opset1::Multiply>(m_mean, opset1::Constant::create(m_input->get_element_type(), Shape{}, {-1}));
+        auto shift_mul = make_shared<opset1::Multiply>(m_mean, opset1::Constant::create(m_input.get_element_type(), Shape{}, {-1}));
         auto shift = make_shared<opset1::Multiply>(scale, shift_mul);
 
         // Expand Scale, Shift, Gamma and Beta to be aligned with layout
-        size_t dims_to_add = m_input->get_shape().size() - 2;
-        Shape gamma_shape = m_gamma->get_shape();
+        size_t dims_to_add = m_input.get_shape().size() - 2;
+        Shape gamma_shape = m_gamma.get_shape();
         for (size_t i = 0; i < dims_to_add; ++i) gamma_shape.push_back(1);
         auto gamma_aligned = make_shared<opset1::Reshape>(m_gamma, opset1::Constant::create(element::i64, Shape{gamma_shape.size()}, gamma_shape), true);
 
-        Shape beta_shape = m_beta->get_shape();
+        Shape beta_shape = m_beta.get_shape();
         for (size_t i = 0; i < dims_to_add; ++i) beta_shape.push_back(1);
         auto beta_aligned = make_shared<opset1::Reshape>(m_beta, opset1::Constant::create(element::i64, Shape{beta_shape.size()}, beta_shape), true);
 
