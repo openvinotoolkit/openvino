@@ -5353,7 +5353,99 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
                 }
 }
 
+TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
+    const int batch_num = 1;
+    const int output_f = 12;
+    const int input_f = 16;
+    const int filter_xy = 5;
+    const int output_padding = 2;
+    const int input_size_x = 1280;
+    const int input_size_y = 720;
+
+    const auto& engine = get_test_engine();
+
+    auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
+    auto input_data = generate_random_4d<float>(batch_num, input_f, input_size_y, input_size_x, -10, 10);
+
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_size });
+    set_values(input, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    auto weights_data = generate_random_4d<int8_t>(output_f, input_f, filter_xy, filter_xy, -10, 10);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights = memory::allocate(engine, { data_types::i8, format::bfyx, weights_size });
+    set_values(weights, weights_data_bfyx);
+
+    auto biases_size = tensor(1, output_f, 1, 1);
+    auto biases_data = generate_random_4d<int8_t>(1, output_f, 1, 1, -10, 10);
+    auto biases_data_bfyx = flatten_4d(format::bfyx, biases_data);
+    auto biases = memory::allocate(engine, { data_types::i8, format::bfyx, biases_size });
+    set_values(biases, biases_data_bfyx);
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        reorder("to_int", "input", { data_types::i8,format::bfyx,{ batch_num, input_f, input_size_x, input_size_y } }),
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, { 0, 0, -2, -2 }, { 1,1,1,1 },
+            padding{ { 0, 0, output_padding, output_padding }, 0 }),
+        reorder("output", "conv", { data_types::f32,format::bfyx,{ batch_num, input_f, input_size_x, input_size_y } }));
+
+    build_options build_opt;
+
+    network network_ref(engine, topology_ref, build_opt);
+    network_ref.set_input_data("input", input);
+
+    auto outputs = network_ref.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output");
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        reorder("to_int", "input", { data_types::i8,format::b_fs_yx_fsv4,{ batch_num, input_f, input_size_x, input_size_y } }),
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, { 0, 0, -2, -2 }, { 1,1,1,1 },
+            padding{ { 0, 0, output_padding, output_padding }, 0 }),
+        reorder("output", "conv", { data_types::f32,format::bfyx,{ batch_num, input_f, input_size_x, input_size_y } }));
+
+    build_options build_opt_act;
+
+    build_opt_act.set_option(build_option::optimize_data(true));
+
+    network network_act(engine, topology_act, build_opt_act);
+    network_act.set_input_data("input", input);
+
+    auto outputs_act = network_act.execute();
+    EXPECT_EQ(outputs_act.size(), size_t(1));
+    EXPECT_EQ(outputs_act.begin()->first, "output");
+
+    auto output_memory_act = outputs_act.at("output").get_memory();
+    auto output_act_ptr = output_memory_act.pointer<float>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 720);
+    EXPECT_EQ(x_size, 1280);
+    EXPECT_EQ(f_size, output_f);
+    EXPECT_EQ(b_size, 1);
+    for (int o = 0; o < f_size; ++o) {
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                EXPECT_EQ(output_act_ptr[o * x_size * y_size + y * x_size + x], output_ptr[o * x_size * y_size + y * x_size + x]);
+            }
+        }
+    }
+}
 
 TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 {
