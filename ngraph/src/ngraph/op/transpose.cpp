@@ -143,7 +143,7 @@ namespace
     }
 }
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
-                                 const HostTensorVector& input_values)
+                                 const HostTensorVector& input_values) const
 {
     return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }
