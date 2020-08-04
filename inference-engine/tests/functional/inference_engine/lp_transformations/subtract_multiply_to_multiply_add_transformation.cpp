@@ -166,7 +166,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     SubtractMultiplyToMultiplyAddTransformation,
     ::testing::ValuesIn(testValues),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);

@@ -96,6 +96,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
+            precision,
             shapes.first,
             testValues.expected.precisionBeforeDequantization1,
             testValues.expected.dequantization1,

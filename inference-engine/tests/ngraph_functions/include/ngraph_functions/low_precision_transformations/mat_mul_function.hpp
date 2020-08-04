@@ -41,6 +41,7 @@ public:
         const FakeQuantizeOnWeights& fqOnWeights);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,

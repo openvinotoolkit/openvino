@@ -124,19 +124,22 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, -126.f));
 
+    std::shared_ptr<ngraph::Node> onWeights = values.fakeQuantizeOnWeights.empty() ?
+        weights :
+        ngraph::builder::makeFakeQuantize(
+            weights,
+            precision,
+            values.fakeQuantizeOnWeights.quantizationLevel,
+            values.fakeQuantizeOnWeights.constantShape,
+            values.fakeQuantizeOnWeights.inputLowValues,
+            values.fakeQuantizeOnWeights.inputHighValues,
+            values.fakeQuantizeOnWeights.outputLowValues,
+            values.fakeQuantizeOnWeights.outputHighValues);
+
     std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-        branch1Pooling,
-        values.fakeQuantizeOnWeights.empty() ?
-            weights->output(0) :
-            ngraph::builder::makeFakeQuantize(
-                weights,
-                precision,
-                values.fakeQuantizeOnWeights.quantizationLevel,
-                values.fakeQuantizeOnWeights.constantShape,
-                values.fakeQuantizeOnWeights.inputLowValues,
-                values.fakeQuantizeOnWeights.inputHighValues,
-                values.fakeQuantizeOnWeights.outputLowValues,
-                values.fakeQuantizeOnWeights.outputHighValues),
+        std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
+        ngraph::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
