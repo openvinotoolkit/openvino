@@ -55,7 +55,7 @@ cv::Mat imreadW(std::wstring input_image_path) {
 }
 
 std::string simpleConvert(const std::wstring & wstr) {
-    std::string str(wstr.size());
+    std::string str;
     for (auto && wc : wstr)
         str += static_cast<char>(wc);
     return str;
