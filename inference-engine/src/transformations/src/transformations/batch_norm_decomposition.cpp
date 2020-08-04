@@ -23,7 +23,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     auto beta = make_shared<pattern::op::Label>(element::f32, beta_shape);
     auto bn = make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-    ngraph::graph_rewrite_callback callback = [input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
+    ngraph::graph_rewrite_callback callback = [this, input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
         auto pattern_map = m.get_pattern_map();
 
         auto m_input = pattern_map[input];
@@ -58,7 +58,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         auto mean_aligned = make_shared<opset1::Reshape>(m_mean, new_shape, true);
 
         // input_sub_mean = input - mean
-        auto input_sub_mean = std::make_shared<opset1::Subtract>(m_input, mean_aligned);
+        auto input_sub_mean = register_new_node<opset1::Subtract>(m_input, mean_aligned);
         // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
         auto mul = std::make_shared<opset1::Multiply>(input_sub_mean, gamma_div_scale_aligned);
         // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
