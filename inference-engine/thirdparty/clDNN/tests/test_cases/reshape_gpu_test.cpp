@@ -465,7 +465,7 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     topology.add(activation("relu2", "reshape", activation_func::relu));
 
     std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
-    std::vector<float> out1 = {0.f, 0.f, 2.f, 4.0f};
+    std::vector<float> out1 = {0.f, 2.f, 0.f, 4.0f};
     std::vector<float> out2 = {0.f, 2.f, 0.f, 4.0f};
     set_values(input, input_vec);
 
