@@ -440,7 +440,6 @@ set (SRC
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_reshape.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp
@@ -452,7 +451,6 @@ set (SRC
     pass/constant_folding_slice.cpp
     pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
-    pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
     pass/convert_fp32_to_fp16.hpp
@@ -511,8 +509,12 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/opt_kernel/reshape.cpp
+    runtime/opt_kernel/reshape.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
+    runtime/reference/reshape.cpp
+    runtime/reference/reshape.hpp
     runtime/reference/tile.cpp
     runtime/reference/tile.hpp
     shape.cpp
@@ -559,6 +561,8 @@ set_target_properties(ngraph PROPERTIES
 if(NOT NGRAPH_JSON_ENABLE)
     target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
 endif()
+
+target_link_libraries(ngraph PRIVATE openvino::itt)
 
 add_subdirectory(frontend)
 

@@ -2305,9 +2305,6 @@ TEST(constant_folding, constant_v1_split_specialized)
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
     auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
 
-    auto specialized_function = ::ngraph::specialize_function(
-        std::const_pointer_cast<ngraph::Function>(f), {}, {}, {}, true, true);
-
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);

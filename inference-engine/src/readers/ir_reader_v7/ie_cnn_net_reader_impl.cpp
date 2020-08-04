@@ -16,7 +16,7 @@
 
 #include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
-#include "ie_profiling.hpp"
+#include "ie_ir_itt.hpp"
 #include "parsers.h"
 #include "xml_parse_utils.h"
 
@@ -68,7 +68,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const void* model, size_t size, Respons
 }
 
 StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* resp) noexcept {
-    IE_PROFILING_AUTO_SCOPE(CNNNetReaderImpl::ReadWeights)
+    OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "CNNNetReaderImpl::ReadWeights");
     int64_t fileSize = FileUtils::fileSize(filepath);
 
     if (fileSize < 0)
@@ -92,8 +92,13 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
     }
 }
 
+ICNNNetwork* CNNNetReaderImpl::getNetwork(ResponseDesc* resp) noexcept {
+    OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "CNNNetReaderImpl::getNetwork");
+    return network.get();
+}
+
 StatusCode CNNNetReaderImpl::ReadNetwork(const char* filepath, ResponseDesc* resp) noexcept {
-    IE_PROFILING_AUTO_SCOPE(CNNNetReaderImpl::ReadNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "CNNNetReaderImpl::ReadNetwork");
     if (network) {
         return DescriptionBuffer(NETWORK_NOT_READ, resp)
                << "Network has been read already, use new reader instance to read new network.";
