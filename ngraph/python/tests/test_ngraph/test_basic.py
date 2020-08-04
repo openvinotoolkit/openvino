@@ -23,7 +23,6 @@ from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, PartialShape, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-<<<<<<< HEAD
 from tests import (xfail_issue_34323,
                    xfail_issue_35929,
                    xfail_issue_35926,
@@ -32,10 +31,8 @@ from tests import (xfail_issue_34323,
                    xfail_issue_36479,
                    xfail_issue_36480)
 
-=======
 from ngraph.impl import Type, VariantString
-from ngraph.impl.op import Parameter, Result
->>>>>>> a557aae5... Worksave
+from ngraph.impl.op import Parameter
 
 def test_ngraph_function_api():
     shape = [2, 2]
@@ -404,16 +401,18 @@ def test_runtime_info():
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
     rtInfo = relu_node.get_rt_info()
+    print(rtInfo)
     rtInfo["affinity"] = VariantString("testAffinity")
+    print(rtInfo)
     relu_node.set_friendly_name("testReLU")
-    result = Result(relu_node)
+    # result = Result(relu_node)
 
     params = [test_param]
-    results = [result]
+    results = [relu_node]
 
-    ngraph = Function(results, params)
+    ngraph = Function(results, params, "testFunc")
 
     # cnnNet = ie.CNNNetwork(ngraph)
-    # # cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU") # TODO
+    # cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU") # TODO
     # ASSERT_NE(nullptr, cnnLayer)
     # ASSERT_EQ(cnnLayer[affinity], test_string)
