@@ -95,7 +95,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
         parent1 = multiply1;
     }
 
-    auto input2 = std::make_shared<ngraph::opset1::Parameter>(expectedValues.precision2, ngraph::Shape(inputShape));
+    auto input2 = std::make_shared<ngraph::opset1::Parameter>(
+        expectedValues.precision2, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent2 = input2;
 
     auto addOriginal = ngraph::opset1::Add(

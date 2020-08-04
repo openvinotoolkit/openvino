@@ -41,8 +41,8 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
 
     const std::shared_ptr<Node> fakeQuantize = precisionAfterDequantization == precisionFqOnData ?
-            makeFakeQuantize(lastDequantization, precisionFqOnData, fqOnData) :
-            makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnData);
+        makeFakeQuantize(lastDequantization, precisionFqOnData, fqOnData) :
+        makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnData);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");

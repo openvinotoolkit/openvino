@@ -28,6 +28,20 @@ bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngr
     return true;
 }
 
+bool isTypeRelaxed(const std::string& type) {
+    return type.find_first_of("TypeRelaxed") == 0;
+}
+
+bool compareTypeInfo(const ngraph::DiscreteTypeInfo& info1, const ngraph::DiscreteTypeInfo& info2) {
+    if (!isTypeRelaxed(info1.name) && !isTypeRelaxed(info2.name) && (info1.version != info2.version)) {
+        return false;
+    }
+
+    const std::string info1Name = isTypeRelaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
+    const std::string info2Name = isTypeRelaxed(info2.name) && (info2.parent != nullptr) ? info2.parent->name : info2.name;
+    return info1Name == info1Name;
+}
+
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
@@ -39,9 +53,9 @@ std::pair<bool, std::string> compare_functions(
      * + Check shapes
      * - Do not check nodes attributes (requires visitor mechanism to be completed)
      */
-    auto f1_results = f1->get_results();
-    auto f2_results = f2->get_results();
 
+    const auto f1_results = f1->get_results();
+    const auto f2_results = f2->get_results();
     if (f1_results.size() != f2_results.size()) {
         return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
     }
@@ -65,7 +79,7 @@ std::pair<bool, std::string> compare_functions(
         auto type_info1 = node1->get_type_info();
         auto type_info2 = node2->get_type_info();
 
-        if (type_info1 != type_info2) {
+        if (!compareTypeInfo(type_info1, type_info2)) {
             return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
         }
 

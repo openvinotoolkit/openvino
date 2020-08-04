@@ -75,7 +75,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const ExpectedValues& values) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
+    auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
@@ -86,24 +86,21 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
         Shape{ 2, 2 },
         true,
         op::RoundingType::FLOOR);
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, originalFunctionPrecision);
+
     parent = avgPool;
 
     if (!values.subtractValues.empty()) {
         const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
+
         parent = subtract;
     }
 
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-
-    if (values.activationPrecision != originalFunctionPrecision) {
-        input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
-            input,
-            std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape))));
-    }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
