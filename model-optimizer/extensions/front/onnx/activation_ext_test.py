@@ -58,7 +58,7 @@ class ActivationOpsONNXExtractorTest(unittest.TestCase):
         getattr(extractors, op_name + 'Extractor').extract(node)
         return node.graph.node[node.id]
 
-    @generate(*['Abs', 'Acos', 'Asin', 'Atan', 'Cos', 'Cosh', 'Erf', 'Exp', 'Floor', 'Log', 'Not', 'Sigmoid', 'Sin',
+    @generate(*['Abs', 'Acos', 'Asin', 'Atan', 'Acosh', 'Asinh', 'Atanh', 'Cos', 'Cosh', 'Erf', 'Exp', 'Floor', 'Log', 'Not', 'Sigmoid', 'Sin',
                 'Sinh', 'Tan', 'Tanh'])
     def test_default(self, op_name):
         ref = self._base_attrs(op_name)

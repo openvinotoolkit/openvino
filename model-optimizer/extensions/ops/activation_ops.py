@@ -65,6 +65,11 @@ class Asin(Activation):
     operation = staticmethod(lambda x: np.arcsin(x))
 
 
+class Asinh(Activation):
+    op = 'Asinh'
+    operation = staticmethod(lambda x: np.arcsinh(x))
+
+
 class Cos(Activation):
     op = 'Cos'
     operation = staticmethod(lambda x: np.cos(x))
@@ -80,6 +85,11 @@ class Acos(Activation):
     operation = staticmethod(lambda x: np.arccos(x))
 
 
+class Acosh(Activation):
+    op = 'Acosh'
+    operation = staticmethod(lambda x: np.arccosh(x))
+
+
 class Tan(Activation):
     op = 'Tan'
     operation = staticmethod(lambda x: np.tan(x))
@@ -93,6 +103,11 @@ class Tanh(Activation):
 class Atan(Activation):
     op = 'Atan'
     operation = staticmethod(lambda x: np.arctan(x))
+
+
+class Atanh(Activation):
+    op = 'Atanh'
+    operation = staticmethod(lambda x: np.arctanh(x))
 
 
 class ReLU6(AttributedClamp):
