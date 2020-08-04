@@ -67,7 +67,7 @@ public:
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
-    void addOutput(const std::string& dataName);
+    void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
     void Release() noexcept override {
         delete this;
@@ -88,9 +88,8 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
-            std::vector<size_t>>& inputShapes = {}) const;
 protected:
+    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
@@ -129,7 +128,8 @@ class TINGraphBody : public CNNNetworkNGraphImpl {
 public:
     explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
 
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const override {
+protected:
+    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
         return _ngraph_function;
     }
 };

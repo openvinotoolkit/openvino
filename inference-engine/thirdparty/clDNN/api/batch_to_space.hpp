@@ -59,16 +59,26 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     /// @brief Constructs batch_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input data primitive id.
-    /// @param block_shape_id Array of block sizes primitive id
-    /// @param crops_begin_id Amount to crop from the beginning along each axis of data input primitive id
-    /// @param crops_end_id Amount to crop from the ending along each axis of data input primitive id
+    /// @param block_shape Array of block sizes
+    /// @param crops_begin Amount to crop from the beginning along each axis of data input
+    /// @param crops_end Amount to crop from the ending along each axis of data input
     batch_to_space(const primitive_id& id,
                    const primitive_id& input,
-                   const primitive_id& block_shape_id,
-                   const primitive_id& crops_begin_id,
-                   const primitive_id& crops_end_id,
+                   const tensor& block_shape,
+                   const tensor& crops_begin,
+                   const tensor& crops_end,
+                   const tensor& out_size,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input, block_shape_id, crops_begin_id, crops_end_id}, output_padding){}
+        : primitive_base(id, {input}, output_padding),
+          block_shape(block_shape),
+          crops_begin(crops_begin),
+          crops_end(crops_end),
+          out_size(out_size) {}
+
+    tensor block_shape;
+    tensor crops_begin;
+    tensor crops_end;
+    tensor out_size;
 };
 /// @}
 /// @}

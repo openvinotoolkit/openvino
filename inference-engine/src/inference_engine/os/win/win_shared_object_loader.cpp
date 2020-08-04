@@ -2,26 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief WINAPI compatible loader for a shared object
- * 
- * @file win_shared_object_loader.h
- */
-#pragma once
-
-#include "ie_api.h"
 #include "details/ie_exception.hpp"
 #include "details/os/os_filesystem.hpp"
-
-// Avoidance of Windows.h to include winsock library.
-#ifndef _WINSOCKAPI_
-# define _WINSOCKAPI_
-#endif
-
-// Avoidance of Windows.h to define min/max.
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
+#include "details/ie_so_loader.h"
 
 #include <direct.h>
 #include <windows.h>
@@ -29,10 +12,7 @@
 namespace InferenceEngine {
 namespace details {
 
-/**
- * @brief This class provides an OS shared module abstraction
- */
-class SharedObjectLoader {
+class SharedObjectLoader::Impl {
 private:
     HMODULE shared_object;
 
@@ -49,18 +29,8 @@ private:
     }
 
 public:
-    /**
-     * @brief A shared pointer to SharedObjectLoader
-     */
-    using Ptr = std::shared_ptr<SharedObjectLoader>;
-
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Loads a library with the name specified. The library is loaded according to the
-     *        WinAPI LoadLibrary rules
-     * @param pluginName Full or relative path to the plugin library
-     */
-    explicit SharedObjectLoader(LPCWSTR pluginName) {
+    explicit Impl(const wchar_t* pluginName) {
         ExcludeCurrentDirectory();
 
         shared_object = LoadLibraryW(pluginName);
@@ -72,7 +42,7 @@ public:
     }
 #endif
 
-    explicit SharedObjectLoader(LPCSTR pluginName) {
+    explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectory();
 
         shared_object = LoadLibraryA(pluginName);
@@ -83,16 +53,10 @@ public:
         }
     }
 
-    ~SharedObjectLoader() {
+    ~Impl() {
         FreeLibrary(shared_object);
     }
 
-    /**
-     * @brief Searches for a function symbol in the loaded module
-     * @param symbolName Name of function to find
-     * @return A pointer to the function if found
-     * @throws InferenceEngineException if the function is not found
-     */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
             THROW_IE_EXCEPTION << "Cannot get '" << symbolName << "' content from unknown library!";
@@ -104,6 +68,23 @@ public:
         return procAddr;
     }
 };
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
+    _impl = std::make_shared<Impl>(pluginName);
+}
+#endif
+
+SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
+}
+
+SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
+    _impl = std::make_shared<Impl>(pluginName);
+}
+
+void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    return _impl->get_symbol(symbolName);
+}
 
 }  // namespace details
 }  // namespace InferenceEngine
