@@ -190,7 +190,7 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { 
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
-    static const std::string name = std::string("TypeRelaxed<") + BaseOp::get_type_info_static().name + ">";
+    static const std::string name = std::string("TypeRelaxed_") + BaseOp::get_type_info_static().name;
     static const ::ngraph::Node::type_info_t type_info_static{
         name.c_str(), 0, &BaseOp::get_type_info_static()};
     return type_info_static;
