@@ -222,23 +222,30 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
             std::vector<float>(groupCount * outputChannelsInGroup * inputChannelsInGroup * kernelSize * kernelSize, expectedValues.weightsValues[0]) :
             expectedValues.weightsValues);
 
-    const std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
-        parent,
-        expectedValues.fakeQuantizeOnWeights.empty() ?
-            weights->output(0) :
-            ngraph::builder::makeFakeQuantize(
-                weights->output(0),
-                precision,
-                expectedValues.fakeQuantizeOnWeights.quantizationLevel,
-                expectedValues.fakeQuantizeOnWeights.constantShape,
-                expectedValues.fakeQuantizeOnWeights.inputLowValues,
-                expectedValues.fakeQuantizeOnWeights.inputHighValues,
-                expectedValues.fakeQuantizeOnWeights.outputLowValues,
-                expectedValues.fakeQuantizeOnWeights.outputHighValues),
+    std::shared_ptr<ngraph::Node> onWeights = expectedValues.fakeQuantizeOnWeights.empty() ?
+        weights :
+        ngraph::builder::makeFakeQuantize(
+            weights->output(0),
+            precision,
+            expectedValues.fakeQuantizeOnWeights.quantizationLevel,
+            expectedValues.fakeQuantizeOnWeights.constantShape,
+            expectedValues.fakeQuantizeOnWeights.inputLowValues,
+            expectedValues.fakeQuantizeOnWeights.inputHighValues,
+            expectedValues.fakeQuantizeOnWeights.outputLowValues,
+            expectedValues.fakeQuantizeOnWeights.outputHighValues);
+
+    auto convolutionOriginal = ngraph::opset1::GroupConvolution(
+        ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
+
+    std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+        convolutionOriginal,
+        std::vector<element::Type>{ element::f32, element::f32 },
+        std::vector<element::Type>{});
 
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
         convolution,
