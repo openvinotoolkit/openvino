@@ -39,3 +39,5 @@ namespace ngraph
         };
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END

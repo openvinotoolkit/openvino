@@ -54,8 +54,7 @@ namespace ngraph
         /// </table>
         class BACKEND_API FusedOpDecomposition : public NodePass
         {
-        public:
-            /// \brief  Function signature type for callback used to check whether provided node
+        public: /// \brief  Function signature type for callback used to check whether provided node
             ///         is supported by backend.
             using op_query_t = std::function<bool(const Node& node)>;
 
@@ -76,3 +75,4 @@ namespace ngraph
         };
     }
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
