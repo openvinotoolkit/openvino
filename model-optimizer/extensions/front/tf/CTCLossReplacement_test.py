@@ -17,7 +17,7 @@
 import numpy as np
 import unittest
 
-from extensions.front.tf.CTCLossReplacement import CTCLossFrontReplacement
+from extensions.front.tf.CTCLossReplacement import CTCLossReplacement
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const
@@ -27,7 +27,11 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
     def test1(self):
         nodes_attributes = {
             'logits': {'shape': int64_array([2, 6, 100]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-            'logits_length': {'shape': int64_array([2]), 'value': np.array([6, 6], dtype=np.int), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+            'seq_mask': {'shape': int64_array([2, 100]), 'data_type': np.int32, 'kind': 'op', 'op': 'Parameter'},
+
+            'reduce_seq_mask': {'kind': 'op', 'op': 'ReduceSum'},
+            's_cast_seq_mask': {'kind': 'op', 'op': 'Cast'},
+            'transpose_cast_seq_mask': {'kind': 'op', 'op': 'Transpose'},
 
             'transpose': {'kind': 'op', 'op': 'Transpose'},
             'ctc_greedy_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoder'},
@@ -50,7 +54,8 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
             'select_op': {'kind': 'op', 'op': 'Select'},
             'label_length_op': {'kind': 'op', 'op': 'ReduceSum'},
 
-            **const('seq_mask', np.array([[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]], dtype=np.float)),
+            **const('reduce_indices', int64_array(1)),
+            **const('permute_order', int64_array([1, 0])),
             **const('default_value', int64_array(-1)),
             **const('squeeze_axis', int64_array([2, 3])),
             **const('minus_one', np.array([-1], dtype=np.int32)),
@@ -64,10 +69,10 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('logits', 'transpose', {'out': 0, 'in': 0}),
                              ('transpose', 'ctc_greedy_decoder', {'out': 0, 'in': 0}),
-                             ('logits_length', 'ctc_greedy_decoder', {'out': 0, 'in': 1}),
+                             ('seq_mask', 'ctc_greedy_decoder', {'out': 0, 'in': 1}),
 
                              ('transpose', 'ctc_loss', {'out': 0, 'in': 0}),
-                             ('logits_length', 'ctc_loss', {'out': 0, 'in': 3}),
+                             ('seq_mask', 'ctc_loss', {'out': 0, 'in': 3}),
 
                              ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 0, 'in': 0}),
                              ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 2, 'in': 1}),
@@ -80,12 +85,19 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
                              ('ctc_loss', 'last', {'out': 0, 'in': 0}),
                              ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        CTCLossFrontReplacement().find_and_replace_pattern(graph)
+        CTCLossReplacement().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('logits', 'transpose', {'out': 0, 'in': 0}),
+                                [('seq_mask', 'reduce_seq_mask', {'out': 0, 'in': 0}),
+                                 ('reduce_indices', 'reduce_seq_mask', {'out': 0, 'in': 1}),
+
+                                 ('seq_mask', 's_cast_seq_mask', {'out': 0, 'in': 0}),
+                                 ('s_cast_seq_mask', 'transpose_cast_seq_mask', {'out': 0, 'in': 0}),
+                                 ('permute_order', 'transpose_cast_seq_mask', {'out': 0, 'in': 1}),
+
+                                 ('logits', 'transpose', {'out': 0, 'in': 0}),
                                  ('transpose', 'ctc_greedy_decoder_op', {'out': 0, 'in': 0}),
-                                 ('seq_mask', 'ctc_greedy_decoder_op', {'out': 0, 'in': 1}),
+                                 ('transpose_cast_seq_mask', 'ctc_greedy_decoder_op', {'out': 0, 'in': 1}),
 
                                  ('ctc_greedy_decoder_op', 'squeeze_op', {'out': 0, 'in': 0}),
                                  ('squeeze_axis', 'squeeze_op', {'out': 0, 'in': 1}),
@@ -107,7 +119,7 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
                                  ('reduce_sum_axis', 'label_length_op', {'out': 0, 'in': 1}),
 
                                  ('logits', 'ctc_loss_op', {'out': 0, 'in': 0}),
-                                 ('logits_length', 'ctc_loss_op', {'out': 0, 'in': 1}),
+                                 ('reduce_seq_mask', 'ctc_loss_op', {'out': 0, 'in': 1}),
                                  ('cast_labels_op', 'ctc_loss_op', {'out': 0, 'in': 2}),
                                  ('label_length_op', 'ctc_loss_op', {'out': 0, 'in': 3}),
 

@@ -35,7 +35,8 @@ class SparseToDenseReplacer(FrontReplacementOp):
 
     def run_after(self):
         from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
-        return [CTCGreedyDecoderReplacement]
+        from extensions.front.tf.CTCLossReplacement import CTCLossReplacement
+        return [CTCGreedyDecoderReplacement, CTCLossReplacement]
 
     def replace_op(self, graph: Graph, node: Node):
         node_name = node.soft_get('name', node.id)

@@ -21,8 +21,10 @@ from extensions.ops.Cast import Cast
 from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
 from extensions.ops.ctc_loss import CTCLoss
 from extensions.ops.elementwise import Equal
+from extensions.ops.parameter import Parameter
 from extensions.ops.ReduceOps import ReduceSum
 from extensions.ops.select import Select
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -34,11 +36,11 @@ from mo.ops.squeeze import Squeeze
 from mo.utils.error import Error
 
 
-class CTCLossFrontReplacement(FrontReplacementSubgraph):
+class CTCLossReplacement(FrontReplacementSubgraph):
     """
     The CTCLoss appears along with CTCGreedyDecoder operation in particular. Since the TF CTCGreedyDecoder outputs
     sparse tensor format, the OpenVINO CTCGreedyDecoder has a different format and the CTCLoss is also affected
-    in terms of different formar for its inputs. So the corresponding sub-graph with CTCGreedyDecoding and CTCLoss
+    in terms of different format for its inputs. So the corresponding sub-graph with CTCGreedyDecoding and CTCLoss
     must be transformed properly.
     """
     enabled = True
@@ -50,6 +52,7 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
+                ('seq_len', dict(op='Parameter', data_type=np.int32)),
                 ('transpose', dict(op='Transpose')),
                 ('ctc_greedy_decoder', dict(op='CTCGreedyDecoder')),
                 ('cast', dict(op='Cast')),
@@ -58,6 +61,8 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
                 ('ctc_loss', dict(op='CTCLoss')),
             ],
             edges=[
+                ('seq_len', 'ctc_greedy_decoder', {'out': 0, 'in': 1}),
+                ('seq_len', 'ctc_loss', {'out': 0, 'in': 3}),
                 ('transpose', 'ctc_greedy_decoder', {'out': 0, 'in': 0}),
                 ('transpose', 'ctc_loss', {'out': 0, 'in': 0}),
                 ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 0, 'in': 0}),
@@ -70,6 +75,7 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: dict):
+        seq_len_tf = match['seq_len']
         transpose_tf = match['transpose']
         ctc_greedy_decoder_tf = match['ctc_greedy_decoder']
         cast_tf = match['cast']
@@ -83,20 +89,37 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
         log.debug('Found CTCLossFrontReplacer pattern after {} with name {}'.format(ctc_greedy_decoder_tf.op,
                                                                                     ctc_greedy_decoder_tf.name))
 
+        # create sequence mask node, sub-graph for transforming into sequence length and connect with consumers
+        seq_len_tf_shape = seq_len_tf.soft_get('shape', seq_len_tf.id)
+        if len(seq_len_tf_shape) != 2:
+            raise Error('The sequence length that is the second input to the CTCGreedyDecoder node "{}"'
+                        ' must be specified in a mask format.'.format(ctc_greedy_decoder_tf_name))
+        seq_len_tf_type = seq_len_tf.soft_get('data_type', seq_len_tf.id)
+        seq_len_tf_name = seq_len_tf.soft_get('name', seq_len_tf.id)
+        seq_mask_placeholder = Parameter(graph, {'name': seq_len_tf_name, 'shape': seq_len_tf_shape,
+                                                 'data_type': seq_len_tf_type}).create_node()
+        reduce_to_seq_len_node = ReduceSum(graph, {'name': seq_len_tf_name + '/ReduceToSeqLen',
+                                                   'keep_dims': False}).create_node()
+        reduction_indices = Const(graph, {'name': seq_len_tf_name + '/ReductionIndices',
+                                          'value': 1}).create_node()
+        reduce_to_seq_len_node.in_port(0).connect(seq_mask_placeholder.out_port(0))
+        reduce_to_seq_len_node.in_port(1).connect(reduction_indices.out_port(0))
+        seq_len_tf.out_port(0).get_connection().set_source(reduce_to_seq_len_node.out_port(0))
+
+        casted_seq_mask_node = Cast(graph, {'name': seq_len_tf_name + '/CastToFP32', 'dst_type': np.float32}).create_node()
+        casted_seq_mask_node.in_port(0).connect(seq_mask_placeholder.out_port(0))
+        order_const = Const(graph, {'name': seq_len_tf_name + '/PermuteOrder',
+                                    'value': int64_array([1, 0])}).create_node()
+        permuted_casted_seq_mask = Transpose(graph, {'name': seq_len_tf_name + '/Permute'}).create_node()
+        permuted_casted_seq_mask.in_port(0).connect(casted_seq_mask_node.out_port(0))
+        permuted_casted_seq_mask.in_port(1).connect(order_const.out_port(0))
+        rename_nodes([(seq_len_tf, seq_len_tf_name + '/AbandonedName'), (seq_mask_placeholder, seq_len_tf_name)])
+
         # create CTCGreedyDecoder node and set mask node
         ctc_merge_repeated_i = ctc_greedy_decoder_tf.soft_get('ctc_merge_repeated', ctc_greedy_decoder_tf.id)
         ctc_greedy_decoder = CTCGreedyDecoderOp(graph, {'name': output_sparse_to_dense_name,
                                                         'ctc_merge_repeated': ctc_merge_repeated_i}).create_node()
-        sequence_length_node = ctc_greedy_decoder_tf.in_node(1)
-        if sequence_length_node.value is None:
-            raise Error('The second input to the CTCGreedyDecoder node "{}" is not constant. This case is not '
-                        'supported with the Inference Engine.'.format(ctc_greedy_decoder_tf_name))
-        batch_size = sequence_length_node.value.shape[0]
-        mask_value = np.ones([batch_size, sequence_length_node.value[0]])
-        mask_value = np.transpose(mask_value)
-        mask_node = Const(graph, {'name': output_ctc_loss_name + '/Mask',
-                                  'value': mask_value}).create_node()
-        ctc_greedy_decoder.in_port(1).connect(mask_node.out_port(0))
+        ctc_greedy_decoder.in_port(1).connect(permuted_casted_seq_mask.out_port(0))
         rename_nodes([(sparse_to_dense_tf, output_sparse_to_dense_name + '/AbandonedName'),
                       (ctc_greedy_decoder, output_sparse_to_dense_name)])
 
@@ -107,9 +130,9 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
             'The CTCLoss node "{}" misses "ctc_merge_repeated" attribute'.format(output_ctc_loss_name)
         assert ctc_loss_tf.has_valid('unique'), \
             'The CTCLoss node "{}" misses "unique" attribute'.format(output_ctc_loss_name)
-        preprocess_collapse_repeated = ctc_loss_tf.preprocess_collapse_repeated
-        ctc_merge_repeated = ctc_loss_tf.ctc_merge_repeated
-        unique = ctc_loss_tf.unique
+        preprocess_collapse_repeated = ctc_loss_tf.soft_get('preprocess_collapse_repeated', ctc_loss_tf.id)
+        ctc_merge_repeated = ctc_loss_tf.soft_get('ctc_merge_repeated', ctc_loss_tf.id)
+        unique = ctc_loss_tf.soft_get('unique', ctc_loss_tf.id)
         ctc_loss = CTCLoss(graph, {'name': output_ctc_loss_name,
                                    'preprocess_collapse_repeated': preprocess_collapse_repeated,
                                    'ctc_merge_repeated': ctc_merge_repeated,
@@ -118,11 +141,12 @@ class CTCLossFrontReplacement(FrontReplacementSubgraph):
 
         # connect logits
         ctc_greedy_decoder_tf.in_port(0).get_connection().set_destination(ctc_greedy_decoder.in_port(0))
+        ctc_loss.in_port(0).disconnect()
         transpose_tf.in_port(0).get_connection().add_destination(ctc_loss.in_port(0))
 
         # connect logit lengths
         ctc_greedy_decoder_tf.in_port(1).disconnect()
-        ctc_loss_tf.in_port(3).get_connection().set_destination(ctc_loss.in_port(1))
+        ctc_loss.in_port(1).connect(reduce_to_seq_len_node.out_port(0))
 
         # connect labels to ctc_loss
         squeeze_op = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([2, 3])})

@@ -56,8 +56,9 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         return [match['cast'].id, match['sparse_to_dense']]
 
     def replace_sub_graph(self, graph: Graph, match: dict):
+        # TODO: it requires further refactoring and improvement to provide reshape-ability
         decoder_node = match['decoder']
-        decoder_node_name = decoder_node.soft_get('name')
+        decoder_node_name = decoder_node.soft_get('name', decoder_node.id)
         graph.remove_edge(decoder_node.id, match['sparse_to_dense'].id)
         graph.remove_edge(decoder_node.id, match['cast'].id)
         match['sparse_to_dense'].replace_node(decoder_node)
