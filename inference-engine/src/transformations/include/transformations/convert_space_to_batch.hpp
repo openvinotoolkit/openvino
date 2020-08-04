@@ -32,9 +32,9 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
  *
  */
 
-class ngraph::pass::ConvertSpaceToBatch: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSpaceToBatch: public ngraph::pass::MatcherPass {
 public:
-    ConvertSpaceToBatch(bool convert_by_elements = true) : GraphRewrite() {
+    explicit ConvertSpaceToBatch(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_space_to_batch_by_elements();
         else
