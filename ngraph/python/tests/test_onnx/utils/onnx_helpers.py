@@ -18,6 +18,7 @@ import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
 from openvino.inference_engine import IECore
 
+import ngraph as ng
 from ngraph.impl import Function
 
 
@@ -37,6 +38,5 @@ def import_onnx_model(model: onnx.ModelProto) -> Function:
     ie = IECore()
     ie_network = ie.read_network(model=model_byte_string, weights=b"", init_from_buffer=True)
 
-    capsule = ie_network._get_function_capsule()
-    ng_function = Function.from_capsule(capsule)
+    ng_function = ng.function_from_cnn(ie_network)
     return ng_function

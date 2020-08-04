@@ -24,6 +24,7 @@ except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
 from ngraph.impl import Node
+from ngraph.helpers import function_from_cnn
 
 from ngraph.opset4 import absolute
 from ngraph.opset4 import absolute as abs
