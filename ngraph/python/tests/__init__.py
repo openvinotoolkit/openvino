@@ -50,9 +50,7 @@ xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
-unstrict_xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch",
-                                        strict=False)
-strict_xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
+xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35926 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format I64 is "
                                       "not supported yet...")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")

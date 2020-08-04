@@ -18,7 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import unstrict_xfail_issue_35925, strict_xfail_issue_35925, xfail_issue_36437
+from tests import xfail_issue_35925, xfail_issue_36437
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
@@ -47,7 +47,6 @@ def import_and_compute(op_type, input_data, **node_attrs):
     return run_node(node, data_inputs).pop()
 
 
-@unstrict_xfail_issue_35925
 @pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
 @pytest.mark.parametrize("keepdims", [True, False])
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
@@ -79,7 +78,7 @@ def test_reduce_l1(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@strict_xfail_issue_35925
+@xfail_issue_35925
 def test_reduce_l1_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -118,7 +117,7 @@ def test_reduce_l2(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@strict_xfail_issue_35925
+@xfail_issue_35925
 def test_reduce_l2_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -137,7 +136,6 @@ def test_reduce_l2_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@unstrict_xfail_issue_35925
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_log_sum(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -157,7 +155,7 @@ def test_reduce_log_sum(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@strict_xfail_issue_35925
+@xfail_issue_35925
 def test_reduce_log_sum_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -176,7 +174,7 @@ def test_reduce_log_sum_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@strict_xfail_issue_35925
+@xfail_issue_35925
 def test_reduce_log_sum_exp():
     def logsumexp(data, axis=None, keepdims=True):
         return np.log(np.sum(np.exp(data), axis=axis, keepdims=keepdims))
@@ -235,7 +233,7 @@ def test_reduce_sum_square(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@strict_xfail_issue_35925
+@xfail_issue_35925
 def test_reduce_sum_square_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
