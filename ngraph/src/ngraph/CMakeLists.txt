@@ -451,7 +451,6 @@ set (SRC
     pass/constant_folding_slice.cpp
     pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
-    pass/constant_folding_tile.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
     pass/convert_fp32_to_fp16.hpp
@@ -516,6 +515,8 @@ set (SRC
     runtime/reference/eval_helpers.hpp
     runtime/reference/reshape.cpp
     runtime/reference/reshape.hpp
+    runtime/reference/tile.cpp
+    runtime/reference/tile.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
