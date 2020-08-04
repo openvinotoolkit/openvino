@@ -22,13 +22,11 @@
 #endif
 
 #include <file_utils.h>
-#include <details/ie_so_pointer.hpp>
-#include <details/os/os_filesystem.hpp>
 #include <details/ie_exception.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-std::string InferenceEngine::details::wStringtoMBCSstringChar(const std::wstring& wstr) {
+std::string FileUtils::wStringtoMBCSstringChar(const std::wstring& wstr) {
 #ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
     std::string strTo(size_needed, 0);
@@ -40,7 +38,7 @@ std::string InferenceEngine::details::wStringtoMBCSstringChar(const std::wstring
 #endif
 }
 
-std::wstring InferenceEngine::details::multiByteCharToWString(const char* str) {
+std::wstring FileUtils::multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
@@ -58,7 +56,7 @@ std::wstring InferenceEngine::details::multiByteCharToWString(const char* str) {
 
 long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = InferenceEngine::details::multiByteCharToWString(charfilepath);
+    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #else
     const char* fileName = charfilepath;
@@ -71,7 +69,7 @@ void FileUtils::readAllFile(const std::string& string_file_name, void* buffer, s
     std::ifstream inputFile;
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
+    std::wstring file_name = FileUtils::multiByteCharToWString(string_file_name.c_str());
 #else
     std::string file_name = string_file_name;
 #endif
@@ -113,22 +111,9 @@ static std::string getIELibraryPathA() {
     GetModuleFileName(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
 #else
-#ifdef USE_STATIC_IE
-#ifdef __APPLE__
-    Dl_info info;
-    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
-    std::string path = getPathName(std::string(info.dli_fname)).c_str();
-#else
-    char result[PATH_MAX];
-    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-    std::string path = getPathName(std::string(result, (count > 0) ? count : 0));
-#endif  // __APPLE__
-    return FileUtils::makePath(path, std::string( "lib"));
-#else
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     return getPathName(std::string(info.dli_fname)).c_str();
-#endif  // USE_STATIC_IE
 #endif  // _WIN32
 }
 
@@ -145,7 +130,7 @@ std::wstring getIELibraryPathW() {
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::wstring(ie_library_path));
 #else
-    return details::multiByteCharToWString(getIELibraryPathA().c_str());
+    return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
 #endif
 }
 
@@ -153,7 +138,7 @@ std::wstring getIELibraryPathW() {
 
 std::string getIELibraryPath() {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    return details::wStringtoMBCSstringChar(getIELibraryPathW());
+    return FileUtils::wStringtoMBCSstringChar(getIELibraryPathW());
 #else
     return getIELibraryPathA();
 #endif

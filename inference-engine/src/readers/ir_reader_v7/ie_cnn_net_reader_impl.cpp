@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 
-#include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
 #include "ie_ir_itt.hpp"
 #include "parsers.h"

@@ -3,7 +3,6 @@
 //
 
 #include "details/ie_exception.hpp"
-#include "details/os/os_filesystem.hpp"
 #include "details/ie_so_loader.h"
 
 #include <direct.h>
@@ -36,7 +35,7 @@ public:
         shared_object = LoadLibraryW(pluginName);
         if (!shared_object) {
             char cwd[1024];
-            THROW_IE_EXCEPTION << "Cannot load library '" << details::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
+            THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
