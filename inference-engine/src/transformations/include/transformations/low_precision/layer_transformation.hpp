@@ -28,11 +28,14 @@
  *    to serialize original model into it (XML & BIN extensions were added)
  *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable
  *    dequantization layers printing
+ *  - LPT_DISPLAY_PRECISION : Define it to to display precision info
+ *    during low precision transformations
  *
  *****************************************************/
 // #define LPT_ORIGINAL_MODEL_PATH "/localdisk/orig.model"
 // #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/transformed.model"
 // #define LPT_PRINT_DEQUANTIZATION_INFO
+// #define LPT_DISPLAY_PRECISION
 
 namespace ngraph {
 namespace pass {

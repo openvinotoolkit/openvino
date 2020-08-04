@@ -54,9 +54,6 @@
 #include "transformations/low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "transformations/low_precision/subtract_multiply_to_multiply_add.hpp"
 
-// uncomment to display precision info during low precision transformations
-// #define DISPLAY_PECISION
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {

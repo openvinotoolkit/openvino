@@ -16,7 +16,6 @@
 #include <unordered_set>
 #include <vector>
 
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -371,6 +370,14 @@ void LayerTransformation::updateOutput(
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         transform(context, m);
+#ifdef LPT_DISPLAY_PRECISION
+        auto operationNode = m.get_match_root();
+        std::cout << "Operation was transformed: " <<
+            operationNode->get_type_name() << ", " <<
+            operationNode->get_friendly_name() << ", output operation precision: " <<
+            ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ngraph::element::Type()) <<
+            std::endl;;
+#endif
         return false;
     };
     // TODO: better name for matcher? required?
