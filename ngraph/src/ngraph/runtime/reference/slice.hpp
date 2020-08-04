@@ -25,16 +25,14 @@ namespace ngraph
     {
         namespace reference
         {
-            // NGRAPH_API should be removed here
-            // slice is exposed as public only for test INTERPRETER backend
-            NGRAPH_API void slice(const char* arg,
-                                  char* out,
-                                  const Shape& arg_shape,
-                                  const Coordinate& lower_bounds,
-                                  const Coordinate& upper_bounds,
-                                  const Strides& strides,
-                                  const Shape& out_shape,
-                                  const element::Type& elem_type);
+            void slice(const char* arg,
+                       char* out,
+                       const Shape& arg_shape,
+                       const Coordinate& lower_bounds,
+                       const Coordinate& upper_bounds,
+                       const Strides& strides,
+                       const Shape& out_shape,
+                       const element::Type& elem_type);
         }
     }
 }
