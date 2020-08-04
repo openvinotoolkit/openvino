@@ -20,6 +20,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pass/pass.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START;
 namespace ngraph
 {
     namespace pass

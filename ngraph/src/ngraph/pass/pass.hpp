@@ -33,8 +33,8 @@ namespace ngraph
         class PassBase;
         class ModulePass;
         class FunctionPass;
-        class NodePass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
-        class CallGraphPass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
+        class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NodePass;
+        class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") CallGraphPass;
         class Manager;
         enum class FusionType : uint32_t
         {
