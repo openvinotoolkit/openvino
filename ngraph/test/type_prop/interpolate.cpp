@@ -72,8 +72,7 @@ TEST(type_prop, interpolate_v4_partial)
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(partial_shape));
 
     // rank unknown
-    auto partial_param =
-        std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto interp_partial = make_shared<op::v4::Interpolate>(image, scales, axes, attrs);
-    ASSERT_TRUE(interp_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));;
+    auto partial_param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto interp_part = std::make_shared<op::v4::Interpolate>(partial_param, scales, axes, attrs);
+    ASSERT_TRUE(interp_part->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
