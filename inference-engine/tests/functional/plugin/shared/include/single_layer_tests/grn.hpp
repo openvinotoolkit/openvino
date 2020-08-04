@@ -38,7 +38,7 @@ typedef std::tuple<
 
 class GrnLayerTest
     : public testing::WithParamInterface<grnParams>,
-      public LayerTestsUtils::LayerTestsCommon{
+      virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<grnParams>& obj);
 

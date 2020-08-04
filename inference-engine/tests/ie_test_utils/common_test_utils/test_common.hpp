@@ -8,7 +8,7 @@
 
 namespace CommonTestUtils {
 
-class TestsCommon : public ::testing::Test {
+class TestsCommon : virtual public ::testing::Test {
 protected:
     TestsCommon();
 

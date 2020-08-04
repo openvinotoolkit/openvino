@@ -11,9 +11,6 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {

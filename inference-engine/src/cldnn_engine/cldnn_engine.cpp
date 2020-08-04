@@ -27,14 +27,14 @@
 #include <ngraph/op/fused/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include "convert_function_to_cnn_network.hpp"
-
-#undef min
-#undef max
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -104,6 +104,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
 
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
+
+        // Apply all transformations to TensorIterator body
+        ngraph::pass::Manager ti_manager;
+        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        ti_manager.run_passes(nGraphFunc);
+
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
@@ -158,7 +164,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
             && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
-            && input_precision != InferenceEngine::Precision::BOOL) {
+            && input_precision != InferenceEngine::Precision::I8 && input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }

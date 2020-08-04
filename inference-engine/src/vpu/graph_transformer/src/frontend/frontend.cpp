@@ -22,10 +22,12 @@
 #include <convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
 namespace vpu {
 
@@ -33,9 +35,10 @@ namespace vpu {
     [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
         { functor_name(model, layer, inputs, outputs); }
 
-FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
-    : _stageBuilder(std::move(stageBuilder))
-    , parsers{{
+FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
+    : _stageBuilder(std::move(stageBuilder)),
+    _core(core),
+    parsers{{
         {"Convolution",                                        LAYER_PARSER(parseConvolution)},
         {"Pooling",                                            LAYER_PARSER(parsePooling)},
         {"ReLU",                                               LAYER_PARSER(parseReLU)},
@@ -120,7 +123,9 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
         {"Mish",                                               LAYER_PARSER(parseMish)},
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
-    }} {}
+    }} {
+        VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
+    }
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
     VPU_PROFILE(buildInitialModel);
@@ -377,8 +382,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
             // disable GeLU decomposition
-            const auto transformationsPredicate = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-                return std::dynamic_pointer_cast<const ::ngraph::opset3::Gelu>(node) != nullptr;
+            const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                return std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+                       (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) &&
+                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr()));
             };
 
             auto nGraphFunc = originalOrConvertNetwork->getFunction();
@@ -391,6 +398,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
             manager.set_callback(transformationsPredicate);
             manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager ti_manager;
+            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            ti_manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 

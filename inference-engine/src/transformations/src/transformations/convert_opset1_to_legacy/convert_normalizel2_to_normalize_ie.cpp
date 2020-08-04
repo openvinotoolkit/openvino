@@ -52,7 +52,7 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
 
         //  Replace NormalizeL2 with NormalizeIE operation
 
-        auto axis = const_axis->get_vector<size_t>();
+        auto axis = const_axis->cast_vector<size_t>();
         bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = (constant->get_shape().size() == 1);
 
@@ -85,7 +85,7 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         if (!const_axis) return false;
 
         //  Replace NormalizeL2 with NormalizeIE operation
-        auto axis = const_axis->get_vector<size_t>();
+        auto axis = const_axis->cast_vector<size_t>();
         bool across_channels = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = true;
 

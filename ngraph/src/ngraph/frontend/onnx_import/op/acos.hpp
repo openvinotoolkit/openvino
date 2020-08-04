@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector acos(const Node& node)
+                inline OutputVector acos(const Node& node)
                 {
                     return {std::make_shared<default_opset::Acos>(node.get_ng_inputs().at(0))};
                 }

@@ -25,13 +25,11 @@ class OneHot(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'axis': -1,
-            'infer': __class__.infer,
-            'on_value': None,
-            'off_value': None,
+            'infer': self.infer,
             'out_ports_count': 1,
             'in_ports_count': 4,
             'data_type': None,
@@ -41,10 +39,7 @@ class OneHot(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        if self.ir_version < 10:
-            return ['axis', 'on_value', 'off_value', 'depth',]
-        else:
-            return ['axis']
+        return ['axis']
 
     @staticmethod
     def infer(node: Node):
@@ -52,14 +47,10 @@ class OneHot(Op):
         assert indices_shape is not None
         dim = indices_shape.size
 
-        if node.in_port(1).disconnected():  # IR v7 version
-            assert node.has_valid('depth'), 'The node "{}" must have attribute "depth"'.format(node.name)
-            depth = node.depth
-        else:
-            assert_msg = "OneHot `{0}` ({1} input port value) should be scalar: node: `{2}`, {0} value: `{3}`"
-            depth = node.in_port(1).data.get_value()
-            assert depth is not None and depth.ndim == 0, assert_msg.format('depth', '1', node.name, depth)
-            depth = depth.item(0)
+        assert_msg = "OneHot `{0}` ({1} input port value) should be scalar: node: `{2}`, {0} value: `{3}`"
+        depth = node.in_port(1).data.get_value()
+        assert depth is not None and depth.ndim == 0, assert_msg.format('depth', '1', node.name, depth)
+        depth = depth.item(0)
 
         assert node.has_valid('axis')
         axis = node['axis']
