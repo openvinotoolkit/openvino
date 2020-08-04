@@ -4,6 +4,7 @@
 
 #include "details/ie_exception.hpp"
 #include "details/ie_so_loader.h"
+#include "file_utils.h"
 
 #include <direct.h>
 #include <windows.h>
