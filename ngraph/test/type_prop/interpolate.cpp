@@ -53,6 +53,7 @@ TEST(type_prop, interpolate_v4_partial)
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
+
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
@@ -67,16 +68,12 @@ TEST(type_prop, interpolate_v4_partial)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, scales, axes, attrs);
 
-    EXPECT_EQ(mish_func->get_element_type(), element::f32);
-    // auto data =
-    //     make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
-    // auto mish_func = make_shared<op::v4::Mish>(data);
-    // EXPECT_EQ(mish_func->get_element_type(), element::f32);
-    // ASSERT_TRUE(mish_func->get_output_partial_shape(0).same_scheme(
-    //     (PartialShape{1, Dimension::dynamic(), 6})));
-    //
-    // // rank unknown
-    // auto mish_partial = make_shared<op::v4::Mish>(
-    //     make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
-    // ASSERT_TRUE(mish_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    EXPECT_EQ(interp->get_element_type(), element::f32);
+    ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(partial_shape));
+
+    // rank unknown
+    auto partial_param =
+        std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto interp_partial = make_shared<op::v4::Interpolate>(image, scales, axes, attrs);
+    ASSERT_TRUE(interp_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));;
 }
