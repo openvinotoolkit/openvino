@@ -46,7 +46,10 @@ def run_op_node(input_data, op_fun, *args):
     op_fun_args = []
     comp_inputs = []
     for data in input_data:
-        op_fun_args.append(ng.parameter(data, _get_numpy_dtype(data)))
+        param = ng.parameter(data.shape, _get_numpy_dtype(data))
+        comp_args.append(param)
+        comp_inputs.append(ng.constant(data, _get_numpy_dtype(data)))
+        op_fun_args.append(param)
     op_fun_args.extend(args)
     node = op_fun(*op_fun_args)
     computation = runtime.computation(node, *comp_args)
