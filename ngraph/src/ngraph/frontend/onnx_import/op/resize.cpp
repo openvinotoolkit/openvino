@@ -271,40 +271,10 @@ namespace ngraph
                         axes.push_back(ax);
                     }
 
-                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
-                    {
-                        const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
-
-                        auto scales_vector = scales_const->cast_vector<float>();
-                        auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<int64_t> output_shape;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            output_shape.push_back(
-                                std::floor(data_static_shape.at(i) * scales_vector.at(i)));
-                        }
-                        auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-
-                        auto axes_const = default_opset::Constant::create(
-                            element::i64, Shape({axes.size()}), axes);
-
-                        return {std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, output_shape_const, axes_const, attrs)};
-                    }
-
-                    auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
                     auto axes_const = default_opset::Constant::create(
                         ngraph::element::i64, Shape({axes.size()}), axes);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, axes_const, attrs)};
+                        data, scales, axes_const, attrs)};
                 }
 
             } // namespace set_1
