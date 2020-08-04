@@ -21,7 +21,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/slice_plan.hpp"
@@ -47,11 +47,12 @@ namespace ngraph
 
                 runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) *
                                                           sizeof(T));
-                reshape<T>(slice_out_buffer.get_ptr<T>(),
-                           reshape_out_buffer.get_ptr<T>(),
-                           sp.reshape_in_shape,
-                           get_default_order(sp.reshape_in_shape.size()),
-                           sp.reshape_out_shape);
+                opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
+                                    reshape_out_buffer.get_ptr<char>(),
+                                    sp.reshape_in_shape,
+                                    get_default_order(sp.reshape_in_shape.size()),
+                                    sp.reshape_out_shape,
+                                    sizeof(T));
 
                 reverse<T>(reshape_out_buffer.get_ptr<T>(),
                            out,
