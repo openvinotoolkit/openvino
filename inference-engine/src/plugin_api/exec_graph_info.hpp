@@ -19,7 +19,7 @@
 
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
- *  
+ *
  * Executable Graph Info is represented in ICNNNetwork format with general CNNLayer nodes inside
  * including connections between the nodes. Each node describes an executable hardware-specific
  * primitive and stores its parameters within CNNLayer::params map.
@@ -73,7 +73,7 @@ static const char LAYER_TYPE[] = "layerType";
 /**
  * @ingroup ie_dev_exec_graph
  * @brief The Execution node which is used to represent node in execution graph.
- * 
+ *
  * It contains the following type of information in node runtime information:
  * - ExecGraphInfoSerialization::ORIGINAL_NAMES
  * - ExecGraphInfoSerialization::IMPL_TYPE
@@ -112,7 +112,7 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& inputs) const override {
         auto cloned = std::make_shared<ExecutionNode>();
 
-        cloned->set_arguments(inputs);
+        cloned->set_inputs(inputs);
 
         for (auto kvp : get_rt_info())
             cloned->get_rt_info()[kvp.first] = kvp.second;

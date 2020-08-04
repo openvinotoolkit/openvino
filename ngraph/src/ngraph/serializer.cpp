@@ -904,7 +904,7 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             {
                 node = shared_ptr<Node>(factory_registry.create(type_info));
                 JSONAttributeDeserializer visitor(node_js);
-                node->set_arguments(static_cast<OutputVector>(args));
+                node->set_inputs(static_cast<OutputVector>(args));
                 node->visit_attributes(visitor);
                 for (auto& control_dep : control_deps_inputs)
                 {

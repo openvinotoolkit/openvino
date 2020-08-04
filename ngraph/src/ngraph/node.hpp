@@ -213,9 +213,9 @@ namespace ngraph
         virtual const type_info_t& get_type_info() const = 0;
         const char* get_type_name() const { return get_type_info().name; }
         /// Sets/replaces the arguments with new arguments.
-        void set_arguments(const NodeVector& arguments);
+        void set_inputs(const NodeVector& arguments);
         /// Sets/replaces the arguments with new arguments.
-        void set_arguments(const OutputVector& arguments);
+        void set_inputs(const OutputVector& arguments);
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
 

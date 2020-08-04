@@ -43,7 +43,7 @@ Node::Node(size_t output_size)
 Node::Node(const OutputVector& arguments, size_t output_size)
     : Node()
 {
-    set_arguments(arguments);
+    set_inputs(arguments);
     set_output_size(output_size);
 }
 
@@ -152,7 +152,7 @@ void Node::safe_delete(NodeVector& nodes, bool recurse)
     }
 }
 
-void Node::set_arguments(const NodeVector& arguments)
+void Node::set_inputs(const NodeVector& arguments)
 {
     OutputVector outputs;
     for (auto arg : arguments)
@@ -162,10 +162,10 @@ void Node::set_arguments(const NodeVector& arguments)
             outputs.push_back(output);
         }
     }
-    set_arguments(outputs);
+    set_inputs(outputs);
 }
 
-void Node::set_arguments(const OutputVector& arguments)
+void Node::set_inputs(const OutputVector& arguments)
 {
     // Add this node as a user of each argument.
     size_t i = 0;

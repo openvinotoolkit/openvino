@@ -214,7 +214,7 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
     for (const auto& opset : {ngraph::get_opset3(), ngraph::get_opset2(), ngraph::get_opset1()})
         if (opset.contains_type(type_info)) {
             const auto ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type_info.name));
-            ngraphNode->set_arguments(outputVector);
+            ngraphNode->set_inputs(outputVector);
             ngraphNode->validate_and_infer_types();
             return ngraphNode;
         }
