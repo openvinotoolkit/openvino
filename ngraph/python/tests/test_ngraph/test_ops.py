@@ -20,7 +20,7 @@ import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
-from tests import xfail_issue_36483, skip_segfault, xfail_issue_34323
+from tests import xfail_issue_36483, xfail_issue_34323
 
 
 def binary_op(op_str, a, b):
@@ -416,13 +416,6 @@ def test_tan():
 def test_tanh():
     input_list = [-1, 0, 0.5, 1]
     op_str = "Tanh"
-    unary_op_exec(op_str, input_list)
-
-
-@skip_segfault
-def test_reverse():
-    input_list = [[-1, 0], [0.5, 1]]
-    op_str = "Reverse"
     unary_op_exec(op_str, input_list)
 
 
