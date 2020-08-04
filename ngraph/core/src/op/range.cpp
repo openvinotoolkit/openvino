@@ -26,6 +26,94 @@
 using namespace std;
 using namespace ngraph;
 
+constexpr NodeTypeInfo op::v4::Range::type_info;
+
+op::v4::Range::Range(const Output<Node>& start,
+                     const Output<Node>& stop,
+                     const Output<Node>& step,
+                     element::Type output_type)
+    : Op({start, stop, step})
+    , m_output_type(output_type)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
+}
+
+void op::v4::Range::validate_and_infer_types()
+{
+    auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
+    auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
+    auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
+
+    double start = 0;
+    double stop = 0;
+    double step = 0;
+
+    if (const_start != nullptr)
+    {
+        std::vector<double> start_val = const_start->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, start_val.size() == 1);
+        start = start_val[0];
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(start) && !isnan(start), "'start' cannot be nan or infinite.");
+    }
+
+    if (const_stop != nullptr)
+    {
+        std::vector<double> stop_val = const_stop->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
+        stop = stop_val[0];
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(stop) && !isnan(stop), "'stop' cannot be nan or infinite.");
+    }
+
+    if (const_step != nullptr)
+    {
+        std::vector<double> step_val = const_step->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, step_val.size() == 1);
+        step = step_val[0];
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(step) && !isnan(step), "'step' cannot be nan or infinite.");
+    }
+
+    PartialShape result{PartialShape::dynamic(1)};
+
+    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
+    {
+        double span;
+
+        if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
+        {
+            span = 0;
+        }
+        else
+        {
+            span = stop - start;
+        }
+
+        double strided = ceil(fabs(span) / fabs(step));
+
+        result = PartialShape{Dimension(static_cast<int64_t>(strided))};
+    }
+    set_output_type(0, m_output_type, result);
+}
+
+shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
+}
+
+bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+{
+    return false;
+}
+
 constexpr NodeTypeInfo op::v0::Range::type_info;
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
