@@ -42,5 +42,5 @@ TEST(type_prop, interpolate_v4)
     auto interp = std::make_shared<op::v4::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
-//     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
+    //     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
 }

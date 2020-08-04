@@ -175,8 +175,6 @@ namespace ngraph
                     }
                 };
 
-                static constexpr NodeTypeInfo type_info{"Interpolate", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Interpolate() = default;
                 /// \brief Constructs a Interpolate operation without 'axes' input.
                 ///
