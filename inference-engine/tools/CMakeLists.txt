@@ -16,6 +16,8 @@ add_subdirectory(vpu)
 
 add_subdirectory(compile_tool)
 
+add_subdirectory(benchmark_app/cpp)
+
 # install
 
 if(ENABLE_PYTHON)
