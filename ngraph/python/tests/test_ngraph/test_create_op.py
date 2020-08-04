@@ -515,19 +515,6 @@ def test_convert_like():
     assert node.get_output_element_type(0) == Type.i8
 
 
-def test_reverse():
-    parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
-    parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)
-    expected_shape = [3, 10, 100, 200]
-
-    node = ng.reverse(parameter_data, parameter_axis, "index")
-
-    assert node.get_type_name() == "Reverse"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
-    assert node.get_output_element_type(0) == Type.f32
-
-
 def test_bucketize():
     data = ng.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
     buckets = ng.parameter([5], name="buckets", dtype=np.int64)

@@ -244,8 +244,6 @@ def unary_op(op_str, a):
         return ng.exp(a)
     elif op_str == "negative":
         return ng.negative(a)
-    elif op_str == "Reverse":
-        return ng.reverse(a, np.array([1]), "index")
     elif op_str == "Sign":
         return ng.sign(a)
     elif op_str == "Sin":
@@ -416,12 +414,6 @@ def test_tan():
 def test_tanh():
     input_list = [-1, 0, 0.5, 1]
     op_str = "Tanh"
-    unary_op_exec(op_str, input_list)
-
-
-def test_reverse():
-    input_list = [[-1, 0], [0.5, 1]]
-    op_str = "Reverse"
     unary_op_exec(op_str, input_list)
 
 
