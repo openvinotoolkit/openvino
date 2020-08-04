@@ -1,10 +1,10 @@
-## Interpolate <a name="Interpolate"></a> {#openvino_docs_ops_image_Interpolate_4}
+## InterpolateWithScales <a name="InterpolateWithScales"></a> {#openvino_docs_ops_image_InterpolateWithScales_4}
 
-**Versioned name**: *Interpolate-4*
+**Versioned name**: *InterpolateWithScales-4*
 
 **Category**: Image processing
 
-**Short description**: *Interpolate* layer performs interpolation of independent slices in input tensor by specified dimensions and attributes.
+**Short description**: *InterpolateWithScales* layer performs interpolation of independent slices in input tensor by specified dimensions and attributes.
 
 **Attributes**
 
@@ -80,9 +80,9 @@
 
 *   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
 
-*   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+*   **2**: `scales` - 1D tensor describing scales for spatial axes. Type of elements is any supported floating point type. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
 
-*   **3**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `target_spatial_shape`. Namely, `output_shape[axes[i]] = target_spatial_shape[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`. Optional with default value `[0,...,rank(data) - 1]`.
+*   **3**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `scales`. Namely, `output_shape[axes[i]] = round(scales[i] * input_shape[axes[i]])` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`. Optional with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 
@@ -184,7 +184,7 @@ def triangle_coeffs(dz):
     return np.maximum(0.0, 1.0 - np.abs(dz))
 
 
-class InterpolateCalculation:
+class InterpolateWithScalesCalculation:
     def __init__(self, attrs: dict):
         self.mode = attrs['mode']
         self.func = {
@@ -234,10 +234,10 @@ class InterpolateCalculation:
     def get_coordinate_transformation_mode(self):
         return GetOriginalCoordinate(self.coordinate_transformation_mode)
 
-    def shape_infer(self, input_data, target_spatial_shape):
+    def shape_infer(self, input_data, scales):
         result = input_data.shape + self.pads_begin + self.pads_end
         for i, axis in enumerate(self.axes):
-            result[axis] = target_spatial_shape[i]
+            result[axis] = math.floor(scales[i] * result[axis])
         return result
 
     @staticmethod
@@ -250,16 +250,16 @@ class InterpolateCalculation:
         else:
             return np.array(pad, dtype=np.int64)
 
-    def __call__(self, input_data, target_spatial_shape, axes):
+    def __call__(self, input_data, scales, axes):
         rank = input_data.ndim
         self.pads_begin = InterpolateCalculation.correct_pad(self.pads_begin, rank)
         self.pads_end = InterpolateCalculation.correct_pad(self.pads_end, rank)
         self.pads = list(zip(self.pads_begin, self.pads_end))
         self.axes = np.array(axes).astype(np.int64)
 
-        self.output_shape = self.shape_infer(input_data, target_spatial_shape)
+        self.output_shape = self.shape_infer(input_data, scales)
         padded_data = np.pad(input_data, self.pads)
-        self.scales = self.output_shape / padded_data.shape
+        self.scales = scales
         self.input_shape = padded_data.shape
         return self.func(padded_data)
 

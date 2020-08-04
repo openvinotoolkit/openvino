@@ -65,6 +65,7 @@ declared in `namespace opset4`.
 * [GRUSequence](sequence/GRUSequence_4.md)
 * [HardSigmoid](activation/HardSigmoid_1.md)
 * [Interpolate](image/Interpolate_4.md)
+* [InterpolateWithScales](image/InterpolateWithScales_4.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
 * [Log](arithmetic/Log_1.md)
