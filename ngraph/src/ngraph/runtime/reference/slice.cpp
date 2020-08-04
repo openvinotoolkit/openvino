@@ -33,7 +33,7 @@ namespace ngraph
                        const Coordinate& upper_bounds,
                        const Strides& strides,
                        const Shape& out_shape,
-                       const element::Type& elem_type)
+                       size_t elem_size)
             {
                 CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
                 CoordinateTransform output_transform(out_shape);
@@ -43,7 +43,6 @@ namespace ngraph
                 NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
                              shape_size(output_transform.get_target_shape()));
 
-                const auto elem_size = elem_type.size();
                 for (const Coordinate& in_coord : input_transform)
                 {
                     const Coordinate& out_coord = *output_it;

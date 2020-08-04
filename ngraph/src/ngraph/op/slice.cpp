@@ -149,7 +149,7 @@ namespace
                                   upper_bounds,
                                   strides,
                                   out->get_shape(),
-                                  in->get_element_type());
+                                  in->get_element_type().size());
 
         return true;
     }

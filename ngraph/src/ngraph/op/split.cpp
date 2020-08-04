@@ -204,7 +204,7 @@ namespace
                                   upper_bounds,
                                   Strides(lower_bounds.size(), 1),
                                   out->get_shape(),
-                                  in->get_element_type());
+                                  in->get_element_type().size());
 
         return true;
     }
@@ -215,26 +215,42 @@ namespace
                         const int64_t num_splits,
                         const Node* split_node)
     {
-        const auto axis = read_vector<int64_t>(axis_tensor)[0];
-        const auto normalized_axis =
-            ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+        int64_t axis;
+        switch (axis_tensor->get_element_type())
+        {
+        case element::Type_t::i64:
+            axis = read_vector<int64_t>(axis_tensor)[0];
+            axis =
+                ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+            break;
+        case element::Type_t::u64:
+            axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);
+            break;
+        default:
+            NODE_VALIDATION_CHECK(split_node,
+                                  false,
+                                  "Not supported axis type: ",
+                                  axis_tensor->get_element_type(),
+                                  " during evaluate Split:v1");
+            break;
+        }
         const auto data_shape = data_tensor->get_shape();
-        const size_t axis_dim_length = data_shape.at(normalized_axis);
+        const size_t axis_dim_length = data_shape.at(axis);
         const size_t part_length = axis_dim_length / num_splits;
 
         Shape output_shape = data_shape;
-        output_shape.at(normalized_axis) = part_length;
+        output_shape.at(axis) = part_length;
 
         std::vector<size_t> lower_bounds(data_shape.size(), 0);
         std::vector<size_t> upper_bounds = data_shape;
-        upper_bounds.at(normalized_axis) = part_length;
+        upper_bounds.at(axis) = part_length;
 
         for (const auto& output : outputs)
         {
             output->set_shape(output_shape);
             evaluate(data_tensor, output, lower_bounds, upper_bounds);
-            lower_bounds.at(normalized_axis) += part_length;
-            upper_bounds.at(normalized_axis) += part_length;
+            lower_bounds.at(axis) += part_length;
+            upper_bounds.at(axis) += part_length;
         }
 
         return true;

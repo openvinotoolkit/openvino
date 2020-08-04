@@ -32,7 +32,7 @@ namespace ngraph
                        const Coordinate& upper_bounds,
                        const Strides& strides,
                        const Shape& out_shape,
-                       const element::Type& elem_type);
+                       size_t elem_size);
         }
     }
 }

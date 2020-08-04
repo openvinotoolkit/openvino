@@ -39,7 +39,7 @@ shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
                               slice->get_upper_bounds(),
                               slice->get_strides(),
                               out_shape,
-                              constant->get_element_type());
+                              constant->get_element_type().size());
 
     return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
 }
@@ -127,12 +127,9 @@ void pass::ConstantFolding::construct_constant_variadic_split()
                 NGRAPH_CHECK(false,
                              "Encountered 'u1' element type in fold_constant_variadic_split");
                 break;
-            default:
-                NGRAPH_CHECK(false,
-                             "Not supported element type used in fold_constant_variadic_split");
+            default: replacement = fold_constant_slice(const_data, slice_node); break;
             }
 
-            replacement = fold_constant_slice(const_data, slice_node);
             replace_node(slice_node, replacement);
         }
 

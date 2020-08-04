@@ -48,7 +48,7 @@ namespace ngraph
                       Coordinate(sp.ends.begin(), sp.ends.end()),
                       Strides(sp.strides.begin(), sp.strides.end()),
                       sp.reshape_in_shape,
-                      elem_type);
+                      elem_type.size());
 
                 runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) *
                                                           sizeof(T));
