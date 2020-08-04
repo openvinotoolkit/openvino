@@ -160,7 +160,5 @@ bool op::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector
     const auto& data = inputs[0];
     const auto& output = outputs[0];
 
-    evaluate_slice(data, output, m_lower_bounds, m_upper_bounds, m_strides);
-
-    return true;
+    return evaluate_slice(data, output, m_lower_bounds, m_upper_bounds, m_strides);
 }

@@ -215,8 +215,6 @@ namespace
                         const int64_t num_splits,
                         const Node* split_node)
     {
-        bool rc = true;
-
         const auto axis = read_vector<int64_t>(axis_tensor)[0];
         const auto normalized_axis =
             ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
@@ -238,7 +236,8 @@ namespace
             lower_bounds.at(normalized_axis) += part_length;
             upper_bounds.at(normalized_axis) += part_length;
         }
-        return rc;
+
+        return true;
     }
 }
 
@@ -247,7 +246,5 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
 
-    const auto num_splits = evaluate_split(data, axis, outputs, m_num_splits, this);
-
-    return true;
+    return evaluate_split(data, axis, outputs, m_num_splits, this);
 }

@@ -88,14 +88,15 @@ void pass::ConstantFolding::construct_constant_split()
             switch (slice->get_output_element_type(0))
             {
             case element::Type_t::undefined:
-                NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_slice");
+                NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_split");
                 break;
             case element::Type_t::dynamic:
-                NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_slice");
+                NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_split");
                 break;
             case element::Type_t::u1:
-                NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_slice");
+                NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_split");
                 break;
+            default: NGRAPH_CHECK(false, "Not supported element type used in fold_constant_split");
             }
 
             replacement = fold_constant_slice(const_data, slice_node);

@@ -74,6 +74,7 @@ void pass::ConstantFolding::construct_constant_slice()
         case element::Type_t::u1:
             NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_slice");
             break;
+        default: NGRAPH_CHECK(false, "Not supported element type used in fold_constant_slice");
         }
         replacement = fold_constant_slice(data_node, slice);
 
