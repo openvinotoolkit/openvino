@@ -80,7 +80,7 @@
 
 *   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
 
-*   **2**: `scales` - 1D tensor describing scales for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+*   **2**: `scales` - 1D tensor describing scales for spatial axes. Type of elements is any supported floating point type. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
 
 *   **3**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `scales`. Namely, `output_shape[axes[i]] = round(scales[i] * input_shape[axes[i]])` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`. Optional with default value `[0,...,rank(data) - 1]`.
 
