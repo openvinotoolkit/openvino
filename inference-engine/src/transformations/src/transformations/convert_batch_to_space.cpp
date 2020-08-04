@@ -38,13 +38,12 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;
         }
 
-        std::vector<int64_t> block_values, crops_end_values;
-        block_values = block_const->cast_vector<int64_t>();
-        crops_end_values = crops_end_const->cast_vector<int64_t>();
+        const std::vector<int64_t> &block_values = block_const->cast_vector<int64_t>();
+        const std::vector<int64_t> &crops_end_values = crops_end_const->cast_vector<int64_t>();
 
         // First we have to disperse the data from batch, then rearrange them
         // so as appropriate chunks of data where close to their destination place.
-        // Finally squeeze data from respective dimensions.
+        // Finally squeeze data from respective dimensions.ss
         std::vector<int64_t> dispersed_shape;
         int64_t b_dim_divider = 1;
         for (const auto& el : block_values) {
