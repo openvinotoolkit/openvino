@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <transformations/convert_batch_to_space.hpp>
+#include <transformations/convert_space_to_batch.hpp>
+
 #include "layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
@@ -146,6 +149,17 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         }
         case IE: {
             // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+        case INTERPRETER_TRANSFORMATIONS: {
+            auto cloned_function = ngraph::clone_function(*function);
+
+            // todo: add functionality to configure the necessary transformations for each test separately
+            ngraph::pass::Manager m;
+            m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
+            m.register_pass<ngraph::pass::ConvertBatchToSpace>();
+            m.run_passes(cloned_function);
+            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
             break;
         }
     }

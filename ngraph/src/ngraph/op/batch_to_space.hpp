@@ -36,7 +36,7 @@ namespace ngraph
             ///         D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ...,
             ///         D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]`
             ///         of the same type as `data` input.
-            class NGRAPH_API BatchToSpace : public ngraph::op::util::FusedOp
+            class NGRAPH_API BatchToSpace : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"BatchToSpace", 1};
@@ -55,8 +55,7 @@ namespace ngraph
                              const Output<Node>& crops_begin,
                              const Output<Node>& crops_end);
 
-                OutputVector decompose_op() const override;
-                void pre_validate_and_infer_types() override;
+                void validate_and_infer_types() override;
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool visit_attributes(AttributeVisitor& visitor) override;

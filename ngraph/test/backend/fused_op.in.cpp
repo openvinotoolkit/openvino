@@ -445,50 +445,6 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_groups_included_in_shape)
     EXPECT_EQ(expected, read_vector<float>(result0));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, space_to_batch)
-{
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 3});
-    auto block_shape =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 2, 3, 2});
-    auto pads_begin =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 0, 1, 0});
-    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 0, 0, 1});
-    auto space_to_batch =
-        make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
-    auto function = make_shared<Function>(NodeVector{space_to_batch}, ParameterVector{data});
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
-    test_case.add_expected_output<float>(Shape{12, 1, 1, 2},
-                                         {
-                                             0.f, 0.f, 0.f, 0.f, 0.f, 2.f,  1.f,  0.f,
-                                             3.f, 5.f, 4.f, 0.f, 0.f, 0.f,  0.f,  0.f,
-                                             6.f, 8.f, 7.f, 0.f, 9.f, 11.f, 10.f, 0.f,
-                                         });
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, batch_to_space)
-{
-    auto data = make_shared<op::Parameter>(element::f32, Shape{12, 1, 1, 2});
-    auto block_shape =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 2, 3, 2});
-    auto pads_begin =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 0, 1, 0});
-    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 0, 0, 1});
-    auto batch_to_space =
-        make_shared<op::v1::BatchToSpace>(data, block_shape, pads_begin, pads_end);
-    auto function = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({
-        0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 1.f, 0.f, 3.f, 5.f,  4.f,  0.f,
-        0.f, 0.f, 0.f, 0.f, 6.f, 8.f, 7.f, 0.f, 9.f, 11.f, 10.f, 0.f,
-    });
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 2, 3}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4, 4});
