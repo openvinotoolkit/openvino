@@ -11,18 +11,20 @@
 #include <mach/mach.h>
 #endif
 
+#include <file_utils.h>
+#include <details/ie_exception.hpp>
+
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
 # include <dlfcn.h>
-# include <codecvt>
 # include <locale>
+# ifdef ENABLE_UNICODE_PATH_SUPPORT
+#  include <codecvt>
+# endif
 #else
 # include <Windows.h>
 #endif
-
-#include <file_utils.h>
-#include <details/ie_exception.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
@@ -111,9 +113,22 @@ static std::string getIELibraryPathA() {
     GetModuleFileName(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
 #else
+#ifdef USE_STATIC_IE
+#ifdef __APPLE__
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    std::string path = getPathName(std::string(info.dli_fname)).c_str();
+#else
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    std::string path = getPathName(std::string(result, (count > 0) ? count : 0));
+#endif  // __APPLE__
+    return FileUtils::makePath(path, std::string( "lib"));
+#else
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     return getPathName(std::string(info.dli_fname)).c_str();
+#endif  // USE_STATIC_IE
 #endif  // _WIN32
 }
 

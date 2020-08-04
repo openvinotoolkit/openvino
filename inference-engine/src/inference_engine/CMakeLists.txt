@@ -13,6 +13,9 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
       )
 
+set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
+list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
+
 set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp
@@ -173,6 +176,7 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC
+            ${IE_STATIC_DEPENDENT_FILES}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_common_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>)
