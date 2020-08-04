@@ -10,7 +10,7 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/specialize_function.hpp>
+#include <ngraph/graph_util.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -52,7 +52,6 @@ Plugin::~Plugin() {
 
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
-    const bool shareConsts = false, constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
     std::vector<::ngraph::PartialShape> new_shapes;
 
@@ -61,11 +60,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto clonedNetwork = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
-        new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
-
-    auto transformedNetwork = clonedNetwork;
-    transformedNetwork->set_friendly_name(function->get_friendly_name());
+    auto transformedNetwork = ngraph::clone_function(*function);
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;

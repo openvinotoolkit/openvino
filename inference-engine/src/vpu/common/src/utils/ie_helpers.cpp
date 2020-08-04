@@ -6,12 +6,12 @@
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/ie_itt.hpp>
 
 #include <precision_utils.h>
 #include <details/ie_exception.hpp>
 #include <blob_transform.hpp>
 #include <blob_factory.hpp>
-#include <ie_profiling.hpp>
 
 #include <vector>
 #include <functional>
@@ -41,7 +41,7 @@ InferenceEngine::Layout deviceLayout(InferenceEngine::Layout const& layout,
 }
 
 ie::Blob::Ptr convertBlobFP32toFP16(const ie::Blob::CPtr& in) {
-    IE_PROFILING_AUTO_SCOPE(convertBlobFP32toFP16);
+    OV_ITT_SCOPED_TASK(itt::domains::VPU, "convertBlobFP32toFP16");
 
     auto inDesc = in->getTensorDesc();
 
