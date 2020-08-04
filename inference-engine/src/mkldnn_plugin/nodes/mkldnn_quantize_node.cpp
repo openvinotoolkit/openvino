@@ -12,6 +12,7 @@
 #include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
+#include <cmath>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

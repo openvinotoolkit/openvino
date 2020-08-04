@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "ngraph/factory_adapter.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"
@@ -60,6 +61,10 @@ namespace ngraph
                     }
                     BodyLambda() = default;
                     virtual bool visit_attributes(AttributeVisitor& visitor);
+                    std::shared_ptr<Function> to_function()
+                    {
+                        return std::make_shared<Function>(get_results(), get_parameters());
+                    }
                 };
 
                 /// \brief Describes a connection between a TensorIterator input and the body.
