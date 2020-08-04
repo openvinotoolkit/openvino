@@ -13,6 +13,7 @@
 #include <ie_compound_blob.h>
 #include "inference_engine.hpp"
 #include "mkldnn_exec_network.h"
+#include "mkldnn_itt.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -20,7 +21,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
 : InferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
-    profilingTask = InferenceEngine::ProfilingTask{"MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id)};
+    profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
     if (execNetwork->_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
@@ -78,7 +79,9 @@ void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
 }  // namespace
 
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
-    IE_PROFILING_AUTO_SCOPE_TASK(profilingTask)
+    using namespace openvino::itt;
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, profilingTask);
+
     graph = execNetwork->_graphs.local().get();
     {
         execDataPreprocessing(_inputs);
@@ -175,7 +178,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(GetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "GetBlob");
+
     if (!graph || !graph->IsReady())
         THROW_IE_EXCEPTION << "Graph is not ready!";
 
@@ -239,7 +243,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "SetBlob");
     if (name == nullptr) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }

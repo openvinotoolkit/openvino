@@ -90,7 +90,7 @@ bool op::v0::Multiply::evaluate(const HostTensorVector& outputs, const HostTenso
 
 // ------------------------------------ v1 -------------------------------------
 
-constexpr NodeTypeInfo op::v1::Multiply::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Multiply, "Multiply", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Multiply::Multiply(const Output<Node>& arg0,
                            const Output<Node>& arg1,
