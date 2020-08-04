@@ -64,6 +64,7 @@
 #include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
 #include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1.h"
 #include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3.h"
+#include "convolution_kernel_b_fs_yx_fsv4_int8.h"
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
@@ -129,6 +130,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_imad_b_fs_yx_fsv4_1x1>();
     Attach<ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4>();
     Attach<ConvolutionKernel_imad_b_fs_yx_fsv4_dw>();
+    Attach<ConvolutionKernel_b_fs_yx_fsv4_int8>();
 
     // b_fs_yx_fsv32 kernels
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32>();

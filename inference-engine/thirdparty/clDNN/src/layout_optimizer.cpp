@@ -625,6 +625,10 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
         return format::bfzyx;
     }
 
+    if ((out_size.feature[0] == 8 || out_size.feature[0] == 12) && out_size.spatial[1] > 512) {
+        return format::b_fs_yx_fsv4;
+    }
+
     if (stride.spatial[0] != stride.spatial[1] || out_size.spatial[0] != out_size.spatial[1] ||
         (weights_dt != data_types::u8 && weights_dt != data_types::i8)) {
         return format::byxf_af32;
