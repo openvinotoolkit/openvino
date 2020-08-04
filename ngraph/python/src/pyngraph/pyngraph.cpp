@@ -69,5 +69,6 @@ PYBIND11_MODULE(_pyngraph, m)
     regmodule_pyngraph_op_util(m_op);
     regmodule_pyngraph_passes(m);
     regmodule_pyngraph_util(m);
-    regclass_pyngraph_Variant(m);
+    regclass_pyngraph_Variant<std::string>(m, std::string("String"));
+    regclass_pyngraph_Variant<int64_t>(m, std::string("Int"));
 }
