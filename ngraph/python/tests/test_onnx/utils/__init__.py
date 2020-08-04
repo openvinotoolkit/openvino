@@ -62,6 +62,7 @@ xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist"
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
+xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: y")
 
 
 def run_node(onnx_node, data_inputs, **kwargs):
