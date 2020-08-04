@@ -545,43 +545,6 @@ bool NetworkHelper::isZeroConst(const std::shared_ptr<Node>& node) {
     }
 }
 
-std::vector<std::shared_ptr<Node>> NetworkHelper::getChildrenRecursivelyExceptTypes(
-    const std::shared_ptr<Node>& layer,
-    const std::unordered_set<std::string>& exceptionLayerTypes) {
-    std::queue<std::shared_ptr<Node>> notHandledChildren;
-
-    for (size_t i = 0; i < layer->get_output_size(); ++i) {
-        auto inputs = layer->get_output_target_inputs(i);
-        for (auto input : inputs) {
-            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-            notHandledChildren.emplace(child);
-        }
-    }
-
-    std::vector<std::shared_ptr<Node>> resultChildren;
-
-    while (!notHandledChildren.empty()) {
-        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
-        notHandledChildren.pop();
-
-        const std::string typeName = operation->get_type_name();
-        if (exceptionLayerTypes.find(typeName) == exceptionLayerTypes.end()) {
-            resultChildren.push_back(operation);
-            continue;
-        }
-
-        for (size_t i = 0; i < operation->get_output_size(); ++i) {
-            auto inputs = operation->get_output_target_inputs(i);
-            for (auto input : inputs) {
-                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-                notHandledChildren.emplace(child);
-            }
-        }
-    }
-
-    return resultChildren;
-}
-
 std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Subtract> subtract) {
     auto convertOnSubtract = subtract->input_value(0).get_node_shared_ptr();
     if (as_type_ptr<opset1::Convert>(convertOnSubtract) == nullptr) {

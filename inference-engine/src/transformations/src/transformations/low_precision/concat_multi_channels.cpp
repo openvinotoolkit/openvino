@@ -4,6 +4,7 @@
 
 #include "transformations/low_precision/concat_multi_channels.hpp"
 
+#include <queue>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -21,12 +22,43 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-bool isMultiChannel(const std::vector<ngraph::opset1::Concat*>& concatLayers) {
+std::vector<std::shared_ptr<Node>> ConcatMultiChannelsTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
+    const std::shared_ptr<Node>& op) const noexcept {
+    std::queue<std::shared_ptr<Node>> notHandledChildren;
+
+    for (const auto& output : op->outputs()) {
+        for (const auto& input : output.get_target_inputs()) {
+            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
+            notHandledChildren.emplace(child);
+        }
+    }
+
+    std::vector<std::shared_ptr<Node>> resultChildren;
+
+    while (!notHandledChildren.empty()) {
+        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
+        notHandledChildren.pop();
+
+        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
+            resultChildren.push_back(operation);
+            continue;
+        }
+
+        for (const auto& output : operation->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
+                notHandledChildren.emplace(child);
+            }
+        }
+    }
+
+    return resultChildren;
+}
+
+bool ConcatMultiChannelsTransformation::isMultiChannel(const std::vector<ngraph::opset1::Concat*>& concatLayers) const noexcept {
     for (ngraph::opset1::Concat* concat : concatLayers) {
         std::shared_ptr<ngraph::Node> concatPtr = concat->shared_from_this();
-        const std::vector<std::shared_ptr<ngraph::Node>> children = NetworkHelper::getChildrenRecursivelyExceptTypes(
-            concatPtr,
-            { "MaxPool", "Resample" });
+        const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(concatPtr);
 
         for (const std::shared_ptr<ngraph::Node>& child : children) {
             if (is_type<ngraph::opset1::Convolution>(child.get())) {

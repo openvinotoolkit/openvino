@@ -153,10 +153,6 @@ public:
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
 
-    static std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptTypes(
-        const std::shared_ptr<Node>& layer,
-        const std::unordered_set<std::string>& exceptionLayerTypes = {});
-
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
 private:
