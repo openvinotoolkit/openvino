@@ -23,6 +23,8 @@ from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, PartialShape, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_34323, xfail_issue_35929, xfail_issue_35926, xfail_issue_1, xfail_issue_2, \
+    xfail_issue_3, xfail_issue_4
 
 
 def test_ngraph_function_api():
@@ -53,15 +55,15 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        np.float64,
-        np.int8,
+        pytest.param(np.float64, marks=xfail_issue_35929),
+        pytest.param(np.int8, marks=xfail_issue_3),
         np.int16,
         np.int32,
-        np.int64,
-        np.uint8,
-        np.uint16,
-        np.uint32,
-        np.uint64,
+        pytest.param(np.int64, marks=xfail_issue_35926),
+        pytest.param(np.uint8, marks=xfail_issue_3),
+        pytest.param(np.uint16, marks=xfail_issue_3),
+        pytest.param(np.uint32, marks=xfail_issue_1),
+        pytest.param(np.uint64, marks=xfail_issue_2),
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -107,6 +109,7 @@ def test_serialization():
         pass
 
 
+@xfail_issue_34323
 def test_broadcast_1():
     input_data = np.array([1, 2, 3])
 
@@ -116,6 +119,7 @@ def test_broadcast_1():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_broadcast_2():
     input_data = np.arange(4)
     new_shape = [3, 4, 2, 4]
@@ -124,6 +128,7 @@ def test_broadcast_2():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_broadcast_3():
     input_data = np.array([1, 2, 3])
     new_shape = [3, 3]
@@ -134,6 +139,7 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=int)), ("boolean", np.zeros((2, 2), dtype=int))],
@@ -148,10 +154,10 @@ def test_convert_to_bool(destination_type, input_data):
 @pytest.mark.parametrize(
     "destination_type, rand_range, in_dtype, expected_type",
     [
-        (np.float32, (-8, 8), np.int32, np.float32),
-        (np.float64, (-16383, 16383), np.int64, np.float64),
-        ("f32", (-8, 8), np.int32, np.float32),
-        ("f64", (-16383, 16383), np.int64, np.float64),
+        pytest.param(np.float32, (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
+        pytest.param("f32", (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -163,6 +169,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -185,6 +192,7 @@ def test_convert_to_int(destination_type, expected_type):
     assert np.array(result).dtype == expected_type
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -262,6 +270,7 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
+@xfail_issue_4
 def test_backend_config():
     dummy_config = {"dummy_option": "dummy_value"}
     # Expect no throw
@@ -269,6 +278,7 @@ def test_backend_config():
     runtime.set_config(dummy_config)
 
 
+@xfail_issue_34323
 def test_result():
     node = [[11, 10], [1, 8], [3, 4]]
     result = run_op_node([node], ng.result)
