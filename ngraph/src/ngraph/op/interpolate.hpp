@@ -210,7 +210,7 @@ namespace ngraph
             private:
                 InterpolateAttrs m_attrs;
 
-                std::vector<size_t> correct_pad(const std::vector<size_t>& pad);
+                void correct_pads();
             };
         } // namespace v4
         using v0::Interpolate;

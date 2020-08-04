@@ -179,60 +179,37 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     return result;
 }
 
-std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& pad)
-{
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-    if (input_shape.rank().is_dynamic())
-    {
-        throw std::invalid_argument("Cannot get dynamic rank of input node.");
-    }
-    const auto input_rank = input_shape.rank().get_length();
-    const auto pad_len = pad.size();
-    if (pad_len == input_rank)
-    {
-        return pad;
-    }
-
-    std::vector<size_t> result;
-    if (pad_len > input_rank)
-    {
-        result.insert(result.end(), pad.begin(), pad.begin() + input_rank);
-    }
-    else
-    {
-        result = pad;
-        result.insert(result.end(), input_rank - pad_len, 0);
-    }
-
-    return result;
-}
-
 void op::v4::Interpolate::validate_and_infer_types()
 {
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
     PartialShape padded_input_shape = output_shape;
 
-    auto axes = get_axes();
-    m_attrs.pads_begin = correct_pad(m_attrs.pads_begin);
-    m_attrs.pads_end = correct_pad(m_attrs.pads_end);
-    if (output_shape.rank().is_static())
+    if (!output_shape.rank().is_static())
     {
-        const auto input_rank = output_shape.rank().get_length();
-        for (size_t i = 0; i < input_rank; ++i)
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    }
+
+    auto axes = get_axes();
+    correct_pads();
+
+    const auto input_rank = output_shape.rank().get_length();
+
+    for (size_t i = 0; i < input_rank; ++i)
+    {
+        if (output_shape[i].is_static())
         {
-            if (output_shape[i].is_static())
-            {
-                auto new_length =
-                    m_attrs.pads_begin[i] + m_attrs.pads_end[i] + output_shape[i].get_length();
-                output_shape[i] = Dimension(new_length);
-                padded_input_shape[i] = output_shape[i];
-            }
+            auto new_length =
+                m_attrs.pads_begin[i] + m_attrs.pads_end[i] + output_shape[i].get_length();
+            output_shape[i] = Dimension(new_length);
+            padded_input_shape[i] = Dimension(new_length);
         }
-        for (auto axis : axes)
-        {
-            NGRAPH_CHECK(axis < input_rank);
-            output_shape[axis] = Dimension::dynamic();
-        }
+    }
+
+    for (auto axis : axes)
+    {
+        NGRAPH_CHECK(axis < input_rank);
+        output_shape[axis] = Dimension::dynamic();
     }
 
     if (auto const_scales = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
@@ -241,9 +218,12 @@ void op::v4::Interpolate::validate_and_infer_types()
         size_t i = 0;
         for (auto axis : axes)
         {
-            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
-            output_shape[axis] = Dimension(new_dim);
+            if (padded_input_shape[axis].is_static())
+            {
+                float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
+                int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
+                output_shape[axis] = Dimension(new_dim);
+            }
             ++i;
         }
     }
@@ -429,6 +409,19 @@ namespace
         }
         return rc;
     }
+}
+
+void op::v4::Interpolate::correct_pads()
+{
+    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    if (input_shape.rank().is_dynamic())
+    {
+        return;
+    }
+    const auto input_rank = input_shape.rank().get_length();
+
+    m_attrs.pads_begin = correct_pad(m_attrs.pads_begin, input_rank);
+    m_attrs.pads_end = correct_pad(m_attrs.pads_end, input_rank);
 }
 
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
