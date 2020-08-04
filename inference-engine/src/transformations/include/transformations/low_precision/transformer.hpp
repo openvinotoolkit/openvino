@@ -27,7 +27,7 @@ public:
     LowPrecisionTransformations(
         const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
         const std::map<std::string, LayerTransformationPtr>& transformations,
-        const std::map<std::string, LayerTransformationPtr>& cleanupTransformations);
+        const std::map<std::string, std::vector<LayerTransformationPtr>>& cleanupTransformations);
 
     void setUpdatePrecisions(const bool updatePrecisions);
     void setQuantizedTensorAlignmentOnActivations(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
@@ -80,11 +80,11 @@ public:
         const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
 
         const auto it = cleanupTransformations.find(typeName);
-        if (it != cleanupTransformations.end()) {
-            cleanupTransformations.erase(it);
+        if (it == cleanupTransformations.end()) {
+            cleanupTransformations.emplace(typeName, std::vector<LayerTransformationPtr>{ std::make_shared<Transformation>(params) });
+        } else {
+            it->second.emplace_back(std::make_shared<Transformation>(params));
         }
-
-        cleanupTransformations.emplace(typeName, std::make_shared<Transformation>(params));
         return *this;
     }
 
@@ -112,9 +112,9 @@ public:
             return it->second;
         }
 
-        it = cleanupTransformations.find(transformationKey);
-        if (it != cleanupTransformations.end()) {
-            return it->second;
+        auto it1 = cleanupTransformations.find(transformationKey);
+        if (it1 != cleanupTransformations.end()) {
+            return it1->second[0];
         }
 
         return nullptr;
@@ -127,13 +127,18 @@ public:
     // Layer type (or a pattern) is defined by transformation itself as an ngraph matcher
     std::map<std::string, LayerTransformationPtr> branchSpecificTransformations;
     std::map<std::string, LayerTransformationPtr> transformations;
-    std::map<std::string, LayerTransformationPtr> cleanupTransformations;
+    std::map<std::string, std::vector<LayerTransformationPtr>> cleanupTransformations;
+    std::map<std::string, LayerTransformationPtr> cleanupTransformations2;
 
 private:
     static void setParamsManager(IParamsManager* paramsManager, std::map<std::string, LayerTransformationPtr>& transformations) noexcept;
+    static void setParamsManager(IParamsManager* paramsManager, std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept;
     static void setLayerTransformationsManager(
         ILayerTransformationsManager* layerTransformationsManager,
         std::map<std::string, LayerTransformationPtr>& transformations) noexcept;
+    static void setLayerTransformationsManager(
+        ILayerTransformationsManager* layerTransformationsManager,
+        std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept;
 };
 
 /**
@@ -159,6 +164,11 @@ private:
 
     void registerAllMatchers(
         std::map<std::string, LayerTransformationPtr> transformations,
+        GraphRewrite& pass,
+        TransformationContext& context);
+
+    void registerAllMatchers(
+        std::map<std::string, std::vector<LayerTransformationPtr>> transformations,
         GraphRewrite& pass,
         TransformationContext& context);
 };
