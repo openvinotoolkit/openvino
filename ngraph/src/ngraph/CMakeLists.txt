@@ -120,6 +120,8 @@ set (SRC
     op/avg_pool.hpp
     op/batch_norm.cpp
     op/batch_norm.hpp
+    op/batch_to_space.cpp
+    op/batch_to_space.hpp
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
@@ -316,6 +318,8 @@ set (SRC
     op/slice.hpp
     op/softmax.cpp
     op/softmax.hpp
+    op/space_to_batch.cpp
+    op/space_to_batch.hpp
     op/split.cpp
     op/split.hpp
     op/strided_slice.cpp
@@ -344,8 +348,6 @@ set (SRC
     op/transpose.hpp
     op/xor.cpp
     op/xor.hpp
-    op/fused/batch_to_space.cpp
-    op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
     op/fused/clamp.hpp
     op/fused/hard_sigmoid.cpp
@@ -380,8 +382,6 @@ set (SRC
     op/fused/selu.hpp
     op/fused/shuffle_channels.cpp
     op/fused/shuffle_channels.hpp
-    op/fused/space_to_batch.cpp
-    op/fused/space_to_batch.hpp
     op/fused/space_to_depth.cpp
     op/fused/space_to_depth.hpp
     op/fused/squared_difference.cpp

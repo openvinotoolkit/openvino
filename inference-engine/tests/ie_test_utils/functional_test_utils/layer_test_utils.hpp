@@ -14,6 +14,7 @@
 #include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -39,6 +40,7 @@ typedef std::tuple<
 
 enum RefMode {
     INTERPRETER,
+    INTERPRETER_TRANSFORMATIONS,
     CONSTANT_FOLDING,
     IE
 };
