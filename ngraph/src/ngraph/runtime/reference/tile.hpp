@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace ngraph
 {
@@ -26,28 +27,11 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void tile(const T* arg, T* out, const Shape& in_shape, const Shape& out_shape)
-            {
-                Shape in_shape_expanded(in_shape);
-                in_shape_expanded.insert(
-                    in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
-                CoordinateTransform input_transform(in_shape_expanded);
-                CoordinateTransform output_transform(out_shape);
-
-                for (const Coordinate& output_coord : output_transform)
-                {
-                    std::vector<size_t> coord;
-                    for (auto i = 0; i < output_coord.size(); i++)
-                    {
-                        auto val = output_coord[i] % in_shape_expanded[i];
-                        coord.push_back(val);
-                    }
-                    Coordinate input_coord(coord);
-                    out[output_transform.index(output_coord)] =
-                        arg[input_transform.index(input_coord)];
-                }
-            }
+            void tile(const char* arg,
+                      char* out,
+                      const Shape& in_shape,
+                      const Shape& out_shape,
+                      size_t elem_size);
         }
     }
 }

@@ -1843,7 +1843,7 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
 
         case OP_TYPEID::Tile:
         {
-            node = make_shared<op::Tile>(args[0], args[1]);
+            node = make_shared<op::v0::Tile>(args[0], args[1]);
             break;
         }
         case OP_TYPEID::TopK:

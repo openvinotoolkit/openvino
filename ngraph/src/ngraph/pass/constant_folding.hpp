@@ -52,7 +52,6 @@ public:
         construct_constant_slice();
         construct_constant_select();
         construct_constant_one_hot();
-        construct_constant_tile();
         construct_constant_default();
     }
 
@@ -71,7 +70,6 @@ private:
     void construct_constant_split();
     void construct_constant_variadic_split();
     void construct_constant_one_hot();
-    void construct_constant_tile();
     void construct_constant_default();
 
     ngraph::BuildNodeExecutorMap m_cfmap;

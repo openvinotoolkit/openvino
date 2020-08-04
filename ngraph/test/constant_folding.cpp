@@ -2658,7 +2658,7 @@ TEST(constant_folding, constant_tile_1d)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2687,7 +2687,7 @@ TEST(constant_folding, constant_tile_3d_small_data_rank)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2716,7 +2716,7 @@ TEST(constant_folding, constant_tile_3d_few_repeats)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2745,7 +2745,7 @@ TEST(constant_folding, constant_tile_1d_0_repeats)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2774,7 +2774,7 @@ TEST(constant_folding, constant_tile_0_rank_data)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
