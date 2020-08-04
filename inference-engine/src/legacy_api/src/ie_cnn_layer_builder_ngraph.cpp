@@ -45,6 +45,7 @@
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
+#include "exec_graph_info.hpp"
 
 #include "graph_transformer.h"
 
@@ -1719,6 +1720,40 @@ CNNLayer::Ptr NodeConverter<ngraph::op::MatMul>::createLayer(const std::shared_p
     auto res = std::make_shared<InferenceEngine::GemmLayer>(params);
     res->params["transpose_a"] = castedLayer->get_transpose_a() ? "True" : "False";
     res->params["transpose_b"] = castedLayer->get_transpose_b() ? "True" : "False";
+
+    return res;
+}
+
+template <>
+CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto castedLayer = ngraph::as_type_ptr<ExecGraphInfoSerialization::ExecutionNode>(layer);
+    if (castedLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot convert " << layer->get_friendly_name() << " layer ";
+
+    auto & rtInfo = castedLayer->get_rt_info();
+    if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
+        THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
+            << " attribute is set in " << layer->get_friendly_name() << " node";
+    }
+
+    auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
+        IE_ASSERT(castedVariant != nullptr);
+        return castedVariant->get();
+    };
+
+    LayerParams params = { layer->get_friendly_name(),
+                           getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
+                           details::convertPrecision(layer->get_output_element_type(0)) };
+    rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
+
+    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+    for (const auto & kvp : rtInfo) {
+        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
+        // skip RT info which holds fusedNames, etc
+        if (castedVariant)
+            res->params[kvp.first] = getStringValue(castedVariant);
+    }
 
     return res;
 }
