@@ -28,52 +28,17 @@ using namespace ngraph;
 
 namespace
 {
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order)
-    {
-        auto data_ptr = out->get_data_ptr<ET>();
-        runtime::opt_kernel::reshape<typename element_type_traits<ET>::value_type>(
-            arg0->get_data_ptr<ET>(), data_ptr, arg0->get_shape(), order, out->get_shape());
-        return true;
-    }
-
     bool evaluate_reshape(const HostTensorPtr& arg0,
                           const HostTensorPtr& out,
                           const AxisVector& order)
     {
-        bool rc = true;
-        switch (arg0->get_element_type())
-        {
-        case element::Type_t::undefined: rc = false; break;
-        case element::Type_t::dynamic: rc = false; break;
-        case element::Type_t::u1:
-            rc = false;
-            break;
-            TYPE_CASE(f16)(arg0, out, order);
-            break;
-            TYPE_CASE(f32)(arg0, out, order);
-            break;
-            TYPE_CASE(i8)(arg0, out, order);
-            break;
-            TYPE_CASE(i16)(arg0, out, order);
-            break;
-            TYPE_CASE(i32)(arg0, out, order);
-            break;
-            TYPE_CASE(i64)(arg0, out, order);
-            break;
-            TYPE_CASE(u8)(arg0, out, order);
-            break;
-            TYPE_CASE(u16)(arg0, out, order);
-            break;
-            TYPE_CASE(u32)(arg0, out, order);
-            break;
-            TYPE_CASE(u64)(arg0, out, order);
-            break;
-            TYPE_CASE(boolean)(arg0, out, order);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
+        runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
+                                     out->get_data_ptr<char>(),
+                                     arg0->get_shape(),
+                                     order,
+                                     out->get_shape(),
+                                     arg0->get_element_type().size());
+        return true;
     }
 
     template <element::Type_t ET>
@@ -477,6 +442,6 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensor
         }
         outputs[0]->set_shape(output_shape);
     }
-    const AxisVector order = get_default_order(outputs[0]->get_shape());
+    const AxisVector order = get_default_order(inputs[0]->get_shape());
     return evaluate_reshape(inputs[0], outputs[0], order);
 }

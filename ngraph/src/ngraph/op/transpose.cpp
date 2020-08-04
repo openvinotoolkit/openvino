@@ -18,7 +18,7 @@
 
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/transpose.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -92,8 +92,9 @@ namespace
         return rc;
     }
 
-    template <element::Type_t INPUT_ET>
-    bool evaluate(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out)
+    bool evaluate_transpose(const HostTensorPtr& arg1,
+                            const HostTensorPtr& arg2,
+                            const HostTensorPtr& out)
     {
         element::Type_t axis_type = arg2->get_element_type();
 
@@ -132,38 +133,13 @@ namespace
                        [&](const int64_t& v) { return in_shape[v]; });
 
         out->set_shape(out_shape);
-        return (INPUT_ET == arg1->get_element_type()) &&
-               (runtime::reference::reshape(arg1->get_data_ptr<INPUT_ET>(),
-                                            out->get_data_ptr<INPUT_ET>(),
-                                            arg1->get_shape(),
-                                            in_axis_order,
-                                            out->get_shape()),
-                true);
-    }
-
-    bool evaluate_transpose(const HostTensorPtr& arg1,
-                            const HostTensorPtr& arg2,
-                            const HostTensorPtr& out)
-    {
-        bool rc = true;
-
-        switch (arg1->get_element_type())
-        {
-            TYPE_CASE(i32)(arg1, arg2, out);
-            break;
-            TYPE_CASE(i64)(arg1, arg2, out);
-            break;
-            TYPE_CASE(u32)(arg1, arg2, out);
-            break;
-            TYPE_CASE(u64)(arg1, arg2, out);
-            break;
-            TYPE_CASE(f16)(arg1, arg2, out);
-            break;
-            TYPE_CASE(f32)(arg1, arg2, out);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
+        runtime::opt_kernel::reshape(arg1->get_data_ptr<char>(),
+                                     out->get_data_ptr<char>(),
+                                     arg1->get_shape(),
+                                     in_axis_order,
+                                     out->get_shape(),
+                                     arg1->get_element_type().size());
+        return true;
     }
 }
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
