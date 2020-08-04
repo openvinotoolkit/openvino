@@ -242,7 +242,7 @@ void op::v4::Interpolate::validate_and_infer_types()
         for (auto axis : axes)
         {
             float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(std::round(padded_len * scales[i]));
+            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
             output_shape[axis] = Dimension(new_dim);
             ++i;
         }
@@ -323,7 +323,7 @@ namespace
         for (std::size_t i = 0; i < num_of_axes; ++i)
         {
             std::size_t axis = axes[i];
-            float scaled_len = std::round(static_cast<float>(out_shape[axis]) * scales[i]);
+            float scaled_len = static_cast<float>(out_shape[axis]) * scales[i];
             out_shape[axes[i]] = static_cast<std::size_t>(scaled_len);
         }
 
