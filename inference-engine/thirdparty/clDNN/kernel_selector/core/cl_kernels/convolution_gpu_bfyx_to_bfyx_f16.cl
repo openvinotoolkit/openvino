@@ -106,8 +106,8 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     vec_t dst = UNIT_VAL_ZERO;
 #endif
 
-    UNIT_TYPE line_cache[NUM_OF_CHANNELS * INPUT_BLOCK_SIZE];
-    for (int ic = 0; ic < NUM_OF_CHANNELS; ic++)
+    UNIT_TYPE line_cache[INPUT0_FEATURE_NUM * INPUT_BLOCK_SIZE];
+    for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++)
     {
         __attribute__((opencl_unroll_hint(INPUT_BLOCK_SIZE)))
         for (int i = 0; i < INPUT_BLOCK_SIZE; i++)
@@ -135,8 +135,9 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         {
             uint offset = filter_offset + kh * filter_y_pitch + kw * filter_x_pitch;
 
-            UNIT_TYPE wei[NUM_OF_CHANNELS];
-            for (int ic = 0; ic < NUM_OF_CHANNELS; ic++)
+            UNIT_TYPE wei[INPUT0_FEATURE_NUM];
+            __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
+            for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++)
                 wei[ic] = UNIT_BLOCK_READ(weights, offset + ic * filter_isv_pitch);
 
             __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
@@ -145,8 +146,9 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
                 const uint buf_offset = (kw*DILATION_SIZE_X + STRIDE_SIZE_X * i + (kh) * INPUT_LINE_SIZE) / SUB_GROUP_SIZE;
                 const uint buf_group  = (kw*DILATION_SIZE_X + STRIDE_SIZE_X * i + (kh) * INPUT_LINE_SIZE) % SUB_GROUP_SIZE;
 
-                UNIT_TYPE src[NUM_OF_CHANNELS];
-                for (int ic = 0; ic < NUM_OF_CHANNELS; ic++) {
+                UNIT_TYPE src[INPUT0_FEATURE_NUM];
+                __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
+                for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++) {
                     src[ic] = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
                     dst[i] = mad(wei[ic], src[ic], dst[i]);
                 }
