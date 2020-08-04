@@ -86,7 +86,13 @@ protected:
         return refMode;
     }
 
+    std::shared_ptr<InferenceEngine::Core> getCore() {
+        return core;
+    }
+
     void ConfigurePlugin();
+
+    void ConfigureNetwork() const;
 
     void LoadNetwork();
 
@@ -111,8 +117,6 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    void ConfigureNetwork() const;
-
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
     std::shared_ptr<InferenceEngine::Core> core;
     RefMode refMode = RefMode::INTERPRETER;
