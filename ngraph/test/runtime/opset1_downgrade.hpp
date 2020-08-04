@@ -19,7 +19,7 @@
 #include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START;
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {

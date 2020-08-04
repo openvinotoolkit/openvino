@@ -22,7 +22,7 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/pass/pass.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START;
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph
 {
     namespace pass

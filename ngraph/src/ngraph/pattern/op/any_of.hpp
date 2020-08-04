@@ -58,9 +58,9 @@ namespace ngraph
                     : AnyOf(type,
                             s,
                             [pred](const Output<Node>& value) {
-                                NGRAPH_SUPPRESS_DEPRECATED_START;
+                                NGRAPH_SUPPRESS_DEPRECATED_START
                                 return pred(value.as_single_output_node());
-                                NGRAPH_SUPPRESS_DEPRECATED_END;
+                                NGRAPH_SUPPRESS_DEPRECATED_END
                             },
                             as_output_vector(wrapped_values))
                 {
