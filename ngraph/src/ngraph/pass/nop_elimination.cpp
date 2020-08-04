@@ -254,7 +254,17 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
 
     auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(node);
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
-    auto data_shape = input->input_value(0).get_partial_shape();
+
+    PartialShape data_shape;
+    if (op::is_parameter(input))
+    {
+        data_shape = unsqueeze->input(0).get_partial_shape();
+    }
+    else
+    {
+        data_shape = input->input(0).get_partial_shape();
+    }
+
     auto squeeze = as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
