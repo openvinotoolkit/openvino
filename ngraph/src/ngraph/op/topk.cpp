@@ -500,10 +500,16 @@ void op::v1::TopK::validate_and_infer_types()
         }
         else
         {
-            auto max_k = maximum_value(input_value(1));
-            if (max_k.first)
+            auto max_k = input_value(1).get_constant_replacement();
+            if (auto max_k_const = as_type_ptr<op::Constant>(max_k.get_node_shared_ptr()))
             {
-                output_shape[m_normalized_axis] &= Dimension(0, max_k.second);
+                auto max_k_val = max_k_const->cast_vector<size_t>();
+                if (max_k_val.size() != 1)
+                {
+                    throw ngraph_error("Unexpected number of values for k input: " +
+                                       std::to_string(max_k_val.size()));
+                }
+                output_shape[m_normalized_axis] &= Dimension(0, max_k_val[0]);
             }
             else
             {
