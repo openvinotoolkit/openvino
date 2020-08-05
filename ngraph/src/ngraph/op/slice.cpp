@@ -155,7 +155,7 @@ namespace
     }
 }
 
-bool op::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& output = outputs[0];

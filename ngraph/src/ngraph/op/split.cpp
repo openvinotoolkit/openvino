@@ -256,7 +256,7 @@ namespace
     }
 }
 
-bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
