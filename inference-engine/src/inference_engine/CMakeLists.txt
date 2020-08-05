@@ -159,7 +159,7 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations
-                                     PUBLIC ${CMAKE_DL_LIBS} ${TARGET_NAME}_legacy)
+                                     PUBLIC ${TARGET_NAME}_legacy)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR} PRIVATE
                                                 $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -191,10 +191,9 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations openvino::itt
-# NOTE: public linkage with ITT is important here! without it binaries that use this library do not
-#       get proper compile flags to support ITT which causes hard-to-detect bugs.
-                                       PUBLIC pugixml ${CMAKE_DL_LIBS})
+target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+                                               inference_engine_transformations openvino::itt
+                                       PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

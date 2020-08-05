@@ -125,7 +125,7 @@ namespace
     }
 }
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
-                               const HostTensorVector& input_values)
+                               const HostTensorVector& input_values) const
 {
     return evaluate_convert(input_values[0], output_values[0]);
 }
