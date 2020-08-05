@@ -168,7 +168,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             if (intermediateOpTr != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
             } else {
-                // TODO: potential workaround for the same case: openvino\inference-engine\tests\ngraph_functions\src\low_precision_transformations\concat_function.cpp, line #496
+                // TODO: potential workaround for the same case:
+                // openvino\inference-engine\tests\ngraph_functions\src\low_precision_transformations\concat_function.cpp, line #496
                 // branch1Pooling->set_output_type(0, values.fakeQuantizeOnDataOutPrecision, branch1Pooling->get_output_partial_shape(0));
             }
         }
