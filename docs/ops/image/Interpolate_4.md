@@ -16,6 +16,16 @@
   * **Default value**: none
   * **Required**: *yes*
 
+* *shape_calculation_mode*
+
+  * **Description**: specifies which of inputs `target_spatial_shape` or `scales` is used to calculate an output shape
+  * **Range of values**: name of a shape calculation mode in string format:
+    * `sizes` - an output shape is calculated as `output_shape[axes[i]] = target_spatial_shape[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
+    * `scales` - an output shape is calculated as `output_shape[axes[i]] = floor(scales[i] * (input_shape[axes[i]] + pads_begin[axes[i]] + pads_end[axes[i]]))` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`
+  * **Type**: string
+  * **Default value**: none
+  * **Required**: *yes*
+
 * *coordinate_transformation_mode*
 
   * **Description**: specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
@@ -82,7 +92,9 @@
 
 *   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
 
-*   **3**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `target_spatial_shape`. Namely, `output_shape[axes[i]] = target_spatial_shape[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`. Optional with default value `[0,...,rank(data) - 1]`.
+*   **3**: `scales` - 1D tensor describing scales for spatial axes. Type of elements is any supported floating point type. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+
+*   **4**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `target_spatial_shape`. Optional with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 
@@ -95,6 +107,7 @@ Calculations are performed according to the following rules.
 ```python
 import math
 import numpy as np
+from enum import Enum, unique
 
 class GetNearestPixel:
     def __init__(self, mode: str):
@@ -184,6 +197,12 @@ def triangle_coeffs(dz):
     return np.maximum(0.0, 1.0 - np.abs(dz))
 
 
+@unique
+class ShapeCalculationMode(Enum):
+    SIZES = 0
+    SCALES = 1
+
+
 class InterpolateCalculation:
     def __init__(self, attrs: dict):
         self.mode = attrs['mode']
@@ -228,6 +247,11 @@ class InterpolateCalculation:
         else:
             self.antialias = attrs['antialias']
 
+        self.shape_calculation_mode = {
+            'sizes': ShapeCalculationMode.SIZES,
+            'scales': ShapeCalculationMode.SCALES
+        }[attrs['shape_calculation_mode']]
+
         self.get_original_coordinate = self.get_coordinate_transformation_mode()
 
 
@@ -236,8 +260,14 @@ class InterpolateCalculation:
 
     def shape_infer(self, input_data, target_spatial_shape):
         result = input_data.shape + self.pads_begin + self.pads_end
-        for i, axis in enumerate(self.axes):
-            result[axis] = target_spatial_shape[i]
+
+        if self.shape_calculation_mode == ShapeCalculationMode.SIZES:
+            for i, axis in enumerate(self.axes):
+                result[axis] = target_spatial_shape[i]
+        else:
+            for i, axis in enumerate(self.axes):
+                result[axis] = math.floor(scales[i] * result[axis])
+
         return result
 
     @staticmethod
@@ -250,7 +280,7 @@ class InterpolateCalculation:
         else:
             return np.array(pad, dtype=np.int64)
 
-    def __call__(self, input_data, target_spatial_shape, axes):
+    def __call__(self, input_data, target_spatial_shape, scales, axes):
         rank = input_data.ndim
         self.pads_begin = InterpolateCalculation.correct_pad(self.pads_begin, rank)
         self.pads_end = InterpolateCalculation.correct_pad(self.pads_end, rank)
@@ -259,7 +289,12 @@ class InterpolateCalculation:
 
         self.output_shape = self.shape_infer(input_data, target_spatial_shape)
         padded_data = np.pad(input_data, self.pads)
-        self.scales = self.output_shape / padded_data.shape
+
+        if self.shape_calculation_mode == ShapeCalculationMode.SIZES:
+            self.scales = self.output_shape / padded_data.shape
+        else:
+            self.scales = scales
+
         self.input_shape = padded_data.shape
         return self.func(padded_data)
 
