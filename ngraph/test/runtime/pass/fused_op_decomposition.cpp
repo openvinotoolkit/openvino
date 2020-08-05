@@ -22,6 +22,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 pass::FusedOpDecomposition::FusedOpDecomposition(op_query_t callback)
     : m_has_direct_support{callback}
 {
