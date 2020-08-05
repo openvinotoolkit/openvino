@@ -18,7 +18,6 @@ list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp

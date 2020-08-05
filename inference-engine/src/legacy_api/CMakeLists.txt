@@ -23,6 +23,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
+            ${IE_MAIN_SOURCE_DIR}/src/inference_engine/file_utils.cpp
             ${PUBLIC_HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
