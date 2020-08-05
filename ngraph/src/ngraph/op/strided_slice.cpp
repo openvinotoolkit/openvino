@@ -235,8 +235,11 @@ namespace
     {
         auto in_shape = in->get_shape();
         out->set_shape(sp.reshape_out_shape);
-        runtime::reference::strided_slice(
-            in->get_data_ptr<ET>(), out->get_data_ptr<ET>(), in_shape, sp);
+        runtime::reference::strided_slice(in->get_data_ptr<ET>(),
+                                          out->get_data_ptr<ET>(),
+                                          in_shape,
+                                          sp,
+                                          in->get_element_type().size());
         return true;
     }
 
