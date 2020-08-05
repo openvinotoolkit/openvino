@@ -32,6 +32,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
 #include "convert_function_to_cnn_network.hpp"
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>
@@ -70,7 +71,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     return device_info;
 }
 
-InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network) const {
+InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
@@ -217,7 +218,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), context, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
@@ -241,7 +242,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -274,72 +275,206 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
-    std::vector <CNNLayer::Ptr> concats;
-    std::vector <CNNLayer::Ptr> nextLayerDependent;
-
-    // Verify device id
-    GetDeviceInfo(config);
-
-    if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
-    }
-
-    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
-    for (auto layer : sortedLayers) {
-        if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
-        } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {
-        } else if (CaselessEq<std::string>()(layer->type, "Proposal")) {
-        } else if (CaselessEq<std::string>()(layer->type, "SimplerNMS")) {
-        } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
-            concats.push_back(layer);
-        } else if (CaselessEq<std::string>()(layer->type, "reshape")) {
-            nextLayerDependent.push_back(layer);
-        } else if (CaselessEq<std::string>()(layer->type, "permute")) {
-            nextLayerDependent.push_back(layer);
-        } else if (CaselessEq<std::string>()(layer->type, "Const")) {
-            nextLayerDependent.push_back(layer);
-        } else if (CLDNNGraph::IsLayerSupported(layer->type)) {
-            res.supportedLayersMap.insert({ layer->name, GetName() });
-        }
-    }
-
-    // evaluation of concats - if all parent layers are supported, only in this case we
-    // will mark concat as a supported for GPU
-    for (const auto &concat : concats) {
-        // take all parrents.
-        bool supported = true;
-        for (DataWeakPtr insData : concat->insData) {
-            CNNLayerPtr prev = getCreatorLayer(insData.lock()).lock();
-            // verify if previous layer is not supported or if it in the list of not defined layers yet
-            // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
-            if (res.supportedLayersMap.find(prev->name) == res.supportedLayersMap.end()
-                && std::find(nextLayerDependent.begin(), nextLayerDependent.end(), prev) == nextLayerDependent.end()) {
-                supported = false;
+void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+                               const std::map<std::string,
+                               std::string>& config,
+                               QueryNetworkResult& res) const {
+    GetDeviceInfo(config);      // Verify device id
+    auto function = network.getFunction();
+    if (function != nullptr) {
+        std::unordered_set<std::string> originalOps;
+        for (auto&& node : function->get_ops()) {
+            if (!ngraph::op::is_parameter(node) &&
+                !ngraph::op::is_output(node)) {
+                originalOps.emplace(node->get_friendly_name());
             }
         }
-        if (supported) {
-            res.supportedLayersMap.insert({ concat->name, GetName() });
-        }
-    }
+        auto clonedNetwork = CloneAndTransformNetwork(network);
+        std::unordered_set<std::string> supported;
+        std::unordered_set<std::string> unsupported;
 
-    // evaluation of constant blobs - if all consumers are on GPU,
-    // then leave it on GPU, else - move to other device
-    for (auto cnl = nextLayerDependent.rbegin();
-        cnl != nextLayerDependent.rend();
-        cnl++) {
-        bool supported = true;
-        for (DataPtr out : (*cnl)->outData) {
-            for (auto ol : getInputTo(out)) {
-                if (res.supportedLayersMap.find(ol.second->name) == res.supportedLayersMap.end()) {
-                    supported = false;
+        std::unordered_set<std::string> splitNames;
+        std::unordered_set<std::string> concatNames;
+        std::unordered_set<std::string> depLayerNames;
+
+        std::vector<std::shared_ptr<ngraph::Node>> splits;
+        std::vector<std::shared_ptr<ngraph::Node>> concats;
+        std::vector<std::shared_ptr<ngraph::Node>> nextLayerDependent;
+
+        for (CNNNetworkIterator itLayer{clonedNetwork.get()};
+             itLayer != CNNNetworkIterator();
+             itLayer++) {
+            auto layerIsSupported = [&] {
+                auto node = (*itLayer)->getNode();
+                if (std::dynamic_pointer_cast<const ::ngraph::opset3::DetectionOutput>(node) != nullptr ||
+                    std::dynamic_pointer_cast<const ::ngraph::opset3::PriorBox>(node) != nullptr ||
+                    std::dynamic_pointer_cast<const ::ngraph::opset3::PriorBoxClustered>(node) != nullptr ||
+                    std::dynamic_pointer_cast<const ::ngraph::opset3::Proposal>(node) != nullptr) {
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
+                    splitNames.emplace(node->get_friendly_name());
+                    splits.push_back(node);
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Concat>(node) != nullptr) {
+                    concatNames.emplace(node->get_friendly_name());
+                    concats.push_back(node);
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Reshape>(node) != nullptr ||
+                           std::dynamic_pointer_cast<const ::ngraph::opset3::Squeeze>(node) != nullptr ||
+                           std::dynamic_pointer_cast<const ::ngraph::opset3::Unsqueeze>(node) != nullptr ||
+                           std::dynamic_pointer_cast<const ::ngraph::opset3::Transpose>(node) != nullptr ||
+                           ngraph::op::is_constant(node)) {
+                    depLayerNames.emplace(node->get_friendly_name());
+                    nextLayerDependent.push_back(node);
+                    return false;
+                } else if (CLDNNGraph::IsLayerSupported((*itLayer)->type)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }();
+            const auto fusedNode = (*itLayer)->getNode();
+            if (fusedNode == nullptr) {
+                // skip layers completely generated by IR transformation
+                continue;
+            }
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
+                if (contains(originalOps, fusedLayerName)) {
+                    if (layerIsSupported) {
+                        supported.emplace(fusedLayerName);
+                    } else {
+                        unsupported.emplace(fusedLayerName);
+                    }
                 }
             }
         }
-        std::cout << (*cnl)->name << " is " << (supported ? "GPU" : "CPU") << std::endl;
 
-        if (supported) {
-            res.supportedLayersMap.insert({ (*cnl)->name, GetName() });
+        for (auto&& layerName : supported) {
+            if (contains(unsupported, layerName)) {
+                supported.erase(layerName);
+            }
+        }
+        unsupported.clear();
+
+        for (const auto & split : splits) {
+            bool is_supported = true;
+            const auto outputs = split->outputs();
+            for (const auto& output : outputs) {
+                const auto& name = output.get_node()->get_friendly_name();
+                if (!contains(supported, name) &&
+                    !contains(depLayerNames, name) &&
+                    !contains(concatNames, name) &&
+                    !contains(splitNames, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            if (is_supported) {
+                supported.emplace(split->get_friendly_name());
+            }
+        }
+
+        for (const auto& concat : concats) {
+            bool is_supported = true;
+            const auto inputs = concat->inputs();
+            for (const auto& input : inputs) {
+                const auto& name = input.get_node()->get_friendly_name();
+                if (!contains(supported, name) &&
+                    !contains(depLayerNames, name) &&
+                    !contains(concatNames, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            if (is_supported) {
+                supported.emplace(concat->get_friendly_name());
+            }
+        }
+
+        for (const auto& cnl : nextLayerDependent) {
+            bool is_supported = true;
+            // both inputs and output should be GPU to remain on GPU
+            const auto inputs = cnl->inputs();
+            for (const auto& input : inputs) {
+                const auto& name = input.get_node()->get_friendly_name();
+                if (!contains(supported, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            const auto outputs = cnl->outputs();
+            for (const auto& output : outputs) {
+                const auto& name = output.get_node()->get_friendly_name();
+                if (!contains(supported, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            if (is_supported) {
+                supported.emplace(cnl->get_friendly_name());
+            }
+        }
+
+        for (auto&& layerName : supported) {
+            res.supportedLayersMap.emplace(layerName, GetName());
+        }
+    } else {
+        std::vector<CNNLayer::Ptr> concats;
+        std::vector<CNNLayer::Ptr> nextLayerDependent;
+        std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
+        for (auto layer : sortedLayers) {
+            if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
+            } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {
+            } else if (CaselessEq<std::string>()(layer->type, "Proposal")) {
+            } else if (CaselessEq<std::string>()(layer->type, "SimplerNMS")) {
+            } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
+                concats.push_back(layer);
+            } else if (CaselessEq<std::string>()(layer->type, "reshape")) {
+                nextLayerDependent.push_back(layer);
+            } else if (CaselessEq<std::string>()(layer->type, "permute")) {
+                nextLayerDependent.push_back(layer);
+            } else if (CaselessEq<std::string>()(layer->type, "Const")) {
+                nextLayerDependent.push_back(layer);
+            } else if (CLDNNGraph::IsLayerSupported(layer->type)) {
+                res.supportedLayersMap.insert({ layer->name, GetName() });
+            }
+        }
+        // evaluation of concats - if all parent layers are supported, only in this case we
+        // will mark concat as a supported for GPU
+        for (const auto& concat : concats) {
+            // take all parrents.
+            bool supported = true;
+            for (DataWeakPtr insData : concat->insData) {
+                CNNLayerPtr prev = getCreatorLayer(insData.lock()).lock();
+                // verify if previous layer is not supported or if it in the list of not defined layers yet
+                // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
+                if (res.supportedLayersMap.find(prev->name) == res.supportedLayersMap.end()
+                    && std::find(nextLayerDependent.begin(), nextLayerDependent.end(), prev) == nextLayerDependent.end()) {
+                    supported = false;
+                }
+            }
+            if (supported) {
+                res.supportedLayersMap.insert({ concat->name, GetName() });
+            }
+        }
+
+        // evaluation of constant blobs - if all consumers are on GPU,
+        // then leave it on GPU, else - move to other device
+        for (auto cnl = nextLayerDependent.rbegin();
+            cnl != nextLayerDependent.rend();
+            cnl++) {
+            bool supported = true;
+            for (DataPtr out : (*cnl)->outData) {
+                for (auto ol : getInputTo(out)) {
+                    if (res.supportedLayersMap.find(ol.second->name) == res.supportedLayersMap.end()) {
+                        supported = false;
+                    }
+                }
+            }
+
+            if (supported) {
+                res.supportedLayersMap.insert({ (*cnl)->name, GetName() });
+            }
         }
     }
 }
