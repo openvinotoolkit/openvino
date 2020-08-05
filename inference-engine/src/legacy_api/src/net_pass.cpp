@@ -1402,6 +1402,25 @@ void convertLayerPrecision(const CNNLayerPtr& layer) {
 }
 
 template <typename NET>
+void RemoveConverts(NET& net, std::vector<CNNLayerPtr>& to_remove) {
+    for (auto& layer : to_remove) {
+        RemoveLayer(layer, net);
+    }
+}
+
+template <>
+void RemoveConverts(ICNNNetwork& net, std::vector<CNNLayerPtr>& to_remove) {
+    OutputsDataMap outputs;
+    net.getOutputsInfo(outputs);
+    for (auto& layer : to_remove) {
+        if (!std::any_of(outputs.begin(), outputs.end(),
+            [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; })) {
+            RemoveLayer(layer, net);
+        }
+    }
+}
+
+template <typename NET>
 void fixConvertLayers(NET &net) {
     std::vector<CNNLayerPtr> to_remove;
     auto all_layers = TopolSort(net);
@@ -1422,9 +1441,7 @@ void fixConvertLayers(NET &net) {
             }
         }
     }
-    for (auto &layer : to_remove) {
-        RemoveLayer(layer, net);
-    }
+    RemoveConverts(net, to_remove);
 }
 
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO, typename NET>
