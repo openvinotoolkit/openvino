@@ -14,7 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/node.hpp"
@@ -28,8 +30,14 @@
 
 namespace py = pybind11;
 
+using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
+
 void regclass_pyngraph_Node(py::module m)
 {
+    py::bind_map<PyRTMap>(m, "PyRTMap");
+
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("__add__",
@@ -90,12 +98,12 @@ void regclass_pyngraph_Node(py::module m)
              (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
                  ngraph::Node::outputs);
     node.def("get_rt_info",
-             (ngraph::Node::RTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info);
-    node.def("get_rt_info",
-             (const ngraph::Node::RTMap& (ngraph::Node::*)() const) & ngraph::Node::get_rt_info);
+             (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
+             py::return_value_policy::reference_internal);
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
+    node.def_property_readonly("rt_info", (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info);
     node.def_property(
         "friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 

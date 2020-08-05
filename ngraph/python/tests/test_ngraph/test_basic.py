@@ -33,6 +33,7 @@ from tests import (xfail_issue_34323,
 
 from ngraph.impl import Type, VariantString
 from ngraph.impl.op import Parameter
+from openvino.inference_engine import IECore, IENetwork
 
 def test_ngraph_function_api():
     shape = [2, 2]
@@ -397,22 +398,22 @@ def test_runtime_info():
 
     test_shape = PartialShape([1, 3, 22, 22])
     test_type = Type.f32
-    # test_param = ng.parameter(test_shape, dtype=Type.f32, name="param_a")
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
     rtInfo = relu_node.get_rt_info()
-    print(rtInfo)
     rtInfo["affinity"] = VariantString("testAffinity")
-    print(rtInfo)
     relu_node.set_friendly_name("testReLU")
-    # result = Result(relu_node)
+    rtInfo_after = relu_node.get_rt_info()
+
+    assert rtInfo == rtInfo_after
 
     params = [test_param]
     results = [relu_node]
 
-    ngraph = Function(results, params, "testFunc")
+    ng_function = Function(results, params, "testFunc")
 
-    # cnnNet = ie.CNNNetwork(ngraph)
-    # cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU") # TODO
-    # ASSERT_NE(nullptr, cnnLayer)
-    # ASSERT_EQ(cnnLayer[affinity], test_string)
+    capsule = Function.to_capsule(ng_function)
+    cnn_network = IENetwork(capsule)
+    cnn_layer = cnn_network.layers["testReLU"]
+    assert None != cnn_layer
+    assert cnn_layer.affinity == test_string
