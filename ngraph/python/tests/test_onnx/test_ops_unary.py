@@ -384,7 +384,6 @@ def test_identity():
     assert np.array_equal(ng_results[0], expected_result)
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize("val_type, input_data", [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
@@ -397,7 +396,7 @@ def test_cast_to_bool(val_type, input_data):
 @pytest.mark.parametrize(
     "val_type, range_start, range_end, in_dtype",
     [
-        pytest.param(np.dtype(np.float32), -8, 8, np.dtype(np.int32), marks=xfail_issue_34323),
+        (np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
         pytest.param(np.dtype(np.float64), -16383, 16383, np.dtype(np.int64), marks=xfail_issue_35929),
     ],
 )
@@ -412,8 +411,8 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
 
 
 @pytest.mark.parametrize(
-    "val_type", [pytest.param(np.dtype(np.int8), marks=xfail_issue_34323),
-                 pytest.param(np.dtype(np.int16), marks=xfail_issue_34323),
+    "val_type", [np.dtype(np.int8),
+                 np.dtype(np.int16),
                  np.dtype(np.int32),
                  np.dtype(np.int64)]
 )
@@ -427,7 +426,6 @@ def test_cast_to_int(val_type):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)]
 )
