@@ -281,18 +281,24 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
 
 namespace
 {
+    static constexpr std::size_t data_port = 0;
+    static constexpr std::size_t target_shape_port = 1;
+    static constexpr std::size_t scales_port = 2;
+    static constexpr std::size_t axes_port = 3;
+    static constexpr std::size_t max_num_of_ports= 4;
+
     std::vector<std::size_t> get_axes_vector(const HostTensorVector& args)
     {
-        Shape input_shape{args[0]->get_shape()};
+        Shape input_shape{args[data_port]->get_shape()};
         std::size_t input_rank = input_shape.size();
         std::size_t num_of_inputs = args.size();
 
         std::vector<std::size_t> axes;
 
-        if (num_of_inputs == 3)
+        if (num_of_inputs == max_num_of_ports)
         {
-            std::size_t* axes_data_ptr = args[2]->get_data_ptr<std::size_t>();
-            std::size_t num_of_axes = args[2]->get_shape()[0];
+            std::size_t* axes_data_ptr = args[axes_port]->get_data_ptr<std::size_t>();
+            std::size_t num_of_axes = args[axes_port]->get_shape()[0];
             axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
         }
         else
@@ -310,9 +316,43 @@ namespace
     {
         std::vector<float> scales;
 
-        float* scales_ptr = args[1]->get_data_ptr<float>();
+        float* scales_ptr = args[scales_port]->get_data_ptr<float>();
         scales.insert(scales.end(), scales_ptr, scales_ptr + num_of_axes);
 
+        return scales;
+    }
+
+    std::vector<float> get_scales_vector(const HostTensorVector& args,
+                                         const Shape& input_shape,
+                                         const op::v4::Interpolate::InterpolateAttrs& attrs,
+                                         std::vector<std::size_t> axes)
+    {
+        using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
+
+        std::vector<float> scales;
+        std::size_t num_of_axes = axes.size();
+        if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
+        {
+            float* scales_ptr = args[scales_port]->get_data_ptr<float>();
+            scales.insert(scales.end(), scales_ptr, scales_ptr + num_of_axes);
+        }
+        else
+        {
+            std::vector<std::size_t> target_shape;
+            std::size_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<std::size_t>();
+            std::size_t n = args[target_shape_port]->get_shape()[0];
+            target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + n);
+
+            std::size_t rank = input_shape.size();
+            if (rank > target_shape.size())
+            {
+                for (std::size_t i = 0; i < num_of_axes; ++i)
+                {
+                    float scale = static_cast<float>(target_shape[i]) / static_cast<float>(input_shape[axes[i]]);
+                    scales.push_back(scale);
+                }
+            }
+        }
         return scales;
     }
 
@@ -379,7 +419,7 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
 
-        Shape input_shape{args[0]->get_shape()};
+        Shape input_shape{args[data_port]->get_shape()};
         std::size_t input_rank = input_shape.size();
 
         auto axes = get_axes_vector(args);

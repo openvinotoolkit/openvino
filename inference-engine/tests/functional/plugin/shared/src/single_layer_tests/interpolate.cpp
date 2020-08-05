@@ -70,7 +70,9 @@ void InterpolateLayerTest::SetUp() {
     auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
 
     std::vector<float> scales(targetShape.size(), 1.0f);
-    auto scalesInput = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {scales.size()}, scales);
+
+    auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
 
     auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
 
