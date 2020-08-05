@@ -18,21 +18,25 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fakeQuantizeOnData) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, version, params, fakeQuantizeOnData) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << fakeQuantizeOnData;
+    result << netPrecision << "_" << targetDevice << "_" << version << "_" << fakeQuantizeOnData;
     return result.str();
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, version, params, fakeQuantizeOnData) = this->GetParam();
+
+    ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
         FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
@@ -51,9 +55,10 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 void FuseFakeQuantizeAndScaleShiftTransformation::validate(const std::string& referenceOutputLayerName) {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, version, params, fakeQuantizeOnData) = this->GetParam();
 
     auto transformations = getLowPrecisionTransformations(params);
     const InferenceEngine::CNNNetwork network = transform(transformations);
