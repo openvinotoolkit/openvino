@@ -448,8 +448,6 @@ set (SRC
     pass/constant_folding_quantize.cpp
     pass/constant_folding_reverse.cpp
     pass/constant_folding_select.cpp
-    pass/constant_folding_slice.cpp
-    pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
@@ -509,6 +507,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/slice.cpp
+    runtime/reference/slice.hpp
     runtime/opt_kernel/reshape.cpp
     runtime/opt_kernel/reshape.hpp
     runtime/reference/eval_helpers.cpp
