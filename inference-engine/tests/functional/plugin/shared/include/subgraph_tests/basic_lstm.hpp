@@ -30,6 +30,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    std::shared_ptr<ngraph::Function> CreateGraphWithUnrolledTI();
 };
 
 }  // namespace LayerTestsDefinitions

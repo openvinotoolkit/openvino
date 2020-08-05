@@ -119,8 +119,6 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    void ConfigureNetwork() const;
-
     RefMode refMode = RefMode::INTERPRETER;
 };
 
