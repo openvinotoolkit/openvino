@@ -47,7 +47,9 @@ op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
 }
 
 PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
-    const Shape& arg0_shape, const Shape& target_shape, const op::BroadcastModeSpec& broadcast_spec)
+    const Shape& arg0_shape,
+    const Shape& target_shape,
+    const op::BroadcastModeSpec& broadcast_spec) const
 {
     PartialShape result_shape = target_shape;
     auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD)
@@ -75,7 +77,7 @@ PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
 
 void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                                                          const AxisVector& axes_mapping_val,
-                                                         const Shape& target_shape)
+                                                         const Shape& target_shape) const
 {
     // axes_mapping needs to be in sorted order
     NODE_VALIDATION_CHECK(this,
@@ -295,7 +297,7 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
 template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
-                                       const AxisSet& broadcast_axes)
+                                       const AxisSet& broadcast_axes) const
 {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
@@ -402,7 +404,7 @@ namespace
 bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                  const HostTensorPtr& out,
                                                  const std::pair<bool, AxisSet> pair_broadcast_axes,
-                                                 const Shape output_shape)
+                                                 const Shape output_shape) const
 {
     if (!pair_broadcast_axes.first)
     {
@@ -442,7 +444,7 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     return rc;
 }
 
-Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1)
+Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
 {
     Shape target_shape;
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
@@ -458,7 +460,7 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1)
 }
 
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
-                                       const HostTensorVector& inputs)
+                                       const HostTensorVector& inputs) const
 {
     Shape target_shape = get_target_shape(inputs[1]);
 

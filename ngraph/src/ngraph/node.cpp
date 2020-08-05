@@ -939,7 +939,8 @@ vector<Output<const Node>> Node::outputs() const
     return result;
 }
 
-bool Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values)
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values) const
 {
     return false;
 }
