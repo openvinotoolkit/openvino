@@ -18,6 +18,9 @@
 
 #define FEATURE_SLICE_SIZE 16
 
+// OUTPUT_X_BLOCK_SIZE is one of 2, 4, 8
+#define UNIT_BLOCK_WRITEN(ptr, offset, val) CAT(UNIT_BLOCK_WRITE, OUTPUT_X_BLOCK_SIZE)(ptr, offset, val)
+
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_bfyx_to_bfyx_f16)(
@@ -177,18 +180,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
             FUSED_OPS_VEC;
             dst = FUSED_OPS_RESULT_VEC;
 #endif
-            // TODO Generalize for other block sizes
-#if OUTPUT_X_BLOCK_SIZE == 8
-            UNIT_BLOCK_WRITE8(output, output_offset, dst);
-#elif OUTPUT_X_BLOCK_SIZE == 4
-            UNIT_BLOCK_WRITE4(output, output_offset, dst);
-#elif OUTPUT_X_BLOCK_SIZE == 2
-            UNIT_BLOCK_WRITE2(output, output_offset, dst);
-#elif OUTPUT_X_BLOCK_SIZE == 1
-            UNIT_BLOCK_WRITE(output, output_offset, dst);
-#else
-#   error convolution_gpu_bfyx_to_bfyx_f16.cl: Unsupported output x block size.
-#endif
+            UNIT_BLOCK_WRITEN(output, output_offset, dst);
         } else {
             const int x_tail = OUTPUT_SIZE_X - x;
             for (int i = 0; i < x_tail; i++) {
