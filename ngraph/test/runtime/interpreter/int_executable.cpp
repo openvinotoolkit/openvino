@@ -34,6 +34,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::OP_TYPEID runtime::interpreter::INTExecutable::get_typeid(const Node& node)

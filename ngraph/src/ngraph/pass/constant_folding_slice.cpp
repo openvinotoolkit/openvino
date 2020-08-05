@@ -117,5 +117,7 @@ void pass::ConstantFolding::construct_constant_slice()
     };
 
     auto slice_matcher = make_shared<pattern::Matcher>(slice_op, "ConstantFolding.ConstantSlice");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(slice_matcher, constant_slice_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

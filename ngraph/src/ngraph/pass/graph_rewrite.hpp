@@ -131,14 +131,14 @@ public:
         m_matchers.push_back(pass);
         return pass;
     }
-
+    NGRAPH_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,
-                     const PassPropertyMask& property) NGRAPH_DEPRECATED("Use MatcherPass instead");
+                     const PassPropertyMask& property);
 
+    NGRAPH_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const ngraph::graph_rewrite_callback& callback)
-        NGRAPH_DEPRECATED("Use MatcherPass instead");
+                     const ngraph::graph_rewrite_callback& callback);
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
