@@ -151,7 +151,8 @@ bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v0::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Reshape::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
@@ -326,7 +327,8 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
-bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     // infer and set output shape if the output shape contain -1
     // and zero value dimension

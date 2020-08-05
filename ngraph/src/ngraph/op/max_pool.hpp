@@ -100,7 +100,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 Shape m_kernel;
@@ -113,7 +113,7 @@ namespace ngraph
             private:
                 bool update_auto_padding(const PartialShape& in_shape,
                                          Shape& new_pads_end,
-                                         Shape& new_pads_begin);
+                                         Shape& new_pads_begin) const;
             };
         } // namespace v1
     }     // namespace op
