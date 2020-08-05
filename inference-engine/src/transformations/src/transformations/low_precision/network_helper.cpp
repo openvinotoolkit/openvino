@@ -253,9 +253,25 @@ std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_
     // TODO: implement with constant folding when ReduceAnd constant folding is ready
     if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
         return castedConstant;
-    } else {
-        return constant;
     }
+
+    castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(fold<opset1::Add>(constant,
+        std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, 0.5f)), target_type));
+    castedValues = castedConstant->cast_vector<float>();
+
+    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+        return castedConstant;
+    }
+
+    castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(fold<opset1::Add>(constant,
+        std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, 1.f)), target_type));
+    castedValues = castedConstant->cast_vector<float>();
+
+    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+        return castedConstant;
+    }
+
+    return constant;
 }
 
 // Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
@@ -542,6 +558,10 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
     const element::Type convertInputType = convertOnSubtract->get_input_element_type(0);
     const element::Type convertOutputType = convertOnSubtract->get_output_element_type(0);
 
+    if (!convertOutputType.is_real()) {
+        return subtract;
+    }
+
     auto data = convertOnSubtract->input_value(0);
     auto shift = subtract->input_value(1).get_node_shared_ptr();
     auto roundedShift = NetworkHelper::roundWithTolerance(shift, convertInputType);
@@ -553,18 +573,6 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
         replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
         replacement->set_output_type(0, convertOutputType, replacement->get_output_partial_shape(0));
         replace_node(subtract, replacement);
-    } else {
-        // Try to represent it as data - (-b)
-        roundedShift = NetworkHelper::roundWithTolerance(fold<opset1::Negative>(shift), convertInputType);
-        if (roundedShift->get_element_type() == convertInputType) {
-            // Assuming Subtract will go out of representable set of values for target type
-            // So keep the original data type (likely not integer)
-            replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
-                    opset1::Subtract(data, roundedShift),
-                    convertOnSubtract->get_output_element_type(0));
-            replacement->set_output_type(0, convertOutputType, replacement->get_output_partial_shape(0));
-            replace_node(subtract, replacement);
-        }
     }
 
     // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
