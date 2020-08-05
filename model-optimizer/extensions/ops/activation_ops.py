@@ -242,15 +242,11 @@ class SoftPlus(Op):
         super().__init__(graph, mandatory_props, attrs)
 
 
-class Mish(Op):
+class Mish(Activation):
     op = 'Mish'
+    operation = staticmethod(lambda x: x * np.tanh(np.ln(np.exp(x) + 1.0)))
 
     def __init__(self, graph: Graph, attrs: dict):
-        mandatory_props = {
-            'op': self.op,
-            'type': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None
-        }
-        super().__init__(graph, mandatory_props, attrs)
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
