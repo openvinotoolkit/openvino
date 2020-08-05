@@ -85,14 +85,13 @@ public:
     void SetUp() override {
         const InterpolateTransformationTestValues testValues = GetParam();
 
-        const ngraph::op::InterpolateAttrs interpAttrs{
-            testValues.interpAttrs.axes,
-            testValues.interpAttrs.mode,
-            testValues.interpAttrs.align_corners,
-            testValues.interpAttrs.antialias,
-            testValues.interpAttrs.pads_begin,
-            testValues.interpAttrs.pads_end
-        };
+        const ngraph::op::InterpolateAttrs interpAttrs;
+        interpAttrs.axes = testValues.interpAttrs.axes;
+        interpAttrs.mode = testValues.interpAttrs.mode;
+        interpAttrs.align_corners = testValues.interpAttrs.align_corners;
+        interpAttrs.antialias = testValues.interpAttrs.antialias;
+        interpAttrs.pads_begin = testValues.interpAttrs.pads_begin;
+        interpAttrs.pads_end = testValues.interpAttrs.pads_end;
 
         actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
             testValues.inputShape,
