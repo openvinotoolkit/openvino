@@ -271,12 +271,13 @@ void op::v4::Interpolate::validate_and_infer_types()
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    if (new_args.size() <= 2)
+    if (new_args.size() <= 3)
     {
-        return make_shared<op::v4::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
+        return make_shared<op::v4::Interpolate>(
+            new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
     return make_shared<op::v4::Interpolate>(
-        new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_attrs);
 }
 
 namespace
