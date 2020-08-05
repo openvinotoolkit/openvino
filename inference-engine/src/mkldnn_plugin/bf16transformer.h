@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
 #include <string>
 #include <set>
-#include "inference_engine.hpp"
 
 namespace MKLDNNPlugin {
 
