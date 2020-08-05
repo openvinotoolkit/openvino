@@ -197,8 +197,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = _impl->m_config;
     auto device_info = GetDeviceInfo(config);
-    // TODO: comment this line to support INT8 on any GPU
-    // conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
