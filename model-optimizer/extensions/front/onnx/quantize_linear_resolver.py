@@ -45,8 +45,7 @@ class QuantizeLinearResolver(FrontReplacementOp):
         else:
             zerop = Const(graph, {'value': np.array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
 
-        # only constant for zero_point is supported
-        assert zerop.soft_get('type') == 'Const'
+        assert zerop.soft_get('type') == 'Const', 'only constant for zero_point is supported for QuantizeLinear'
         zero_point_type = zerop.value.dtype
         # data type affects range of output values: [-128..127] or [0..255]
         if zero_point_type == np.int8:
@@ -56,7 +55,7 @@ class QuantizeLinearResolver(FrontReplacementOp):
             output_low_value = 0.0
             output_high_value = 255.0
         else:
-            raise Error('Not supported type {} for zero point value in node {}'.format(
+            raise Error('Not expected type {} for zero point value in node {}'.format(
                 zero_point_type, zerop.soft_get('name')))
         fake_quantize = create_op_with_const_inputs(graph, FakeQuantize, {3: float_array(output_low_value),
                                                                           4: float_array(output_high_value)},
