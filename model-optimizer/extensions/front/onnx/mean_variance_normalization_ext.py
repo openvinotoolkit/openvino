@@ -49,7 +49,6 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
 
         attrs = {
             'eps': 1e-9,
-            'across_channels': 1 if 1 in axes else 0,
             'normalize_variance': 1,
             'axes': axes
         }
