@@ -56,6 +56,7 @@ namespace ngraph
                 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
                 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
                 using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+                using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
                 InterpolateMode convert_mode(const std::string& mode_str)
                 {
@@ -70,8 +71,6 @@ namespace ngraph
 
             namespace set_1
             {
-                using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
-
                 OutputVector upsample(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -145,8 +144,6 @@ namespace ngraph
 
             namespace set_9
             {
-                using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
-
                 OutputVector upsample(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -206,7 +203,7 @@ namespace ngraph
                         auto axes_const = default_opset::Constant::create(
                             element::i64, Shape({axes.size()}), axes);
 
-                        return {std::make_shared<default_opset::Interpolate>(
+                        return {std::make_shared<ngraph::op::v4::Interpolate>(
                             data, output_shape_const, scales, axes_const, attrs)};
                     }
 
