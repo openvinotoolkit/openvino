@@ -208,7 +208,8 @@ namespace
     }
 }
 
-bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
     return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

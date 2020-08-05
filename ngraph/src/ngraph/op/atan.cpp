@@ -84,7 +84,7 @@ namespace
     }
 }
 
-bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

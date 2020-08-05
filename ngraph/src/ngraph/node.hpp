@@ -200,7 +200,7 @@ namespace ngraph
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
-                              const HostTensorVector& input_values);
+                              const HostTensorVector& input_values) const;
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///

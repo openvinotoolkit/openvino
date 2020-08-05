@@ -269,7 +269,7 @@ namespace
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
-                                             const HostTensorVector& inputs)
+                                             const HostTensorVector& inputs) const
 {
     int64_t axis = 0;
     switch (inputs[3]->get_element_type())

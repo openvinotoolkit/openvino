@@ -121,7 +121,7 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
     return rc;
 }
 
-bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

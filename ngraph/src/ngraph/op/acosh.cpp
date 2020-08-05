@@ -73,7 +73,7 @@ namespace
     }
 }
 
-bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_acosh(inputs[0], outputs[0]);
 }

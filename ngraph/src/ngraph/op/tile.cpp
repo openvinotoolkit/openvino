@@ -95,7 +95,7 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];

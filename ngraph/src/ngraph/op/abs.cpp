@@ -75,7 +75,7 @@ namespace
     }
 }
 
-bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

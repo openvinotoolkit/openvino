@@ -264,7 +264,7 @@ std::shared_ptr<Function> make_function_from_file(const std::string& file_name)
 constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
 
 bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs)
+                                      const HostTensorVector& inputs) const
 {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
     inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());

@@ -78,7 +78,8 @@ int64_t Lambda::get_result_index(const Output<Node>& value) const
     return -1;
 }
 
-bool Lambda::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors)
+bool Lambda::evaluate(const HostTensorVector& output_tensors,
+                      const HostTensorVector& input_tensors) const
 {
     std::map<RawNodeOutput, HostTensorPtr> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i)

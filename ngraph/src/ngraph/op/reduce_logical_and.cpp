@@ -65,7 +65,7 @@ namespace
 }
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
-                                        const HostTensorVector& inputs)
+                                        const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& axes = inputs[1];

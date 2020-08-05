@@ -85,7 +85,7 @@ namespace
     }
 }
 
-bool op::v0::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
@@ -108,7 +108,7 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<op::v1::Equal>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }

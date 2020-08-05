@@ -628,7 +628,8 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());

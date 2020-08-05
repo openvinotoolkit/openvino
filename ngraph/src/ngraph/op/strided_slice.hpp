@@ -104,7 +104,7 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& output_values,
-                              const HostTensorVector& input_values) override;
+                              const HostTensorVector& input_values) const override;
 
             private:
                 AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

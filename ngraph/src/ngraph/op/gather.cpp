@@ -284,12 +284,12 @@ namespace
     }
 }
 
-bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 
-bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())

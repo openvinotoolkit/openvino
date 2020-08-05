@@ -65,7 +65,7 @@ namespace ngraph
                 const PriorBoxClusteredAttrs& get_attrs() const { return m_attrs; }
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             private:
                 PriorBoxClusteredAttrs m_attrs;

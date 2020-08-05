@@ -61,7 +61,7 @@ namespace ngraph
                 virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 BroadcastModeSpec m_mode;
@@ -69,17 +69,17 @@ namespace ngraph
                 bool evaluate_broadcast(const HostTensorPtr& arg0,
                                         const HostTensorPtr& out,
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
-                                        const Shape output_shape);
+                                        const Shape output_shape) const;
 
                 template <element::Type_t ET>
                 bool evaluate(const HostTensorPtr& arg0,
                               const HostTensorPtr& out,
-                              const AxisSet& broadcast_axes);
+                              const AxisSet& broadcast_axes) const;
 
                 PartialShape
                     get_result_shape_numpy_pdpd(const Shape& arg0_shape,
                                                 const Shape& target_shape,
-                                                const op::BroadcastModeSpec& broadcast_spec);
+                                                const op::BroadcastModeSpec& broadcast_spec) const;
                 static std::pair<bool, AxisSet>
                     get_broadcast_axes_numpy_pdpd(const Shape& arg_shape,
                                                   const Shape& result_shape,
@@ -91,9 +91,9 @@ namespace ngraph
 
                 void validate_target_shape_none(const Shape& arg_shape,
                                                 const AxisVector& axes_mapping_val,
-                                                const Shape& target_shape);
+                                                const Shape& target_shape) const;
 
-                Shape get_target_shape(const HostTensorPtr& input1);
+                Shape get_target_shape(const HostTensorPtr& input1) const;
             };
         }
     }

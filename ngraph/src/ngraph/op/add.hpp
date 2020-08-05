@@ -58,7 +58,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         } // namespace v0
 
@@ -98,7 +98,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
 
         } // namespace v1

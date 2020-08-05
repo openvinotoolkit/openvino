@@ -27,7 +27,7 @@ using namespace ngraph;
 
 bool op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
                                           Shape& new_pads_end,
-                                          Shape& new_pads_begin)
+                                          Shape& new_pads_begin) const
 {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
@@ -209,7 +209,8 @@ namespace
     }
 } // namespace
 
-bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();

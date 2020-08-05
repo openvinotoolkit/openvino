@@ -32,7 +32,7 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     void setMode(DynamicShapeResolverMode mode) { m_mode = mode; }
     DynamicShapeResolverMode getMode() { return m_mode; }

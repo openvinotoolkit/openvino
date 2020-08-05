@@ -73,7 +73,7 @@ namespace
     }
 }
 
-bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_asinh(inputs[0], outputs[0]);
 }
