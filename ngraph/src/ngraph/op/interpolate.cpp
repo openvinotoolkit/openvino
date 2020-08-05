@@ -123,19 +123,21 @@ namespace ngraph
 constexpr NodeTypeInfo op::v4::Interpolate::type_info;
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
+                                 const Output<Node>& output_shape,
                                  const Output<Node>& scales,
                                  const Output<Node>& axes,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
-    : Op({image, scales, axes})
+    : Op({image, output_shape, scales, axes})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
+                                 const Output<Node>& output_shape,
                                  const Output<Node>& scales,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
-    : Op({image, scales})
+    : Op({image, output_shape, scales})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
@@ -154,7 +156,7 @@ static const char* cannot_define_axes =
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
 {
     auto inputs = input_values();
-    if (inputs.size() <= 2)
+    if (inputs.size() <= 3)
     {
         PartialShape input_shape = PartialShape(get_input_partial_shape(0));
         if (input_shape.rank().is_dynamic())
@@ -171,13 +173,55 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     }
 
     std::vector<int64_t> result;
-    if (auto axes_node = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr()))
+    if (auto axes_node = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr()))
     {
         result = axes_node->cast_vector<int64_t>();
     }
 
     return result;
 }
+
+void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
+                                             const std::vector<int64_t>& axes,
+                                             const PartialShape& padded_input_shape)
+{
+    auto const_scales = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+    if (!const_scales)
+    {
+        return
+    }
+
+    auto scales = const_scales->cast_vector<float>();
+    size_t i = 0;
+    for (auto axis : axes)
+    {
+        if (padded_input_shape[axis].is_static())
+        {
+            float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
+            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
+            output_shape[axis] = Dimension(new_dim);
+        }
+        ++i;
+    }
+}
+
+void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
+                                             const std::vector<int64_t>& axes)
+{
+    auto const_shape = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
+    if (!const_shape)
+    {
+        return;
+    }
+
+    auto out_shape = const_shape->cast_vector<int64_t>();
+    size_t i = 0;
+    for (auto axis : m_attrs.axes)
+    {
+        output_shape[axis] = Dimension(out_shape[i++]);
+    }
+}
+
 
 void op::v4::Interpolate::validate_and_infer_types()
 {
@@ -212,21 +256,15 @@ void op::v4::Interpolate::validate_and_infer_types()
         output_shape[axis] = Dimension::dynamic();
     }
 
-    if (auto const_scales = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
-        auto scales = const_scales->cast_vector<float>();
-        size_t i = 0;
-        for (auto axis : axes)
-        {
-            if (padded_input_shape[axis].is_static())
-            {
-                float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-                int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
-                output_shape[axis] = Dimension(new_dim);
-            }
-            ++i;
-        }
+        infer_using_scales(output_shape, axes, padded_input_shape);
     }
+    else
+    {
+        infer_using_shapes(output_shape, axes);
+    }
+
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
@@ -453,6 +491,24 @@ namespace ngraph
     }
 
     template <>
+    NGRAPH_API EnumNames<op::v4::Interpolate::ShapeCalcMode>&
+        EnumNames<op::v4::Interpolate::ShapeCalcMode>::get()
+    {
+        static auto enum_names = EnumNames<op::v4::Interpolate::ShapeCalcMode>(
+            "op::v4::Interpolate::ShapeCalcMode",
+            {{"sizes", op::v4::Interpolate::ShapeCalcMode::sizes},
+             {"scales", op::v4::Interpolate::ShapeCalcMode::scales}});
+        return enum_names;
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>::type_info;
+
+    std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type)
+    {
+        return s << as_string(type);
+    }
+
+    template <>
     EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
         EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get()
     {
@@ -509,6 +565,7 @@ namespace ngraph
         AttributeVisitor& visitor)
     {
         visitor.on_attribute("mode", m_ref.mode);
+        visitor.on_attribute("shape_calculation_mode", m_ref.shape_calculation_mode);
         visitor.on_attribute("coordinate_transformation_mode",
                              m_ref.coordinate_transformation_mode);
         visitor.on_attribute("nearest_mode", m_ref.nearest_mode);
