@@ -20,6 +20,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pass/pass.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph
 {
     namespace pass
@@ -34,3 +35,4 @@ class BACKEND_API ngraph::pass::ImplicitBroadcastElimination : public ngraph::pa
 public:
     bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
 };
+NGRAPH_SUPPRESS_DEPRECATED_END

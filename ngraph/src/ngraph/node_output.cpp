@@ -25,14 +25,18 @@ namespace ngraph
         : m_node(node->shared_from_this())
         , m_index(index)
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         eliminate_goe();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index)
         : m_node(node)
         , m_index(index)
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         eliminate_goe();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     void Output<Node>::reset()

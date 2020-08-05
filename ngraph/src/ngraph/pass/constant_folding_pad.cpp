@@ -149,5 +149,7 @@ void pass::ConstantFolding::construct_constant_pad()
     };
 
     auto pad_matcher = make_shared<pattern::Matcher>(pad, "ConstantFolding.ConstantPad");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(pad_matcher, constant_pad_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

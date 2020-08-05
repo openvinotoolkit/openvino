@@ -171,7 +171,9 @@ void pass::ConstantFolding::construct_constant_variadic_split()
     };
     auto variadic_split_matcher = make_shared<pattern::Matcher>(
         variadic_split_pattern, "ConstantFolding.ConstantVariadicSplit");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(variadic_split_matcher,
                       constant_variadic_split_callback,
                       PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

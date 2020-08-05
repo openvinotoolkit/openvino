@@ -25,6 +25,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 pass::PassBase::PassBase()
     : m_property{all_pass_property_off}
 {

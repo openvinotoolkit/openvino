@@ -19,6 +19,8 @@
 #include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace pass
@@ -37,3 +39,5 @@ namespace ngraph
         };
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END

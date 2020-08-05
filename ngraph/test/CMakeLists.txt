@@ -78,22 +78,6 @@ set(SRC
     op_eval/strided_slice.cpp
     op_is.cpp
     opset1.cpp
-    opset_pass/binary_elementwise_opset_pass.cpp
-    opset_pass/broadcast_opset_pass.cpp
-    opset_pass/convolution_opset_pass.cpp
-    opset_pass/logical_not_opset_pass.cpp
-    opset_pass/logical_or_opset_pass.cpp
-    opset_pass/logical_xor_opset_pass.cpp
-    opset_pass/one_hot_opset_pass.cpp
-    opset_pass/gather_opset_pass.cpp
-    opset_pass/pad_opset_pass.cpp
-    opset_pass/reduction_opset_pass.cpp
-    opset_pass/reverse_opset_pass.cpp
-    opset_pass/select_opset_pass.cpp
-    opset_pass/slice_opset_pass.cpp
-    opset_pass/softmax_opset_pass.cpp
-    opset_pass/topk_opset_pass.cpp
-    opset_pass/transpose_opset_pass.cpp
     partial_shape.cpp
     pass_liveness.cpp
     pass_manager.cpp

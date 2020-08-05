@@ -111,6 +111,8 @@ void pass::ConstantFolding::construct_constant_reverse()
 
     auto convert_matcher =
         make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantReverse");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         convert_matcher, constant_reverse_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

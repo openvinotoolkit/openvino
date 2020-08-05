@@ -26,6 +26,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace
 {
     InferenceEngine::Blob::Ptr fill_blob(InferenceEngine::SizeVector shape,

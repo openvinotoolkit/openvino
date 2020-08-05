@@ -23,6 +23,8 @@
 
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace
 {
     /// Extracts the data from two blobs and returns them as a pair of vectors.

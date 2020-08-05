@@ -137,6 +137,7 @@ void pass::ConstantFolding::construct_constant_select()
         return true;
     };
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         make_shared<pattern::Matcher>(select_v0_op, "ConstantFolding.ConstantSelectV0"),
         constant_select_callback,
@@ -145,4 +146,5 @@ void pass::ConstantFolding::construct_constant_select()
         make_shared<pattern::Matcher>(select_v1_op, "ConstantFolding.ConstantSelectV1"),
         constant_select_callback,
         PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

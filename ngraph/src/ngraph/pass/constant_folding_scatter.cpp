@@ -263,7 +263,9 @@ void pass::ConstantFolding::construct_constant_scatter_elements_update()
 
     auto scatter_elem_updt_matcher = make_shared<pattern::Matcher>(
         scatter_elem_updt, "ConstantFolding.ConstantScatterElementsUpdateV3");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(scatter_elem_updt_matcher,
                       constant_scatter_elem_updt_callback,
                       PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

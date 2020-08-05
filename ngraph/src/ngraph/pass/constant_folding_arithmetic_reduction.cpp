@@ -205,7 +205,9 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 
     auto arithmetic_reduction_matcher =
         make_shared<pattern::Matcher>(reduction, "ConstantFolding.ConstantArithmeticReduction");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(arithmetic_reduction_matcher,
                       constant_arithmetic_reduction_callback,
                       PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
