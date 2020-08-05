@@ -18,6 +18,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/get_output_element.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 namespace ngraph
 {
@@ -125,6 +126,39 @@ namespace ngraph
         while (is_type<op::GetOutputElement>(m_node))
         {
             *this = m_node->input_value(0);
+        }
+    }
+
+    Output<Node> Output<Node>::get_constant_replacement()
+    {
+        auto node = get_node_shared_ptr();
+        if (ngraph::op::is_constant(node))
+        {
+            return *this;
+        }
+
+        OutputVector replacements(node->get_output_size());
+        OutputVector inputs = node->input_values();
+        if (!node->constant_fold(replacements, inputs))
+        {
+            OutputVector new_inputs;
+            for (auto& input : inputs)
+            {
+                new_inputs.push_back(input.get_constant_replacement());
+            }
+
+            if (!node->constant_fold(replacements, new_inputs))
+            {
+                return *this;
+            }
+            else
+            {
+                return replacements[get_index()];
+            }
+        }
+        else
+        {
+            return replacements[get_index()];
         }
     }
 

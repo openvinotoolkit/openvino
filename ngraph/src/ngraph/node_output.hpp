@@ -114,6 +114,10 @@ namespace ngraph
         bool operator<=(const Output& other) const;
         bool operator>=(const Output& other) const;
 
+        /// \brief Tries to constant fold operation if it's not possible it recursively tries to
+        /// fold its inputs until they exists
+        Output<Node> get_constant_replacement();
+
     private:
         std::shared_ptr<Node> m_node;
         size_t m_index{0};
