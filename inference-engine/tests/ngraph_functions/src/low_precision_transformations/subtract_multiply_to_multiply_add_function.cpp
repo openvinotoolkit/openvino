@@ -39,7 +39,6 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
 
     const std::shared_ptr<ngraph::opset1::Reshape> reshape1 = std::make_shared<ngraph::opset1::Reshape>(
         fq,
-        //std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, Shape({4}), std::vector<int64_t>({0ul, 1ul, 3ul, 2ul})));
         std::make_shared<ngraph::opset1::Constant>(
             ngraph::element::i64,
             Shape({ 3 }),
@@ -48,7 +47,6 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
 
     const std::shared_ptr<ngraph::opset1::Reshape> reshape2 = std::make_shared<ngraph::opset1::Reshape>(
         reshape1,
-        //std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, Shape({4}), std::vector<int64_t>({0ul, 1ul, 3ul, 2ul})));
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, Shape({ 4 }), inputShape),
         false);
 
