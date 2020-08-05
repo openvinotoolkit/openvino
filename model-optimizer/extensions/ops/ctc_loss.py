@@ -26,9 +26,8 @@ class CTCLoss(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset4',
 
             'type_infer': self.type_infer,

@@ -24,9 +24,8 @@ class CTCGreedyDecoderOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
 
             'infer': self.infer,
@@ -64,5 +63,3 @@ class CTCGreedyDecoderOp(Op):
 
         # This operation should be inferred in original layout
         node['reinterp_shape'] = True
-        node['NCHW'] = True
-
