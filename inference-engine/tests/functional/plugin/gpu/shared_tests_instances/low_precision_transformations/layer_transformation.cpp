@@ -23,15 +23,9 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
-<<<<<<< HEAD
 #include "ngraph_ops/fully_connected.hpp"
-=======
 #include <ngraph/pass/manager.hpp>
->>>>>>> slyalin/slyalin/type_relaxed
 #include "ngraph_functions/pass/convert_prc.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "ie_util_internal.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"

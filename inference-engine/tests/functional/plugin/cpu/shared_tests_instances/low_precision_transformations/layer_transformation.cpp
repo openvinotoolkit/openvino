@@ -27,9 +27,6 @@
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include "common_test_utils/common_utils.hpp"
-#include "ie_util_internal.hpp"
-
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
