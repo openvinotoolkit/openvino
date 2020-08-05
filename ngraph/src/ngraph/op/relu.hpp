@@ -34,8 +34,7 @@ namespace ngraph
             class NGRAPH_API Relu : public ngraph::op::util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Relu", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Relu() = default;
                 /// \brief Constructs a Relu operation.
                 ///
@@ -46,7 +45,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         }
         using v0::Relu;

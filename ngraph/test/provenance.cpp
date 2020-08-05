@@ -36,6 +36,8 @@ using namespace std;
 using namespace ngraph;
 using ::testing::Return;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using ProvSet = std::unordered_set<std::string>;
 
 TEST(provenance, provenance)

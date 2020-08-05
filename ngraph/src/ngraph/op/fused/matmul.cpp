@@ -26,7 +26,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::MatMul::type_info;
+NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
@@ -226,7 +226,7 @@ namespace
     }
 }
 
-bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }

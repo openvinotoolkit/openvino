@@ -120,6 +120,8 @@ set (SRC
     op/avg_pool.hpp
     op/batch_norm.cpp
     op/batch_norm.hpp
+    op/batch_to_space.cpp
+    op/batch_to_space.hpp
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
@@ -316,6 +318,8 @@ set (SRC
     op/slice.hpp
     op/softmax.cpp
     op/softmax.hpp
+    op/space_to_batch.cpp
+    op/space_to_batch.hpp
     op/split.cpp
     op/split.hpp
     op/strided_slice.cpp
@@ -344,8 +348,6 @@ set (SRC
     op/transpose.hpp
     op/xor.cpp
     op/xor.hpp
-    op/fused/batch_to_space.cpp
-    op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
     op/fused/clamp.hpp
     op/fused/hard_sigmoid.cpp
@@ -380,8 +382,6 @@ set (SRC
     op/fused/selu.hpp
     op/fused/shuffle_channels.cpp
     op/fused/shuffle_channels.hpp
-    op/fused/space_to_batch.cpp
-    op/fused/space_to_batch.hpp
     op/fused/space_to_depth.cpp
     op/fused/space_to_depth.hpp
     op/fused/squared_difference.cpp
@@ -440,7 +440,6 @@ set (SRC
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_reshape.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp
@@ -449,11 +448,7 @@ set (SRC
     pass/constant_folding_quantize.cpp
     pass/constant_folding_reverse.cpp
     pass/constant_folding_select.cpp
-    pass/constant_folding_slice.cpp
-    pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
-    pass/constant_folding_tile.cpp
-    pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
     pass/convert_fp32_to_fp16.hpp
@@ -512,8 +507,16 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/slice.cpp
+    runtime/reference/slice.hpp
+    runtime/opt_kernel/reshape.cpp
+    runtime/opt_kernel/reshape.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
+    runtime/reference/reshape.cpp
+    runtime/reference/reshape.hpp
+    runtime/reference/tile.cpp
+    runtime/reference/tile.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
