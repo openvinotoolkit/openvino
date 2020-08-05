@@ -188,7 +188,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
     auto const_scales = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
     if (!const_scales)
     {
-        return
+        return;
     }
 
     auto scales = const_scales->cast_vector<float>();
@@ -216,7 +216,7 @@ void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
 
     auto out_shape = const_shape->cast_vector<int64_t>();
     size_t i = 0;
-    for (auto axis : m_attrs.axes)
+    for (auto axis : axes)
     {
         output_shape[axis] = Dimension(out_shape[i++]);
     }
