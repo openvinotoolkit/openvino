@@ -18,10 +18,10 @@ public:
     static constexpr NodeTypeInfo type_info{"ScaleShiftIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
-    // TODO: notcompleted: add output_precision
     ScaleShiftIE(const Output<Node>& data_batch,
                  const Output<Node>& weights,
-                 const Output<Node>& bias);
+                 const Output<Node>& bias,
+                 const element::Type output_type = element::undefined);
 
     void validate_and_infer_types() override;
 
@@ -30,6 +30,7 @@ public:
         const PartialShape& pshape) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    element::Type output_type;
 };
 
 }  // namespace op
