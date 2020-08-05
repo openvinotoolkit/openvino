@@ -44,7 +44,6 @@
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/skip.hpp"
 #include "ngraph/pattern/op/true.hpp"
-#include "ngraph/serializer.hpp"
 #include "util/matcher.hpp"
 #include "util/test_tools.hpp"
 
