@@ -140,5 +140,7 @@ void pass::ConstantFolding::construct_constant_split()
     };
     auto split_matcher =
         make_shared<pattern::Matcher>(split_pattern, "ConstantFolding.ConstantSplit");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(split_matcher, constant_split_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
