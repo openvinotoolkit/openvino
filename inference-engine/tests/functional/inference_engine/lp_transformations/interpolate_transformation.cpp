@@ -85,7 +85,7 @@ public:
     void SetUp() override {
         const InterpolateTransformationTestValues testValues = GetParam();
 
-        const ngraph::op::InterpolateAttrs interpAttrs;
+        ngraph::op::InterpolateAttrs interpAttrs;
         interpAttrs.axes = testValues.interpAttrs.axes;
         interpAttrs.mode = testValues.interpAttrs.mode;
         interpAttrs.align_corners = testValues.interpAttrs.align_corners;
