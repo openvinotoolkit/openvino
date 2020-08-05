@@ -28,11 +28,13 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<LayerTestsDefinitions::VariadicSplitTransformationParam> params{
     {
         { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        { 2 }, std::vector<size_t>{9, 7}
+        2,
+        std::vector<size_t>{9, 7}
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
-        { -1 }, std::vector<size_t>{15, 1}
+        -1,
+        std::vector<size_t>{15, 1}
     },
     {
         {
@@ -42,7 +44,8 @@ const std::vector<LayerTestsDefinitions::VariadicSplitTransformationParam> param
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f, 255.f }
         },
-        { 1 }, std::vector<size_t>{1, 1, 1}
+        1,
+        std::vector<size_t>{1, 1, 1}
     },
     {
         {
@@ -52,7 +55,8 @@ const std::vector<LayerTestsDefinitions::VariadicSplitTransformationParam> param
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f, 255.f }
         },
-        { -1 }, std::vector<size_t>{4, 3, 2, 7}
+        -1,
+        std::vector<size_t>{4, 3, 2, 7}
     }
 };
 
