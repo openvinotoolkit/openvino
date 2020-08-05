@@ -24,6 +24,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
@@ -226,6 +227,9 @@ bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 
     render();
 
+    // Clean up local variable not to hold node pointers
+    m_nodes_with_attributes.clear();
+
     return false;
 }
 
@@ -348,7 +352,7 @@ static std::string pretty_value(const vector<T>& value)
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
 {
-    if (!node->is_constant())
+    if (!op::is_constant(node))
         return {};
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
@@ -392,7 +396,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
     vector<string> attributes;
     attributes.push_back("shape=box");
 
-    if (node->is_output())
+    if (ngraph::op::is_output(node))
     {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");

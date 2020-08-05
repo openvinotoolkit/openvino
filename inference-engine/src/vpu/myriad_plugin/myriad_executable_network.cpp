@@ -12,7 +12,6 @@
 #include <vpu/blob_reader.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/runtime_graph.hpp>
-#include <details/ie_cnn_network_tools.h>
 #include <net_pass.h>
 #include <vpu/compile_env.hpp>
 
@@ -24,8 +23,10 @@ namespace MyriadPlugin {
 ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config) :
-            _config(config) {
+        const MyriadConfig& config,
+        const ie::ICore* core) :
+            _config(config),
+            _core(core) {
     VPU_PROFILE(ExecutableNetwork);
 
     _log = std::make_shared<Logger>(
@@ -53,8 +54,9 @@ ExecutableNetwork::ExecutableNetwork(
         ICNNNetwork& network,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config) :
-            ExecutableNetwork(std::move(mvnc), devicePool, config) {
+        const MyriadConfig& config,
+        const ie::ICore* core) :
+            ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
 
     const auto compilerLog = std::make_shared<Logger>(
@@ -68,7 +70,8 @@ ExecutableNetwork::ExecutableNetwork(
         network,
         static_cast<Platform>(_device->_platform),
         _config.compileConfig(),
-        compilerLog);
+        compilerLog,
+        _core);
 
     _actualNumExecutors = compiledGraph->numExecutors;
     _graphBlob = std::move(compiledGraph->blob);
@@ -146,8 +149,9 @@ void ExecutableNetwork::Import(std::istream& strm,
 ExecutableNetwork::ExecutableNetwork(std::istream& strm,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config) :
-    ExecutableNetwork(std::move(mvnc), devicePool, config) {
+                               const MyriadConfig& config,
+                               const ie::ICore* core) :
+    ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     Import(strm, devicePool, config);
 }
@@ -156,8 +160,9 @@ ExecutableNetwork::ExecutableNetwork(
         const std::string& blobFilename,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
-        const MyriadConfig& config) :
-    ExecutableNetwork(std::move(mvnc), devicePool, config) {
+        const MyriadConfig& config,
+        const ie::ICore* core) :
+    ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};
     Import(blobFile, devicePool, config);

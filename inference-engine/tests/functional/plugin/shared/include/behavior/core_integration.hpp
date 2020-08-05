@@ -5,7 +5,6 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <memory>
@@ -15,6 +14,7 @@
 #include <graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
+#include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -263,12 +263,6 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-// TODO: Issue: 31197 Remove this code
-#if defined(_WIN32) || defined(_WIN64)
-    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
-        GTEST_SKIP();
-    }
-#endif
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(pluginXML, content);
@@ -1382,7 +1376,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }
@@ -1419,7 +1413,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }

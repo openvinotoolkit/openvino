@@ -23,9 +23,12 @@
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -58,7 +61,7 @@ namespace
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Convolution> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
     {
         auto strides = node->get_window_movement_strides();
         auto dilations = node->get_window_dilation_strides();
@@ -87,7 +90,7 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::ConvolutionBackpropData> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
         auto strides = node->get_window_movement_strides_forward();
@@ -404,7 +407,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
                      "axes parameter is expected to be a static constant");
 
         AxisSet axes = node->get_axes();
@@ -487,9 +490,9 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
                      "parameter k is expected to be a static constant");
-        NGRAPH_CHECK(node->input_value(2).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::is_constant(node->input_value(2).get_node()),
                      "parameter top_k_axis is expected to be a static constant");
 
         const auto k = node->get_k();

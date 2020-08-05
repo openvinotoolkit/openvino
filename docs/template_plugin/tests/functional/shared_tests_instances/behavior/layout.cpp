@@ -5,32 +5,34 @@
 #include "behavior/layout.hpp"
 
 using namespace BehaviorTestsDefinitions;
+
 namespace {
-    const std::vector<std::map<std::string, std::string>> configs = {
-            {}
-    };
 
-    const std::vector<InferenceEngine::Layout> Layout = {
-           InferenceEngine::Layout::NCHW,
-           InferenceEngine::Layout::CHW,
-           InferenceEngine::Layout::NC,
-           InferenceEngine::Layout::C
-    };
+const std::vector<std::map<std::string, std::string>> configs = {
+    {}
+};
 
-    const std::vector<std::vector<size_t>> inputShapes = {
-            { 1, 3, 16, 16 },
-            { 3, 32, 16 },
-            { 1, 3 },
-            { 3 }
-    };
+const std::vector<InferenceEngine::Layout> Layout = {
+    InferenceEngine::Layout::NCHW,
+    InferenceEngine::Layout::CHW,
+    InferenceEngine::Layout::NC,
+    InferenceEngine::Layout::C
+};
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
-                            ::testing::Combine(
-                                    ::testing::Values(InferenceEngine::Precision::FP32),
-                                    ::testing::Values("TEMPLATE"),
-                                    ::testing::ValuesIn(configs),
-                                    ::testing::ValuesIn(Layout),
-                                    ::testing::ValuesIn(inputShapes)),
-                            LayoutTest::getTestCaseName);
+const std::vector<std::vector<size_t>> inputShapes = {
+    { 1, 3, 16, 16 },
+    { 3, 32, 16 },
+    { 1, 3 },
+    { 3 }
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
+                        ::testing::Combine(
+                                ::testing::Values(InferenceEngine::Precision::FP32),
+                                ::testing::Values("TEMPLATE"),
+                                ::testing::ValuesIn(configs),
+                                ::testing::ValuesIn(Layout),
+                                ::testing::ValuesIn(inputShapes)),
+                        LayoutTest::getTestCaseName);
 
 }  // namespace

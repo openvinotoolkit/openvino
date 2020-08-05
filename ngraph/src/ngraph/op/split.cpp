@@ -19,6 +19,7 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/split.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -51,7 +52,8 @@ void op::v0::Split::pre_validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, is_scalar(axis_shape), "The 'axis' input node must be scalar");
 
     const auto axis_node = input_value(1).get_node_shared_ptr();
-    NODE_VALIDATION_CHECK(this, axis_node->is_constant(), "The 'axis' input node must be constant");
+    NODE_VALIDATION_CHECK(
+        this, op::is_constant(axis_node), "The 'axis' input node must be constant");
     const auto axis_node_const = as_type_ptr<op::Constant>(axis_node);
     m_axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
@@ -102,7 +104,7 @@ void op::v0::Split::pre_validate_and_infer_types()
     set_input_is_relevant_to_shape(0);
 }
 
-NodeVector op::v0::Split::decompose_op() const
+OutputVector op::v0::Split::decompose_op() const
 {
     return builder::split(input_value(0), m_splits, m_axis);
 }
@@ -142,7 +144,7 @@ void op::v1::Split::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
-    if (input_value(1).get_node_shared_ptr()->is_constant() && data_ps.is_static())
+    if (op::is_constant(input_value(1).get_node()) && data_ps.is_static())
     {
         const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];

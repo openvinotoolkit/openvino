@@ -42,7 +42,6 @@ add_library(onnx_importer SHARED
         exceptions.cpp
         exceptions.hpp
         op/acos.hpp
-        op/acosh.cpp
         op/acosh.hpp
         op/add.hpp
         op/add.cpp
@@ -52,10 +51,8 @@ add_library(onnx_importer SHARED
         op/argmin.cpp
         op/argmin.hpp
         op/asin.hpp
-        op/asinh.cpp
         op/asinh.hpp
         op/atan.hpp
-        op/atanh.cpp
         op/atanh.hpp
         op/average_pool.cpp
         op/average_pool.hpp

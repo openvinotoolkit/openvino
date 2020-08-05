@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Relu::type_info;
+NGRAPH_RTTI_DEFINITION(op::Relu, "Relu", 0);
 
 op::Relu::Relu(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -74,7 +74,7 @@ namespace
     }
 }
 
-bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

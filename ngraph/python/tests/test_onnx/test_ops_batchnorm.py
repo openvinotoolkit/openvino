@@ -17,7 +17,7 @@
 import numpy as np
 import onnx
 
-from tests.test_onnx.utils import run_node
+from tests.test_onnx.utils import run_node, xfail_issue_35893
 
 
 def make_batch_norm_node(**node_attributes):
@@ -26,6 +26,7 @@ def make_batch_norm_node(**node_attributes):
     )
 
 
+@xfail_issue_35893
 def test_batch_norm_test_node():
     data = np.arange(48).reshape((1, 3, 4, 4)).astype(np.float32)
     scale = np.ones((3,)).astype(np.float32)  # Gamma

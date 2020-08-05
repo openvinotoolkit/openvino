@@ -1,4 +1,4 @@
-## EmbeddingBagOffsetsSum <a name="EmbeddingBagOffsetsSum"></a>
+## EmbeddingBagOffsetsSum <a name="EmbeddingBagOffsetsSum"></a> {#openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3}
 
 **Versioned name**: *EmbeddingBagOffsetsSum-3*
 

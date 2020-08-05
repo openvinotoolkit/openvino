@@ -10,9 +10,6 @@
 #
 #-------------------------------------------------------------------------------
 
-# Segmentation fault
-onnx_model_quantize_linear_const_scale_const_zero_p
-
 # Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
@@ -26,22 +23,13 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8
 # C++ exception with description "Input data precision not supported. Expected float.
 IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 
-# Not supported ONNX op: QLinearConv
-onnx_model_quant_conv_linear
-onnx_model_quant_conv_linear_2d
-onnx_model_quant_conv_linear_3d
-
-# Not supported ONNX op: QLinearMatMul
-onnx_model_qlinear_matmul
-onnx_model_qlinear_matmul_3d
-
-# Not supported ONNX op: ConvInteger
+# Not supported ONNX op: QuantizedConvolution
 onnx_model_conv_integer
 onnx_model_conv_integer_zero_point_zero
 onnx_model_conv_integer_no_zero_point
 onnx_model_conv_integer_pads
 
-# Not supported ONNX op: MatMulInteger
+# Unsupported operator detected in the graph: QuantizedDot
 onnx_model_matmul_integer
 onnx_model_matmul_integer_zero_point_zero
 onnx_model_matmul_integer_no_zero_point
@@ -49,6 +37,8 @@ onnx_model_matmul_integer_scalar
 onnx_model_matmul_integer_4d
 onnx_model_matmul_integer_4d_zero_point
 onnx_model_matmul_integer_4d_no_zero_point
+onnx_model_qlinear_matmul
+onnx_model_qlinear_matmul_3d
 
 # Not supported ONNX op: ScatterND
 onnx_model_scatterND
@@ -57,20 +47,10 @@ onnx_model_scatterND
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
-# Not supported ONNX op: Range
-onnx_model_range_positive_step
-onnx_model_range_negative_step
-
 # Not supported ONNX op: Round
 onnx_model_round
 
-# Not supported ONNX op: CumSum
-onnx_model_cum_sum_1d
-onnx_model_cum_sum_2d_axis_input
-onnx_model_cum_sum_2d_dynamic_axis_input
-onnx_model_cum_sum_3d_exclusive_reverse
-
-# Cannot cast ngraph node LSTMSequence to CNNLayer
+# LSTMSequence Layer is not instance of RNNLayer class
 onnx_model_lstm_fwd_with_clip
 onnx_model_lstm_fwd_mixed_seq
 onnx_model_lstm_fwd_hardsigmoid_activation
@@ -82,20 +62,15 @@ onnx_model_lstm_mixed_seq_reverse
 onnx_model_depth_to_space_chw
 onnx_model_space_to_depth_chw
 onnx_model_split_equal_parts_default
-onnx_model_split_equal_parts_2d
-onnx_model_split_variable_parts_2d
 onnx_model_argmin_no_keepdims
 onnx_model_batch_norm_default
 onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
-onnx_top_k_opset_10_const_k
-onnx_top_k_opset_11_const_k_smallest
 onnx_model_erf
 onnx_model_addmul_abc
 
 # data [<name>] doesn't exist
-onnx_model_expand_static_shape
 onnx_model_sum_one_input
 onnx_model_shape
 onnx_model_eye_like
@@ -108,16 +83,19 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
 
+# nGraph function's output number 0 was not found in the CNNNetwork built from it.
+onnx_model_split_equal_parts_2d
+onnx_model_split_variable_parts_2d
+onnx_top_k_opset_10_const_k
+onnx_top_k_opset_11_const_k_smallest
+
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
-onnx_model_convtranspose_output_shape
-onnx_model_convtranspose_output_shape_auto_pads_same_upper
-onnx_model_convtranspose_output_shape_auto_pads_same_lower
-onnx_model_convtranspose_groups_w_pads
-onnx_model_convtranspose_groups_pads_bias
+
+#Incorrect number of inputs
 onnx_model_prelu
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
@@ -140,18 +118,50 @@ ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
 onnx_dyn_shapes_slice_10_3d_input_12_axes
+IE_CPU.fused_clamp_int64
+IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+onnx_dyn_shapes_ab_plus_c_inference
+onnx_dyn_shapes_dynamic_rank_input_inference
+onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_expand_1_dyn_shape
+onnx_dyn_shapes_expand_2_dyn_shape
+onnx_dyn_shapes_expand_3_dyn_shape
+onnx_dyn_shapes_expand_4_dyn_shape
+onnx_dyn_shapes_expand_5_dyn_shape
+onnx_dyn_shapes_expand_6_dyn_shape
+onnx_dyn_shapes_expand_uint16_dyn_shape
+onnx_dyn_shapes_model_global_lp_dynamic_hw
+onnx_dyn_shapes_slice_10_2d_input
+onnx_dyn_shapes_slice_10_default_steps
+onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
+onnx_dyn_shapes_slice_10_clamp_neg_ends
+onnx_dyn_shapes_slice_10_3d_input
+onnx_dyn_shapes_slice_10_3d_input_neg_axes
+onnx_dyn_shapes_slice_10_3d_input_20_axes
+onnx_dyn_shapes_slice_10_4d_input_23_axes
+onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
+onnx_dyn_shapes_slice_10_3d_input_12_axes
+onnx_top_k_opset_10
+onnx_model_one_hot_without_axis
+
+# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
+IE_CPU.fused_clamp_uint64
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
 arg_max_dyn_shape
 
-# Constant has zero dimension that is not allowable
-onnx_top_k_opset_10
-onnx_model_one_hot_with_axis
-onnx_model_one_hot_without_axis
+# Result mismatch
+onnx_model_argmax_float
+onnx_model_argmin_float
 
-# Positive input shape should be the same as negative input shape
+# Constant has zero dimension that is not allowable
+onnx_dyn_shapes_transpose
+
+# Select layer with name 'y' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks
 onnx_model_where
 
 # y Incorrect input precision. Only FP32 is supported!
@@ -163,14 +173,44 @@ onnx_model_conv_with_dynamic_batch
 # Segmentation fault
 bool_init_and
 onnx_model_fake_quantize_nonconst_inputs_infer
+onnx_model_quantize_linear_const_scale_const_zero_p
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
+onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
+fused_clamp_uint16
+fused_clamp_uint8
+fused_clamp_int32
+fused_clamp_int8
+fused_clamp_float
+fused_clamp_int16
+onnx_dyn_shapes_model_acosh_1_3
+onnx_dyn_shapes_model_acosh_3_2
+onnx_dyn_shapes_model_asinh_1_3
+onnx_dyn_shapes_model_asinh_3_2
+onnx_dyn_shapes_model_atanh_1_3
+onnx_dyn_shapes_model_atanh_3_2
+onnx_dyn_shapes_avg_pool_dyn_shape
+onnx_dyn_shapes_max_pool_dyn_shape
+onnx_dyn_shapes_global_avg_pool_dyn_shape
+onnx_dyn_shapes_global_max_pool_dyn_shape
+onnx_dyn_shapes_model_flatten
+onnx_model_instance_normalization_dyn_shape
+onnx_model_instance_normalization_dyn_shape2
+onnx_dyn_shapes_arg_max_dyn_shape
+onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
+onnx_dyn_shapes_model_tile
+onnx_dyn_shapes_model_convtranspose_dyn_data
+onnx_dyn_shapes_model_convtranspose_dyn_filters
+onnx_dyn_shapes_flatten_axis_0
+onnx_dyn_shapes_flatten_axis
+onnx_dyn_shapes_flatten_neg_axis
+onnx_model_range_positive_step
+onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
-
 
 #-------------------------------------------------------------------------------
 #
@@ -182,10 +222,6 @@ onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 shape_of_vector
 shape_of_matrix
 shape_of_5d
-mvn_mean_normalization
-mvn_mean_normalization_split_channels
-mvn_mean_variance_normalization
-mvn_mean_variance_normalization_split_channels
 numeric_float_nan
 numeric_float_inf
 numeric_double_nan
@@ -313,7 +349,6 @@ reduce_sum_matrix_to_scalar_zero_by_zero
 reduce_sum_vector_zero
 reduce_sum_matrix_cols_zero
 reduce_sum_matrix_rows_zero
-onnx_model_softmax_0D
 reduce_sum_keep_matrix_to_scalar_zero_by_zero
 reduce_sum_keep_matrix_cols_zero
 reduce_product_matrix_columns
@@ -405,6 +440,7 @@ max_pool_int8
 avg_pool_uint8
 avg_pool_int8
 max_to_scalar_int8
+onnx_dyn_shapes_model_tile_static
 
 # Segfault
 gather_4d_indices_no_axis_uint8
@@ -491,6 +527,7 @@ select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
+IE_CPU.fused_clamp_double
 
 # Incorrect precision bf16!
 convert_float32_bf16
@@ -648,12 +685,6 @@ reshape_v1
 dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
 
-# Cannot cast ngraph node PartialSlice to CNNLayer!
-partial_slice_static
-partial_slice_partial_shape
-partial_slice_unkown_rank
-partial_slice_bprop_unkown_rank
-
 # Pad Pad_524448 with not constant pad_value is not allowed
 pad_exterior_1d
 pad_negative_exterior_1d
@@ -698,20 +729,10 @@ lrn_6D_across_2_axes
 # std::exception
 lrn_2d_across_outermost_axis
 
-# Cannot cast ngraph node LayerNorm_664923 to CNNLayer!
-layer_norm_affine_stats
-
-# Cannot cast ngraph node LayerNormBackprop_669060 to CNNLayer!
-layer_norm_bprop_affine_stats
-layer_norm_bprop_affine
-layer_norm_bprop_4d_input
-
 # Cannot cast ngraph node GroupConvolutionBackpropFilters_686350 to CNNLayer!
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-v1_group_conv_backprop_data
-v1_group_conv_backprop_data_output_shape
 prelu
 prelu_shared_slope
 prelu_negative_slope
@@ -748,22 +769,18 @@ conv_bias_add_2d
 
 # Unsupported primitive of type: SpaceToBatch
 space_to_batch
-
-# Unsupported primitive of type: BatchToSpace
 batch_to_space
 
 # [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
 normalize_across_1axis_5d
 normalize_across_123axes_5d
 
-# Cannot cast ngraph node Gemm to CNNLayer!
+# Unsupported operator detected in the graph.
 gemm
 gemm_C
 gemm_broadcast_input_C
 gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
-
-# Cannot cast ngraph node ScaleShift to CNNLayer!
 scale_shift_no_broadcast
 scale_shift
 
@@ -781,25 +798,20 @@ lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 lstm_cell_activaction_functions
 
-# Cannot cast ngraph node RNNCell to CNNLayer!
+# RNNCell should be converted to RNNCellIE operation!
 rnn_cell_no_bias
 rnn_cell_bias_clip
 rnn_cell_activation_function
 
-# Cannot cast ngraph node GRUCell to CNNLayer!
+# GRUCell should be converted to GRUCellIE operation!
 gru_cell_bias_clip
 gru_cell_linear_before_reset
 gru_cell_activation_function
 
-# Cannot cast ngraph node CrossEntropy to CNNLayer!
-cross_entropy_with_soft_labels
-cross_entropy_with_one_hot
-
-# Cannot cast ngraph node EmbeddingLookup to CNNLayer!
-embedding_lookup_4x5_reverse
-embedding_lookup_10x1_arbitrary
-embedding_lookup_10x1_arbitrary_index_type_int
-embedding_lookup_10x1_arbitrary_index_type_int64
+# Detected op not belonging to opset1!
+onnx_model_quant_conv_linear
+onnx_model_quant_conv_linear_2d
+onnx_model_quant_conv_linear_3d
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
@@ -1018,39 +1030,6 @@ matmul_0x2_2x0
 matmul_3x2_2x0
 matmul_2x3_3x3_int64
 
-onnx_dyn_shapes_ab_plus_c_inference
-onnx_dyn_shapes_dynamic_rank_input_inference
-onnx_dyn_shapes_model_conv_with_dynamic_batch
-onnx_dyn_shapes_arg_max_dyn_shape
-onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
-onnx_dyn_shapes_expand_1_dyn_shape
-onnx_dyn_shapes_expand_2_dyn_shape
-onnx_dyn_shapes_expand_3_dyn_shape
-onnx_dyn_shapes_expand_4_dyn_shape
-onnx_dyn_shapes_expand_5_dyn_shape
-onnx_dyn_shapes_expand_6_dyn_shape
-onnx_dyn_shapes_expand_uint16_dyn_shape
-onnx_dyn_shapes_model_tile
-onnx_dyn_shapes_model_tile_static
-onnx_dyn_shapes_model_convtranspose_dyn_data
-onnx_dyn_shapes_model_convtranspose_dyn_filters
-onnx_dyn_shapes_transpose
-onnx_dyn_shapes_flatten_axis_0
-onnx_dyn_shapes_flatten_axis
-onnx_dyn_shapes_flatten_neg_axis
-onnx_dyn_shapes_model_global_lp_dynamic_hw
-onnx_dyn_shapes_slice_10_2d_input
-onnx_dyn_shapes_slice_10_default_steps
-onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
-onnx_dyn_shapes_slice_10_clamp_neg_ends
-onnx_dyn_shapes_slice_10_3d_input
-onnx_dyn_shapes_slice_10_3d_input_neg_axes
-onnx_dyn_shapes_slice_10_3d_input_20_axes
-onnx_dyn_shapes_slice_10_4d_input_23_axes
-onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
-onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
-onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
-
 onnx_bool_const_op
 onnx_bool_init_and
 onnx_bool_input_or
@@ -1075,30 +1054,20 @@ non_zero_all_0s
 #
 #-------------------------------------------------------------------------------
 
+# Cannot cast ngraph node ReplaceSlice to CNNLayer!
+# Incorrect precision u32!
+# Parameter has zero dimension that is not allowable
+IE_CPU.fused_clamp_uint32
+
 # Cannot cast ngraph node Reshape to CNNLayer!
 # Parameter has zero dimension that is not allowable
 IE_CPU/FlattenTest.flatten
 
 # Segfault
-IE_CPU.onnx_model_conv2d_strides_padding
-IE_CPU.onnx_model_conv2d_strides_no_padding
-IE_CPU.onnx_model_conv2d_strides_assymetric_padding
-IE_CPU.onnx_model_conv2d_dilation_assymetric_pads_strides
 IE_CPU.onnx_model_instance_normalization
-IE_CPU.onnx_model_instance_normalization_dyn_shape
-IE_CPU.onnx_model_instance_normalization_dyn_shape2
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.cum_sum_2dim_default_axis
-IE_CPU.fused_clamp_double
-IE_CPU.fused_clamp_int8
-IE_CPU.fused_clamp_int16
-IE_CPU.fused_clamp_int32
-IE_CPU.fused_clamp_int64
-IE_CPU.fused_clamp_uint8
-IE_CPU.fused_clamp_uint16
-IE_CPU.fused_clamp_uint32
-IE_CPU.fused_clamp_uint64
 
 #Node <name> contains empty child edge for index 0
 IE_CPU.backwards_log
@@ -1118,23 +1087,17 @@ IE_CPU.atanh
 IE_CPU.asinh
 IE_CPU.acosh
 
-# Dynamic backend wrapper stops being used for IE
-IE_CPU.onnx_dyn_shapes_model_acosh_1_3
-IE_CPU.onnx_dyn_shapes_model_acosh_3_2
-IE_CPU.onnx_dyn_shapes_model_asinh_1_3
-IE_CPU.onnx_dyn_shapes_model_asinh_3_2
-IE_CPU.onnx_dyn_shapes_model_atanh_1_3
-IE_CPU.onnx_dyn_shapes_model_atanh_3_2
-IE_CPU.onnx_dyn_shapes_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_model_flatten
-IE_CPU.onnx_dyn_shapes_slice_10_default_axes
-IE_CPU.fused_clamp_float
+# Interpolate-1 in linear mode
+# 2.666666507720947266 is not close to 3 at index 1
+IE_CPU.interpolate_down_scales_const_linear
 
 # Result mismatch 2.666666507720947266 is not close to 3 at index 1
 IE_CPU.onnx_resize10_down_scales_const_linear
+IE_CPU.onnx_resize11_scales_down_linear
+
+# C++ exception with description "Interpolate operation should be converted to Interp
+# not constant output_shape passed to Interpolate-1
+IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd

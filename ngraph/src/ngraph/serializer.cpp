@@ -990,11 +990,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::v0::Broadcast>(args[0], shape, axes);
             break;
         }
-        case OP_TYPEID::BroadcastDistributed:
-        {
-            node = make_shared<op::BroadcastDistributed>(args[0]);
-            break;
-        }
         case OP_TYPEID::BroadcastLike:
         {
             auto initial_axes = deserialize_axis_set(node_js.at("initial_axes"));
@@ -1035,116 +1030,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Convert>(args[0], target_type);
             break;
         }
-        case OP_TYPEID::Convolution:
-        {
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto window_dilation_strides =
-                node_js.at("window_dilation_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<std::ptrdiff_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<std::ptrdiff_t>>();
-
-            // For backwards compatibility, we accept "image_dilation_strides" in place of
-            // "data_dilation_strides", and we also allow it to be omitted altogether.
-            json data_dilation_strides;
-            if (has_key(node_js, "data_dilation_strides"))
-            {
-                data_dilation_strides = node_js["data_dilation_strides"];
-            }
-            else if (has_key(node_js, "image_dilation_strides"))
-            {
-                data_dilation_strides = node_js["image_dilation_strides"];
-            }
-
-            op::PadType pad_type = read_pad_type(node_js);
-
-            if (data_dilation_strides.empty())
-            {
-                node = make_shared<op::v0::Convolution>(args[0],
-                                                        args[1],
-                                                        window_movement_strides,
-                                                        window_dilation_strides,
-                                                        padding_below,
-                                                        padding_above);
-            }
-            else
-            {
-                node = make_shared<op::v0::Convolution>(
-                    args[0],
-                    args[1],
-                    window_movement_strides,
-                    window_dilation_strides,
-                    padding_below,
-                    padding_above,
-                    data_dilation_strides.get<std::vector<size_t>>(),
-                    pad_type);
-            }
-            break;
-        }
-        case OP_TYPEID::ConvolutionBackpropData:
-        {
-            auto data_batch_shape = node_js.at("data_batch_shape").get<vector<size_t>>();
-            auto window_movement_strides_forward =
-                node_js.at("window_movement_strides_forward").get<vector<size_t>>();
-            auto window_dilation_strides_forward =
-                node_js.at("window_dilation_strides_forward").get<vector<size_t>>();
-            auto padding_below_forward =
-                node_js.at("padding_below_forward").get<vector<std::ptrdiff_t>>();
-            auto padding_above_forward =
-                node_js.at("padding_above_forward").get<vector<std::ptrdiff_t>>();
-            auto data_dilation_strides_forward =
-                node_js.at("data_dilation_strides_forward").get<vector<size_t>>();
-            node = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
-                                                                args[0],
-                                                                args[1],
-                                                                window_movement_strides_forward,
-                                                                window_dilation_strides_forward,
-                                                                padding_below_forward,
-                                                                padding_above_forward,
-                                                                data_dilation_strides_forward);
-            break;
-        }
-        case OP_TYPEID::ConvolutionBias:
-        {
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto window_dilation_strides =
-                node_js.at("window_dilation_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<std::ptrdiff_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<std::ptrdiff_t>>();
-            auto data_dilation_strides = node_js.at("data_dilation_strides").get<vector<size_t>>();
-
-            node = make_shared<op::ConvolutionBias>(args[0],
-                                                    args[1],
-                                                    args[2],
-                                                    window_movement_strides,
-                                                    window_dilation_strides,
-                                                    padding_below,
-                                                    padding_above,
-                                                    data_dilation_strides);
-            break;
-        }
-        case OP_TYPEID::ConvolutionBiasAdd:
-        {
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto window_dilation_strides =
-                node_js.at("window_dilation_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<std::ptrdiff_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<std::ptrdiff_t>>();
-            auto data_dilation_strides = node_js.at("data_dilation_strides").get<vector<size_t>>();
-
-            node = make_shared<op::ConvolutionBiasAdd>(args[0],
-                                                       args[1],
-                                                       args[2],
-                                                       args[3],
-                                                       window_movement_strides,
-                                                       window_dilation_strides,
-                                                       padding_below,
-                                                       padding_above,
-                                                       data_dilation_strides);
-            break;
-        }
         case OP_TYPEID::Cos:
         {
             node = make_shared<op::Cos>(args[0]);
@@ -1160,22 +1045,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             auto exclusive = node_js.at("exclusive");
             auto reverse = node_js.at("reverse");
             node = make_shared<op::CumSum>(args[0], args[1], exclusive, reverse);
-            break;
-        }
-        case OP_TYPEID::CrossEntropy:
-        {
-            auto soft_label = node_js.at("soft_label");
-            auto ignore_index = node_js.at("ignore_index");
-            node = make_shared<op::CrossEntropy>(args[0], args[1], soft_label, ignore_index);
-            break;
-        }
-        case OP_TYPEID::CropAndResize:
-        {
-            auto resize_method =
-                as_type<op::CropAndResize::ResizeMethod>(node_js.at("resize_method").get<string>());
-            auto extrapolation_value = node_js.at("extrapolation_value").get<float>();
-            node = make_shared<op::CropAndResize>(
-                args[0], args[1], args[2], args[3], resize_method, extrapolation_value);
             break;
         }
         case OP_TYPEID::CTCGreedyDecoder: { break;
@@ -1246,11 +1115,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Elu>(args[0], alpha);
             break;
         }
-        case OP_TYPEID::EmbeddingLookup:
-        {
-            node = make_shared<op::EmbeddingLookup>(args[0], args[1]);
-            break;
-        }
         case OP_TYPEID::Equal:
         {
             node = make_shared<op::v0::Equal>(
@@ -1295,15 +1159,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Gelu>(args[0]);
             break;
         }
-        case OP_TYPEID::Gemm:
-        {
-            auto alpha = node_js.at("alpha").get<double>();
-            auto beta = node_js.at("beta").get<double>();
-            auto transA = node_js.at("transA").get<bool>();
-            auto transB = node_js.at("transB").get<bool>();
-            node = make_shared<op::Gemm>(args[0], args[1], args[2], alpha, beta, transA, transB);
-            break;
-        }
         case OP_TYPEID::GetOutputElement:
         {
             node = make_shared<op::GetOutputElement>(
@@ -1329,82 +1184,9 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::GRN>(args[0], bias);
             break;
         }
-        case OP_TYPEID::GroupConvolution:
-        {
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto window_dilation_strides =
-                node_js.at("window_dilation_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<std::ptrdiff_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<std::ptrdiff_t>>();
-            auto data_dilation_strides = node_js.at("data_dilation_strides").get<vector<size_t>>();
-            op::PadType pad_type = read_pad_type(node_js);
-            if (has_key(node_js, "groups"))
-            {
-                auto groups = node_js.at("groups").get<size_t>();
-                node = make_shared<op::GroupConvolution>(args[0],
-                                                         args[1],
-                                                         window_movement_strides,
-                                                         window_dilation_strides,
-                                                         padding_below,
-                                                         padding_above,
-                                                         data_dilation_strides,
-                                                         groups,
-                                                         pad_type);
-            }
-            else
-            {
-                node = make_shared<op::GroupConvolution>(args[0],
-                                                         args[1],
-                                                         window_movement_strides,
-                                                         window_dilation_strides,
-                                                         padding_below,
-                                                         padding_above,
-                                                         data_dilation_strides,
-                                                         pad_type);
-            }
-            break;
-        }
-        case OP_TYPEID::GroupConvolutionBackpropData:
-        {
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto window_dilation_strides =
-                node_js.at("window_dilation_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<std::ptrdiff_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<std::ptrdiff_t>>();
-            auto groups = node_js.at("groups").get<size_t>();
-
-            node = make_shared<op::GroupConvolutionBackpropData>(args[0],
-                                                                 args[1],
-                                                                 args[2],
-                                                                 window_movement_strides,
-                                                                 window_dilation_strides,
-                                                                 padding_below,
-                                                                 padding_above,
-                                                                 groups);
-            break;
-        }
         case OP_TYPEID::HardSigmoid:
         {
             node = make_shared<op::HardSigmoid>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::LayerNorm:
-        {
-            auto keep_stats = node_js.at("keep_stats").get<bool>();
-            auto use_affine = node_js.at("use_affine").get<bool>();
-            auto epsilon = node_js.at("epsilon").get<double>();
-            auto begin_norm_axis = node_js.at("begin_norm_axis").get<int64_t>();
-            if (use_affine)
-            {
-                node = make_shared<op::LayerNorm>(
-                    args[0], args[1], args[2], keep_stats, begin_norm_axis, epsilon);
-            }
-            else
-            {
-                node = make_shared<op::LayerNorm>(args[0], keep_stats, begin_norm_axis, epsilon);
-            }
             break;
         }
         case OP_TYPEID::Less:
@@ -1678,16 +1460,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Parameter>(element_type, read_partial_shape(shape), cacheable);
             break;
         }
-        case OP_TYPEID::PartialSlice:
-        {
-            auto axes = node_js.at("axes").get<vector<size_t>>();
-            auto lower_bounds = node_js.at("lower_bounds").get<vector<int64_t>>();
-            auto upper_bounds = node_js.at("upper_bounds").get<vector<int64_t>>();
-            auto decrease_axes = node_js.at("decrease_axes").get<vector<size_t>>();
-            node = make_shared<op::PartialSlice>(
-                args[0], axes, lower_bounds, upper_bounds, decrease_axes);
-            break;
-        }
         case OP_TYPEID::Passthrough:
         {
             std::vector<json> outputs_js = node_js.at("output_shapes");
@@ -1804,12 +1576,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
 
             break;
         }
-        case OP_TYPEID::Recv:
-        {
-            auto src_id = node_js.at("source_id").get<size_t>();
-            node = make_shared<op::Recv>(args[0], src_id);
-            break;
-        }
         case OP_TYPEID::Range:
         {
             node = make_shared<op::Range>(args[0], args[1], args[2]);
@@ -1908,31 +1674,14 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Round>(args[0]);
             break;
         }
-        case OP_TYPEID::ScaleShift:
-        {
-            node = make_shared<op::ScaleShift>(args[0], args[1], args[2]);
-            break;
-        }
         case OP_TYPEID::Select:
         {
             node = make_shared<op::Select>(args[0], args[1], args[2]);
             break;
         }
-        case OP_TYPEID::Stack:
-        {
-            auto axis = node_js.at("axis").get<size_t>();
-            node = make_shared<op::Stack>(static_cast<OutputVector>(args), axis);
-            break;
-        }
         case OP_TYPEID::Selu:
         {
             node = make_shared<op::Selu>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::Send:
-        {
-            auto dest_id = node_js.at("dest_id").get<size_t>();
-            node = make_shared<op::Send>(args[0], dest_id);
             break;
         }
         case OP_TYPEID::ShapeOf:
@@ -1987,13 +1736,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
                 node = make_shared<op::Softmax>(args[0], args[1]);
             }
 
-            break;
-        }
-        case OP_TYPEID::SoftmaxCrossEntropy:
-        {
-            auto soft_label = node_js.at("soft_label");
-            auto ignore_index = node_js.at("ignore_index");
-            node = make_shared<op::SoftmaxCrossEntropy>(args[0], args[1], soft_label, ignore_index);
             break;
         }
         case OP_TYPEID::SpaceToDepth:
@@ -2101,7 +1843,7 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
 
         case OP_TYPEID::Tile:
         {
-            node = make_shared<op::Tile>(args[0], args[1]);
+            node = make_shared<op::v0::Tile>(args[0], args[1]);
             break;
         }
         case OP_TYPEID::TopK:
@@ -2341,8 +2083,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["shape"] = tmp->get_broadcast_shape();
         break;
     }
-    case OP_TYPEID::BroadcastDistributed: { break;
-    }
     case OP_TYPEID::BroadcastLike:
     {
         auto tmp = static_cast<const op::BroadcastLike*>(&n);
@@ -2387,48 +2127,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["target_type"] = write_element_type(tmp->get_convert_element_type());
         break;
     }
-    case OP_TYPEID::Convolution:
-    {
-        auto tmp = static_cast<const op::v0::Convolution*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        node["pad_type"] = tmp->get_pad_type();
-        break;
-    }
-    case OP_TYPEID::ConvolutionBackpropData:
-    {
-        auto tmp = static_cast<const op::v0::ConvolutionBackpropData*>(&n);
-        node["data_batch_shape"] = tmp->get_data_batch_shape();
-        node["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
-        node["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
-        node["padding_below_forward"] = tmp->get_padding_below_forward();
-        node["padding_above_forward"] = tmp->get_padding_above_forward();
-        node["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
-        break;
-    }
-    case OP_TYPEID::ConvolutionBias:
-    {
-        auto tmp = static_cast<const op::ConvolutionBias*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        break;
-    }
-    case OP_TYPEID::ConvolutionBiasAdd:
-    {
-        auto tmp = static_cast<const op::ConvolutionBiasAdd*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        break;
-    }
     case OP_TYPEID::Cos: { break;
     }
     case OP_TYPEID::Cosh: { break;
@@ -2438,20 +2136,6 @@ json JSONSerializer::serialize_node(const Node& n)
         auto tmp = static_cast<const op::CumSum*>(&n);
         node["exclusive"] = tmp->is_exclusive();
         node["reverse"] = tmp->is_reverse();
-        break;
-    }
-    case OP_TYPEID::CrossEntropy:
-    {
-        auto tmp = static_cast<const op::CrossEntropy*>(&n);
-        node["soft_label"] = tmp->get_soft_label();
-        node["ignore_index"] = tmp->get_ignore_index();
-        break;
-    }
-    case OP_TYPEID::CropAndResize:
-    {
-        auto tmp = static_cast<const op::CropAndResize*>(&n);
-        node["resize_method"] = as_string(tmp->get_resize_method());
-        node["extrapolation_value"] = tmp->get_extrapolation_value();
         break;
     }
     case OP_TYPEID::CTCGreedyDecoder: { break;
@@ -2517,8 +2201,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["alpha"] = tmp->get_alpha();
         break;
     }
-    case OP_TYPEID::EmbeddingLookup: { break;
-    }
     case OP_TYPEID::Equal:
     {
         const op::util::BinaryElementwiseComparison* tmp = nullptr;
@@ -2557,15 +2239,6 @@ json JSONSerializer::serialize_node(const Node& n)
     }
     case OP_TYPEID::Gelu: { break;
     }
-    case OP_TYPEID::Gemm:
-    {
-        auto tmp = static_cast<const op::Gemm*>(&n);
-        node["alpha"] = tmp->get_alpha();
-        node["beta"] = tmp->get_beta();
-        node["transA"] = tmp->get_transA();
-        node["transB"] = tmp->get_transB();
-        break;
-    }
     case OP_TYPEID::Greater:
     {
         const op::util::BinaryElementwiseComparison* tmp = nullptr;
@@ -2592,41 +2265,7 @@ json JSONSerializer::serialize_node(const Node& n)
         node["bias"] = tmp->get_bias();
         break;
     }
-    case OP_TYPEID::GroupConvolution:
-    {
-        auto tmp = static_cast<const op::GroupConvolution*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        if (!tmp->has_groups_in_filters())
-        {
-            node["groups"] = tmp->get_groups();
-        }
-        node["pad_type"] = tmp->get_pad_type();
-        break;
-    }
-    case OP_TYPEID::GroupConvolutionBackpropData:
-    {
-        auto tmp = static_cast<const op::GroupConvolutionBackpropData*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["groups"] = tmp->get_groups();
-        break;
-    }
     case OP_TYPEID::HardSigmoid: { break;
-    }
-    case OP_TYPEID::LayerNorm:
-    {
-        auto tmp = static_cast<const op::LayerNorm*>(&n);
-        node["keep_stats"] = tmp->get_keep_stats();
-        node["use_affine"] = tmp->get_use_affine();
-        node["epsilon"] = tmp->get_epsilon();
-        node["begin_norm_axis"] = tmp->get_begin_norm_axis();
-        break;
     }
     case OP_TYPEID::Less:
     {
@@ -2801,15 +2440,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["element_type"] = write_element_type(tmp->get_element_type());
         break;
     }
-    case OP_TYPEID::PartialSlice:
-    {
-        auto tmp = dynamic_cast<const op::PartialSlice*>(&n);
-        node["axes"] = tmp->get_axes();
-        node["lower_bounds"] = tmp->get_lower_bounds();
-        node["upper_bounds"] = tmp->get_upper_bounds();
-        node["decrease_axes"] = tmp->get_decrease_axes();
-        break;
-    }
     case OP_TYPEID::Passthrough:
     {
         auto tmp = static_cast<const op::Passthrough*>(&n);
@@ -2879,12 +2509,6 @@ json JSONSerializer::serialize_node(const Node& n)
     }
     case OP_TYPEID::Range: { break;
     }
-    case OP_TYPEID::Recv:
-    {
-        auto tmp = static_cast<const op::Recv*>(&n);
-        node["source_id"] = tmp->get_src_id();
-        break;
-    }
     case OP_TYPEID::Relu: { break;
     }
     case OP_TYPEID::ReplaceSlice:
@@ -2931,17 +2555,9 @@ json JSONSerializer::serialize_node(const Node& n)
         node["activations_beta"] = tmp->get_activations_beta();
         break;
     }
-    case OP_TYPEID::ScaleShift: { break;
-    }
     case OP_TYPEID::Select: { break;
     }
     case OP_TYPEID::Selu: { break;
-    }
-    case OP_TYPEID::Send:
-    {
-        auto tmp = static_cast<const op::Send*>(&n);
-        node["dest_id"] = tmp->get_dest_id();
-        break;
     }
     case OP_TYPEID::ShapeOf: { break;
     }
@@ -3012,20 +2628,7 @@ json JSONSerializer::serialize_node(const Node& n)
         node["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
-    case OP_TYPEID::Stack:
-    {
-        auto tmp = static_cast<const op::Stack*>(&n);
-        node["axis"] = tmp->get_axis();
-        break;
-    }
     case OP_TYPEID::Softmax: { break;
-    }
-    case OP_TYPEID::SoftmaxCrossEntropy:
-    {
-        auto tmp = static_cast<const op::SoftmaxCrossEntropy*>(&n);
-        node["soft_label"] = tmp->get_soft_label();
-        node["ignore_index"] = tmp->get_ignore_index();
-        break;
     }
     case OP_TYPEID::Tan: { break;
     }

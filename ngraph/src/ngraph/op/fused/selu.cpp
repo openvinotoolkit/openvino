@@ -39,7 +39,7 @@ bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::v0::Selu::decompose_op() const
+OutputVector op::v0::Selu::decompose_op() const
 {
     const auto data = input_value(0);
     const auto alpha = input_value(1);

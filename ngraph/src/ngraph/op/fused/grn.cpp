@@ -62,7 +62,7 @@ void op::GRN::pre_validate_and_infer_types()
     }
 }
 
-NodeVector op::GRN::decompose_op() const
+OutputVector op::GRN::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     const Shape& input_shape{data.get_shape()};
@@ -88,7 +88,7 @@ NodeVector op::GRN::decompose_op() const
         data = builder::reshape(data, input_shape);
     }
 
-    return as_node_vector({data});
+    return OutputVector{data};
 }
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const

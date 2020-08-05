@@ -150,6 +150,7 @@ enum class ActivationFunction {
     SOFTPLUS,
     SOFTSIGN,
     SWISH,
+    HSWISH,
     MISH,
     GELU
 };
@@ -480,6 +481,8 @@ enum class ContractMode {
 enum class GatherAxis {
     X,
     Y,
+    Z,
+    W,
     FEATURE,
     BATCH,
 };

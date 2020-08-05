@@ -80,7 +80,7 @@ namespace
     }
 }
 
-bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

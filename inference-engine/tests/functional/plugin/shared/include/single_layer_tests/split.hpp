@@ -23,7 +23,7 @@ typedef std::tuple<
 > splitParams;
 
 class SplitLayerTest : public testing::WithParamInterface<splitParams>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<splitParams> obj);
 

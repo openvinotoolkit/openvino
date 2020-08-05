@@ -19,9 +19,19 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {
+    namespace op
+    {
+        ONNX_IMPORTER_API
+        bool is_null(const ngraph::Node* node);
+        ONNX_IMPORTER_API
+        bool is_null(const std::shared_ptr<ngraph::Node>& node);
+        ONNX_IMPORTER_API
+        bool is_null(const Output<ngraph::Node>& output);
+    }
     namespace onnx_import
     {
         /// \brief Represents a missing optional input or output of an ONNX node
@@ -40,9 +50,8 @@ namespace ngraph
             const NodeTypeInfo& get_type_info() const override { return type_info; }
             NullNode() = default;
 
-            bool is_null() const final override { return true; }
             virtual std::shared_ptr<Node>
-                copy_with_new_args(const NodeVector& new_args) const override;
+                clone_with_new_inputs(const OutputVector& new_args) const override;
         };
     } // namespace onnx_import
 } // namespace ngraph

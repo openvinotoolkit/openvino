@@ -38,6 +38,8 @@ namespace ngraph
             class NGRAPH_API DepthToSpace : public ngraph::op::util::FusedOp
             {
             public:
+                static constexpr NodeTypeInfo type_info{"DepthToSpace", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 enum class DepthToSpaceMode
                 {
                     // The input depth is divided to [block_size, ..., block_size, new_depth]
@@ -46,8 +48,6 @@ namespace ngraph
                     DEPTH_FIRST
                 };
 
-                static constexpr NodeTypeInfo type_info{"DepthToSpace", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 DepthToSpace() = default;
                 /// \brief Constructs a DepthToSpace operation.
                 ///
@@ -66,7 +66,7 @@ namespace ngraph
 
                 std::size_t get_block_size() const { return m_blocksize; }
                 DepthToSpaceMode get_mode() const { return m_mode; }
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

@@ -22,7 +22,7 @@ using ScaleShiftParamsTuple = typename std::tuple<
 
 class ScaleShiftLayerTest:
         public testing::WithParamInterface<ScaleShiftParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple> &obj);
 protected:

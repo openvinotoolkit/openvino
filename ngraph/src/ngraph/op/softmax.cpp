@@ -25,6 +25,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/util.hpp"
 
@@ -53,7 +54,7 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
 
 bool op::v0::Softmax::are_axes_constant() const
 {
-    return input_value(1).get_node_shared_ptr()->is_constant();
+    return op::is_constant(input_value(1).get_node());
 }
 
 const AxisSet op::v0::Softmax::get_axes() const
@@ -149,7 +150,8 @@ namespace
     }
 }
 
-bool op::v0::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], get_axes());
@@ -192,7 +194,8 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
     return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
 }
 
-bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});

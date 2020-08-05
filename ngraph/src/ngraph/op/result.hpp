@@ -44,11 +44,10 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual bool is_output() const override { return true; }
                 void set_needs_default_layout(bool val) { m_needs_default_layout = val; }
                 bool needs_default_layout() const { return m_needs_default_layout; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 

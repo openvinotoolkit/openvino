@@ -40,26 +40,26 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
 }
-NodeVector op::v0::LSTMSequence::decompose_op() const
+OutputVector op::v0::LSTMSequence::decompose_op() const
 {
-    NodeVector results;
+    OutputVector results;
     if (m_direction == direction::FORWARD || m_direction == direction::REVERSE)
     {
         results = lstm_pass(m_direction == direction::REVERSE);
     }
     if (m_direction == direction::BIDIRECTIONAL)
     {
-        NodeVector fwd_results{lstm_pass()};
-        NodeVector rev_results{lstm_pass(true)};
+        OutputVector fwd_results{lstm_pass()};
+        OutputVector rev_results{lstm_pass(true)};
 
         // Stack together respective outputs from both forward and reverse passess.
         shared_ptr<Node> Y{
-            make_shared<opset1::Concat>(NodeVector{fwd_results.at(0), rev_results.at(0)}, 1)};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
         shared_ptr<Node> Y_h{
-            make_shared<opset1::Concat>(NodeVector{fwd_results.at(1), rev_results.at(1)}, 1)};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
         shared_ptr<Node> Y_c{
-            make_shared<opset1::Concat>(NodeVector{fwd_results.at(2), rev_results.at(2)}, 1)};
-        results = NodeVector{Y, Y_h, Y_c};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
+        results = OutputVector{Y, Y_h, Y_c};
     }
     return results;
 }
@@ -141,7 +141,7 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
     return make_shared<opset1::Select>(mask_condition, mask_value, data);
 }
 
-NodeVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
+OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -178,7 +178,7 @@ NodeVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
         X = make_shared<opset1::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
     }
 
-    NodeVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), 1);
+    OutputVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), 1);
 
     for (auto& in_x : in_seqs)
     {
@@ -247,7 +247,7 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
                                                      size_t num_direction_axis) const
 {
     // In bidirectional mode inputs are stacked together, so we must split them.
-    shared_ptr<Node> tmp = node.get_node_shared_ptr();
+    Output<Node> tmp = node;
     if (m_direction == direction::BIDIRECTIONAL)
     {
         tmp = builder::opset1::split(node, 2, num_direction_axis).at(is_reverse ? 1 : 0);

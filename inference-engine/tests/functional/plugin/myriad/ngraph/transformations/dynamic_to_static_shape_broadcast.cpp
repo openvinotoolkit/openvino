@@ -85,7 +85,7 @@ protected:
 
         const auto transformations = vpu::Transformations{{
             ngraph::opset3::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

@@ -37,7 +37,6 @@
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/broadcast_distributed.hpp"
 #include "ngraph/runtime/reference/ceiling.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/constant.hpp"
@@ -51,7 +50,6 @@
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-#include "ngraph/runtime/reference/embedding_lookup.hpp"
 #include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
@@ -71,7 +69,6 @@
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/recv.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
@@ -80,7 +77,6 @@
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/select.hpp"
-#include "ngraph/runtime/reference/send.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
@@ -93,9 +89,9 @@
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/state/bernoulli_rng_state.hpp"
-#include "ngraph/state/uniform_rng_state.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 
 namespace ngraph
 {
@@ -161,7 +157,6 @@ protected:
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::unordered_map<const Node*, std::shared_ptr<State>> m_states;
     std::set<std::string> m_unsupported_op_name_list;
 
     static OP_TYPEID get_typeid(const Node& node);
@@ -274,33 +269,6 @@ protected:
                                                node.get_input_shape(2));
             break;
         }
-        case OP_TYPEID::BroadcastDistributed:
-        {
-            const ngraph::op::BroadcastDistributed* broadcast =
-                static_cast<const ngraph::op::BroadcastDistributed*>(&node);
-            int rank_ID;
-            rank_ID = get_distributed_interface()->get_rank();
-            int root_id = broadcast->get_root_id();
-            if (rank_ID == root_id)
-            {
-                reference::broadcastdistributed<T>(
-                    args[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-                auto memSize = static_cast<int>(shape_size(node.get_input_shape(0))) * sizeof(T);
-                memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            }
-            else
-            {
-                reference::broadcastdistributed<T>(
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-            }
-            break;
-        }
         case OP_TYPEID::BroadcastLike: break;
         case OP_TYPEID::Ceiling:
         {
@@ -382,7 +350,7 @@ protected:
         }
         case OP_TYPEID::Convolution:
         {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
+            const op::v0::Convolution* c = static_cast<const op::v0::Convolution*>(&node);
             reference::convolution<T>(args[0]->get_data_ptr<const T>(),
                                       args[1]->get_data_ptr<const T>(),
                                       out[0]->get_data_ptr<T>(),
@@ -400,8 +368,8 @@ protected:
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
+            const op::v0::ConvolutionBackpropData* c =
+                static_cast<const op::v0::ConvolutionBackpropData*>(&node);
             reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
                                                   args[0]->get_data_ptr<const T>(),
                                                   out[0]->get_data_ptr<T>(),
@@ -498,51 +466,6 @@ protected:
                            node.get_input_shape(1),
                            node.get_output_shape(0),
                            dot->get_reduction_axes_count());
-            break;
-        }
-        case OP_TYPEID::EmbeddingLookup:
-        {
-            const op::EmbeddingLookup* embed = static_cast<const op::EmbeddingLookup*>(&node);
-            auto type = embed->input(0).get_element_type();
-            size_t element_count = shape_size(embed->get_input_shape(0));
-
-            if (type == element::f32)
-            {
-                reference::embedding<T, float>(args[0]->get_data_ptr<const float>(),
-                                               args[1]->get_data_ptr<const T>(),
-                                               out[0]->get_data_ptr<T>(),
-                                               element_count,
-                                               embed->get_shape());
-            }
-            else if (type == element::f64)
-            {
-                reference::embedding<T, double>(args[0]->get_data_ptr<const double>(),
-                                                args[1]->get_data_ptr<const T>(),
-                                                out[0]->get_data_ptr<T>(),
-                                                element_count,
-                                                embed->get_shape());
-            }
-            else if (type == element::i32)
-            {
-                reference::embedding<T, int32_t>(args[0]->get_data_ptr<const int>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else if (type == element::i64)
-            {
-                reference::embedding<T, int64_t>(args[0]->get_data_ptr<const int64_t>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else
-            {
-                throw ngraph_error(std::string("Unsupported index type ") + type.c_type_string() +
-                                   std::string(" in EmbeddingLookup"));
-            }
             break;
         }
         case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
@@ -1046,19 +969,6 @@ protected:
 
             break;
         }
-        case OP_TYPEID::Recv:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Recv*>(&node);
-            int src_id = op->get_src_id();
-
-            reference::recv<T>(
-                args[0]->get_data_ptr<T>(), node.get_input_element_type(0), element_count, src_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Relu:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1123,21 +1033,6 @@ protected:
                                  args[2]->get_data_ptr<const T>(),
                                  out[0]->get_data_ptr<T>(),
                                  element_count);
-            break;
-        }
-        case OP_TYPEID::Send:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Send*>(&node);
-            int dest_id = op->get_dest_id();
-
-            reference::send<T>(args[0]->get_data_ptr<const T>(),
-                               node.get_input_element_type(0),
-                               element_count,
-                               dest_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
             break;
         }
         case OP_TYPEID::Sigmoid:
@@ -1236,38 +1131,28 @@ protected:
         }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
-        case OP_TYPEID::ConvolutionBias:
-        case OP_TYPEID::ConvolutionBiasAdd:
-        case OP_TYPEID::CropAndResize:
-        case OP_TYPEID::CrossEntropy:
         case OP_TYPEID::DepthToSpace:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
         case OP_TYPEID::Gelu:
-        case OP_TYPEID::Gemm:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
         case OP_TYPEID::GRUCell:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
-        case OP_TYPEID::LayerNorm:
         case OP_TYPEID::LSTMCell:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::PartialSlice:
         case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
-        case OP_TYPEID::ScaleShift:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
-        case OP_TYPEID::SoftmaxCrossEntropy:
         case OP_TYPEID::SpaceToDepth:
         case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::Stack:
         case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:

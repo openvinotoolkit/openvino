@@ -5,13 +5,11 @@
 #include "low_precision_transformations/layer_transformation.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>

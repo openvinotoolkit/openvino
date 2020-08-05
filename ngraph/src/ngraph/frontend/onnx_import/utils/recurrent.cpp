@@ -24,6 +24,7 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/enum_names.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "recurrent.hpp"
 
 namespace ngraph
@@ -40,11 +41,11 @@ namespace ngraph
                 m_map[OpInput::W] = ng_inputs.at(1);
                 m_map[OpInput::R] = ng_inputs.at(2);
 
-                const auto el_type = ng_inputs.at(0)->get_output_element_type(0);
+                const auto el_type = ng_inputs.at(0).get_element_type();
 
-                const auto x_pshape = m_map[OpInput::X]->get_output_partial_shape(0);
-                const auto w_pshape = m_map[OpInput::W]->get_output_partial_shape(0);
-                const auto r_pshape = m_map[OpInput::R]->get_output_partial_shape(0);
+                const auto x_pshape = m_map[OpInput::X].get_partial_shape();
+                const auto w_pshape = m_map[OpInput::W].get_partial_shape();
+                const auto r_pshape = m_map[OpInput::R].get_partial_shape();
                 NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static() &&
                                  x_pshape[1].is_static(),
                              "RecurrentSequence input X must have static \"seq_length\" and "
@@ -56,11 +57,11 @@ namespace ngraph
                              "RecurrentSequence input R must have static \"hidden_size\" "
                              "(innermost) dimension.");
 
-                const std::size_t hidden_size = m_map[OpInput::R]->get_shape().back();
-                const std::size_t batch_size = m_map[OpInput::X]->get_shape().at(1);
-                const std::size_t num_directions = m_map[OpInput::W]->get_shape().front();
+                const std::size_t hidden_size = m_map[OpInput::R].get_shape().back();
+                const std::size_t batch_size = m_map[OpInput::X].get_shape().at(1);
+                const std::size_t num_directions = m_map[OpInput::W].get_shape().front();
 
-                if (ng_inputs.size() > 3 && !ng_inputs.at(3)->is_null())
+                if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                 {
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
@@ -71,17 +72,17 @@ namespace ngraph
                     m_map[OpInput::B] = std::make_shared<default_opset::Constant>(
                         el_type, Shape{num_directions, gates_count * hidden_size}, 0.f);
                 }
-                if (ng_inputs.size() > 4 && !ng_inputs.at(4)->is_null())
+                if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
                 {
                     m_map[OpInput::SEQ_LENGTHS] = ng_inputs.at(4);
                 }
                 else
                 {
                     m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Constant>(
-                        element::i32, Shape{batch_size}, m_map[OpInput::X]->get_shape().at(0));
+                        element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(0));
                 }
                 // The initial value of the hidden.
-                if (ng_inputs.size() > 5 && !ng_inputs.at(5)->is_null())
+                if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                 {
                     m_map[OpInput::INIT_H] = ng_inputs.at(5);
                 }
@@ -97,12 +98,8 @@ namespace ngraph
             {
             }
 
-            std::shared_ptr<ngraph::Node>& OpInputMap::at(const OpInput& key)
-            {
-                return m_map.at(key);
-            }
-
-            const std::shared_ptr<ngraph::Node>& OpInputMap::at(const OpInput& key) const
+            Output<ngraph::Node>& OpInputMap::at(const OpInput& key) { return m_map.at(key); }
+            const Output<ngraph::Node>& OpInputMap::at(const OpInput& key) const
             {
                 return m_map.at(key);
             }
@@ -138,9 +135,9 @@ namespace ngraph
             {
             }
 
-            NodeVector RecurrentSequence::run_sequence(const RecurrentCellFunction& kernel)
+            OutputVector RecurrentSequence::run_sequence(const RecurrentCellFunction& kernel)
             {
-                NodeVector results;
+                OutputVector results;
                 if (m_direction == ngraph::op::RecurrentSequenceDirection::FORWARD ||
                     m_direction == ngraph::op::RecurrentSequenceDirection::REVERSE)
                 {
@@ -149,16 +146,16 @@ namespace ngraph
                 }
                 else if (m_direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 {
-                    NodeVector fwd_results{recurrent_sequence_pass(kernel)};
-                    NodeVector rev_results{recurrent_sequence_pass(kernel, true)};
+                    OutputVector fwd_results{recurrent_sequence_pass(kernel)};
+                    OutputVector rev_results{recurrent_sequence_pass(kernel, true)};
 
                     // Stack together respective outputs from both forward and reverse passess.
                     std::shared_ptr<ngraph::Node> Y{std::make_shared<default_opset::Concat>(
-                        NodeVector{fwd_results.at(0), rev_results.at(0)}, 1)};
+                        OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
                     results.push_back(Y);
 
                     std::shared_ptr<ngraph::Node> Y_h{std::make_shared<default_opset::Concat>(
-                        NodeVector{fwd_results.at(1), rev_results.at(1)}, 0)};
+                        OutputVector{fwd_results.at(1), rev_results.at(1)}, 0)};
                     results.push_back(Y_h);
                 }
                 else
@@ -169,24 +166,23 @@ namespace ngraph
                 return results;
             }
 
-            NodeVector
+            OutputVector
                 RecurrentSequence::recurrent_sequence_pass(const RecurrentCellFunction& kernel,
                                                            bool is_reverse)
             {
                 OutputVector h_list;
 
                 // back-up nodes which we may later modify.
-                std::shared_ptr<ngraph::Node> orig_W = m_args.at(OpInput::W);
-                std::shared_ptr<ngraph::Node> orig_R = m_args.at(OpInput::R);
-                std::shared_ptr<ngraph::Node> orig_B = m_args.at(OpInput::B);
+                Output<ngraph::Node> orig_W = m_args.at(OpInput::W);
+                Output<ngraph::Node> orig_R = m_args.at(OpInput::R);
+                Output<ngraph::Node> orig_B = m_args.at(OpInput::B);
 
-                std::shared_ptr<ngraph::Node> X = m_args.at(OpInput::X);
-                std::shared_ptr<ngraph::Node> H_t =
-                    prepare_input(m_args.at(OpInput::INIT_H), is_reverse);
-                std::shared_ptr<ngraph::Node> W = prepare_input(m_args.at(OpInput::W), is_reverse);
-                std::shared_ptr<ngraph::Node> R = prepare_input(m_args.at(OpInput::R), is_reverse);
-                std::shared_ptr<ngraph::Node> B = prepare_input(m_args.at(OpInput::B), is_reverse);
-                std::shared_ptr<ngraph::Node> seq_lengths = m_args.at(OpInput::SEQ_LENGTHS);
+                Output<ngraph::Node> X = m_args.at(OpInput::X);
+                Output<ngraph::Node> H_t = prepare_input(m_args.at(OpInput::INIT_H), is_reverse);
+                Output<ngraph::Node> W = prepare_input(m_args.at(OpInput::W), is_reverse);
+                Output<ngraph::Node> R = prepare_input(m_args.at(OpInput::R), is_reverse);
+                Output<ngraph::Node> B = prepare_input(m_args.at(OpInput::B), is_reverse);
+                Output<ngraph::Node> seq_lengths = m_args.at(OpInput::SEQ_LENGTHS);
 
                 m_args.at(OpInput::W) = W;
                 m_args.at(OpInput::R) = R;
@@ -198,8 +194,7 @@ namespace ngraph
                         X, seq_lengths, 1 /*batch_axis*/, 0 /*seq_axis*/);
                 }
 
-                OutputVector in_seq_steps =
-                    as_output_vector(builder::opset1::split(X, X->get_shape().at(0)));
+                OutputVector in_seq_steps = builder::opset1::split(X, X.get_shape().at(0));
 
                 for (auto& in_x : in_seq_steps)
                 {
@@ -291,7 +286,7 @@ namespace ngraph
                 RecurrentSequence::prepare_input(Output<ngraph::Node> node, bool is_reverse) const
             {
                 // In bidirectional mode inputs are stacked together, so we must split them.
-                std::shared_ptr<ngraph::Node> tmp = node.get_node_shared_ptr();
+                Output<ngraph::Node> tmp = node;
                 if (m_direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 {
                     tmp = builder::opset1::split(node, 2).at(is_reverse ? 1 : 0);

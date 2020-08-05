@@ -20,6 +20,7 @@
 #include "default_opset.hpp"
 #include "gru.hpp"
 #include "ngraph/builder/split.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/recurrent.hpp"
 
@@ -45,9 +46,9 @@ namespace ngraph
                             if (linear_before_reset)
                             {
                                 const auto& ng_inputs = node.get_ng_inputs();
-                                const auto el_type = ng_inputs.at(0)->get_output_element_type(0);
+                                const auto el_type = ng_inputs.at(0).get_element_type();
 
-                                if (ng_inputs.size() > 3 && !ng_inputs.at(3)->is_null())
+                                if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                                 {
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]
@@ -67,18 +68,18 @@ namespace ngraph
                                     //       ]
                                     m_map[recurrent::OpInput::B] =
                                         std::make_shared<default_opset::Concat>(
-                                            NodeVector{wr_z_bias,
-                                                       wr_r_bias,
-                                                       split_bias.at(2),
-                                                       split_bias.at(5)},
+                                            OutputVector{wr_z_bias,
+                                                         wr_r_bias,
+                                                         split_bias.at(2),
+                                                         split_bias.at(5)},
                                             1);
                                 }
                                 else
                                 {
                                     const std::size_t hidden_size =
-                                        m_map[recurrent::OpInput::R]->get_shape().back();
+                                        m_map[recurrent::OpInput::R].get_shape().back();
                                     const std::size_t num_directions =
-                                        m_map[recurrent::OpInput::W]->get_shape().front();
+                                        m_map[recurrent::OpInput::W].get_shape().front();
 
                                     m_map[recurrent::OpInput::B] =
                                         std::make_shared<default_opset::Constant>(
@@ -109,7 +110,7 @@ namespace ngraph
                     };
                 }
 
-                NodeVector gru(const Node& node)
+                OutputVector gru(const Node& node)
                 {
                     constexpr std::size_t gates_count = 3;
                     GRUInputMap input_map{node, gates_count};

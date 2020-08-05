@@ -9,7 +9,6 @@
 #include <map>
 #include <functional_test_utils/layer_test_utils.hpp>
 
-#include "common_test_utils/common_layers_params.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -34,7 +33,7 @@ typedef std::tuple<
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override;
 
