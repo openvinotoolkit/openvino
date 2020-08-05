@@ -51,8 +51,6 @@ class TestSliceOp(unittest.TestCase):
             (None, [1], [3], [0], [4], [1], [4]),
             # with rounding and negative steps (e.g. take from 1st to 3rd with step 4 should give shape 1 not 0)
             (None, [7], [3], [0], [-7], [1], [10]),
-            # case when output shape has zero elements
-            (None, [1], [1], [0], [1], [0], [4])
         ])
         def test_slice_infer(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
             if inp_value is None:
@@ -96,6 +94,10 @@ class TestSliceOp(unittest.TestCase):
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], None, [1, 1], [[5], [3], [6]]),
             # steps are non-constant
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], [0, 1], None, [[5], [3], [6]]),
+            # 1D input with negative starts
+            (None, [1], [-1], [0], [-2], [-6], [20]),
+            # case when output shape has zero elements
+            (None, [1], [1], [0], [1], [0], [4])
         ])
         def test_slice_infer_negative(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
             if inp_value is None:

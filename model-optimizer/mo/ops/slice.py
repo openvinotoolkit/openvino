@@ -161,9 +161,10 @@ class Slice(Op):
         for i in range(len(axes)):
             # Ranged for output value for specified axis
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
-
         if input_value is None:
             output_shape = get_shape_after_slice(input_shape, slice_idx)
+            if np.any(output_shape <= 0):
+                raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
