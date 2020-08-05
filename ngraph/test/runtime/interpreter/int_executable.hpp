@@ -81,7 +81,6 @@
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
 #include "ngraph/runtime/reference/sinh.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
@@ -1063,18 +1062,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::Slice:
-        {
-            const op::Slice* slice = static_cast<const op::Slice*>(&node);
-            reference::slice<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                node.get_input_shape(0),
-                                slice->get_lower_bounds(),
-                                slice->get_upper_bounds(),
-                                slice->get_strides(),
-                                node.get_output_shape(0));
-            break;
-        }
         case OP_TYPEID::Sqrt:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1195,6 +1182,7 @@ protected:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
+        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
