@@ -40,7 +40,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginalSelectionWithIntermediate(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const bool transparentIntermediate,
+        const bool transparent,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
@@ -72,11 +72,11 @@ public:
     static std::shared_ptr<ngraph::Function> getReferenceSelectionWithIntermediate(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const bool transparentIntermediate,
+        const bool transparent,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
-        const DequantizationOperations& dequantizationOperations1,
-        const DequantizationOperations& dequantizationOperations2);
+        const DequantizationOperations& dequantizationBeforePooling,
+        const DequantizationOperations& dequantizationAfterPooling);
 };
 
 }  // namespace subgraph

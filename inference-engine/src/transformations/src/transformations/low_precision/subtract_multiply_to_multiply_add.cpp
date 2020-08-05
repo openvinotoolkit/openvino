@@ -118,7 +118,10 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         }
 
         if (lastNewPrecision != precisionAfterDequantization) {
-            lastNew = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(lastNew, multiplyConstant);
+            // TODO: workaround for different types
+            auto temp = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(lastNew, lastNew);
+            lastNew = temp->clone_with_new_inputs({ lastNew, multiplyConstant });
+            temp->clear_control_dependents();
             NetworkHelper::setOutDataPrecision(lastNew, precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<opset1::Multiply>(lastNew, multiplyConstant);
@@ -171,6 +174,12 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 }
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    FakeQuantizeDequantization dequantization = get(op);
+
+    if (is_type<opset1::FakeQuantize>(dequantization.data)) {
+        return false;
+    }
+
     return op->get_output_shape(0).size() >= 4;
 }
 

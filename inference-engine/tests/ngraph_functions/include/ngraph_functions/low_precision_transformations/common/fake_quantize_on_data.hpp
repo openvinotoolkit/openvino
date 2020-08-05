@@ -53,7 +53,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 }
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& data) {
-    return out << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
+    return out << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues << "_" <<
+        (data.outputPrecision == ngraph::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 }  // namespace subgraph

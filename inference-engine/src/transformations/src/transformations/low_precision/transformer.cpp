@@ -46,6 +46,8 @@
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
+#include "transformations/low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "transformations/low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "transformations/low_precision/subtract_multiply_to_multiply_add.hpp"
 
 // uncomment to display precision info during low precision transformations
@@ -58,7 +60,7 @@ namespace low_precision {
 LowPrecisionTransformations::LowPrecisionTransformations(
     const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
     const std::map<std::string, LayerTransformationPtr>& transformations,
-    const std::map<std::string, LayerTransformationPtr>& cleanupTransformations) :
+    const std::map<std::string, std::vector<LayerTransformationPtr>>& cleanupTransformations) :
     branchSpecificTransformations(branchSpecificTransformations),
     transformations(transformations),
     cleanupTransformations(cleanupTransformations) {}
@@ -125,9 +127,9 @@ LayerTransformationPtr LowPrecisionTransformations::find(const std::string& tran
         return it->second;
     }
 
-    it = cleanupTransformations.find(transformationKey);
-    if (it != cleanupTransformations.end()) {
-        return it->second;
+    auto it1 = cleanupTransformations.find(transformationKey);
+    if (it1 != cleanupTransformations.end()) {
+        return it1->second[0];
     }
 
     return nullptr;
@@ -153,6 +155,16 @@ void LowPrecisionTransformations::setParamsManager(
     }
 }
 
+void LowPrecisionTransformations::setParamsManager(
+    IParamsManager* paramsManager,
+    std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept {
+    for (auto it : transformations) {
+        for (auto transform : it.second) {
+            transform->setParamsManager(paramsManager);
+        }
+    }
+}
+
 void LowPrecisionTransformations::setLayerTransformationsManager(
     ILayerTransformationsManager* layerTransformationsManager,
     std::map<std::string, LayerTransformationPtr>& transformations) noexcept {
@@ -161,10 +173,20 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
     }
 }
 
+void LowPrecisionTransformations::setLayerTransformationsManager(
+    ILayerTransformationsManager* layerTransformationsManager,
+    std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept {
+    for (auto it : transformations) {
+        for (auto transform : it.second) {
+            transform->setLayerTransformationsManager(layerTransformationsManager);
+        }
+    }
+}
+
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
     using namespace pass::low_precision;
 
-    return LowPrecisionTransformations().
+    auto transformer = LowPrecisionTransformations().
         addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
 
         add<AddTransformation, opset1::Add>(params).
@@ -186,9 +208,15 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params).
-        // workaround: Convert I8 -> FP32 is not supported by CPU plugin
-        addCleanup<ConvertTransformation, opset1::Convert>(params);
+        addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
+        addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params);
+        //addCleanup<ConvertTransformation, opset1::Convert>(params);
+
+    // TODO: fix it. workaround for multiple layer matching
+    transformer.cleanupTransformations2.emplace(typeid(ngraph::op::TypeRelaxed<opset1::Multiply>).name(),
+            std::make_shared<SubtractMultiplyToMultiplyAddTransformation>(params) );
+
+    return transformer;
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(): transformations(LowPrecisionTransformer::getAllTransformations()) {}
@@ -284,6 +312,13 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         registerAllMatchers(transformations.cleanupTransformations, pass, context);
         pass.run_on_function(network);
     }
+
+    {
+        // Step #4: Sub Mul to Mul Add transformations execution
+        GraphRewrite pass;
+        registerAllMatchers(transformations.cleanupTransformations2, pass, context);
+        pass.run_on_function(network);
+    }
 }
 
 std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
@@ -319,6 +354,17 @@ void LowPrecisionTransformer::registerAllMatchers(
     TransformationContext& context) {
     for (auto it : transformations) {
         it.second->registerMatcherIn(pass, context);
+    }
+}
+
+void LowPrecisionTransformer::registerAllMatchers(
+    std::map<std::string, std::vector<LayerTransformationPtr>> transformations,
+    GraphRewrite& pass,
+    TransformationContext& context) {
+    for (auto it : transformations) {
+        for (auto transform : it.second) {
+            transform->registerMatcherIn(pass, context);
+        }
     }
 }
 
