@@ -424,7 +424,8 @@ void op::v4::Interpolate::correct_pads()
     m_attrs.pads_end = correct_pad(m_attrs.pads_end, input_rank);
 }
 
-bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
 {
     return evaluate_interpolate_v4(inputs, outputs[0], m_attrs);
 }
