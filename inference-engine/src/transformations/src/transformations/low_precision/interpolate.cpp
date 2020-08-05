@@ -25,7 +25,7 @@ void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, Transforma
 void InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
-        removeConvertIfPossible(interpolate);
+        fuseConvertIfPossible(interpolate);
         return;
     }
     interpolate = separateInStandaloneBranch(interpolate);

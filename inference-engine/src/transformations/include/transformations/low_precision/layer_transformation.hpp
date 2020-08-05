@@ -307,7 +307,7 @@ protected:
         const FakeQuantizeDequantization& dequantization,
         const bool removeConvert) const;
 
-    void removeConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
+    void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,

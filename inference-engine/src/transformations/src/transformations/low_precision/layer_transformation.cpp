@@ -340,7 +340,7 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveMultiplyAfter(
     return result.newOperation;
 }
 
-void LayerTransformation::removeConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const {
+void LayerTransformation::fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(operation, 0);
     if ((dequantization.subtract != nullptr) &&
         NetworkHelper::checkConstantValuePrecision(
@@ -348,6 +348,9 @@ void LayerTransformation::removeConvertIfPossible(const std::shared_ptr<ngraph::
             dequantization.subtract->get_input_node_shared_ptr(1))) {
         auto newOperation = separateInStandaloneBranch(operation);
         dequantization = NetworkHelper::getDequantization(operation, 0);
+        // TODO: It is correct to use optimizeSubtract here: uncomment following rows and fix it
+        //auto newSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+        //replace_node(dequantization.subtract, newSubtract);
         NetworkHelper::removeConvertIfPossible(operation, dequantization);
     }
 }
