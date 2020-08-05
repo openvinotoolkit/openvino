@@ -24,6 +24,8 @@ jobs:
       vmstat -s
       df
     displayName: 'System properties'
+  - script: curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+    displayName: Install monitoring
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
@@ -253,6 +255,8 @@ jobs:
       wmic VOLUME list
       set
     displayName: 'System properties'
+  - powershell: Invoke-RestMethod -Headers @{"Metadata"="true"} -URI http://169.254.169.254/metadata/instance?api-version=2017-08-01 -Method get | Format-Custom
+    displayName: Install monitoring
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
