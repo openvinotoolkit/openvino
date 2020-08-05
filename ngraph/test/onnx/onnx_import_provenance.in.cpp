@@ -116,6 +116,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_provenance_tagging_parameters)
     test_provenance_tags<default_opset::Parameter>(function, "<ONNX Input (input_B) Shape:{}>");
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_provenance_tag_downgrade_pass)
 {
     test::ProvenanceEnabler provenance_enabler;
