@@ -218,11 +218,8 @@ namespace
         int64_t axis;
         switch (axis_tensor->get_element_type())
         {
-        case element::Type_t::i64:
-            axis = read_vector<int64_t>(axis_tensor)[0];
-            axis =
-                ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
-            break;
+        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0];
+        case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
         case element::Type_t::u64:
             axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);
             break;
@@ -234,6 +231,8 @@ namespace
                                   " during evaluate Split:v1");
             break;
         }
+        axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+
         const auto data_shape = data_tensor->get_shape();
         const size_t axis_dim_length = data_shape.at(axis);
         const size_t part_length = axis_dim_length / num_splits;

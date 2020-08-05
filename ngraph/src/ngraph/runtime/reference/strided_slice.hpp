@@ -33,11 +33,8 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void strided_slice(const T* arg,
-                               T* out,
-                               const Shape& arg_shape,
-                               const SlicePlan& sp,
-                               const element::Type& elem_type)
+            void strided_slice(
+                const T* arg, T* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type)
             {
                 runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) *
                                                         sizeof(T));
@@ -48,7 +45,7 @@ namespace ngraph
                       Coordinate(sp.ends.begin(), sp.ends.end()),
                       Strides(sp.strides.begin(), sp.strides.end()),
                       sp.reshape_in_shape,
-                      elem_type.size());
+                      elem_type);
 
                 runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) *
                                                           sizeof(T));
