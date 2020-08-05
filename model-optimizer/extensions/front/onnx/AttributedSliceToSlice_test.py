@@ -21,7 +21,7 @@ from generator import generator, generate
 
 from extensions.front.onnx.AttributedSliceToSlice import AttributedSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect
+from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect_front
 
 
 @generator
@@ -53,9 +53,9 @@ class SliceReplacerTest(unittest.TestCase):
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=[
             ('input', 'slice'),
-            *connect('start', '1:slice', on_front=True),
-            *connect('end', '2:slice', on_front=True),
-            *connect('axis', '3:slice', on_front=True),
+            *connect_front('start', '1:slice'),
+            *connect_front('end', '2:slice'),
+            *connect_front('axis', '3:slice'),
             ('slice', 'output'),
         ], nodes_with_edges_only=True)
 
