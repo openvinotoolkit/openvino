@@ -20,13 +20,14 @@
 
 using namespace ngraph;
 
+using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
+using Nearest_mode = op::v4::Interpolate::NearestMode;
+using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
+using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
+
 TEST(type_prop, interpolate_v4)
 {
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
-    using Nearest_mode = op::v4::Interpolate::NearestMode;
-    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
-
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
     auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
@@ -49,11 +50,6 @@ TEST(type_prop, interpolate_v4)
 
 TEST(type_prop, interpolate_v4_partial)
 {
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
-    using Nearest_mode = op::v4::Interpolate::NearestMode;
-    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
-
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
@@ -84,11 +80,6 @@ TEST(type_prop, interpolate_v4_partial)
 
 TEST(type_prop, interpolate_v4_partial_static_rank)
 {
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
-    using Nearest_mode = op::v4::Interpolate::NearestMode;
-    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
-
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
@@ -114,11 +105,6 @@ TEST(type_prop, interpolate_v4_partial_static_rank)
 
 TEST(type_prop, interpolate_v4_partial_static_rank2)
 {
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
-    using Nearest_mode = op::v4::Interpolate::NearestMode;
-    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
-
     auto partial_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 10, 20};
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, 10};
 
