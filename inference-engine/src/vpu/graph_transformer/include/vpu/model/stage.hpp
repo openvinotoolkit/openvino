@@ -170,6 +170,8 @@ VPU_DECLARE_ENUM(StageType,
     Mish = 131,
     Gelu = 132,
     StridedSlice = 133,
+    SoftPlus = 134,
+    Swish = 135,
 )
 
 //

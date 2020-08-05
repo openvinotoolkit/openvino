@@ -123,6 +123,8 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
         {"Mish",                                               LAYER_PARSER(parseMish)},
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
+        {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
+        {"Swish",                                              LAYER_PARSER(parseSwish)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
