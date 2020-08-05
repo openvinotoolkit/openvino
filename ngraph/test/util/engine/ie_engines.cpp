@@ -231,5 +231,6 @@ namespace InferenceEngine
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
 #endif
 }

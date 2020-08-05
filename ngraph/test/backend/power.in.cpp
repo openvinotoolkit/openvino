@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, power)
 {
@@ -53,16 +50,11 @@ NGRAPH_TEST(${BACKEND_NAME}, power)
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Power>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{1, 2, 3, 5};
+    std::vector<float> b{2, 0, 6, 3};
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{1, 2, 3, 5});
-    auto b = backend->create_tensor(element::f32, shape);
-    copy_data(b, vector<float>{2, 0, 6, 3});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(vector<float>{1, 1, 729, 125}, read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {1, 1, 729, 125});
+    test_case.run();
 }

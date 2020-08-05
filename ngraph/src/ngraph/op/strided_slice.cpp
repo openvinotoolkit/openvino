@@ -286,7 +286,7 @@ namespace
 }
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
-                                    const HostTensorVector& input_values)
+                                    const HostTensorVector& input_values) const
 {
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],
