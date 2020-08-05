@@ -93,7 +93,7 @@ bool StaticShapeBroadcast::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-bool StaticShapeBroadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
+bool StaticShapeBroadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     return ::ngraph::op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 

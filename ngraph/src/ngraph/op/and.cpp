@@ -89,7 +89,8 @@ namespace
     }
 }
 
-bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs) const
 {
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
