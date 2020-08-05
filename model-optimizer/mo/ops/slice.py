@@ -169,7 +169,7 @@ class Slice(Op):
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
 
 
-def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List) -> np.ndarray:
+def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List[slice]) -> np.ndarray:
     """
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to save memory.
@@ -177,7 +177,8 @@ def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List) -> np.ndarra
     output_shape = np.zeros(len(input_shape), dtype=np.int32)
     for i, s in enumerate(slice_idx):
         start, end = normalize_slice_indices(input_shape[i], s.start, s.stop)
-        output_shape[i] = (end - start) / s.step
+        magic_num = 1 if s.step >= 0 else -1
+        output_shape[i] = (end - start + s.step - magic_num) / s.step
     return output_shape
 
 

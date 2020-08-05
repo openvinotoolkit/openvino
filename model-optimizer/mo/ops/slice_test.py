@@ -47,6 +47,10 @@ class TestSliceOp(unittest.TestCase):
             (None, [-1], [1], [0], [-1], [2], [4]),
             # 1D input with negative ends
             (None, [1], [-1], [0], [1], [2], [4]),
+            # with rounding (e.g. take from 1st to 3rd with step 4 should give shape 1 not 0)
+            (None, [1], [3], [0], [4], [1], [4]),
+            # with rounding and negative steps (e.g. take from 1st to 3rd with step 4 should give shape 1 not 0)
+            (None, [7], [3], [0], [-7], [1], [10]),
             # case when output shape has zero elements
             (None, [1], [1], [0], [1], [0], [4])
         ])
