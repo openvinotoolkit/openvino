@@ -62,7 +62,7 @@ void SubtractMultiplyToMultiplyAddTransformation::validateNGraph() {
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
     std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
     const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShift", typeName);
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 void SubtractMultiplyToMultiplyAddTransformation::validateCNNNetwork() {

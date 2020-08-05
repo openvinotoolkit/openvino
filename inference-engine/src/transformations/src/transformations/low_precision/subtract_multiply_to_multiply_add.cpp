@@ -153,7 +153,10 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         }
 
         if (lastNewPrecision != precisionAfterDequantization) {
-            lastNew = std::make_shared<op::TypeRelaxed<opset1::Add>>(lastNew, subtractConstant);
+            lastNew = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+                std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
+                ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(subtractConstant, element::f32).get());
             NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Add>(lastNew), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<opset1::Add>(lastNew, subtractConstant);
