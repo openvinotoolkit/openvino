@@ -58,6 +58,9 @@ void InterpolateLayerTest::SetUp() {
     ngraph::op::v4::Interpolate::InterpolateMode mode;
     ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
     ngraph::op::v4::Interpolate::NearestMode nearestMode;
+
+    using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
+    ShapeCalcMode shape_calc_node = ShapeCalcMode::sizes;
     double cubeCoef;
     std:tie(mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
 
@@ -65,11 +68,18 @@ void InterpolateLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+
+    std::vector<float> scales(targetShape.size(), 1.0f);
+    auto scalesInput = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+
     auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
 
     ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{
             mode, padBegin, padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
-    auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0], secondaryInput, interpolateAttributes);
+    auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
+                                                                     secondaryInput,
+                                                                     scalesInput,
+                                                                     interpolateAttributes);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
