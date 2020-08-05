@@ -27,7 +27,7 @@ public:
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
     bool evaluate(const HostTensorVector& output_values,
-                  const HostTensorVector& input_values) override;
+                  const HostTensorVector& input_values) const override;
 
     element::Type get_output_type() const { return m_output_type; }
     void set_output_type(element::Type output_type) { m_output_type = output_type; }

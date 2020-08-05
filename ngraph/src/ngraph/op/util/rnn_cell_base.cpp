@@ -111,7 +111,9 @@ shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const
 {
     if (m_clip == 0.f)
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         return data.as_single_output_node();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     return make_shared<op::Clamp>(data, -m_clip, m_clip);

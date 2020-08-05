@@ -193,11 +193,15 @@ namespace ngraph
                     OutputVector node_outputs;
                     for (const auto& v : final_values)
                     {
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         node_outputs.push_back(v.as_single_output_node());
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                     for (const auto& v : scan_outputs)
                     {
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         node_outputs.push_back(v.as_single_output_node());
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                     return node_outputs;
                 }

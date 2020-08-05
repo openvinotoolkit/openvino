@@ -94,6 +94,8 @@ void pass::ConstantFolding::construct_constant_dequantize()
 
     auto dequantize_matcher =
         make_shared<pattern::Matcher>(dequant, "ConstantFolding.ConstantDequantize");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         dequantize_matcher, constant_dequantize_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

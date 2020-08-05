@@ -139,7 +139,9 @@ namespace ngraph
                                                      const Shape& output_shape,
                                                      const Shape& source_shape)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             shared_ptr<Node> broadcasted_node = value.as_single_output_node();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             // If node already has the required shape, return original node
             if (output_shape == value.get_shape())
             {
@@ -200,7 +202,9 @@ namespace ngraph
             // If node already has the required shape, return original node
             if (output_shape == value_shape)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return value.as_single_output_node();
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             if (axis == -1)
@@ -249,8 +253,10 @@ namespace ngraph
             // Handle the trivial case...
             if (arg1_in_shape == arg2_in_shape)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return make_pair(args.first.as_single_output_node(),
                                  args.second.as_single_output_node());
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             NodeVector bcasted_outputs =
