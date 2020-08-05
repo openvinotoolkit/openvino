@@ -118,8 +118,23 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     return true;
 }
 
-bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    return true;
+bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, bool isReshape) const noexcept {
+    auto isFakeQuantize = [](std::shared_ptr<Node> layer) {
+        std::string opName = layer->get_type_name();
+        return opName == "FakeQuantize";
+    };
+
+    auto parentOnWeights = layer->get_input_node_shared_ptr(1);
+    std::string operationName = parentOnWeights->get_type_name();
+    if (isReshape) {
+        if (operationName != "Reshape") {
+            return false;
+        }
+        parentOnWeights = parentOnWeights->get_input_node_shared_ptr(0);
+        return isFakeQuantize(parentOnWeights);
+    } else {
+        return isFakeQuantize(parentOnWeights);
+    }
 }
 
 bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

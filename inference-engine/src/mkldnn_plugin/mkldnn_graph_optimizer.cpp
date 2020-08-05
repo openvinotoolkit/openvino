@@ -252,6 +252,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
                     return false;
 
+                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
+                    return false;
+                }
+
                 if (parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != 1 &&
                     parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != IC)
                     return false;

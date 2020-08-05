@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "low_precision_transformations/convolution_transformation.hpp"
+#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -39,6 +40,31 @@ INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
         ::testing::ValuesIn(versions),
         ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
+
+const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
+    // incorrect weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        false
+    },
+    // correct weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(LPT, ConvolutionWIthIncorrectWeightsTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::Values(LayerTestsUtils::LayerTransformation::LptVersion::nGraph),
+        ::testing::ValuesIn(incorrectWeightsParams)),
+    ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 }  // namespace
 
 

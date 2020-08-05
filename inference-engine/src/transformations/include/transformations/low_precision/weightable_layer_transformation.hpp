@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransforma
 public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
+    bool isQuantized(std::shared_ptr<Node> layer, bool isReshape) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 protected:

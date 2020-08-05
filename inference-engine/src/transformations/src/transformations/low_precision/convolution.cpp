@@ -26,6 +26,10 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
 }
 
+bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+    return WeightableLayerTransformation::isQuantized(layer, false);
+}
+
 size_t handledCount = 0;
 
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {

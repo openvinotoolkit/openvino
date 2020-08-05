@@ -27,6 +27,10 @@ void GroupConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Trans
     addSingleNodePattern<opset1::GroupConvolution>(pass, context);
 }
 
+bool GroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+    return WeightableLayerTransformation::isQuantized(layer, true);
+}
+
 void GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
     if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
