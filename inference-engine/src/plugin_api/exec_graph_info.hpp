@@ -15,7 +15,6 @@
 #include <string>
 
 #include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
 
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
