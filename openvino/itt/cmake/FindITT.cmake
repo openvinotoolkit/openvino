@@ -52,5 +52,5 @@ if(ITT_FOUND)
                                                INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
                                                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
 
-    set(INTEL_ITT_LIBS ittnotify ${CMAKE_DL_LIBS})
+    set(INTEL_ITT_LIBS ittnotify)
 endif()
