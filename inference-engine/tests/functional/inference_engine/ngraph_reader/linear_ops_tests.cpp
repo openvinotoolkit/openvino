@@ -2004,7 +2004,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
     });
 }
 
-TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
+TEST_F(NGraphReaderTests, DISABLED_ConvertAddToEltwise2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
