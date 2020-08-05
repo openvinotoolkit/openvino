@@ -9,12 +9,13 @@ Purposes to execute networks in heterogeneous mode
 * To utilize all available hardware more efficiently during one inference
 
 The execution through heterogeneous plugin can be divided to two independent steps:
-* Setting of affinity to layers (binding them to devices in <code>InferenceEngine::ICNNNetwork</code>)
+* Setting of affinity to layers
 * Loading a network to the Heterogeneous plugin, splitting the network to parts, and executing them through the plugin
 
 These steps are decoupled. The setting of affinity can be done automatically using fallback policy or in manual mode.
 
 The fallback automatic policy means greedy behavior and assigns all layers which can be executed on certain device on that device follow priorities.
+Automatic policy does not take into account such plugin peculiarities as inability to infer some layers without other special layers placed before of after that layers. It is plugin responsibility to solve such cases. If device plugin does not support subgraph topology constructed by Hetero plugin affinity should be set manually.
 
 Some of the topologies are not friendly to heterogeneous execution on some devices or cannot be executed in such mode at all.
 Example of such networks might be networks having activation layers which are not supported on primary device.
@@ -25,7 +26,12 @@ In this case you can define heaviest part manually and set affinity thus way to 
 ## Annotation of Layers per Device and Default Fallback Policy
 Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (FPGA, GPU, CPU, MYRIAD).
 
-Another way to annotate a network is setting affinity manually using <code>CNNLayer::affinity</code> field. This field accepts string values of devices like "CPU" or "FPGA".
+Another way to annotate a network is to set affinity manually using <code>ngraph::Node::get_rt_info</code> with key `"affinity"`:
+
+```cpp
+for (auto && op : function->get_ops())
+    op->get_rt_info()["affinity"] = std::shared_ptr<ngraph::VariantWrapper<std::string>>("CPU");
+```
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling of automating affinity settings and then fix manually.
 ```cpp
@@ -43,8 +49,10 @@ InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { }
 res.supportedLayersMap["layerName"] = "CPU";
 
 // set affinities to network
-for (auto && layer : res.supportedLayersMap) {
-	network.getLayerByName(layer->first)->affinity = layer->second;
+for (auto&& node : function->get_ops()) {
+    auto& affinity = res.supportedLayersMap[node->get_friendly_name()];
+    // Store affinity mapping using node runtime information
+    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
 }
 
 // load network with affinities set before
@@ -70,9 +78,7 @@ Precision for inference in heterogeneous plugin is defined by
 
 Examples:
 * If you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
-Weight are converted from FP16 to FP32 automatically for execution on CPU by heterogeneous plugin automatically.
-* If you want to execute on FPGA with CPU fallback, you can use any precision for IR. The execution on FPGA is defined by bitstream,
-the execution on CPU happens in FP32.
+* If you want to execute on FPGA with CPU fallback, you can use any precision for IR. The execution on FPGA is defined by bitstream, the execution on CPU happens in FP32.
 
 Samples can be used with the following command:
 
