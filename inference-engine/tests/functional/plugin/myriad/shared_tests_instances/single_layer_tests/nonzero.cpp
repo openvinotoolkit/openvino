@@ -5,7 +5,7 @@
 
 #include "single_layer_tests/nonzero.hpp"
 
-#include "common_test_utils/test_constants.hpp"
+#include "common/myriad_common_test_utils.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
@@ -16,10 +16,21 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
+ConfigMap getConfig() {
+    ConfigMap config;
+    config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    if (CommonTestUtils::vpu::CheckMyriad2()) {
+        config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+    }
+    return config;
+}
+
 std::vector<std::vector<size_t>> inShapes = {
         {1000},
         {4, 1000},
         {2, 4, 1000},
+        {2, 4, 4, 1000},
+        {2, 4, 4, 2, 1000},
 };
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
@@ -28,11 +39,12 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::U8,
 };
 
-// Enable this when #-29056 is ready
-INSTANTIATE_TEST_CASE_P(DISABLED_nonzero, NonZeroLayerTest,
+INSTANTIATE_TEST_CASE_P(nonzero, NonZeroLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-         NonZeroLayerTest::getTestCaseName);
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                ::testing::Values(getConfig())),
+        NonZeroLayerTest::getTestCaseName);
+
 }  // namespace

@@ -277,7 +277,7 @@ bool try_evaluate_range(const HostTensorPtr& out,
     }
 }
 
-bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];

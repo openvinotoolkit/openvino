@@ -73,7 +73,7 @@ protected:
         transpose->set_output_type(0, dsr->get_input_element_type(0), makeDynamicShape(transposition->get_output_partial_shape(0)));
 
         const auto transformations = vpu::Transformations{{ngraph::opset3::Transpose::type_info, vpu::dynamicToStaticShapeTranspose}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

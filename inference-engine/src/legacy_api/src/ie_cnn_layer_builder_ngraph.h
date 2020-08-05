@@ -8,7 +8,6 @@
 #include <ie_blob.h>
 #include <ie_layers.h>
 
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <ngraph/node.hpp>

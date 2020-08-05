@@ -24,6 +24,8 @@
 #include "ie_memcpy.h"
 #include "precision_utils.h"
 
+#include "ie_legacy_itt.hpp"
+
 namespace InferenceEngine {
 namespace NetPass {
 
@@ -1400,6 +1402,25 @@ void convertLayerPrecision(const CNNLayerPtr& layer) {
 }
 
 template <typename NET>
+void RemoveConverts(NET& net, std::vector<CNNLayerPtr>& to_remove) {
+    for (auto& layer : to_remove) {
+        RemoveLayer(layer, net);
+    }
+}
+
+template <>
+void RemoveConverts(ICNNNetwork& net, std::vector<CNNLayerPtr>& to_remove) {
+    OutputsDataMap outputs;
+    net.getOutputsInfo(outputs);
+    for (auto& layer : to_remove) {
+        if (!std::any_of(outputs.begin(), outputs.end(),
+            [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; })) {
+            RemoveLayer(layer, net);
+        }
+    }
+}
+
+template <typename NET>
 void fixConvertLayers(NET &net) {
     std::vector<CNNLayerPtr> to_remove;
     auto all_layers = TopolSort(net);
@@ -1420,9 +1441,7 @@ void fixConvertLayers(NET &net) {
             }
         }
     }
-    for (auto &layer : to_remove) {
-        RemoveLayer(layer, net);
-    }
+    RemoveConverts(net, to_remove);
 }
 
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO, typename NET>
@@ -1450,6 +1469,8 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer) {
 }
 
 void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "NetPass::ConvertPrecision");
+
     auto compare = getPrecisionMask(from, to);
     switch (compare) {
         case getPrecisionMask(Precision::U32, Precision::I32):
@@ -1480,6 +1501,24 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
             THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to
                                << " currently is not supported. You may expand precision"
                                   " conversion pass.";
+    }
+}
+
+void ConvertIOPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    InputsDataMap inputDataMap;
+    net.getInputsInfo(inputDataMap);
+    for (auto & i : inputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
+    }
+
+    OutputsDataMap outputDataMap;
+    net.getOutputsInfo(outputDataMap);
+    for (auto & i : outputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
     }
 }
 

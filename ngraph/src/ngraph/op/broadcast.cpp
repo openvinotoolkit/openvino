@@ -88,7 +88,7 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const
 
 namespace
 {
-    PartialShape get_result_shape_bidirectional(Node* this_ptr,
+    PartialShape get_result_shape_bidirectional(const Node* this_ptr,
                                                 const PartialShape& arg_shape,
                                                 Shape& target_shape)
     {
@@ -198,7 +198,8 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
@@ -277,7 +278,8 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
@@ -419,7 +421,8 @@ namespace
     }
 }
 
-bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }

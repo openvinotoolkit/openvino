@@ -26,6 +26,7 @@ from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
+from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union
 
 
@@ -38,9 +39,9 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     ) -> None:
         self.backend = backend
         self._parent_module = parent_module
-        self._include_patterns: Set[Pattern[Text]] = set()
-        self._exclude_patterns: Set[Pattern[Text]] = set()
-        self._test_items: Dict[Text, Dict[Text, TestItem]] = defaultdict(dict)
+        self._include_patterns = set()  # type: Set[Pattern[Text]]
+        self._exclude_patterns = set()  # type: Set[Pattern[Text]]
+        self._test_items = defaultdict(dict)  # type: Dict[Text, Dict[Text, TestItem]]
 
         for model in models:
             test_name = "test_{}".format(model["model_name"])
@@ -70,16 +71,12 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_import_test(self, model_test: OnnxTestCase, kind: Text) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker: List[Optional[Union[ModelProto, NodeProto]]] = [None]
+        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_import(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
             model_marker[0] = model
-            if not hasattr(self.backend, "is_compatible") and not callable(
-                self.backend.is_compatible
-            ):
-                raise unittest.SkipTest("Provided backend does not provide is_compatible method")
-            self.backend.is_compatible(model)
+            assert import_onnx_model(model)
 
         self._add_test(kind + "ModelImport", model_test.name, run_import, model_marker)
 
@@ -121,7 +118,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_execution_test(self, model_test: OnnxTestCase, kind: Text) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker: List[Optional[Union[ModelProto, NodeProto]]] = [None]
+        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_execution(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)

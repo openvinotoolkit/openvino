@@ -7,7 +7,6 @@
 #include <vector>
 #include <memory>
 
-#include <inference_engine.hpp>
 #include <ie_compound_blob.h>
 
 #include <cldnn/cldnn_config.hpp>

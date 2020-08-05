@@ -25,7 +25,7 @@ struct DataShapeWithUpperBound {
     DataShape upperBoundShape;
 };
 
-class DSR_TestsCommon : public LayerTestsUtils::LayerTestsCommon {
+class DSR_TestsCommon : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     std::unordered_map<std::string, DataShape> m_shapes;
     ngraph::ParameterVector m_parameterVector;
@@ -90,7 +90,7 @@ protected:
         switchDSRMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
         testedOp->set_output_type(0, testedOp->get_input_element_type(0), outputDynamicShape);
 
-        ::vpu::DynamicToStaticShape().transform(function);
+        ::vpu::DynamicToStaticShape().run_on_function(function);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {

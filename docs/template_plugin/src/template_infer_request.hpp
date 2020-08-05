@@ -12,12 +12,11 @@
 #include <unordered_map>
 
 #include <ie_common.h>
-#include <ie_profiling.hpp>
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <threading/ie_itask_executor.hpp>
+#include <openvino/itt.hpp>
 
-#include <ngraph/runtime/tensor.hpp>
 #include <ngraph/runtime/tensor.hpp>
 #include <executable.hpp>
 
@@ -47,8 +46,6 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
-    std::shared_ptr<ExecutableNetwork>                      _executableNetwork;
-
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();
@@ -61,7 +58,8 @@ private:
         numOfStages
     };
 
-    std::array<InferenceEngine::ProfilingTask, numOfStages>             _profilingTask;
+    std::shared_ptr<ExecutableNetwork>                      _executableNetwork;
+    std::array<openvino::itt::handle_t, numOfStages>        _profilingTask;
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
 

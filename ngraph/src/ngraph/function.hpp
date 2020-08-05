@@ -80,7 +80,6 @@ namespace ngraph
         /// \brief Sets a friendly name for a function. This does not overwrite the unique name
         ///        of the function and is retrieved via get_friendly_name(). Used mainly for
         ///        debugging.
-        ///        The friendly name may be set exactly once.
         /// \param name is the friendly name to set
         void set_friendly_name(const std::string& name);
 

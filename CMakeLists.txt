@@ -80,6 +80,7 @@ function(build_ngraph)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
     endif()
+    ngraph_set(NGRAPH_JSON_ENABLE FALSE)
     ngraph_set(NGRAPH_INTERPRETER_ENABLE TRUE)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
@@ -116,6 +117,8 @@ function(build_ngraph)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
+
+add_subdirectory(openvino)
 
 build_ngraph()
 

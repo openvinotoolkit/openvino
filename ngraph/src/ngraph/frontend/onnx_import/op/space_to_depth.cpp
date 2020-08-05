@@ -25,12 +25,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector space_to_depth(const Node& node)
+                OutputVector space_to_depth(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     std::size_t block_size = node.get_attribute_value<std::int64_t>("blocksize");
                     const auto mode = default_opset::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-                    return NodeVector{
+                    return OutputVector{
                         std::make_shared<default_opset::SpaceToDepth>(data, mode, block_size)};
                 }
             } // namespace set_1
