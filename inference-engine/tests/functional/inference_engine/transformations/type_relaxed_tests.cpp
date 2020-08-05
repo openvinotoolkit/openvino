@@ -8,7 +8,6 @@
 #include <ngraph_ops/type_relaxed.hpp>
 
 
-//using namespace testing;
 namespace element = ngraph::element;
 using std::make_shared;
 using TypeVector = element::TypeVector;
