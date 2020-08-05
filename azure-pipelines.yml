@@ -12,6 +12,11 @@ jobs:
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
   - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+    displayName: 'Clone submodules'
+  - script: |
       whoami
       uname -a
       which python3
@@ -24,6 +29,8 @@ jobs:
       vmstat -s
       df
     displayName: 'System properties'
+  - script: curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+    displayName: Install monitoring
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
@@ -35,11 +42,6 @@ jobs:
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install Ninja'
-  - script: |
-      git clean -xdf
-      git reset --hard HEAD
-      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
-    displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
       cd dldt-build
@@ -137,6 +139,11 @@ jobs:
     inputs:
       versionSpec: '3.7'
   - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+    displayName: 'Clone submodules'
+  - script: |
       whoami
       uname -a
       which python3
@@ -152,11 +159,6 @@ jobs:
     displayName: 'Install dependencies'
   - script: brew install ninja
     displayName: 'Install Ninja'
-  - script: |
-      git clean -xdf
-      git reset --hard HEAD
-      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
-    displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
       cd dldt-build
@@ -244,6 +246,11 @@ jobs:
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
   - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+    displayName: 'Clone submodules'
+  - script: |
       where python3
       where python
       python --version
@@ -253,15 +260,12 @@ jobs:
       wmic VOLUME list
       set
     displayName: 'System properties'
+  - powershell: Invoke-RestMethod -Headers @{"Metadata"="true"} -URI http://169.254.169.254/metadata/instance?api-version=2017-08-01 -Method get | Format-Custom
+    displayName: Install monitoring
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
-  - script: |
-      git clean -xdf
-      git reset --hard HEAD
-      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
-    displayName: 'Clone submodules'
   - script: |
       rd /Q /S $(BUILD_DIR)
       mkdir $(BUILD_DIR)\bin
