@@ -250,8 +250,7 @@ jobs:
       git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
-      # Collect platform metadata for current instance
-      powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -NoProxy -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
+      powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python3
       where python
       python --version
