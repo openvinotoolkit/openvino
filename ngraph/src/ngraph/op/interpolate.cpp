@@ -222,7 +222,6 @@ void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
     }
 }
 
-
 void op::v4::Interpolate::validate_and_infer_types()
 {
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
