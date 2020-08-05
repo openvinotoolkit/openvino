@@ -29,8 +29,8 @@ namespace ngraph
             class NGRAPH_API MaxPool : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"MaxPool", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched max pooling operation.
                 MaxPool() = default;
 

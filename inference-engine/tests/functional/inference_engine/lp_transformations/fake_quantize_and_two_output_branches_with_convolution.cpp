@@ -11,7 +11,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/low_precision/fake_quantize.hpp>
 
@@ -60,7 +59,7 @@ typedef std::tuple<
     bool,
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> FakeQuantizeAndTwoOutputBranchesWithConvolutionParams;
 
-class FakeQuantizeAndTwoOutputBranchesWithConvolution :
+class FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation :
     public LayerTransformation,
     public testing::WithParamInterface<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> {
 public:
@@ -104,7 +103,7 @@ public:
     }
 };
 
-TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolution, CompareFunctions) {
+TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction);
     ASSERT_TRUE(res.first) << res.second;
@@ -143,10 +142,10 @@ const std::vector<ngraph::Shape> shapes = {
 
 INSTANTIATE_TEST_CASE_P(
     LPT,
-    FakeQuantizeAndTwoOutputBranchesWithConvolution,
+    FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(updatePrecisions),
         ::testing::ValuesIn(fakeQuantizeOnDataTestValues)),
-    FakeQuantizeAndTwoOutputBranchesWithConvolution::getTestCaseName);
+    FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName);

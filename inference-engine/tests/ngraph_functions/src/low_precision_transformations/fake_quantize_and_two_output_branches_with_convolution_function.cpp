@@ -8,6 +8,9 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+
 namespace ngraph {
 namespace builder {
 namespace subgraph {
@@ -27,11 +30,13 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution = typeRelaxed ?
         std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-            parent,
-            fqOnWeights.empty() ? weights->output(0) :
-            ngraph::builder::makeFakeQuantize(
-                weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-                fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
+            std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
+            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(fqOnWeights.empty() ?
+                weights :
+                ngraph::builder::makeFakeQuantize(
+                    weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
+                    fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues), element::f32).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
@@ -94,15 +99,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     auto fakeQuantizeOnActivations = values.fqOnData.empty() ?
         nullptr :
-        as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
-            input,
-            precision,
-            values.fqOnData.quantizationLevel,
-            values.fqOnData.constantShape,
-            values.fqOnData.inputLowValues,
-            values.fqOnData.inputHighValues,
-            values.fqOnData.outputLowValues,
-            values.fqOnData.outputHighValues));
+        makeFakeQuantizeTypeRelaxed(input, precision, values.fqOnData);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,

@@ -107,7 +107,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
     // branch with limitation precision operation (Convolution)
     std::shared_ptr<ngraph::Node> branch1Pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
-        std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<op::TypeRelaxed<ngraph::opset1::MaxPool>>(
+        std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset1::MaxPool>(
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
             op::RoundingType::FLOOR)) :
@@ -164,7 +164,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
 
         if (values.operationBeforeLimitedOperationIsPrecisionTransparent) {
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
+            auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(branch1Pooling);
+            if (intermediateOpTr != nullptr) {
+                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
+            } else {
+                // TODO: potential workaround for the same case: openvino\inference-engine\tests\ngraph_functions\src\low_precision_transformations\concat_function.cpp, line #496
+                // branch1Pooling->set_output_type(0, values.fakeQuantizeOnDataOutPrecision, branch1Pooling->get_output_partial_shape(0));
+            }
         }
 
         if (values.fakeQuantizeOnWeights.empty()) {

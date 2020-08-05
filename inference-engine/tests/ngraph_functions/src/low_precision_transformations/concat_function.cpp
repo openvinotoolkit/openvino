@@ -415,7 +415,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     std::shared_ptr<Node> intermediateOp;
 
     if (transparentIntermediate) {
-        intermediateOp = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MaxPool>>(
+        intermediateOp = std::make_shared<ngraph::opset1::MaxPool>(
             fakeQuantize2->output(0),
             stride,
             padBegin,
@@ -491,6 +491,9 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
             auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(intermediateOp);
             if (intermediateOpTr != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(intermediateOp, fqOnDataPrecision);
+            } else {
+                // TODO: workaround
+                intermediateOp->set_output_type(0, fqOnDataPrecision, intermediateOp->get_output_partial_shape(0));
             }
         }
     }
@@ -534,7 +537,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
     std::shared_ptr<ngraph::op::Op> intermediateOp;
 
     if (transparentIntermediate) {
-        intermediateOp = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MaxPool>>(
+        intermediateOp = std::make_shared<ngraph::opset1::MaxPool>(
             fakeQuantize2->output(0),
             stride,
             padBegin,
