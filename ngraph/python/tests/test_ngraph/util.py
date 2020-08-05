@@ -26,6 +26,11 @@ from tests.runtime import get_runtime
 def _get_numpy_dtype(scalar):
     return np.array([scalar]).dtype
 
+def _get_shape(data):
+    if isinstance(data, (list, tuple, np.ndarray, np.array)):
+        return data.shape
+    else:
+        return [1]
 
 def run_op_node(input_data, op_fun, *args):
     # type: (NumericData, Callable, *Any) -> List[NumericData]
@@ -46,9 +51,9 @@ def run_op_node(input_data, op_fun, *args):
     op_fun_args = []
     comp_inputs = []
     for data in input_data:
-        param = ng.parameter(data.shape, _get_numpy_dtype(data))
+        param = ng.parameter(_get_shape(data), _get_numpy_dtype(data))
         comp_args.append(param)
-        comp_inputs.append(ng.constant(data, _get_numpy_dtype(data)))
+        comp_inputs.append(data)
         op_fun_args.append(param)
     op_fun_args.extend(args)
     node = op_fun(*op_fun_args)
