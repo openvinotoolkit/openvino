@@ -14,29 +14,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ApplyTransformationsToTIBody;
+    class TRANSFORMATIONS_API ApplyTransformationsToTIBody;
 
 }  // namespace pass
 }  // namespace ngraph
 
-/*
- * Description:
- * TODO:fill
- *
- * Usage:
- * TODO:fill
- *
- * Callback example:
- * TODO: fill
- *
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Applies transformations from given pass::Manager for each TensorIterator body
  */
 
-class ngraph::pass::ApplyTransformationsToTIBody: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ApplyTransformationsToTIBody: public ngraph::pass::MatcherPass {
 public:
-    explicit ApplyTransformationsToTIBody(ngraph::pass::Manager& manager) : GraphRewrite() {
-        apply_transformations_to_ti_body(manager);
-    }
-
-private:
-    void apply_transformations_to_ti_body(ngraph::pass::Manager& manager);
+    explicit ApplyTransformationsToTIBody(ngraph::pass::Manager & manager);
 };
