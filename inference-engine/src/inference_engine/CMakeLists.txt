@@ -159,7 +159,7 @@ add_library(${TARGET_NAME} SHARED
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads pugixml openvino::itt
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} Threads::Threads pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations
                                      PUBLIC ${TARGET_NAME}_legacy)
 
