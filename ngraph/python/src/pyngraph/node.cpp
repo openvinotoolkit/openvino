@@ -87,7 +87,6 @@ void regclass_pyngraph_Node(py::module m)
     node.def("outputs",
              (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
                  ngraph::Node::outputs);
-    node.def("is_same_op_type", &ngraph::Node::is_same_op_type);
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);

@@ -77,6 +77,6 @@ def run_op_numeric_data(input_data, op_fun, *args):
 def count_ops_of_type(func, op_type):
     count = 0
     for op in func.get_ops():
-        if (op.is_same_op_type(op_type)):
+        if (type(op) is type(op_type)):
             count += 1
     return count
