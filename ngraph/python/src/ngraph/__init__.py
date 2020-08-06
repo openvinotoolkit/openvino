@@ -95,6 +95,7 @@ from ngraph.opset4 import matmul
 from ngraph.opset4 import max_pool
 from ngraph.opset4 import maximum
 from ngraph.opset4 import minimum
+from ngraph.opset4 import mish
 from ngraph.opset4 import mod
 from ngraph.opset4 import multiply
 from ngraph.opset4 import mvn
