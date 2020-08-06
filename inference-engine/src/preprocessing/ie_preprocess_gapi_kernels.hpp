@@ -143,6 +143,16 @@ namespace gapi {
         }
     };
 
+    G_TYPED_KERNEL(U16toF32, <cv::GMat(cv::GMat)>, "com.intel.ie.u16tof32") {
+        static cv::GMatDesc outMeta(const cv::GMatDesc& in) {
+            GAPI_Assert(in.depth == CV_16U);
+
+            return in.withDepth(CV_32F);
+        }
+    };
+
+
+
     cv::gapi::GKernelPackage preprocKernels();
 
 }  // namespace gapi

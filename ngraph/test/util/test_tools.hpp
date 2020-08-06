@@ -32,7 +32,6 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/serializer.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "runtime/backend.hpp"
 
@@ -71,9 +70,6 @@ namespace ngraph
 
 bool validate_list(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 std::shared_ptr<ngraph::Function> make_test_graph();
-#ifndef NGRAPH_JSON_DISABLE
-std::shared_ptr<ngraph::Function> make_function_from_file(const std::string& file_name);
-#endif
 
 template <typename T>
 void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>& data)
