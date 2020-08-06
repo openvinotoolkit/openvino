@@ -53,11 +53,9 @@ def test_constant_folding():
     assert count_ops_of_type(func, node_ceil) == 0 
     assert count_ops_of_type(func, node_constant) == 1
 
-    # print(as_node(func.get_results()[0]))
-    # new_const = ng.constant(as_node(func.get_results()[0]))
-    # print(new_const.get_vector())
-    # ASSERT_TRUE(new_const);
-    # auto values_out = new_const->get_vector<float>();
+    new_const = func.get_results()[0].input(0).get_source_output().get_node()
 
-    # assert f.get_ops() == 0
-    # assert shape_out == shape_expected
+    values_out = new_const.cast_vector_float()
+    values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
+
+    assert np.allclose(values_out, values_expected)

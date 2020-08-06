@@ -20,11 +20,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/pass.hpp"
 
-#include "ngraph/pass/algebraic_simplification.hpp"
 #include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/convert_fp32_to_fp16.hpp"
-#include "ngraph/pass/get_output_element_elimination.hpp"
-#include "ngraph/pass/nop_elimination.hpp"
 #include "ngraph/pass/validate.hpp"
 
 #include "pyngraph/passes/manager.hpp"
@@ -40,18 +36,8 @@ namespace
         ~ManagerWrapper() {}
         void register_pass(std::string pass_name)
         {
-            if (pass_name == "AlgebraicSimplification")
-                push_pass<ngraph::pass::AlgebraicSimplification>();
             if (pass_name == "ConstantFolding")
                 push_pass<ngraph::pass::ConstantFolding>();
-            if (pass_name == "ConvertFP32ToFP16")
-                push_pass<ngraph::pass::ConvertFP32ToFP16>();
-            if (pass_name == "GetOutputElementElimination")
-                push_pass<ngraph::pass::GetOutputElementElimination>();
-            if (pass_name == "NopElimination")
-                push_pass<ngraph::pass::NopElimination>();
-            if (pass_name == "Validate")
-                push_pass<ngraph::pass::Validate>();
 
             if (m_per_pass_validation)
             {
@@ -64,16 +50,11 @@ namespace
 
 void regclass_pyngraph_passes_Manager(py::module m)
 {
-    // py::class_<ngraph::pass::Manager, std::shared_ptr<ngraph::pass::Manager>> manager_base(
-    //     m, "ManagerBase");
-    // py::class_<ManagerWrapper, std::shared_ptr<ManagerWrapper>, ngraph::pass::Manager> manager(
-    //     m, "Manager");
     py::class_<ManagerWrapper> manager(m, "Manager");
     manager.doc() = "ngraph.impl.passes.Manager wraps ngraph::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());
 
-    manager.def("set_pass_visualization", &ManagerWrapper::set_pass_visualization);
     manager.def("set_per_pass_validation", &ManagerWrapper::set_per_pass_validation);
     manager.def("run_passes", &ManagerWrapper::run_passes);
     manager.def("register_pass",
