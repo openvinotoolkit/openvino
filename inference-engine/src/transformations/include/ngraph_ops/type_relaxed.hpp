@@ -71,7 +71,7 @@ public:
     /// In case if inputIndex is out of range of known inputs (and this class cannot detect
     /// the real number of inputs for original operation), the number of overridden inputs
     /// is changed according to a given inputIndex value. All new entries except one added
-    /// at inputIndex positoin are undefined.
+    /// at inputIndex position are undefined.
     void set_origin_input_type(const element::Type& element_type, size_t inputIndex = 0) {
         if (inputIndex >= m_input_data_types.size()) {
             m_input_data_types.resize(inputIndex + 1, element::undefined);
