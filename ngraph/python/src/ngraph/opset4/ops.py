@@ -137,3 +137,13 @@ def non_max_suppression(
     }
 
     return _get_node_factory_opset4().create("NonMaxSuppression", inputs, attributes)
+
+
+@nameable_op
+def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
+    """Return a node which performs Mish.
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs Mish
+    """
+    return _get_node_factory_opset4().create("Mish", as_nodes(data), {})

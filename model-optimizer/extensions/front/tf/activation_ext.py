@@ -14,7 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.activation_ops import Abs, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, \
-    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh
+    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -209,4 +209,14 @@ class CeilExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Ceiling.update_node_stat(node)
+        return cls.enabled
+
+
+class MishExtractor(FrontExtractorOp):
+    op = 'Mish'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Mish.update_node_stat(node)
         return cls.enabled
