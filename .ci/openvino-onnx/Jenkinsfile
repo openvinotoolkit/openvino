@@ -91,7 +91,7 @@ def runTests() {
                     -e LD_LIBRARY_PATH=/openvino/dist/lib \
                     -e NGRAPH_ONNX_IMPORT_ENABLE=TRUE \
                     -e PYTHONPATH=${PYTHONPATH} \
-                    -w DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
+                    -w {DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
     """
 }
 
