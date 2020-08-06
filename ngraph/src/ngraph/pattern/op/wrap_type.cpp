@@ -31,7 +31,7 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
                                         const Output<Node>& pattern_value,
                                         const Output<Node>& graph_value)
 {
-    if (graph_value.get_node_shared_ptr()->get_type_info() == get_wrapped_type() &&
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_wrapped_type()) &&
         m_predicate(graph_value))
     {
         auto& pattern_map = matcher->get_pattern_value_map();
