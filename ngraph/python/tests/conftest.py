@@ -73,7 +73,3 @@ def pytest_collection_modifyitems(config, items):
         skip_this_backend = keywords[backend_name]
         if skip_this_backend in item.keywords:
             item.add_marker(skip_markers[backend_name])
-
-        if item.name.startswith(("test_reduce_operation[None-False",
-                                 "test_reduce_operation[axes7-False")):
-            item.add_marker(tests.xfail_issue_35925)

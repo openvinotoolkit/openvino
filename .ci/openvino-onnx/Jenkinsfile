@@ -59,6 +59,7 @@ def gitSubmoduleUpdate(String repository_name) {
 def buildDockerImage() {
     sh """
         docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/openvino/.onnx \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """

@@ -48,15 +48,33 @@ def import_and_compute(op_type, input_data, **node_attrs):
 
 
 @pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
-@pytest.mark.parametrize("keepdims", [True, False])
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
-def test_reduce_operation(operation, ref_operation, keepdims, axes):
+def test_reduce_operation_keepdims(operation, ref_operation, axes):
     if axes:
-        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=keepdims),
-                              ref_operation(reduce_data, keepdims=keepdims, axis=axes))
+        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
+                              ref_operation(reduce_data, keepdims=True, axis=axes))
     else:
-        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=keepdims),
-                              ref_operation(reduce_data, keepdims=keepdims))
+        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=True),
+                              ref_operation(reduce_data, keepdims=True))
+
+
+@pytest.mark.parametrize("axes", [
+    pytest.param(None, marks=xfail_issue_35925),
+    (0,),
+    (1,),
+    (2,),
+    (0, 1),
+    (0, 2),
+    (1, 2),
+    pytest.param((0, 1, 2), marks=xfail_issue_35925)])
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
+def test_reduce_operation_no_keepdims(operation, ref_operation, axes):
+    if axes:
+        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False, axis=axes))
+    else:
+        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False))
 
 
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
