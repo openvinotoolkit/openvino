@@ -12,7 +12,7 @@ graph {
     }
     attribute {
       name: "mode"
-      s: "blocks_first"
+      s: "CRD"
       type: STRING
     }
   }
@@ -24,7 +24,10 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 4
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
           }
           dim {
             dim_value: 2
@@ -46,6 +49,9 @@ graph {
             dim_value: 1
           }
           dim {
+            dim_value: 2
+          }
+          dim {
             dim_value: 4
           }
           dim {
@@ -57,5 +63,5 @@ graph {
   }
 }
 opset_import {
-  version: 1
+  version: 11
 }
