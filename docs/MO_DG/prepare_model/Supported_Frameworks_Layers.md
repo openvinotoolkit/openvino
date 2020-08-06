@@ -41,6 +41,9 @@ Standard MXNet\* symbols:
 | Symbol Name in MXNet\*| Limitations|
 | :----------| :----------|
 | Activation | supported "act_type" = "relu", "sigmoid", "softrelu" or "tanh" |
+| arccosh | No |
+| arcsinh | No |
+| arctanh | No |
 | BatchNorm | No |
 | Concat | No |
 | Convolution | No |
