@@ -61,16 +61,16 @@ def gitSubmoduleUpdate(String repository_name) {
 }
 
 def runDockerContainer(String imageID) {
-             CONTAINER_ID = sh (
-                    script: """
-                            docker run -id --privileged \
-                                    --name ${DOCKER_CONTAINER_NAME} \
-                                    --volume ${WORKDIR}:${DOCKER_HOME} \
-                                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:${DOCKER_HOME}/.onnx \
-                                    ${imageID} tail -f /dev/null
-                            """,
-                    returnStdout: true
-                    ).trim()
+    CONTAINER_ID = sh (
+    script: """
+            docker run -id --privileged \
+                    --name ${DOCKER_CONTAINER_NAME} \
+                    --volume ${WORKDIR}:${DOCKER_HOME} \
+                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:${DOCKER_HOME}/.onnx \
+                    ${imageID} tail -f /dev/null
+            """,
+    returnStdout: true
+    ).trim()
 }
 
 def buildDockerImage() {
@@ -85,8 +85,14 @@ def buildDockerImage() {
 }
 
 def runTests() {
+    ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
+
     sh """
-        docker exec -w ${DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
+        docker exec -e NGRAPH_CPP_BUILD_PATH=/openvino/dist \
+                    -e LD_LIBRARY_PATH=/openvino/dist/lib \
+                    -e NGRAPH_ONNX_IMPORT_ENABLE=TRUE \
+                    -e PYTHONPATH=${PYTHONPATH} \
+                    -w DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
     """
 }
 
