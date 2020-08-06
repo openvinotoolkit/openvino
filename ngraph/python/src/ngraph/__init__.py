@@ -51,6 +51,7 @@ from ngraph.opset4 import convolution_backprop_data
 from ngraph.opset4 import cos
 from ngraph.opset4 import cosh
 from ngraph.opset4 import ctc_greedy_decoder
+from ngraph.opset4 import ctc_loss
 from ngraph.opset4 import cum_sum
 from ngraph.opset4 import cum_sum as cumsum
 from ngraph.opset4 import deformable_convolution
