@@ -194,21 +194,21 @@ namespace
         {
         case element::Type_t::i32:
         {
-            const auto split_lengths_i32 = read_vector<int32_t>(axis_tensor);
+            const auto split_lengths_i32 = read_vector<int32_t>(split_lengths_tensor);
             split_lengths =
                 std::vector<int64_t>(std::begin(split_lengths_i32), std::end(split_lengths_i32));
             break;
         }
         case element::Type_t::i64:
         {
-            const auto split_lengths_i64 = read_vector<int64_t>(axis_tensor);
+            const auto split_lengths_i64 = read_vector<int64_t>(split_lengths_tensor);
             split_lengths =
                 std::vector<int64_t>(std::begin(split_lengths_i64), std::end(split_lengths_i64));
             break;
         }
         case element::Type_t::u64:
         {
-            const auto split_lengths_u64 = read_vector<uint64_t>(axis_tensor);
+            const auto split_lengths_u64 = read_vector<uint64_t>(split_lengths_tensor);
             split_lengths =
                 std::vector<int64_t>(std::begin(split_lengths_u64), std::end(split_lengths_u64));
             break;
@@ -223,8 +223,8 @@ namespace
         }
 
         const auto data_shape = data_tensor->get_shape();
-        const auto neg_one_pos = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
-        if (neg_one_pos != std::end(split_lengths)) // negative length set
+        const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
+        if (neg_one != std::end(split_lengths)) // negative length set
         {
             int64_t sum_of_known_splits = 0;
             std::for_each(std::begin(split_lengths),
@@ -232,10 +232,11 @@ namespace
                           [&sum_of_known_splits](int64_t split) {
                               if (split != -1)
                               {
-                                  sum_of_known_splits != split;
+                                  sum_of_known_splits += split;
                               }
                           });
-            split_lengths[*neg_one_pos] = shape_size(data_shape) - sum_of_known_splits;
+            split_lengths[std::distance(std::begin(split_lengths), neg_one)] =
+                data_shape[axis] - sum_of_known_splits;
         }
 
         Shape output_shape = data_shape;
@@ -249,7 +250,7 @@ namespace
             output_shape.at(axis) = split_lengths[split_pos++];
             output->set_shape(output_shape);
             evaluate(data_tensor, output, lower_bounds, upper_bounds);
-            lower_bounds.at(axis) += split_lengths[split_pos];
+            lower_bounds.at(axis) = upper_bounds.at(axis);
             upper_bounds.at(axis) += split_lengths[split_pos];
         }
 
