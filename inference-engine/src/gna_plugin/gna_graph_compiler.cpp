@@ -251,7 +251,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_width = FROM_IR_DIM(outputs, out_order[3]);
 
     if (in_batch != 1 || out_batch != 1) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << " with batch not equals 1 is not supported";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
     if (convolution._kernel_x != 1 && convolution._kernel_y != 1 && convolution._kernel_y != in_channels) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with 2D kernel is not supported on GNA";
@@ -271,15 +271,18 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         THROW_GNA_LAYER_EXCEPTION(layer) << "in_height != 1 This case requires additional Permute and it is not implemented yet";
     }
     if (convolution._kernel_x > in_width * in_height) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "kernel_x > in_width * in_height";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions are bigger than input dimensions. "
+            << convolution._kernel_x << " vs " << in_width * in_height;
     }
 
     if (out_channels != convolution._out_depth) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "out_channels != out_depth";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Output channels do not equal output depth. "
+            << out_channels << " vs " << convolution._out_depth;
     }
     std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
     if (out_width * in_height != calculated_out_width) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid output configuration. " << calculated_out_width << " != " << out_width * in_height;
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid output configuration. "
+            << calculated_out_width << " != " << out_width * in_height;
     }
 
     uint32_t total_conv_kernel_size = convolution._kernel_x * convolution._kernel_y * convolution._out_depth;
@@ -290,7 +293,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
     auto actual_kernel_size = details::product(convolution._weights->getTensorDesc().getDims());
     if (total_conv_kernel_size != actual_kernel_size) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "weights size mismatch with kernel size";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Weights size does not equal kernel size "
+            << actual_kernel_size << " vs " << total_conv_kernel_size;
     }
 
     // padding of convolution kernel to be multiply of 8
@@ -302,7 +306,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     // have to pad input to let last kernel meets it's corresponding input
-    // uint32_t num_inputs = num_feature_map_columns * num_feature_map_rows + num_conv_kernel_padding;
     uint32_t num_inputs = in_width * in_height * in_channels;
     uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
 
@@ -323,7 +326,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     if (num_columns_out != out_batch * out_channels * out_height * out_width) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "number columns out not equal to output tensor size";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Number of output columns does not equal output tensor size "
+            << num_columns_out << " vs " << out_batch * out_channels * out_height * out_width;
     }
 
     void* ptr_inputs = nullptr;
