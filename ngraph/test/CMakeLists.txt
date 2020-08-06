@@ -72,6 +72,7 @@ set(SRC
     node_input_output.cpp
     nop_elimination.cpp
     op.cpp
+    op_eval/interpolate.cpp
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
