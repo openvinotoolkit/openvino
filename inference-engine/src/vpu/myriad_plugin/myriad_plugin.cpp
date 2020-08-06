@@ -17,7 +17,7 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 

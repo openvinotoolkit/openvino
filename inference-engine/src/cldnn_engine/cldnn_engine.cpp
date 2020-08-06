@@ -27,7 +27,7 @@
 #include <ngraph/op/fused/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
