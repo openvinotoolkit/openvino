@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/fake_quantize_and_max_pool_transformation.hpp"
+#include "low_precision_transformations/fake_quantize_and_avg_pool_transformation.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -31,7 +31,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 
 // FakeQuantizeOnData
 
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndMaxPoolTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndAvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn({ ngraph::Shape({ 1, 32, 72, 48 }) }),
@@ -39,5 +39,5 @@ INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndMaxPoolTransformation,
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(fakeQuantizes)),
-    FakeQuantizeAndMaxPoolTransformation::getTestCaseName);
+    FakeQuantizeAndAvgPoolTransformation::getTestCaseName);
 }  // namespace
