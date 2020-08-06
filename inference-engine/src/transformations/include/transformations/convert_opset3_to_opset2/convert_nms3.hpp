@@ -14,17 +14,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertNMS3;
+class TRANSFORMATIONS_API ConvertNMS1ToNMS3;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNMS3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNMS1ToNMS3: public ngraph::pass::GraphRewrite {
 public:
-    ConvertNMS3() : GraphRewrite() {
-        convert_nms3();
+    ConvertNMS1ToNMS3() : GraphRewrite() {
+        convert_nms1_to_nms3();
     }
 
 private:
-    void convert_nms3();
+    void convert_nms1_to_nms3();
 };

@@ -18,6 +18,8 @@ list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
+      # will be merged with file_utils.cpp after IE dependency on legacy is removed
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_unicode.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
@@ -152,14 +154,14 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 # Create shared library file from object library
 
 add_library(${TARGET_NAME} SHARED
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            ${IE_STATIC_DEPENDENT_FILES})
+            ${IE_STATIC_DEPENDENT_FILES}
+            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads pugixml openvino::itt
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations
-                                     PUBLIC ${CMAKE_DL_LIBS} ${TARGET_NAME}_legacy)
+                                     PUBLIC ${TARGET_NAME}_legacy)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR} PRIVATE
                                                 $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -191,10 +193,9 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations openvino::itt
-# NOTE: public linkage with ITT is important here! without it binaries that use this library do not
-#       get proper compile flags to support ITT which causes hard-to-detect bugs.
-                                       PUBLIC pugixml ${CMAKE_DL_LIBS})
+target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+                                               inference_engine_transformations openvino::itt
+                                       PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

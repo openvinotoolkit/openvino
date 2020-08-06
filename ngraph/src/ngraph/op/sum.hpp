@@ -99,7 +99,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         }
         // default opset version

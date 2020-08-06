@@ -26,8 +26,9 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct batch_to_space_params : public base_params {
     batch_to_space_params() : base_params(KernelType::BATCH_TO_SPACE) {}
-    std::vector<std::vector<int32_t>> bts_params;
-
+    DimTensor<uint32_t> block_shape;
+    DimTensor<uint32_t> crops_begin;
+    DimTensor<uint32_t> crops_end;
     virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 

@@ -151,7 +151,12 @@ namespace ngraph
             OutputVector& get_matched_values() { return m_matched_list; }
             void reset() {}
             const std::string& get_name() { return m_name; }
-            std::shared_ptr<Node> get_pattern() { return m_pattern_node.as_single_output_node(); }
+            std::shared_ptr<Node> get_pattern()
+            {
+                NGRAPH_SUPPRESS_DEPRECATED_START
+                return m_pattern_node.as_single_output_node();
+                NGRAPH_SUPPRESS_DEPRECATED_END
+            }
             Output<Node> get_pattern_value() { return m_pattern_node; }
             std::shared_ptr<Node> get_match_root();
             Output<Node> get_match_value();

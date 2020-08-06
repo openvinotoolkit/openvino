@@ -30,11 +30,79 @@ namespace ngraph
 {
     namespace pass
     {
-        class PassBase;
-        class ModulePass;
-        class FunctionPass;
-        class NodePass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
-        class CallGraphPass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
+        enum class PassProperty : uint32_t
+        {
+            // Pass requires node shapes to be static
+            REQUIRE_STATIC_SHAPE = 0x1,
+            // Pass transformation will change the function's dynamic state
+            CHANGE_DYNAMIC_STATE = 1 << 1,
+        };
+
+        typedef EnumMask<PassProperty> PassPropertyMask;
+        const PassPropertyMask all_pass_property_off;
+        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
+
+        class NGRAPH_API PassBase
+        {
+            friend class Manager;
+
+        public:
+            PassBase();
+            virtual ~PassBase() {}
+            /// Check if this pass has all the pass properties.
+            bool get_property(const PassPropertyMask& prop_mask) const;
+
+            void set_name(const std::string& name) { m_name = name; }
+            std::string get_name() const;
+
+            void set_callback(const param_callback& callback);
+
+        protected:
+            ManagerState& get_state();
+            void set_state(ManagerState&);
+            void set_property(const PassPropertyMask& prop, bool value);
+
+            param_callback m_transformation_callback =
+                [](const std::shared_ptr<const Node>&) -> bool { return false; };
+            bool m_has_default_callback = true;
+
+        private:
+            PassPropertyMask m_property;
+            ManagerState* m_state{nullptr};
+            std::string m_name;
+        };
+
+        class NGRAPH_API ModulePass : public PassBase
+        {
+        public:
+            virtual ~ModulePass();
+            virtual bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) = 0;
+        };
+
+        class NGRAPH_API FunctionPass : public PassBase
+        {
+        public:
+            virtual ~FunctionPass();
+            virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
+        };
+
+        class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API NodePass
+            : public PassBase
+        {
+        public:
+            virtual ~NodePass();
+            virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
+        };
+
+        class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API CallGraphPass
+            : public PassBase
+        {
+        public:
+            virtual ~CallGraphPass();
+            virtual bool run_on_call_graph(const std::list<std::shared_ptr<ngraph::Node>>&) = 0;
+            virtual bool run_on_call_graph(const std::vector<std::shared_ptr<ngraph::Node>>&);
+        };
+
         class Manager;
         enum class FusionType : uint32_t
         {
@@ -48,86 +116,5 @@ namespace ngraph
             ALL_FUSIONS = 0xFFFFFFFF
         };
         typedef EnumMask<FusionType> FusionTypeMask;
-
-        enum class PassProperty : uint32_t
-        {
-            // Pass requires node shapes to be static
-            REQUIRE_STATIC_SHAPE = 0x1,
-            // Pass transformation will change the function's dynamic state
-            CHANGE_DYNAMIC_STATE = 1 << 1,
-        };
-
-        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
     }
 }
-
-template class NGRAPH_API ngraph::EnumMask<ngraph::pass::PassProperty>;
-
-namespace ngraph
-{
-    namespace pass
-    {
-        typedef EnumMask<PassProperty> PassPropertyMask;
-        const PassPropertyMask all_pass_property_off;
-    }
-}
-
-class NGRAPH_API ngraph::pass::PassBase
-{
-    friend class Manager;
-
-public:
-    PassBase();
-    virtual ~PassBase() {}
-    /// Check if this pass has all the pass properties.
-    bool get_property(const PassPropertyMask& prop_mask) const;
-
-    void set_name(const std::string& name) { m_name = name; }
-    std::string get_name() const;
-
-    void set_callback(const param_callback& callback);
-
-protected:
-    ManagerState& get_state();
-    void set_state(ManagerState&);
-    void set_property(const PassPropertyMask& prop, bool value);
-
-    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
-        return false;
-    };
-    bool m_has_default_callback = true;
-
-private:
-    PassPropertyMask m_property;
-    ManagerState* m_state{nullptr};
-    std::string m_name;
-};
-
-class NGRAPH_API ngraph::pass::ModulePass : public PassBase
-{
-public:
-    virtual ~ModulePass();
-    virtual bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) = 0;
-};
-
-class NGRAPH_API ngraph::pass::FunctionPass : public PassBase
-{
-public:
-    virtual ~FunctionPass();
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
-};
-
-class NGRAPH_API ngraph::pass::NodePass : public PassBase
-{
-public:
-    virtual ~NodePass();
-    virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
-};
-
-class NGRAPH_API ngraph::pass::CallGraphPass : public PassBase
-{
-public:
-    virtual ~CallGraphPass();
-    virtual bool run_on_call_graph(const std::list<std::shared_ptr<ngraph::Node>>&) = 0;
-    virtual bool run_on_call_graph(const std::vector<std::shared_ptr<ngraph::Node>>&);
-};

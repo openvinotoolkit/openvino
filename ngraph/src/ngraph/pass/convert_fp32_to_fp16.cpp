@@ -51,7 +51,9 @@ void pass::ConvertFP32ToFP16::convert_constants_precision()
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(constant, "ConvertFP32ToFP16");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void pass::ConvertFP32ToFP16::convert_parameters_precision()
@@ -69,5 +71,7 @@ void pass::ConvertFP32ToFP16::convert_parameters_precision()
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(constant, "ConvertFP32ToFP16");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

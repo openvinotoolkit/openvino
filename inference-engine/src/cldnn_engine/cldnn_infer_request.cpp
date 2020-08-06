@@ -52,6 +52,11 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* me
             return make_shared_blob<int64_t>(desc, reinterpret_cast<int64_t*>(mem_ptr));
         else
             return make_shared_blob<int64_t>(desc);
+    case Precision::I8:
+        if (mem_ptr != nullptr)
+            return make_shared_blob<int8_t>(desc, reinterpret_cast<int8_t*>(mem_ptr));
+        else
+            return make_shared_blob<int8_t>(desc);
     case Precision::U8:
         if (mem_ptr != nullptr)
             return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
@@ -284,6 +289,11 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     }
     case Precision::FP16: {
         uint16_t* blob_ptr = const_cast<uint16_t*>(locked.as<const uint16_t*>()) + offset;
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        break;
+    }
+    case Precision::I8: {
+        int8_t* blob_ptr = const_cast<int8_t*>(locked.as<const int8_t*>()) + offset;
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
     }
@@ -912,6 +922,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
         switch (prec) {
             case Precision::FP32:
             case Precision::FP16:
+            case Precision::I8:
             case Precision::U8:
             case Precision::BOOL:
             case Precision::I32:

@@ -130,6 +130,11 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         size_t numSplits,
                                         size_t axis);
 
+std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
+                                                const element::Type &type,
+                                                const std::vector<size_t> numSplits,
+                                                size_t axis);
+
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType,
@@ -266,8 +271,8 @@ std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
                                  bool transpose_a = false,
                                  bool transpose_b = false);
 
-std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
-                                         const std::vector<int> &reductionAxes,
+std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
+                                         const ngraph::Output<Node>& axes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
 
