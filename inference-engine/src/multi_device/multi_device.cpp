@@ -18,6 +18,7 @@
 #include <multi-device/multi_device_config.hpp>
 #include <ie_plugin_config.hpp>
 #include "multi_device.hpp"
+#include <ie_util_internal.hpp>
 
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;

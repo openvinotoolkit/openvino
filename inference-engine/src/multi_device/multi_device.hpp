@@ -15,7 +15,6 @@
 #include <memory>
 #include <string>
 
-#include <cpp/ie_plugin_cpp.hpp>
 #include <ie_plugin_dispatcher.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>

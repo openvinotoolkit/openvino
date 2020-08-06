@@ -20,6 +20,7 @@
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "generic_ie.hpp"
+#include <ie_util_internal.hpp>
 
 #include "myriad_plugin.h"
 
