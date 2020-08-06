@@ -81,7 +81,10 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
                 std::make_shared<opset1::Subtract>(fullPathInput, newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        auto newAdd = add->clone_with_new_inputs({ inputs[0], inputs[1] });
+        auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+            ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<opset1::Multiply>(newAdd, multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);

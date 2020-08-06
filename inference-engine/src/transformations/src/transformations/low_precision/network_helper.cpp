@@ -184,9 +184,11 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
     auto bDivA = fold<opset1::Divide>(b, a);
 
-    auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
-        opset1::Add(x, bDivA),
-        addAfterMultiply->get_output_element_type(multiplyBranch));
+    std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+        ngraph::op::TemporaryReplaceOutputType(x, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(bDivA, element::f32).get());
+    NetworkHelper::setOutDataPrecision(newAdd, addAfterMultiply->get_output_element_type(multiplyBranch));
 
     auto newMultiply = std::make_shared<opset1::Multiply>(newAdd, a);
     replace_node(addAfterMultiply, newMultiply);
