@@ -1,4 +1,4 @@
-# Compile Tool
+# Compile Tool {#openvino_inference_engine_tools_compile_tool_README}
 
 
 The Compile tool is a C++ application that enables you to dump a loaded 

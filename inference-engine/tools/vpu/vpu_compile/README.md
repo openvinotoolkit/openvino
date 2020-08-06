@@ -1,4 +1,4 @@
-# myriad_compile tool
+# myriad_compile tool {#openvino_inference_engine_tools_vpu_vpu_compile_README}
 
 This topic demonstrates how to run the `myriad_compile` tool application, which intended to dump blob for `vpu` plugins of Inference Engine by configuration options.
 
