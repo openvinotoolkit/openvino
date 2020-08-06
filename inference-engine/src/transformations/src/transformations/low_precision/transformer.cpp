@@ -45,6 +45,7 @@
 
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
+#include "transformations/low_precision/fuse_convert.hpp"
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "transformations/low_precision/fuse_multiply_to_fake_quantize.hpp"
@@ -207,13 +208,11 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
 
+        addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        // need to refactor transform method
-        // addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params).
-        addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
-        addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params);
-        // TODO: temporary workaround: Convert I8 -> FP32 is not supported by CPU plugin
-        // addCleanup<ConvertTransformation, opset1::Convert>(params);
+        addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params).
+        addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params);
+        // addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params);
 
     // TODO: fix it. workaround for multiple layer matching
     transformer.cleanupTransformations2.emplace(typeid(ngraph::op::TypeRelaxed<opset1::Multiply>).name(),
