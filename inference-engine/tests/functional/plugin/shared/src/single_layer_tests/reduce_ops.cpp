@@ -25,11 +25,13 @@ std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMea
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
+    CommonTestUtils::OpType opType;
     std::string targetDevice;
-    std::tie(axes, keepDims, reductionType, netPrecision, inputShape, targetDevice) = obj.param;
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "opType=" << opType << "_";
     result << "type=" << reductionType << "_";
     if (keepDims) result << "KeepDims_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -46,13 +48,32 @@ void ReduceOpsLayerTest::SetUp() {
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
-    std::tie(axes, keepDims, reductionType, netPrecision, inputShape, targetDevice) = GetParam();
+    CommonTestUtils::OpType opType;
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    const auto reduce = ngraph::builder::makeReduce(paramOuts, axes, keepDims, reductionType);
+
+    std::vector<size_t> shapeAxes;
+    switch (opType) {
+        case CommonTestUtils::OpType::SCALAR: {
+            if (axes.size() > 1)
+                FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
+            break;
+        }
+        case CommonTestUtils::OpType::VECTOR: {
+            shapeAxes.push_back(axes.size());
+            break;
+        }
+        default:
+            FAIL() << "Reduce op doesn't support operation type: " << opType;
+    }
+    auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
+                             std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+
+    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }

@@ -80,7 +80,8 @@ public:
         int32_t *idx_data = inputs[REDUCE_INDEXES]->cbuffer().as<int32_t *>() +
                             inputs[REDUCE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         SizeVector axes;
-        for (size_t i = 0; i < idx_dims[0]; i++) {
+        const size_t axesIter = idx_dims.empty() ? 1 : idx_dims[0];
+        for (size_t i = 0; i < axesIter; i++) {
             int32_t axis = idx_data[i];
             if (axis < 0)
                 axis += data_dims.size();

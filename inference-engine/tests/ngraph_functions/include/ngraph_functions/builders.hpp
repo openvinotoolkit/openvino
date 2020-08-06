@@ -271,8 +271,8 @@ std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
                                  bool transpose_a = false,
                                  bool transpose_b = false);
 
-std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
-                                         const std::vector<int> &reductionAxes,
+std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
+                                         const ngraph::Output<Node>& axes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
 

@@ -15,14 +15,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
-        std::vector<size_t>{10, 20, 30, 40},
+        std::vector<size_t>{10, 20, 40},
+        std::vector<size_t>{5, 6, 10, 11},
 };
 
 const std::vector<std::vector<int>> axes = {
-        {0},
-        {0, 3},
-        {1, -1},
+        {0, 2},
+        {1, -1}
 };
+
+std::vector<CommonTestUtils::OpType> opTypes = {
+        CommonTestUtils::OpType::SCALAR,
+        CommonTestUtils::OpType::VECTOR,
+};
+
 const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
         ngraph::helpers::ReductionType::Mean,
         ngraph::helpers::ReductionType::Min,
@@ -34,8 +40,9 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
         ngraph::helpers::ReductionType::LogicalAnd,
 };
 
-const auto params = testing::Combine(
-        testing::ValuesIn(axes),
+const auto paramsOneAxis = testing::Combine(
+        testing::Values(std::vector<int>{0}),
+        testing::ValuesIn(opTypes),
         testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
         testing::ValuesIn(netPrecisions),
@@ -43,6 +50,22 @@ const auto params = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+INSTANTIATE_TEST_CASE_P(
+        ReduceOneAxis,
+        ReduceOpsLayerTest,
+        paramsOneAxis,
+        ReduceOpsLayerTest::getTestCaseName
+);
+
+const auto params = testing::Combine(
+        testing::ValuesIn(axes),
+        testing::Values(opTypes[1]),
+        testing::Values(true, false),
+        testing::ValuesIn(reductionTypes),
+        testing::ValuesIn(netPrecisions),
+        testing::ValuesIn(inputShapes),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
 
 INSTANTIATE_TEST_CASE_P(
         Reduce,
@@ -50,4 +73,5 @@ INSTANTIATE_TEST_CASE_P(
         params,
         ReduceOpsLayerTest::getTestCaseName
 );
+
 }  // namespace

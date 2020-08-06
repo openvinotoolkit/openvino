@@ -9,30 +9,27 @@
 
 namespace ngraph {
 namespace builder {
-std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
-                                         const std::vector<int> &reductionAxes,
+std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
+                                         const ngraph::Output<Node>& axes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType) {
-    auto reductionAxesNode = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
-                                                                        ngraph::Shape({reductionAxes.size()}),
-                                                                        reductionAxes);
     switch (reductionType) {
         case helpers::Mean:
-            return std::make_shared<ngraph::opset3::ReduceMean>(in.at(0), reductionAxesNode, keepDims);
+            return std::make_shared<ngraph::opset3::ReduceMean>(data, axes, keepDims);
         case helpers::Max:
-            return std::make_shared<ngraph::opset3::ReduceMax>(in.at(0), reductionAxesNode, keepDims);
+            return std::make_shared<ngraph::opset3::ReduceMax>(data, axes, keepDims);
         case helpers::Min:
-            return std::make_shared<ngraph::opset3::ReduceMin>(in.at(0), reductionAxesNode, keepDims);
+            return std::make_shared<ngraph::opset3::ReduceMin>(data, axes, keepDims);
         case helpers::Prod:
-            return std::make_shared<ngraph::opset3::ReduceProd>(in.at(0), reductionAxesNode, keepDims);
+            return std::make_shared<ngraph::opset3::ReduceProd>(data, axes, keepDims);
         case helpers::Sum:
-            return std::make_shared<ngraph::opset3::ReduceSum>(in.at(0), reductionAxesNode, keepDims);
+            return std::make_shared<ngraph::opset3::ReduceSum>(data, axes, keepDims);
         case helpers::LogicalOr:
-            return std::make_shared<ngraph::opset3::LogicalOr>(in.at(0), reductionAxesNode);
+            return std::make_shared<ngraph::opset3::LogicalOr>(data, axes);
         case helpers::LogicalAnd:
-            return std::make_shared<ngraph::opset3::LogicalAnd>(in.at(0), reductionAxesNode);
+            return std::make_shared<ngraph::opset3::LogicalAnd>(data, axes);
         case helpers::LogicalXor:
-            return std::make_shared<ngraph::opset3::LogicalXor>(in.at(0), reductionAxesNode);
+            return std::make_shared<ngraph::opset3::LogicalXor>(data, axes);
         default:
             throw std::runtime_error("Can't create layer for this reduction type");
     }
