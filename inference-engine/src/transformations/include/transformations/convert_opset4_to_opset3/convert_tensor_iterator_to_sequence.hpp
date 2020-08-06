@@ -17,7 +17,9 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -34,12 +36,32 @@ namespace pass {
  *
  */
 
-class ngraph::pass::ConvertTensorIteratorToSequence: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
 public:
-    ConvertTensorIteratorToSequence() : GraphRewrite() {
-        convert_ti_to_sequence();
+    ConvertTensorIteratorToLSTMSequence() : MatcherPass() {
+        convert_ti_to_lstm_sequence();
     }
 
 private:
-    void convert_ti_to_sequence();
+    void convert_ti_to_lstm_sequence();
+};
+
+class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
+public:
+    ConvertTensorIteratorToRNNSequence() : MatcherPass() {
+        convert_ti_to_rnn_sequence();
+    }
+
+private:
+    void convert_ti_to_rnn_sequence();
+};
+
+class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
+public:
+    ConvertTensorIteratorToGRUSequence() : MatcherPass() {
+        convert_ti_to_gru_sequence();
+    }
+
+private:
+    void convert_ti_to_gru_sequence();
 };
