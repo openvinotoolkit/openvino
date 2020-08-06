@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Read model from IR (.xml and .bin files) or ONNX (.onnx file) format -
+        // 4. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         slog::info << "Loading network files:"
             "\n\t" << FLAGS_m <<
             slog::endl;

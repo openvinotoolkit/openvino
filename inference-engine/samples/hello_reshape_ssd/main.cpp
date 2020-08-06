@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Read model from IR (.xml and .bin files) or ONNX (.onnx file) format -
+        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
 
         OutputsDataMap outputs_info(network.getOutputsInfo());

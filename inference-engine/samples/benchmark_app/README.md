@@ -117,7 +117,7 @@ To run the tool, you can use public or Intel's pre-trained models. To download t
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 > 
-> The sample accepts models in ONNX format (.onnx) that don't require preprocessing.
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 

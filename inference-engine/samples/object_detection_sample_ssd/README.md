@@ -40,7 +40,7 @@ To run the sample, you can use public or pre-trained models. To download the pre
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> The sample accepts models in ONNX format (.onnx) that don't require preprocessing.
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 

@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 2. Read model from IR (.xml and .bin files) or ONNX (.onnx file) format -
+        // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         slog::info << "Loading network files" << slog::endl;
 
         /** Read network model **/
