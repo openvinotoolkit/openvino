@@ -2277,7 +2277,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even)
         file_util::path_join(SERIALIZED_ZOO, "onnx/round_half_nearest_even.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.5f, 2.5f, -1.5f - 2.5f});
+    test_case.add_input<float>({0.5f, 2.5f, -1.5f, -2.5f});
     test_case.add_expected_output<float>({0.f, 2.f, -2.f, -2.f});
 
     test_case.run();
