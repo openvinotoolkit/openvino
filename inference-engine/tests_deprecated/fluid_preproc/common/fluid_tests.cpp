@@ -624,6 +624,34 @@ TEST_P(I420toRGBTestGAPI, AccuracyTest)
         EXPECT_EQ(sz, out_mat_gapi.size());
     }
 }
+
+TEST_P(U16toF32TestGAPI, AccuracyTest)
+{
+    const auto params = GetParam();
+    cv::Size sz      = std::get<0>(params);
+    double tolerance = std::get<1>(params);
+
+    initMatrixRandU(CV_16UC1, sz, CV_32FC1);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    FluidU16ToF32Computation cc(to_test(in_mat1), to_test(out_mat_gapi));
+    cc.warmUp();
+
+#if PERF_TEST
+    // iterate testing, and print performance
+    test_ms([&](){ cc.apply(); },
+        400, "U16ToF32 GAPI %s %dx%d", typeToString(CV_16UC1).c_str(), sz.width, sz.height);
+#endif
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        in_mat1.convertTo(out_mat_ocv, CV_32FC1);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
 //----------------------------------------------------------------------
 
 TEST_P(ResizeTestIE, AccuracyTest)
