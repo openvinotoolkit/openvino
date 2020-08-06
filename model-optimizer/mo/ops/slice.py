@@ -23,9 +23,8 @@ from mo.utils.error import Error
 
 """
 Slicing operations have different semantic or different parameters/inputs in different frameworks. To distinguish them 
-and not confuse with OpenVINO Slice several Model Optimizer internal operations are introduced. OpenVINO Slice operation 
-behaves as ONNX Slice in opset >= 10. A number of transformations take place on the front phase to convert framework slicing 
-operations to OpenVINO operations from opset:
+several internal operations are introduced. The internal MO Slice operation behaves same as Slice in ONNX opset >= 10. 
+A number of transformations take place on the front phase to convert framework slicing:
  - AttributedSlice, TFSlice -> Slice 
  - CaffeSlice -> Split 
  - MXSlice -> StridedSlice 
@@ -78,9 +77,9 @@ class CaffeSlice(Op):
 class TFSlice(Op):
     """
     Slice operation in Tensorflow is different from Slice in ONNX, Caffe and MXNet. It has begin and size inputs while
-    OpenVINO Slice has start, end, step and axis parameters specified as inputs.
+    ONNX Slice and internal MO Slice has start, end, step and axis parameters specified as inputs.
     https://www.tensorflow.org/api_docs/python/tf/slice
-    The operation is replaced with the OpenVINO Slice operation on the front phase.
+    The operation is replaced with the internal Slice on the front phase.
     If size[i] == -1 is replaced to int32_max value for the end.
     """
     op = 'TFSlice'
@@ -118,8 +117,9 @@ class MXSlice(Op):
 
 class Slice(Op):
     """
-    Semantic of OpenVINO Slice operation is identical ONNX Slice (opset >= 10).
-    It has starts, ends, steps and axes inputs. It is not in the OpenVINO opset and is replaced to StridedSlice.
+    Semantic of MO internal Slice operation is identical to Slice in ONNX opset >= 10.
+    It has starts, ends, steps and axes inputs.
+    The operation is internal (not present in the OpenVINO opset) and is replaced to StridedSlice.
     """
     op = 'Slice'
     enabled = False
@@ -189,5 +189,5 @@ def normalize_slice_indices(size: int, start: int, end: int, step: int) -> (int,
     start = np.clip(start, 0, size)
     end = np.clip(end, 0, size)
     if step < 0:
-        start, end, step = end, start, -step  # to calculate out shape we can do that
+        start, end, step = end, start, -step  # if calculate size without values we can do that
     return start, end, step

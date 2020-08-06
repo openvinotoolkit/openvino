@@ -28,7 +28,6 @@ from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, res
 class SliceReplacerTest(unittest.TestCase):
     @generate(*[
        {'op': 'AttributedSlice', 'type': None, 'starts': np.array([0, 0]), 'ends': np.array([1, -1])},
-       {'op': 'AttributedSlice', 'type': None, 'starts': np.array([0, 0]), 'ends': np.array([1, -1]), 'axis': np.array([0, 1])}
     ])
     def test_attributed_slice_replacer(self, attributed_slice_attrs):
         nodes = {

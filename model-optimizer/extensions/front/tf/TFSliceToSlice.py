@@ -25,16 +25,17 @@ from mo.ops.slice import Slice
 
 
 class TFSliceToSliceReplacer(FrontReplacementOp):
+    """
+    This transformation converts TFSlice to internal Slice operation.
+    In TFSlice size[i] == -1 means take all elements on axis i up to the end including(!) the last
+    In internal MO Slice (which is borrowed from ONNX) -1 means take all excluding(!) the last (shape[i] - 1).
+    Also TFSlice has 'sizes' on the second input while Slice has 'ends'.
+    This transformation was added to avoid multiple if statements in future transformations.
+    """
     op = 'TFSlice'
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        """
-        This transformation converts TFSlice to internal Slice operation.
-        In TFSlice node if size[i] is -1, all remaining elements in dimension i are included in the slice.
-        In Slice which is borrowed from ONNX -1 is treated penultimate (shape[i] - 1). Also TFSlice has sizes
-        on the second input while Slice has ends. This transformation was added to avoid multiple ifs in the future.
-        """
         node = match['op']
         slice_name = node.soft_get('name', node.id)
         slice_node = Slice(graph).create_node()

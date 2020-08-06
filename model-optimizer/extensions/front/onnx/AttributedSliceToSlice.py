@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
@@ -33,9 +31,7 @@ class AttributedSliceToSliceReplacer(FrontReplacementOp):
         node = match['op']
         slice_name = node.soft_get('name', node.id)
 
-        axes = node.axes if node.has_valid('axes') else np.arange(len(node.starts), dtype=np.int32)
-
-        slice_node = create_op_with_const_inputs(graph, Slice, {1: node.starts, 2: node.ends, 3: axes})
+        slice_node = create_op_with_const_inputs(graph, Slice, {1: node.starts, 2: node.ends, 3: node.axes})
         rename_nodes([(node, slice_name + '/to_be_removed'), (slice_node, slice_name)])
 
         node.in_port(0).get_connection().set_destination(slice_node.in_port(0))
