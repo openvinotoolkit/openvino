@@ -31,7 +31,7 @@ add_library(openvino::itt ALIAS ${TARGET_NAME})
 if (ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
-    target_link_libraries(${TARGET_NAME} PUBLIC ${INTEL_ITT_LIBS} ${CMAKE_DL_LIBS})
+    target_link_libraries(${TARGET_NAME} PUBLIC ${INTEL_ITT_LIBS})
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

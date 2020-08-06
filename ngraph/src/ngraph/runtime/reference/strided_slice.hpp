@@ -33,17 +33,19 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void strided_slice(const T* arg, T* out, const Shape& arg_shape, const SlicePlan& sp)
+            void strided_slice(
+                const T* arg, T* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type)
             {
                 runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) *
                                                         sizeof(T));
-                slice<T>(arg,
-                         slice_out_buffer.get_ptr<T>(),
-                         arg_shape,
-                         Coordinate(sp.begins.begin(), sp.begins.end()),
-                         Coordinate(sp.ends.begin(), sp.ends.end()),
-                         Strides(sp.strides.begin(), sp.strides.end()),
-                         sp.reshape_in_shape);
+                slice(reinterpret_cast<const char*>(arg),
+                      slice_out_buffer.get_ptr<char>(),
+                      arg_shape,
+                      Coordinate(sp.begins.begin(), sp.begins.end()),
+                      Coordinate(sp.ends.begin(), sp.ends.end()),
+                      Strides(sp.strides.begin(), sp.strides.end()),
+                      sp.reshape_in_shape,
+                      elem_type);
 
                 runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) *
                                                           sizeof(T));

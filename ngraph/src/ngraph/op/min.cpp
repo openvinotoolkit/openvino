@@ -119,7 +119,7 @@ namespace
     }
 }
 
-bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }
@@ -140,7 +140,8 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
     return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }

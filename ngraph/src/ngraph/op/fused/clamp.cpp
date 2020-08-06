@@ -83,7 +83,7 @@ namespace
     }
 }
 
-bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));

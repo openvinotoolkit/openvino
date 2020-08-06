@@ -23,28 +23,6 @@
 namespace InferenceEngine {
 
 /**
- * @brief Responce structure encapsulating information about supported layer
- */
-struct QueryNetworkResult {
-    /**
-     * @brief A map of supported layers:
-     * - key - a layer name
-     * - value - a device name on which layer is assigned
-     */
-    std::map<std::string, std::string> supportedLayersMap;
-
-    /**
-     * @brief A status code
-     */
-    StatusCode rc = OK;
-
-    /**
-     * @brief Response message
-     */
-    ResponseDesc resp;
-};
-
-/**
  * @brief This class represents Inference Engine Core entity.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
