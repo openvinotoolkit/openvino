@@ -250,9 +250,9 @@ namespace ngraph
                 std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
                 bool is_downsample = false;
-                for (std::size_t axis : m_axes)
+                for (std::size_t scale : m_scales)
                 {
-                    is_downsample = is_downsample || (m_scales[axis] < 1.0);
+                    is_downsample = is_downsample || (scale < 1.0);
                 }
 
                 bool antialias = is_downsample && m_antialias;
@@ -264,9 +264,9 @@ namespace ngraph
                 float prod_a = 1;
                 for (std::size_t i = 0; i < num_of_axes; ++i)
                 {
-                    a[i] = antialias ? m_scales[m_axes[i]] : 1.0;
+                    a[i] = antialias ? m_scales[i] : 1.0;
                     prod_a *= a[i];
-                    r[i] = (m_scales[m_axes[i]] > 1.0)
+                    r[i] = (m_scales[i] > 1.0)
                                ? static_cast<int64_t>(2)
                                : static_cast<int64_t>(std::ceil(2.0f / a[i]));
                     low_limits_vector[i] = -r[i];
@@ -299,10 +299,11 @@ namespace ngraph
                         icoords_r[i] = coordinates[i];
                     }
 
-                    for (std::size_t axis : m_axes)
+                    for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
+                        std::size_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[axis];
+                        float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
                         float length_original = static_cast<float>(m_input_data_shape[axis]);
                         float in_coord = m_get_original_coord(
@@ -492,10 +493,11 @@ namespace ngraph
                 {
                     runtime::NDimIndex input_coords{coordinates};
                     std::vector<std::array<float, 4>> cubic_coeffs(input_rank);
-                    for (std::size_t axis : m_axes)
+                    for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
+                        std::size_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[axis];
+                        float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
                         float length_original = static_cast<float>(m_input_data_shape[axis]);
                         float in_coord = m_get_original_coord(
@@ -543,10 +545,11 @@ namespace ngraph
                 for (const auto& coordinates : coords_range)
                 {
                     runtime::NDimIndex input_coords{coordinates};
-                    for (std::size_t axis : m_axes)
+                    for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
+                        std::size_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[axis];
+                        float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
                         float length_original = static_cast<float>(m_input_data_shape[axis]);
                         float in_coord = m_get_original_coord(
