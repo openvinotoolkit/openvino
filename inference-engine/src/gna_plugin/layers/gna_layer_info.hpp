@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 #include "inference_engine.hpp"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "gna-api.h"
 #include "gna_permute.hpp"

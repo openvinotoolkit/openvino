@@ -5,7 +5,7 @@
 #include "mkldnn_input_node.h"
 #include "../mkldnn_extension_utils.h"
 #include <string>
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "ie_memcpy.h"
 
 using namespace mkldnn;
