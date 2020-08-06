@@ -146,7 +146,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build for Raspbian Stretch* OS
@@ -325,7 +324,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Windows* Systems
@@ -428,7 +426,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ### Building Inference Engine with Ninja* Build System
@@ -520,7 +517,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Android* Systems

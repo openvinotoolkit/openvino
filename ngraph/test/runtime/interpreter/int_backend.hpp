@@ -59,7 +59,6 @@ public:
 
     std::shared_ptr<Executable> compile(std::shared_ptr<Function> function,
                                         bool enable_performance_data = false) override;
-    std::shared_ptr<Executable> load(std::istream& input_stream) override;
 
     bool is_supported(const Node& node) const override;
 

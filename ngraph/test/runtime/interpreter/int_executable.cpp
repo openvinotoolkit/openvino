@@ -23,7 +23,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
@@ -65,13 +64,7 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     : m_is_compiled{true}
     , m_performance_counters_enabled{enable_performance_collection}
 {
-#ifdef INTERPRETER_FORCE_SERIALIZE
-    // To verify that the serializer works correctly let's just run this graph round-trip
-    string ser = serialize(function);
-    m_function = deserialize(ser);
-#else
     m_function = clone_function(*function);
-#endif
     auto is_supported = [](const Node& node) {
         bool retval = false;
         switch (INTExecutable::get_typeid(node))
@@ -93,18 +86,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     // Need to decompose any v0 fused ops, which were produced by the downgrade pass
     pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
     pass_manager.run_passes(m_function);
-    for (auto node : m_function->get_ordered_ops())
-    {
-        m_nodes.push_back(node);
-    }
-    set_parameters_and_results(*m_function);
-}
-
-runtime::interpreter::INTExecutable::INTExecutable(const std::string& model_string)
-    : m_is_compiled{true}
-    , m_performance_counters_enabled{false}
-{
-    m_function = deserialize(model_string);
     for (auto node : m_function->get_ordered_ops())
     {
         m_nodes.push_back(node);
@@ -333,15 +314,6 @@ void runtime::interpreter::INTExecutable::perform_nan_check(
         }
         arg_number++;
     }
-}
-
-void runtime::interpreter::INTExecutable::save(ostream& out)
-{
-    cpio::Writer writer(out);
-    string si = "INTERPRETER Save File 1.0";
-    writer.write("save_info", si.data(), si.size());
-    string model = serialize(m_function, 0);
-    writer.write("model", model.data(), model.size());
 }
 
 shared_ptr<ngraph::op::Parameter>
