@@ -10,7 +10,6 @@
 #include <vector>
 
 using namespace LayerTestsDefinitions;
-using namespace LayerTestsDefinitions::EltwiseParams;
 
 namespace {
 
@@ -36,9 +35,9 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<OpType> opTypes = {
-        OpType::SCALAR,
-        OpType::VECTOR,
+std::vector<CommonTestUtils::OpType> opTypes = {
+        CommonTestUtils::OpType::SCALAR,
+        CommonTestUtils::OpType::VECTOR,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
