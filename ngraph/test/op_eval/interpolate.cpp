@@ -19,11 +19,12 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/interpolate.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "runtime/backend.hpp"
+#include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
@@ -41,6 +42,8 @@ TEST(op_eval, interpolate_v4_scales_cubic)
 
     std::vector<std::vector<int64_t>> spatial_shapes = {{3, 3}};
 
+    std::vector<Shape> out_shapes = {Shape{1, 1, 3, 3}};
+
     std::vector<std::vector<float>> scales_data = {{0.8f, 0.8f}};
 
     std::vector<float> cubic_coeffs = {-0.75f};
@@ -52,6 +55,10 @@ TEST(op_eval, interpolate_v4_scales_cubic)
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
 
     std::vector<int64_t> interp_axes = {2, 3};
+
+    std::vector<std::vector<float>> expected_results = {
+        {1.63078704f, 3.00462963f, 4.37847222f, 7.12615741f, 8.5f, 9.87384259f, 12.62152778f,
+         13.99537037f, 15.36921296f}};
 
     std::size_t num_of_tests = transform_modes.size();
 
@@ -77,12 +84,15 @@ TEST(op_eval, interpolate_v4_scales_cubic)
         auto fun = std::make_shared<Function>(
             OutputVector{interp}, ParameterVector{image, target_spatial_shape, scales, axes});
 
-        auto result = make_shared<HostTensor>();
+        auto result = std::make_shared<HostTensor>();
         ASSERT_TRUE(
             fun->evaluate({result},
                           {make_host_tensor<element::Type_t::f32>(data_shape, input_data),
                            make_host_tensor<element::Type_t::i64>(Shape{2}, spatial_shapes[i]),
                            make_host_tensor<element::Type_t::f32>(Shape{2}, scales_data[i]),
                            make_host_tensor<element::Type_t::i64>(Shape{2}, interp_axes)}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), out_shapes[i]);
+        ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
     }
 }
