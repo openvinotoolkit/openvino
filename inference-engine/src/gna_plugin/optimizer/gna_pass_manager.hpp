@@ -92,11 +92,6 @@ DECL_PASS(ReversePermutations);
 DECL_PASS(RemovePermutationsNHWCToNCHW);
 
 /**
- * @brief If kernel padding to multiple of 8 will cause missed outputs in convolution, need to pad further
- */
-DECL_PASS(AddConvolutionKernelPad);
-
-/**
  * brief @search for specific patter in the graph (6 layers are replaced by single one)
  */
 DECL_PASS(SubstitutePRelu);
