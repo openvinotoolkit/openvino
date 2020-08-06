@@ -37,11 +37,14 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         shape,
         description.values);
 
-    std::shared_ptr<Operation> operation;
+    std::shared_ptr<Node> operation;
     if ((description.outPrecision == element::undefined) || (description.outPrecision == data->get_output_element_type(0))) {
         operation = std::make_shared<Operation>(data, operationConst);
     } else {
-        operation = std::make_shared<op::TypeRelaxed<Operation>>(data, operationConst);
+        auto temp = std::make_shared<op::TypeRelaxed<Operation>>(data, data);
+        operation = temp->clone_with_new_inputs({ data, operationConst });
+        temp->clear_control_dependents();
+
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
