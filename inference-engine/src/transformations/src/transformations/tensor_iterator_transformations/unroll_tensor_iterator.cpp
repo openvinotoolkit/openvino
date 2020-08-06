@@ -31,17 +31,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
         if (num_iter == -1) return false;
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (uint64_t idx = 0; idx < num_iter; ++idx) {
-            // body_functions[idx] = clone_function(*function);
-
-            std::vector<element::Type> paramElementTypes;
-            std::vector<PartialShape> paramShapes;
-            for (const auto &param : function->get_parameters()) {
-                paramElementTypes.emplace_back(param->get_element_type());
-                paramShapes.emplace_back(param->get_shape());
-            }
-            auto inBuffers = std::vector<void *>(function->get_parameters().size());
-            body_functions[idx] = specialize_function(function, paramElementTypes, paramShapes,
-                                                      inBuffers, false, true);
+            body_functions[idx] = clone_function(*function);
             for (auto &node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name(ti->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
                 copy_runtime_info(ti, node);

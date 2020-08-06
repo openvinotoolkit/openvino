@@ -21,6 +21,7 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+from pathlib import Path
 import yaml
 from pymongo import MongoClient
 
@@ -70,6 +71,21 @@ def metadata_from_manifest(manifest):
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
         f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }
+
+
+def info_from_test_config(test_conf):
+    """ Extract models information for memcheck record from test config
+    """
+    test_conf_obj = ET.parse(test_conf)
+    test_conf_root = test_conf_obj.getroot()
+    records = {}
+    for model_rec in test_conf_root.find("models"):
+        model = model_rec.attrib["path"]
+        records[Path(model)] = {
+            "framework": model_rec.attrib.get("framework"),
+            "source": model_rec.attrib.get("source"),
+        }
+    return records
 
 
 def parse_memcheck_log(log_path):

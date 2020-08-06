@@ -23,7 +23,7 @@
 #include <ie_parallel.hpp>
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#include <tbb/concurrent_queue.h>
+# include <tbb/concurrent_queue.h>
 #endif
 
 namespace MultiDevicePlugin {

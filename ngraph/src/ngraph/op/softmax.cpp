@@ -150,7 +150,8 @@ namespace
     }
 }
 
-bool op::v0::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], get_axes());
@@ -193,7 +194,8 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
     return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
 }
 
-bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});

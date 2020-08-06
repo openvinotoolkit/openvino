@@ -14,6 +14,7 @@
 #include <memory>
 #include <unordered_set>
 #include <set>
+#include <iomanip>
 
 #define REFERENCE_CONVOLUTION 0
 

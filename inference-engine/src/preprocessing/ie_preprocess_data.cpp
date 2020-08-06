@@ -6,6 +6,7 @@
 #include "ie_system_conf.h"
 #include "blob_transform.hpp"
 #include "ie_preprocess_data.hpp"
+#include "ie_preprocess_itt.hpp"
 
 #ifdef HAVE_SSE
 # include "cpu_x86_sse42/ie_preprocess_data_sse42.hpp"
@@ -750,7 +751,6 @@ void resize(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeAlgorithm &algorith
 
 using namespace Resize;
 
-
 /**
  * @brief This class stores pre-process information for exact input
  */
@@ -767,11 +767,6 @@ class PreProcessData : public IPreProcessData {
      * BEWARE! Will be shared among copies!
      */
     std::shared_ptr<PreprocEngine> _preproc;
-
-    InferenceEngine::ProfilingTask perf_resize {"Resize"};
-    InferenceEngine::ProfilingTask perf_reorder_before {"Reorder before"};
-    InferenceEngine::ProfilingTask perf_reorder_after {"Reorder after"};
-    InferenceEngine::ProfilingTask perf_preprocessing {"Preprocessing"};
 
 public:
     void setRoiBlob(const Blob::Ptr &blob) override;
@@ -804,7 +799,7 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
 
 void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial,
         int batchSize) {
-    IE_PROFILING_AUTO_SCOPE_TASK(perf_preprocessing)
+    OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Preprocessing");
 
     auto algorithm = info.getResizeAlgorithm();
     auto fmt = info.getColorFormat();
@@ -850,7 +845,7 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
         }
 
         {
-            IE_PROFILING_AUTO_SCOPE_TASK(perf_reorder_before)
+            OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Reorder before");
             blob_copy(_roiBlob, _tmp1);
         }
         res_in = _tmp1;
@@ -873,12 +868,12 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
     }
 
     {
-        IE_PROFILING_AUTO_SCOPE_TASK(perf_resize)
+        OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Resize");
         resize(res_in, res_out, algorithm);
     }
 
     if (res_out == _tmp2) {
-        IE_PROFILING_AUTO_SCOPE_TASK(perf_reorder_after)
+        OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Reorder after");
         blob_copy(_tmp2, outBlob);
     }
 }

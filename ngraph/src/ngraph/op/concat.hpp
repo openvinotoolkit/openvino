@@ -30,8 +30,8 @@ namespace ngraph
             class NGRAPH_API Concat : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Concat", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a concatenation operation.
                 Concat() = default;
                 /// \brief Constructs a concatenation operation.
@@ -62,7 +62,7 @@ namespace ngraph
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(int64_t axis) { m_axis = axis; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 /// \ brief m_axis stores default value for all iterations
