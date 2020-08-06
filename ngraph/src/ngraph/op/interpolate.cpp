@@ -319,7 +319,7 @@ namespace
         size_t_vector target_shape;
 
         std::size_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<std::size_t>();
-        scales.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+        target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
 
         return target_shape;
     }
