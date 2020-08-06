@@ -84,20 +84,14 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
-    auto f0 = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    std::vector<float> a{-2, 3, -2, 1, -1, 0};
+    std::vector<float> b{0, 0.5, 1};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{-2, 3, -2, 1, -1, 0});
-    auto b = backend->create_tensor(element::f32, rshape);
-    copy_data(b, vector<float>{0, 0.5, 1});
-    auto result0 = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{0, 3, -1, 1, -1, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(vector<float>{0, 3, -1, 1, -1, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
@@ -105,44 +99,35 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     const Shape shape{2, 7};
     const float alpha_f = 0.125f;
     const float beta_f = 0.642f;
-
     const auto A = make_shared<op::Parameter>(element::f32, shape);
-
     const auto alpha = op::Constant::create<float>(A->get_element_type(), Shape{}, {alpha_f});
     const auto beta = op::Constant::create<float>(A->get_element_type(), Shape{}, {beta_f});
-
     auto hardsigmoid = make_shared<op::HardSigmoid>(A, alpha, beta);
-    auto f0 = make_shared<Function>(NodeVector{hardsigmoid}, ParameterVector{A});
+    auto f = make_shared<Function>(NodeVector{hardsigmoid}, ParameterVector{A});
+    vector<float> input{-1.f,
+                        0.f,
+                        1.f,
+                        -100.f,
+                        100.f,
+                        -3.1234567f,
+                        5.876543f,
+                        7.13245364f,
+                        numeric_limits<float>::max(),
+                        numeric_limits<float>::lowest(),
+                        numeric_limits<float>::min(),
+                        numeric_limits<float>::infinity(),
+                        numeric_limits<float>::min() / 16.f,
+                        -numeric_limits<float>::min() / 16.f};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Prepare input and expected output data
-    vector<float> input_data{-1.f,
-                             0.f,
-                             1.f,
-                             -100.f,
-                             100.f,
-                             -3.1234567f,
-                             5.876543f,
-                             7.13245364f,
-                             numeric_limits<float>::max(),
-                             numeric_limits<float>::lowest(),
-                             numeric_limits<float>::min(),
-                             numeric_limits<float>::infinity(),
-                             numeric_limits<float>::min() / 16.f,
-                             -numeric_limits<float>::min() / 16.f};
-
+    // Prepare expected output data
     auto impl = [alpha_f, beta_f](float val) { return min(max(alpha_f * val + beta_f, 0.f), 1.f); };
     vector<float> expected_output;
-    transform(begin(input_data), end(input_data), back_inserter(expected_output), impl);
+    transform(begin(input), end(input), back_inserter(expected_output), impl);
 
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, input_data);
-    auto result0 = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a});
-
-    EXPECT_TRUE(test::all_close_f(expected_output, read_vector<float>(result0)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(input);
+    test_case.add_expected_output<float>(expected_output);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
@@ -152,20 +137,14 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
-    auto f0 = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    std::vector<float> a{-2, 3, -2, 1, -1, 0};
+    std::vector<float> b{0.5};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{-2, 3, -2, 1, -1, 0});
-    auto b = backend->create_tensor(element::f32, rshape);
-    copy_data(b, vector<float>{0.5});
-    auto result0 = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{-1, 3, -1, 1, -0.5, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(vector<float>{-1, 3, -1, 1, -0.5, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
@@ -175,20 +154,14 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
-    auto f0 = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
+    std::vector<float> a{-2, 3, -2, 1, -1, 0};
+    std::vector<float> b{-0.5};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{-2, 3, -2, 1, -1, 0});
-    auto b = backend->create_tensor(element::f32, rshape);
-    copy_data(b, vector<float>{-0.5});
-    auto result0 = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{1, 3, 1, 1, 0.5, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(vector<float>{1, 3, 1, 1, 0.5, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv)
@@ -203,20 +176,15 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv)
                                                             CoordinateDiff{0, 0},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 2, 2});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{11, 14, 17, 20, 79, 86, 93, 100};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
+                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_striding)
@@ -231,20 +199,14 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_striding)
                                                             CoordinateDiff{0, 0},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 1, 1});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{11, 79};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 1}, vector<float>{11, 79});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_window_dilation)
@@ -259,20 +221,15 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_window_dilation)
                                                             CoordinateDiff{0, 0},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 2, 2});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{11, 14, 17, 20, 79, 86, 93, 100};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
+                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_data_dilation)
@@ -287,20 +244,16 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_data_dilation)
                                                             CoordinateDiff{0, 0},
                                                             Strides{2, 2},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 3, 3});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{11, 0, 14, 0, 0, 0, 17, 0, 20, 79, 0, 86, 0, 0, 0, 93, 0, 100};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 3},
+        vector<float>{11, 0, 14, 0, 0, 0, 17, 0, 20, 79, 0, 86, 0, 0, 0, 93, 0, 100});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding)
@@ -315,20 +268,16 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding)
                                                             CoordinateDiff{0, 1},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 3, 3});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 3},
+        vector<float>{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding_and_window_dilation)
@@ -343,20 +292,16 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding_and_window_dilation)
                                                             CoordinateDiff{0, 1},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 3, 3});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 3},
+        vector<float>{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_shape_variation)
@@ -371,20 +316,16 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_shape_variation)
                                                             CoordinateDiff{0, 1},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 4, 1});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 5, 2});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{0, 0, 11, 0, 14, 0, 17, 0, 20, 0, 0, 0, 79, 0, 86, 0, 93, 0, 100, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 5, 2},
+        vector<float>{0, 0, 11, 0, 14, 0, 17, 0, 20, 0, 0, 0, 79, 0, 86, 0, 93, 0, 100, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_data_variation)
@@ -399,23 +340,18 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_data_variation)
                                                             CoordinateDiff{0, 1},
                                                             Strides{1, 1},
                                                             2);
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18,
+                         19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 3, 3});
-    copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-                               13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                               25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36});
-    auto b = backend->create_tensor(element::f32, Shape{2, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 4, 4});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{0, 0, 0, 0, 21,  24,  27,  0, 30,  33,  36,  0, 39,  42,  45,  0,
-                           0, 0, 0, 0, 169, 176, 183, 0, 190, 197, 204, 0, 211, 218, 225, 0};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        vector<float>{0, 0, 0, 0, 21,  24,  27,  0, 30,  33,  36,  0, 39,  42,  45,  0,
+                      0, 0, 0, 0, 169, 176, 183, 0, 190, 197, 204, 0, 211, 218, 225, 0});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_groups_included_in_shape)
@@ -429,20 +365,15 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv_groups_included_in_shape)
                                                             CoordinateDiff{0, 0},
                                                             CoordinateDiff{0, 0},
                                                             Strides{1, 1});
-    auto f0 = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
+    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    std::vector<float> b{1, 2, 3, 4};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 4, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, Shape{2, 1, 2, 1, 1});
-    copy_data(b, vector<float>{1, 2, 3, 4});
-    auto result0 = backend->create_tensor(element::f32, Shape{1, 2, 2, 2});
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{11, 14, 17, 20, 79, 86, 93, 100};
-    EXPECT_EQ(expected, read_vector<float>(result0));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
+                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)

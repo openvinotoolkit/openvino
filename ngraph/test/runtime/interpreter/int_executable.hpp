@@ -128,8 +128,6 @@ public:
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
 
-    virtual void save(std::ostream& output_stream) override;
-
     void set_nan_check(bool enable);
 
     std::vector<PerformanceCounter> get_performance_data() const override;
@@ -145,8 +143,6 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    INTExecutable(const std::string& model_string);
-
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
