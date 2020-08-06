@@ -79,12 +79,21 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 = as_type_ptr<opset1::FakeQuantize>(dequantization1.data);
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize2 = as_type_ptr<opset1::FakeQuantize>(dequantization2.data);
 
-    if (fakeQuantize1 && !fakeQuantize1) {
+    if (fakeQuantize1 && !fakeQuantize2) {
         return 0;
     }
 
-    if (!fakeQuantize2 && fakeQuantize2) {
+    if (!fakeQuantize1 && fakeQuantize2) {
         return 1;
+    }
+
+    if (fakeQuantize1 && fakeQuantize2) {
+        size_t childs1 = fakeQuantize1->get_output_target_inputs(0).size();
+        size_t childs2 = fakeQuantize2->get_output_target_inputs(0).size();
+        if (childs1 == 1 && childs2 > 1)
+            return 0;
+        if (childs1 > 1 && childs2 == 1)
+            return 1;
     }
 
     const bool allBranchesAreEqual = isBranchWithTargetType(fakeQuantize1) == isBranchWithTargetType(fakeQuantize2);
