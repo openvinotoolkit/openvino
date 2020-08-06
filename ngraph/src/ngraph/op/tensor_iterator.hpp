@@ -332,7 +332,6 @@ namespace ngraph
                 OutputVector decompose_op() const override;
                 /// \return the body of the iteration
                 std::shared_ptr<BodyLambda> get_body() const { return m_body; }
-
                 /// \param body set the body of the iteration
                 void set_body(const std::shared_ptr<BodyLambda>& body) { m_body = body; }
                 /// \return a reference to the input descriptions.
