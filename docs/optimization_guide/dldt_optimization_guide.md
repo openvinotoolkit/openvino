@@ -53,7 +53,7 @@ When evaluating performance of your model with the Inference Engine, you must me
 In the asynchronous case (see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>), the performance of an individual infer request is usually of less concern. Instead, you typically execute multiple requests asynchronously and measure the throughput in images per second by dividing the number of images that were processed by the processing time. 
 In contrast, for the latency-oriented tasks, the time to a single frame is more important.
 
-Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
+Refer to the [Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) sample, which allows latency vs. throughput measuring.
 
 > **NOTE**: Most samples also support batching (automatically packing multiple input images into a single request). However, high batch size results in a latency penalty. So for more real-time oriented usages, lower batch sizes (as low as a single input) are usually used. However, devices like CPU, Intel&reg; Movidius&trade; Myriad&trade; 2 VPU, Intel&reg; Movidius&trade; Myriad&trade; X VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPU require a number of parallel requests instead of batching to leverage the performance.
 
@@ -141,7 +141,7 @@ Internally, the execution resources are split/pinned into execution "streams".
 This feature usually provides much better performance for the networks than batching. This is especially true for the many-core server machines:
 ![](../img/cpu_streams_explained.png)
 
-Try the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
+Try the [Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
 For example, on an 8-core CPU, compare the `-nstreams 1` (which is a legacy, latency-oriented scenario) to the 2, 4, and 8 streams.
 
 In addition, you can play with the batch size to find the throughput sweet spot.
@@ -161,13 +161,13 @@ Inference Engine relies on the [Compute Library for Deep Neural Networks (clDNN)
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](../IE_DG/supported_plugins/CPU.md) to limit number of inference threads for the CPU plugin.
 -	In the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the `KEY_CLDND_PLUGIN_THROTTLE` configuration option.
 
-> **NOTE**: See the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) code for a usage example. 
+> **NOTE**: See the [Benchmark App Sample](../../inference-engine/tools/benchmark_app/cpp/README.md) code for a usage example. 
 Notice that while disabling the polling, this option might reduce the GPU performance, so usually this option is used with multiple [GPU streams](../IE_DG/supported_plugins/CL_DNN.md). 
 
 
 ### Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit and Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs  <a name="myriad"></a>
 
-Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) for more information.
+Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../inference-engine/tools/benchmark_app/cpp/README.md) for more information.
 
 Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requires to keep at least 32 inference requests in flight to fully saturate the device.  
 
@@ -175,7 +175,7 @@ Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requir
 
 Below are listed the most important tips for the efficient usage of the FPGA:
 
--	Just like for the Intel&reg; Movidius&trade; Myriad&trade; VPU flavors, for the FPGA, it is important to hide the communication overheads by running multiple inference requests in parallel. For examples, refer to the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md).
+-	Just like for the Intel&reg; Movidius&trade; Myriad&trade; VPU flavors, for the FPGA, it is important to hide the communication overheads by running multiple inference requests in parallel. For examples, refer to the [Benchmark App Sample](../../inference-engine/tools/benchmark_app/cpp/README.md).
 -	Since the first inference iteration with FPGA is always significantly slower than the subsequent ones, make sure you run multiple iterations (all samples, except GUI-based demos, have the `-ni` or 'niter' option  to do that).
 -	FPGA performance heavily depends on the bitstream.
 -	Number of the infer request per executable network is limited to five, so “channel” parallelism (keeping individual infer request per camera/video input) would not work beyond five inputs. Instead, you need to mux the inputs into some queue that will internally use a pool of (5) requests.
@@ -519,7 +519,7 @@ There are important performance caveats though: for example, the tasks that run 
 
 Also, if the inference is performed on the graphics processing unit (GPU), it can take little gain to do the encoding, for instance, of the resulting video, on the same GPU in parallel, because the device is already busy.
 
-Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
+Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/tools/benchmark_app/cpp/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
 
 ## Using Tools <a name="using-tools"></a>
 

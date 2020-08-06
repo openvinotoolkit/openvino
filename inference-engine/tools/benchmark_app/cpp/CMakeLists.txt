@@ -28,6 +28,13 @@ if(NOT OpenCV_FOUND)
 	return()
 endif()
 
+# Create named folders for the sources within the .vcproj
+# Empty name lists them directly under the .vcproj
+source_group("src" FILES ${SRC})
+if(HDR)
+	source_group("include" FILES ${HDR})
+endif()
+
 add_executable(${TARGET_NAME} ${SRC} ${HDR})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
@@ -38,10 +45,14 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     ${IE_MAIN_SOURCE_DIR}/include
 )
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(${TARGET_NAME} PRIVATE
+			"-Wall"
+			)
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
-                                               format_reader gflags
-)			
+                                               format_reader gflags)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     COMPILE_PDB_NAME ${TARGET_NAME}

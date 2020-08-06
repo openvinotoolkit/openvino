@@ -77,7 +77,7 @@ The demo script does the following:
   - Downloads a public SqueezeNet model using the Model Downloader (open_model_zoo\tools\downloader\downloader.py)
   - Installs all prerequisites required for running the Model Optimizer using the scripts from the "model_optimizer\install_prerequisites" folder
   - Converts SqueezeNet to an IR using the Model Optimizer (model_optimizer\mo.py) via the Model Converter (open_model_zoo\tools\downloader\converter.py)
-  - Builds the Inference Engine benchmark tool (inference_engine\samples\demo_benchmark_app)
+  - Builds the Inference Engine benchmark tool (inference_engine\tools\benchmark_app\cpp)
   - Runs the tool with the car.png picture located in the demo folder
 
 The benchmark app prints performance counters, resulting latency, and throughput values.

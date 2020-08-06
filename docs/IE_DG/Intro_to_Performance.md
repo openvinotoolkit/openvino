@@ -24,14 +24,14 @@ $ benchmark_app -m <model.xml> -enforcebf16=false
 One way to increase computational efficiency is batching, which combines many (potentially tens) of
 input images to achieve optimal throughput. However, high batch size also comes with a
 latency penalty. So, for more real-time oriented usages, lower batch sizes (as low as a single input) are used.
-Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
+Refer to the [Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) sample, which allows latency vs. throughput measuring.
 
 ## Using Async API
 To gain better performance on accelerators, such as VPU or FPGA, the Inference Engine uses the asynchronous approach (see
 [Integrating Inference Engine in Your Application (current API)](Integrate_with_customer_application_new_API.md)).
 The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_ssd_async_README).
 Since the pipe-lining relies on the availability of the parallel slack, running multiple inference requests in parallel is essential.
-Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which enables running a number of inference requests in parallel. Specifying different number of request produces different throughput measurements.
+Refer to the [Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) sample, which enables running a number of inference requests in parallel. Specifying different number of request produces different throughput measurements.
 
 ## Best Latency on the Multi-Socket CPUs
 Note that when latency is of concern, there are additional tips for multi-socket systems.
@@ -59,7 +59,7 @@ Since 2018 R5 release, the Inference Engine introduced the "throughput" mode, wh
 Internally, the execution resources are split/pinned into execution "streams".
 Using this feature gains much better performance for the networks that originally are not scaled well with a number of threads (for example, lightweight topologies). This is especially pronounced for the many-core server machines.
 
-Run the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) and play with number of infer requests running in parallel, next section. 
+Run the [Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) and play with number of infer requests running in parallel, next section. 
 Try different values of the `-nstreams` argument from `1` to a number of CPU cores and find one that provides the best performance. 
 
 In addition to the number of streams, it is also possible to play with the batch size to find the throughput sweet-spot.
@@ -69,7 +69,7 @@ This allows you to simplify the app-logic, as you don't need to combine multiple
 Instead, it is possible to keep a separate infer request per camera or another source of input and process the requests in parallel using Async API.
 
 ## Benchmark App
-[Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample is the best performance reference.
+[Benchmark App](../../inference-engine/tools/benchmark_app/cpp/README.md) sample is the best performance reference.
 It has a lot of device-specific knobs, but the primary usage is as simple as: 
 ```bash
 $ ./benchmark_app –d GPU –m <model> -i <input>

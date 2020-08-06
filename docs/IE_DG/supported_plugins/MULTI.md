@@ -137,7 +137,7 @@ uint32_t nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUEST
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 Notice that every OpenVINO sample that supports "-d" (which stays for "device") command-line option transparently accepts the multi-device.
-The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
+The [Benchmark Application](../../../inference-engine/tools/benchmark_app/cpp/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
 Below is example command-line to evaluate HDDL+GPU performance with that:
 ```bash
 $ ./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
