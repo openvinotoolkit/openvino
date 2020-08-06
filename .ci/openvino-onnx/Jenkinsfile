@@ -117,8 +117,10 @@ pipeline {
         }
         stage("Prepare Docker environment") {
             steps{
-                buildDockerImage()
-                runDockerContainer("${IMAGE_ID}")
+                dir("${WORKDIR}") {
+                    buildDockerImage()
+                    runDockerContainer("${IMAGE_ID}")
+                }
             }
         }
         stage("Run tests") {
