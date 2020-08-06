@@ -18,7 +18,6 @@
 #include "ie_extension.h"
 #include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
-#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 
@@ -61,9 +60,7 @@ public:
      * ONNX models with data files are not supported
      * @return CNNNetwork
      */
-    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const {
-        return ReadNetwork(details::wStringtoMBCSstringChar(modelPath), details::wStringtoMBCSstringChar(binPath));
-    }
+    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
 #endif
 
     /**

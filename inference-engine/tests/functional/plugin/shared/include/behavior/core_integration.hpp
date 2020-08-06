@@ -276,14 +276,14 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             Core ie;
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.RegisterPlugins(wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #if defined __linux__  && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML

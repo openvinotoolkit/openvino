@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 
-#include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
 #include "ie_ir_itt.hpp"
 #include "parsers.h"
@@ -73,7 +72,7 @@ void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSi
     std::ifstream inputFile;
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
+    std::wstring file_name = FileUtils::multiByteCharToWString(string_file_name.c_str());
 #else
     std::string file_name = string_file_name;
 #endif

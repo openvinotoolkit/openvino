@@ -10,17 +10,18 @@
 #pragma once
 
 #include <cstdlib>
-#include <details/os/os_filesystem.hpp>
 #include <fstream>
-#include <ie_precision.hpp>
 #include <memory>
-#include <pugixml.hpp>
 #include <sstream>
 #include <string>
 #include <utility>
 
+#include <pugixml.hpp>
+
 #include "ie_api.h"
+#include "ie_precision.hpp"
 #include "ie_common.h"
+#include "file_utils.h"
 
 /**
  * @ingroup    ie_dev_api_xml
@@ -253,8 +254,8 @@ struct parse_result {
  * @return     The parse_result.
  */
 static parse_result ParseXml(const char* file_path) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring wFilePath = InferenceEngine::details::multiByteCharToWString(file_path);
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    std::wstring wFilePath = FileUtils::multiByteCharToWString(file_path);
     const wchar_t* resolvedFilepath = wFilePath.c_str();
 #else
     const char* resolvedFilepath = file_path;

@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
-
 #include <cstring>
 #include <fstream>
 #include <string>
-
-#include "details/ie_exception.hpp"
 
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
 
-// for PATH_MAX
+#include <file_utils.h>
+#include <details/ie_exception.hpp>
+
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
@@ -24,18 +22,9 @@
 # include <Windows.h>
 #endif
 
-#include "details/ie_so_pointer.hpp"
-#include "details/os/os_filesystem.hpp"
-
-#if defined(WIN32) || defined(WIN64)
-// Copied from linux libc sys/stat.h:
-#define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
-#endif
-
 long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = InferenceEngine::details::multiByteCharToWString(charfilepath);
+    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #else
     const char* fileName = charfilepath;
@@ -103,7 +92,7 @@ std::wstring getIELibraryPathW() {
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::wstring(ie_library_path));
 #else
-    return details::multiByteCharToWString(getIELibraryPathA().c_str());
+    return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
 #endif
 }
 
@@ -111,7 +100,7 @@ std::wstring getIELibraryPathW() {
 
 std::string getIELibraryPath() {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    return details::wStringtoMBCSstringChar(getIELibraryPathW());
+    return FileUtils::wStringtoMBCSstringChar(getIELibraryPathW());
 #else
     return getIELibraryPathA();
 #endif

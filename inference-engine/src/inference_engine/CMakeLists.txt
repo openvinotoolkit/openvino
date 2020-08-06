@@ -18,6 +18,8 @@ list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
+      # will be merged with file_utils.cpp after IE dependency on legacy is removed
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_unicode.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
@@ -152,8 +154,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 # Create shared library file from object library
 
 add_library(${TARGET_NAME} SHARED
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            ${IE_STATIC_DEPENDENT_FILES})
+            ${IE_STATIC_DEPENDENT_FILES}
+            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 

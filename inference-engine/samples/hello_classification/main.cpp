@@ -8,7 +8,6 @@
 #include <samples/common.hpp>
 
 #include <inference_engine.hpp>
-#include <details/os/os_filesystem.hpp>
 #include <samples/ocv_common.hpp>
 #include <samples/classification_results.h>
 
@@ -55,8 +54,16 @@ cv::Mat imreadW(std::wstring input_image_path) {
     return image;
 }
 
+std::string simpleConvert(const std::wstring & wstr) {
+    std::string str;
+    for (auto && wc : wstr)
+        str += static_cast<char>(wc);
+    return str;
+}
+
 int wmain(int argc, wchar_t *argv[]) {
 #else
+
 int main(int argc, char *argv[]) {
 #endif
     try {
@@ -69,7 +76,7 @@ int main(int argc, char *argv[]) {
         const file_name_t input_model{argv[1]};
         const file_name_t input_image_path{argv[2]};
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const std::string device_name = InferenceEngine::details::wStringtoMBCSstringChar(argv[3]);
+        const std::string device_name = simpleConvert(argv[3]);
 #else
         const std::string device_name{argv[3]};
 #endif

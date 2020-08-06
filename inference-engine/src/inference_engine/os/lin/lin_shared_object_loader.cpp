@@ -5,8 +5,8 @@
 #include <dlfcn.h>
 
 #include "details/ie_exception.hpp"
-#include "details/os/os_filesystem.hpp"
 #include "details/ie_so_loader.h"
+#include "file_utils.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -24,7 +24,7 @@ public:
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(wStringtoMBCSstringChar(pluginName).c_str()) {
+    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {
     }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 

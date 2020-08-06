@@ -9,7 +9,6 @@
 
 #include <ie_icnn_network.hpp>
 #include <cnn_network_impl.hpp>
-#include <file_utils.h>
 #include <deque>
 #include <functional>
 #include <string>
