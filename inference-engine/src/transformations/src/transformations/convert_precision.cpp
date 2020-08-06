@@ -41,8 +41,12 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
 
     std::function<void(const std::shared_ptr<Function> &)> register_constants =
-            [&const_to_internal_output](const std::shared_ptr<Function> & f) {
+            [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
         for (auto & node : f->get_ordered_ops()) {
+            // Recursively run for TensorIterator body function
+            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
+                register_constants(ti->get_body()->to_function());
+            }
             for (auto & input : node->inputs()) {
                 if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node].emplace_back(input);
@@ -83,11 +87,15 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     };
 
     std::function<void(const std::shared_ptr<Function> &)> convert_function_precision =
-            [this, &const_to_internal_output, &convert_node_precision](const std::shared_ptr<Function> & f) {
+            [this, &const_to_internal_output, &convert_node_precision, &convert_function_precision](const std::shared_ptr<Function> & f) {
         // Iterate over all nodes in topological order and then iterate over node outputs.
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
+            // Recursively run for TensorIterator body function
+            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
+                convert_function_precision(ti->get_body()->to_function());
+            }
             convert_node_precision(node);
         }
     };
