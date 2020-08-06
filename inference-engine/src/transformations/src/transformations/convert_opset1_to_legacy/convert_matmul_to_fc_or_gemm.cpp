@@ -144,7 +144,8 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::vector<float> bias_value(O, 0);
             auto fc_bias = opset1::Constant::create(matmul->get_input_element_type(0), Shape {O}, bias_value);
 
-            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape);
+            // TODO: workaround
+            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, element::f32);
             fc->set_friendly_name(matmul->get_friendly_name());
             new_ops.push_back(fc);
 
@@ -204,7 +205,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
-        auto gemm = std::make_shared<opset1::MatMul>(fc_input_a, fc_input_b, matmul->get_transpose_a(), matmul->get_transpose_b());
+        // TODO: workaround: element::f32 is used
+        auto gemm = std::make_shared<opset1::MatMul>(fc_input_a, fc_input_b, matmul->get_transpose_a(), matmul->get_transpose_b(), element::f32);
         new_ops.push_back(gemm);
 
         if (gemm->get_shape() != output_shape) {

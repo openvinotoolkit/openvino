@@ -64,9 +64,13 @@ namespace ngraph
                 /// \param arg1 Output that produces the second input tensor.
                 BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                             const Output<Node>& arg1,
-                                            const AutoBroadcastSpec& autob);
+                                            const AutoBroadcastSpec& autob,
+                                            const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
 
             public:
+                // TODO: workaround to turn off validation after LPT
+                static bool multi_type_global;
+
                 void validate_and_infer_types() override;
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }
@@ -75,6 +79,8 @@ namespace ngraph
 
             private:
                 AutoBroadcastSpec m_autob;
+                // TODO: workaround
+                bool m_multi_type;
                 void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
             };
         }

@@ -20,7 +20,8 @@ using namespace ngraph;
 
 std::tuple<element::Type, PartialShape>
     ngraph::op::util::validate_and_infer_elementwise_args(Node* node,
-                                                          const op::AutoBroadcastSpec& autob)
+                                                          const op::AutoBroadcastSpec& autob,
+                                                          const bool multi_type)
 {
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
     element::Type element_type = node->get_input_element_type(0);
@@ -30,10 +31,15 @@ std::tuple<element::Type, PartialShape>
     {
         for (size_t i = 1; i < node->get_input_size(); ++i)
         {
-            NODE_VALIDATION_CHECK(
-                node,
-                element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
-                "Argument element types are inconsistent.");
+			if (!multi_type) {
+				const auto input_element_type = node->get_input_element_type(i);
+				NODE_VALIDATION_CHECK(
+					node,
+					element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
+					"Argument element types are inconsistent.");
+			} else {
+				element::Type::merge(element_type, element_type, node->get_input_element_type(i));
+			}
 
             if (autob.m_type == op::AutoBroadcastType::NONE)
             {

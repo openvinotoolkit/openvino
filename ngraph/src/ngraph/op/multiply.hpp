@@ -73,8 +73,8 @@ namespace ngraph
                 /// \param auto_broadcast Auto broadcast specification
                 Multiply(const Output<Node>& arg0,
                          const Output<Node>& arg1,
-                         const AutoBroadcastSpec& auto_broadcast =
-                             AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+                         const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY),
+                         const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

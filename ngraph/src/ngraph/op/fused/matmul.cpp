@@ -31,10 +31,12 @@ NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
-                   const bool& transpose_b)
+                   const bool& transpose_b,
+                   const element::Type output_type)
     : FusedOp(OutputVector{A, B})
     , m_transpose_a{transpose_a}
     , m_transpose_b{transpose_b}
+    , m_output_type(output_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -235,6 +237,10 @@ namespace
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+}
+
+void op::MatMul::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
+	FusedOp::set_output_type(i, m_output_type == element::undefined ? element_type : m_output_type, pshape);
 }
 
 // void op::MatMul::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {

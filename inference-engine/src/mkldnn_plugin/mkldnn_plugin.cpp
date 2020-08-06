@@ -104,6 +104,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
+
+        // TODO: workaround to turn off validation after LPT
+        ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
     }
 
     manager = ngraph::pass::Manager();

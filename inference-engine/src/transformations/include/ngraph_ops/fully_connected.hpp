@@ -29,7 +29,8 @@ public:
     FullyConnected(const Output<Node> & A,
                    const Output<Node> & B,
                    const Output<Node> & C,
-                   const Shape & output_shape);
+                   const Shape & output_shape,
+                   const element::Type output_type = element::undefined);
 
     void validate_and_infer_types() override;
 
@@ -37,9 +38,15 @@ public:
 
     size_t get_out_size() { return m_output_size; }
 
+    // TODO: workaround
+    void set_output_type(size_t i,
+        const element::Type& element_type,
+        const PartialShape& pshape) override;
+
 private:
     size_t m_output_size = 0;
     Shape m_output_shape = {};
+    element::Type m_output_type;
 };
 
 }  // namespace op

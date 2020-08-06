@@ -120,6 +120,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
                 .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
 
             transformer.transform(nGraphFunc);
+
+            // TODO: workaround to turn off validation after LPT
+            ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
         }
 
         manager = ngraph::pass::Manager();

@@ -115,8 +115,9 @@ NGRAPH_RTTI_DEFINITION(op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic)
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,
-                 const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
+                 const AutoBroadcastSpec& auto_broadcast,
+                 const bool multi_type)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, multi_type)
 {
     constructor_validate_and_infer_types();
 }

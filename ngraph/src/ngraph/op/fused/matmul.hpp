@@ -41,7 +41,8 @@ namespace ngraph
                 MatMul(const Output<Node>& A,
                        const Output<Node>& B,
                        const bool& transpose_a = 0,
-                       const bool& transpose_b = 0);
+                       const bool& transpose_b = 0,
+                       const element::Type output_type = element::undefined);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual void pre_validate_and_infer_types() override;
@@ -57,13 +58,15 @@ namespace ngraph
                 bool get_transpose_a() const { return m_transpose_a; }
                 bool get_transpose_b() const { return m_transpose_b; }
 
-				// TODO: LPT workaround
-				// void set_output_type(size_t i,
-				//	const element::Type& element_type,
-				//	const PartialShape& pshape) override;
+				// TODO: workaround
+				void set_output_type(size_t i,
+					const element::Type& element_type,
+					const PartialShape& pshape) override;
+
             private:
                 bool m_transpose_a;
                 bool m_transpose_b;
+                element::Type m_output_type;
             };
         }
         using v0::MatMul;

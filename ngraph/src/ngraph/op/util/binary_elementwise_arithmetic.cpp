@@ -23,6 +23,8 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseArithmetic, "BinaryElementwiseArithmetic", 0);
 
+bool op::util::BinaryElementwiseArithmetic::multi_type_global = false;
+
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob)
 {
@@ -30,16 +32,18 @@ op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBro
 
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                                                    const Output<Node>& arg1,
-                                                                   const AutoBroadcastSpec& autob)
+                                                                   const AutoBroadcastSpec& autob,
+                                                                   const bool multi_type)
     : Op({arg0, arg1})
     , m_autob(autob)
+    , m_multi_type(multi_type)
 {
 }
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
     const op::AutoBroadcastSpec& autob)
 {
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob, m_multi_type);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
@@ -49,6 +53,12 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
                           args_et,
                           ").");
 
+	// TODO: workaround
+	if (m_multi_type) {
+		element::Type element_type1 = get_input_element_type(0);
+		element::Type element_type2 = get_input_element_type(1);
+		args_et = element_type1.bitwidth() > element_type2.bitwidth() ? element_type1 : element_type2;
+	}
     set_output_type(0, args_et, args_pshape);
 }
 
