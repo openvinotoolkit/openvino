@@ -44,25 +44,6 @@ long long FileUtils::fileSize(const char* charfilepath) {
     return in.tellg();
 }
 
-void FileUtils::readAllFile(const std::string& string_file_name, void* buffer, size_t maxSize) {
-    std::ifstream inputFile;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
-#else
-    std::string file_name = string_file_name;
-#endif
-
-    inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << string_file_name;
-    if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
-        inputFile.close();
-        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << string_file_name;
-    }
-
-    inputFile.close();
-}
-
 namespace InferenceEngine {
 
 namespace {

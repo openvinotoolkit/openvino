@@ -67,6 +67,29 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const void* model, size_t size, Respons
     return OK;
 }
 
+namespace {
+
+void readAllFile(const std::string& string_file_name, void* buffer, size_t maxSize) {
+    std::ifstream inputFile;
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
+#else
+    std::string file_name = string_file_name;
+#endif
+
+    inputFile.open(file_name, std::ios::binary | std::ios::in);
+    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << string_file_name;
+    if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
+        inputFile.close();
+        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << string_file_name;
+    }
+
+    inputFile.close();
+}
+
+}  // namespace
+
 StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* resp) noexcept {
     OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "CNNNetReaderImpl::ReadWeights");
     int64_t fileSize = FileUtils::fileSize(filepath);
@@ -85,7 +108,7 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
     try {
         TBlob<uint8_t>::Ptr weightsPtr(new TBlob<uint8_t>(TensorDesc(Precision::U8, {ulFileSize}, Layout::C)));
         weightsPtr->allocate();
-        FileUtils::readAllFile(filepath, weightsPtr->buffer(), ulFileSize);
+        readAllFile(filepath, weightsPtr->buffer(), ulFileSize);
         return SetWeights(weightsPtr, resp);
     } catch (const InferenceEngineException& ex) {
         return DescriptionBuffer(resp) << ex.what();
