@@ -122,15 +122,6 @@ inline bool fileExist(const std::basic_string<C> &fileName) {
 }
 
 /**
- * @brief CPP Interface function to read a file. In case of read error throws an exception. The function supports UNICODE path
- * @ingroup ie_dev_api_file_utils
- * @param file_name - name of the file to read
- * @param buffer - buffer to read file to
- * @param maxSize - maximum size in bytes to read
- */
-INFERENCE_ENGINE_API_CPP(void) readAllFile(const std::string &file_name, void *buffer, size_t maxSize);
-
-/**
  * @brief CPP Interface function to combint path with filename. The function supports UNICODE path
  * @ingroup ie_dev_api_file_utils
  * @param folder - path to add filename to
@@ -161,22 +152,6 @@ inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
     if (pos == std::string::npos)
         return {};
     return filename.substr(pos + 1);
-}
-
-/**
- * @brief CPP Interface function to check if given fileName belongs to shared library
- * @ingroup ie_dev_api_file_utils
- * @param fileName A file name to check
- * @return `True` if fileName is a shared library fileName
- */
-inline bool isSharedLibrary(const std::string &fileName) {
-    return 0 ==
-#ifdef _WIN32
-        _strnicmp
-#else
-        strncasecmp
-#endif
-        (fileExt(fileName).c_str(), FileTraits<char>::SharedLibraryExt().c_str(), FileTraits<char>::SharedLibraryExt().size());
 }
 
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
