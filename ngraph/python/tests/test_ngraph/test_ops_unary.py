@@ -91,7 +91,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 
 
 @pytest.mark.parametrize(
-    "input_data", [(np.array([True, False, True, False])), (np.array(True)), (np.array(False))]
+    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
 )
 def test_logical_not(input_data):
     expected = np.logical_not(input_data)
