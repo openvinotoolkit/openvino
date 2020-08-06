@@ -69,7 +69,6 @@
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/recv.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
@@ -78,12 +77,10 @@
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/select.hpp"
-#include "ngraph/runtime/reference/send.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
 #include "ngraph/runtime/reference/sinh.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
@@ -91,9 +88,9 @@
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/state/bernoulli_rng_state.hpp"
-#include "ngraph/state/uniform_rng_state.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 
 namespace ngraph
 {
@@ -131,8 +128,6 @@ public:
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
 
-    virtual void save(std::ostream& output_stream) override;
-
     void set_nan_check(bool enable);
 
     std::vector<PerformanceCounter> get_performance_data() const override;
@@ -148,8 +143,6 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    INTExecutable(const std::string& model_string);
-
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
@@ -159,7 +152,6 @@ protected:
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::unordered_map<const Node*, std::shared_ptr<State>> m_states;
     std::set<std::string> m_unsupported_op_name_list;
 
     static OP_TYPEID get_typeid(const Node& node);
@@ -353,7 +345,7 @@ protected:
         }
         case OP_TYPEID::Convolution:
         {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
+            const op::v0::Convolution* c = static_cast<const op::v0::Convolution*>(&node);
             reference::convolution<T>(args[0]->get_data_ptr<const T>(),
                                       args[1]->get_data_ptr<const T>(),
                                       out[0]->get_data_ptr<T>(),
@@ -371,8 +363,8 @@ protected:
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
+            const op::v0::ConvolutionBackpropData* c =
+                static_cast<const op::v0::ConvolutionBackpropData*>(&node);
             reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
                                                   args[0]->get_data_ptr<const T>(),
                                                   out[0]->get_data_ptr<T>(),
@@ -972,19 +964,6 @@ protected:
 
             break;
         }
-        case OP_TYPEID::Recv:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Recv*>(&node);
-            int src_id = op->get_src_id();
-
-            reference::recv<T>(
-                args[0]->get_data_ptr<T>(), node.get_input_element_type(0), element_count, src_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Relu:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1051,21 +1030,6 @@ protected:
                                  element_count);
             break;
         }
-        case OP_TYPEID::Send:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Send*>(&node);
-            int dest_id = op->get_dest_id();
-
-            reference::send<T>(args[0]->get_data_ptr<const T>(),
-                               node.get_input_element_type(0),
-                               element_count,
-                               dest_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Sigmoid:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1092,18 +1056,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::sinh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::Slice:
-        {
-            const op::Slice* slice = static_cast<const op::Slice*>(&node);
-            reference::slice<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                node.get_input_shape(0),
-                                slice->get_lower_bounds(),
-                                slice->get_upper_bounds(),
-                                slice->get_strides(),
-                                node.get_output_shape(0));
             break;
         }
         case OP_TYPEID::Sqrt:
@@ -1226,6 +1178,7 @@ protected:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
+        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

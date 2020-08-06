@@ -37,7 +37,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::FakeQuantize::type_info;
+NGRAPH_RTTI_DEFINITION(op::FakeQuantize, "FakeQuantize", 0);
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
                                const Output<Node>& input_low,
@@ -88,7 +88,7 @@ bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::FakeQuantize::decompose_op() const
+OutputVector op::FakeQuantize::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     Output<Node> input_low{input_value(1)};

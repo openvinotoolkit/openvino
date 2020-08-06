@@ -27,21 +27,11 @@ set (SRC
     axis_vector.hpp
     builder/autobroadcast.cpp
     builder/autobroadcast.hpp
-    builder/dequantize_builder.cpp
-    builder/dequantize_builder.hpp
     builder/make_constant.hpp
     builder/matmul_factory.cpp
     builder/matmul_factory.hpp
     builder/norm.cpp
     builder/norm.hpp
-    builder/numpy_transpose.cpp
-    builder/numpy_transpose.hpp
-    builder/quantize_builder.cpp
-    builder/quantize_builder.hpp
-    builder/quantized_concat_builder.cpp
-    builder/quantized_concat_builder.hpp
-    builder/quantized_dot_builder.cpp
-    builder/quantized_dot_builder.hpp
     builder/quantization_utils.hpp
     builder/quantization_utils.cpp
     builder/reduce_ops.cpp
@@ -50,7 +40,6 @@ set (SRC
     builder/reshape.hpp
     builder/split.cpp
     builder/split.hpp
-    builder/tensor_mask.hpp
     check.hpp
     chrome_trace.cpp
     chrome_trace.hpp
@@ -75,8 +64,6 @@ set (SRC
     descriptor/tensor.hpp
     dimension.cpp
     dimension.hpp
-    distributed/null.cpp
-    distributed/null.hpp
     distributed.cpp
     distributed.hpp
     enum_names.hpp
@@ -133,6 +120,8 @@ set (SRC
     op/avg_pool.hpp
     op/batch_norm.cpp
     op/batch_norm.hpp
+    op/batch_to_space.cpp
+    op/batch_to_space.hpp
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
@@ -295,8 +284,6 @@ set (SRC
     op/quantized_dot.hpp
     op/range.cpp
     op/range.hpp
-    op/recv.cpp
-    op/recv.hpp
     op/relu.cpp
     op/relu.hpp
     op/replace_slice.cpp
@@ -317,8 +304,6 @@ set (SRC
     op/scatter_update.hpp
     op/select.cpp
     op/select.hpp
-    op/send.cpp
-    op/send.hpp
     op/shape_of.cpp
     op/shape_of.hpp
     op/sigmoid.cpp
@@ -333,6 +318,8 @@ set (SRC
     op/slice.hpp
     op/softmax.cpp
     op/softmax.hpp
+    op/space_to_batch.cpp
+    op/space_to_batch.hpp
     op/split.cpp
     op/split.hpp
     op/strided_slice.cpp
@@ -361,8 +348,6 @@ set (SRC
     op/transpose.hpp
     op/xor.cpp
     op/xor.hpp
-    op/fused/batch_to_space.cpp
-    op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
     op/fused/clamp.hpp
     op/fused/hard_sigmoid.cpp
@@ -397,8 +382,6 @@ set (SRC
     op/fused/selu.hpp
     op/fused/shuffle_channels.cpp
     op/fused/shuffle_channels.hpp
-    op/fused/space_to_batch.cpp
-    op/fused/space_to_batch.hpp
     op/fused/space_to_depth.cpp
     op/fused/space_to_depth.hpp
     op/fused/squared_difference.cpp
@@ -454,17 +437,9 @@ set (SRC
     partial_shape.hpp
     pass/algebraic_simplification.cpp
     pass/algebraic_simplification.hpp
-    pass/assign_layout.hpp
-    pass/implicit_broadcast_elimination.hpp
-    pass/implicit_broadcast_elimination.cpp
-    pass/batch_fusion.hpp
-    pass/batch_fusion.cpp
-    pass/common_function_collection.cpp
-    pass/common_function_collection.hpp
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_reshape.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp
@@ -473,69 +448,28 @@ set (SRC
     pass/constant_folding_quantize.cpp
     pass/constant_folding_reverse.cpp
     pass/constant_folding_select.cpp
-    pass/constant_folding_slice.cpp
-    pass/constant_folding_split.cpp
     pass/constant_folding_variadic_split.cpp
-    pass/constant_folding_tile.cpp
-    pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
-    pass/constant_to_broadcast.cpp
     pass/convert_fp32_to_fp16.hpp
     pass/convert_fp32_to_fp16.cpp
-    pass/core_fusion.cpp
-    pass/core_fusion.hpp
-    pass/cse.cpp
-    pass/cse.hpp
-    pass/dump_sorted.cpp
-    pass/dump_sorted.hpp
-    pass/dyn_elimination.cpp
-    pass/dyn_elimination.hpp
-    pass/fused_op_decomposition.cpp
-    pass/fused_op_decomposition.hpp
     pass/get_output_element_elimination.cpp
     pass/get_output_element_elimination.hpp
     pass/graph_rewrite.cpp
     pass/graph_rewrite.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
-    pass/liveness.cpp
-    pass/liveness.hpp
     pass/manager.cpp
     pass/manager.hpp
     pass/manager_state.hpp
-    pass/memory_layout.cpp
-    pass/memory_layout.hpp
-    pass/memory_visualize.cpp
-    pass/memory_visualize.hpp
     pass/nop_elimination.cpp
     pass/nop_elimination.hpp
     pass/pass.cpp
     pass/pass.hpp
     pass/pass_config.cpp
     pass/pass_config.hpp
-    pass/propagate_cacheability.cpp
-    pass/propagate_cacheability.hpp
-    pass/reshape_elimination.cpp
-    pass/reshape_elimination.hpp
-    pass/reshape_sinking.cpp
-    pass/reshape_sinking.hpp
-    pass/serialize.cpp
-    pass/serialize.hpp
-    pass/shape_relevance.cpp
-    pass/shape_relevance.hpp
-    pass/validate_graph.cpp
-    pass/validate_graph.hpp
     pass/validate.cpp
     pass/validate.hpp
     pass/visualize_tree.cpp
     pass/visualize_tree.hpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/concat_fusion.hpp
-    pass/concat_fusion.cpp
     pass/pass_util.hpp
     pass/pass_util.cpp
     pattern/matcher.cpp
@@ -573,8 +507,16 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/slice.cpp
+    runtime/reference/slice.hpp
+    runtime/opt_kernel/reshape.cpp
+    runtime/opt_kernel/reshape.hpp
     runtime/reference/eval_helpers.cpp
     runtime/reference/eval_helpers.hpp
+    runtime/reference/reshape.cpp
+    runtime/reference/reshape.hpp
+    runtime/reference/tile.cpp
+    runtime/reference/tile.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
@@ -583,10 +525,6 @@ set (SRC
     slice_plan.hpp
     specialize_function.cpp
     specialize_function.hpp
-    state/bernoulli_rng_state.cpp
-    state/bernoulli_rng_state.hpp
-    state/uniform_rng_state.cpp
-    state/uniform_rng_state.hpp
     strides.cpp
     strides.hpp
     type/bfloat16.cpp
@@ -605,12 +543,6 @@ set (SRC
     variant.hpp
     )
 
-if(NGRAPH_JSON_ENABLE)
-    list(APPEND SRC serializer.cpp serializer.hpp)
-else()
-    list(APPEND SRC serializer_stub.cpp)
-endif()
-
 configure_file(version.in.hpp version.hpp)
 
 add_library(ngraph SHARED ${SRC})
@@ -620,9 +552,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-if(NOT NGRAPH_JSON_ENABLE)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
-endif()
+target_link_libraries(ngraph PRIVATE openvino::itt)
 
 add_subdirectory(frontend)
 
@@ -640,9 +570,6 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
     set_target_properties(ngraph PROPERTIES
         VERSION ${NGRAPH_VERSION}
         SOVERSION ${NGRAPH_API_VERSION})
-endif()
-if(NGRAPH_JSON_ENABLE)
-    target_link_libraries(ngraph PRIVATE libjson)
 endif()
 target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
 

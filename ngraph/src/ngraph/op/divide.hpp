@@ -61,7 +61,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 bool m_pythondiv{true};
@@ -74,8 +74,7 @@ namespace ngraph
             class NGRAPH_API Divide : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Divide", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a division operation.
                 Divide()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
@@ -111,7 +110,7 @@ namespace ngraph
 
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 bool m_pythondiv{true};

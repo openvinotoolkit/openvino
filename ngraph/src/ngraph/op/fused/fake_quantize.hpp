@@ -42,8 +42,8 @@ namespace ngraph
             class NGRAPH_API FakeQuantize : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"FakeQuantize", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 FakeQuantize() = default;
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
@@ -67,7 +67,7 @@ namespace ngraph
                                  AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
                 virtual void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>

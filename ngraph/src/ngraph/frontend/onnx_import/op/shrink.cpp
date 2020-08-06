@@ -28,7 +28,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector shrink(const Node& node)
+                OutputVector shrink(const Node& node)
                 {
                     const auto input = node.get_ng_inputs().at(0);
                     const float bias = node.get_attribute_value<float>("bias", 0.0f);
@@ -41,7 +41,7 @@ namespace ngraph
                                      " must not be negative.");
 
                     std::shared_ptr<default_opset::Constant> negative_lambd;
-                    const auto input_element_type = input->get_element_type();
+                    const auto input_element_type = input.get_element_type();
                     if (input_element_type.is_signed())
                     {
                         negative_lambd =

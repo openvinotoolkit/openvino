@@ -32,6 +32,4 @@ from ngraph.pyngraph.op import Constant
 """
 Constant.get_data = lambda self: np.array(self, copy=True)
 
-from ngraph.pyngraph.op import GetOutputElement
-from ngraph.pyngraph.op import Op
 from ngraph.pyngraph.op import Parameter

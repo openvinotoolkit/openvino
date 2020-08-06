@@ -3,10 +3,11 @@
 //
 
 /**
- * @file
+ * @file A header file with caseless containers
  */
 
 #pragma once
+
 #include <algorithm>
 #include <cctype>
 #include <functional>

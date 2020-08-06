@@ -18,7 +18,7 @@ import unittest
 from unittest.mock import patch
 
 from extensions.front.caffe.prelu_ext import PreluFrontExtractor
-from extensions.ops.prelu import PreluOp
+from extensions.ops.prelu import PReLU
 from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
@@ -32,7 +32,7 @@ class FakePReLUProtoLayer:
 class TestPreluExt(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['PReLU'] = PreluOp
+        Op.registered_ops['PReLU'] = PReLU
 
     def test_prelu_no_pb_no_ml(self):
         self.assertRaises(AttributeError, PreluFrontExtractor.extract, None)
@@ -56,7 +56,7 @@ class TestPreluExt(unittest.TestCase):
             'type': 'PReLU',
             'op': 'PReLU',
             'channel_shared': 0,
-            'infer': PreluOp.infer,
+            'infer': PReLU.infer,
         }
 
         for key in exp_res.keys():

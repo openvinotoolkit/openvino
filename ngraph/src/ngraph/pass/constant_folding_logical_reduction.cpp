@@ -101,7 +101,9 @@ void pass::ConstantFolding::construct_constant_logical_reduction()
 
     auto logical_reduction_matcher =
         make_shared<pattern::Matcher>(reduction, "ConstantFolding.ConstantLogicalReduction");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(logical_reduction_matcher,
                       constant_logical_reduction_callback,
                       PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

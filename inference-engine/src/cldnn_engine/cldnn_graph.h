@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+
 #include <vector>
 #include <map>
 #include <set>

@@ -60,7 +60,7 @@ namespace ngraph
 
                 void pre_validate_and_infer_types() override;
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -102,6 +102,9 @@ namespace ngraph
 
                 size_t get_num_splits() const { return m_num_splits; }
                 void set_num_splits(const size_t num_splits) { m_num_splits = num_splits; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             protected:
                 size_t m_num_splits;
             };
