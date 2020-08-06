@@ -15,6 +15,7 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <map>
 
 namespace InferenceEngine {
 /**
@@ -232,6 +233,29 @@ struct ResponseDesc {
      * @brief A character buffer that holds the detailed information for an error.
      */
     char msg[4096] = {};
+};
+
+
+/**
+ * @brief Responce structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response message
+     */
+    ResponseDesc resp;
 };
 
 /** @brief This class represents StatusCode::GENERIC_ERROR exception */

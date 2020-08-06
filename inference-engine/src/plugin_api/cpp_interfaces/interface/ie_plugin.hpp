@@ -11,7 +11,6 @@
 
 #include <ie_iextension.h>
 #include <ie_icnn_network.hpp>
-#include <ie_core.hpp>
 #include <ie_icore.hpp>
 
 #include <map>
