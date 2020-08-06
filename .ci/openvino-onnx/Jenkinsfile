@@ -2,6 +2,10 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+DOCKER_HOME = "/home/ci_user"
+DOCKER_CONTAINER_PREFIX = "jenkins_ngraph-onnx_ci"
+DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${BUILD_NUMBER}"
+
 def getGitPrInfo(String project) {
     def gitPrInfo = [
         prAuthorEmail : "",
@@ -43,6 +47,24 @@ def notifyByEmail(def gitPrInfo) {
     }
 }
 
+def gitClone(String label, String address, String branch) {
+    repositoryName = address.split("/").last().replace(".git","")
+
+    sh  label: label,
+        script:
+    """
+        git clone \
+            -b ${branch} \
+            --single-branch \
+            --no-tags \
+            --dissociate \
+            --depth 1 \
+            --verbose \
+            ${address} \
+            ${WORKDIR}/${repositoryName}
+    """
+}
+
 def gitSubmoduleUpdate(String repository_name) {
     dir ("${WORKDIR}/${repository_name}") {
         sh  label: "Init ${repository_name} submodules",
@@ -56,13 +78,74 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
+def runDockerContainer(String imageID) {
+             CONTAINER_ID = sh (
+                    script: """
+                            docker run -id --privileged \
+                                    --name ${DOCKER_CONTAINER_NAME} \
+                                    --volume ${WORKDIR}:${DOCKER_HOME} \
+                                    ${imageID} tail -f /dev/null
+                            """,
+                    returnStdout: true
+                    ).trim()
+}
+
 def buildDockerImage() {
+    IMAGE_ID = sh (
+        script: """
+                docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+                --volume ${HOME}/ONNX_CI/onnx_models/.onnx:${DOCKER_HOME}/.onnx \
+                --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
+                --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
+                """
+    ).tokenize()[-1]
+}
+
+def runTests() {
     sh """
-        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
-        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
-        --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
+        docker exec -w ${DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
     """
 }
+
+def dockerRemove(String container_ID) {
+    sh """
+        docker rm -f ${container_ID}
+    """
+}
+
+def runContainerCommand(String command, String dir="${DOCKER_HOME}") {
+    sh """
+        docker exec -w ${dir} ${CONTAINER_ID} ${command}
+    """
+}
+
+def buildOpenVino() {
+    runContainerCommand("mkdir build")
+    runContainerCommand("cmake \
+                        -DCMAKE_BUILD_TYPE=Release \
+                        -DENABLE_VPU=OFF \
+                        -DENABLE_GNA=OFF \
+                        -DENABLE_OPENCV=OFF \
+                        -DENABLE_CPPLINT=OFF \
+                        -DENABLE_TESTS=OFF \
+                        -DENABLE_BEH_TESTS=OFF \
+                        -DENABLE_FUNCTIONAL_TESTS=OFF \
+                        -DENABLE_MKL_DNN=ON \
+                        -DENABLE_CLDNN=OFF \
+                        -DENABLE_PROFILING_ITT=OFF \
+                        -DENABLE_SAMPLES=OFF \
+                        -DENABLE_SPEECH_DEMO=OFF \
+                        -DENABLE_PYTHON=ON \
+                        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+                        -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
+                        -DNGRAPH_IE_ENABLE=ON \
+                        -DNGRAPH_INTERPRETER_ENABLE=ON \
+                        -DNGRAPH_DEBUG_ENABLE=OFF \
+                        -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
+                        -DCMAKE_INSTALL_PREFIX=/openvino/dist
+    runContainerCommand("make -j \$(nproc) -C ${DOCKER_HOME}/build install ")
+
+    }
 
 pipeline {
     agent {
@@ -84,11 +167,20 @@ pipeline {
                 gitSubmoduleUpdate(PROJECT_NAME)
             }
         }
+        stage("Prepare Docker environment") {
+            steps{
+                buildDockerImage()
+                runDockerContainer("${IMAGE_ID}")
+            }
+        }
+        stage("Build project") {
+            steps{
+                buildOpenVino()
+            }
+        }
         stage("Run tests") {
             steps{
-                dir("${WORKDIR}") {
-                    buildDockerImage()
-                }
+                runTests()
             }
         }
     }
@@ -105,6 +197,7 @@ pipeline {
                 sh """
                     docker image prune -f
                 """
+                dockerRemove("${CONTAINER_ID}")
             }
         }
     }
