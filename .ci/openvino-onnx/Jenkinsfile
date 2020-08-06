@@ -85,8 +85,7 @@ def buildDockerImage() {
 }
 
 def runTests() {
-    ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
-
+    PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
     sh """
         docker exec -e NGRAPH_CPP_BUILD_PATH=/openvino/dist \
                     -e LD_LIBRARY_PATH=/openvino/dist/lib \
