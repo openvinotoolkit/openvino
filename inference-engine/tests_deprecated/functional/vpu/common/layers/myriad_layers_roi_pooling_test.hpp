@@ -306,7 +306,7 @@ static std::vector<Dims> s_ROIPoolingLayerInput = {
 
 static std::vector<roi_pooling_param> s_ROIPoolingLayerParam = {
     {{224, 224, 7, 7, 0.0625}},
-    {{224, 224, 45, 45, 1}}
+    {{224, 224, 32, 32, 1}}
 };
 
 static std::vector<uint32_t> s_ROIPoolingNumRois = {
