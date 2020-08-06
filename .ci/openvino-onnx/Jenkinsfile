@@ -79,8 +79,9 @@ def buildDockerImage() {
                 docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
                 --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
                 --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
-                """
-    ).trim().tokenize()[-4]
+                """,
+                returnStdout: true
+                ).trim().tokenize()[-4]
 }
 
 def runTests() {
