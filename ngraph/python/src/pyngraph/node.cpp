@@ -36,7 +36,11 @@ PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_Node(py::module m)
 {
-    py::bind_map<PyRTMap>(m, "PyRTMap");
+    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
+    py_map.doc() =
+        "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
+        "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
+    // py_map.def("custom", [](const PyRTMap& self) { return std::string("test_text"); });
 
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
@@ -103,7 +107,9 @@ void regclass_pyngraph_Node(py::module m)
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
-    node.def_property_readonly("rt_info", (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info);
+    node.def_property_readonly("rt_info",
+                               (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
+                               py::return_value_policy::reference_internal);
     node.def_property(
         "friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 
