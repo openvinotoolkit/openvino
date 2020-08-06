@@ -2208,6 +2208,27 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
+
+GAPI_FLUID_KERNEL(FU16toF32, U16toF32, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_32F);
+        GAPI_Assert(src.meta().chan == 1);
+        GAPI_Assert(dst.meta().chan == 1);
+        GAPI_Assert(src.length() == dst.length());
+
+        const auto *in  = src.InLine<uint16_t>(0);
+              auto *out = dst.OutLine<float>();
+
+        auto const width = dst.length();
+        for (int i = 0; i < width; i++) {
+            out[i] = in[i];
+        }
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2234,6 +2255,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
+        , FU16toF32
         >();
 }
 
