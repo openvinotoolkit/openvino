@@ -16,12 +16,12 @@
 namespace ngraph {
 namespace op {
 
-/// A base class for templated TypeRelaxed that maintains overridden input types and outtypes for an operations.
+/// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
 class TRANSFORMATIONS_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase();
 
-    TypeRelaxedBase(
+    explicit TypeRelaxedBase(
             const element::TypeVector& _input_data_types = {},
             const element::TypeVector& _output_data_types = {}) :
             m_input_data_types(_input_data_types),
@@ -32,6 +32,13 @@ public:
     /// If output with a specified index outputIndex hasn't been set before, element::undefined will returned.
     /// Undefined means no type override happens for a given outputIndex and it will deduced as original
     /// operation defineds in its infer function.
+    ///
+    /// This method may look similar to Node::get_output_element_type, but it is not the same thing, because
+    /// get_output_element_type returns the result of type inference, so it is completely deduced from
+    /// an operation inputs and attributes, and get_overridden_output_type returns value of the attribute that
+    /// is used to deduce output type. In some cases they don't match: get_overridden_output_type may return
+    /// element::undefined for some index i, and get_output_element_type will return some real type for
+    /// the same index i.
     const element::Type& get_overridden_output_type(size_t outputIndex = 0) const {
         if (outputIndex >= m_output_data_types.size()) {
             return element::undefined;
