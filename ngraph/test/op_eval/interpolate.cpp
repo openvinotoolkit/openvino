@@ -39,29 +39,21 @@ TEST(op_eval, interpolate_v4_scales_cubic)
 {
     auto data_shape = Shape{1, 1, 4, 4};
 
-    std::vector<std::vector<int64_t>> spatial_shapes = {
-        {3, 3}
-    };
+    std::vector<std::vector<int64_t>> spatial_shapes = {{3, 3}};
 
-    std::vector<std::vector<float>> scales = {
-        {0.8f, 0.8f}
-    };
+    std::vector<std::vector<float>> scales_data = {{0.8f, 0.8f}};
 
-    std::vector<float> cubic_coeffs = {
-        -0.75f
-    };
+    std::vector<float> cubic_coeffs = {-0.75f};
 
     std::vector<CoordinateTransformMode> transform_modes = {
-        CoordinateTransformMode::half_pixel
-    };
+        CoordinateTransformMode::half_pixel};
 
     std::vector<float> input_data = {
-        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0
-    };
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
 
     std::vector<int64_t> interp_axes = {2, 3};
 
-    std::size_t num_of_tests = transform_modes.sizes();
+    std::size_t num_of_tests = transform_modes.size();
 
     for (std::size_t i = 0; i < num_of_tests; ++i)
     {
@@ -81,8 +73,8 @@ TEST(op_eval, interpolate_v4_scales_cubic)
         attrs.cube_coeff = cubic_coeffs[i];
 
         auto interp =
-            std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
-        auto fun = make_shared<Function>(
+            std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
+        auto fun = std::make_shared<Function>(
             OutputVector{interp}, ParameterVector{image, target_spatial_shape, scales, axes});
 
         auto result = make_shared<HostTensor>();
@@ -90,7 +82,7 @@ TEST(op_eval, interpolate_v4_scales_cubic)
             fun->evaluate({result},
                           {make_host_tensor<element::Type_t::f32>(data_shape, input_data),
                            make_host_tensor<element::Type_t::i64>(Shape{2}, spatial_shapes[i]),
-                           make_host_tensor<element::Type_t::f32>(Shape{2}, scales[i]),
+                           make_host_tensor<element::Type_t::f32>(Shape{2}, scales_data[i]),
                            make_host_tensor<element::Type_t::i64>(Shape{2}, interp_axes)}));
     }
 }

@@ -76,8 +76,8 @@ void InterpolateLayerTest::SetUp() {
 
     auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
 
-    ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{
-            mode, padBegin, padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
+    ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shape_calc_node, padBegin,
+        padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
     auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
                                                                      secondaryInput,
                                                                      scalesInput,
