@@ -15,7 +15,7 @@ There are multiple ways to help improve our documentation:
 Use the following steps to contribute in the OpenVINO™ Toolkit documentation
 
 ### Use Documentation Guidelines
-The documentation for our project is written using Markdown. Use our [guidelines](./docs/documentaion_guidelines.md) and best practices to write consistent, readable documentation:
+The documentation for our project is written using Markdown. Use our [guidelines](./docs/documentation_guidelines.md) and best practices to write consistent, readable documentation:
 
 * **[Authoring Guidelines](./docs/documentation_guidelines.md#authoring-guidelines)**
 * **[Structure Guidelines](./docs/documentation_guidelines.md#structure-guidelines)**
