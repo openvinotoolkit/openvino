@@ -194,7 +194,7 @@ namespace ngraph
     public:
         virtual ~Node();
 
-        virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
+        virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
         /// \brief Evaluates the op on input_values putting results in output_values
