@@ -106,7 +106,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     }
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
 
     // Apply all transformations to TensorIterator body
