@@ -18,7 +18,6 @@
 
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/serializer.hpp"
 #include "util/test_tools.hpp"
 
 #include <memory>

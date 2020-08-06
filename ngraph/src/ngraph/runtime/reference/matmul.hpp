@@ -23,9 +23,9 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/shape_util.hpp"
 
 using namespace std;
@@ -116,8 +116,12 @@ namespace ngraph
                     arg0_transpose_vec.reserve(shape_size(arg0_shape));
                     auto axis_vector = get_transpose_order(arg0_shape);
                     swap(wip_arg0_shape[arg0_rank - 1], wip_arg0_shape[arg0_rank - 2]);
-                    reference::reshape(
-                        arg0, arg0_transpose_vec.data(), arg0_shape, axis_vector, wip_arg0_shape);
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
+                                        reinterpret_cast<char*>(arg0_transpose_vec.data()),
+                                        arg0_shape,
+                                        axis_vector,
+                                        wip_arg0_shape,
+                                        sizeof(T));
 
                     arg0_update = arg0_transpose_vec.data();
                 }
@@ -127,8 +131,12 @@ namespace ngraph
                     arg1_transpose_vec.reserve(shape_size(arg1_shape));
                     auto axis_vector = get_transpose_order(arg1_shape);
                     swap(wip_arg1_shape[arg1_rank - 1], wip_arg1_shape[arg1_rank - 2]);
-                    reference::reshape(
-                        arg1, arg1_transpose_vec.data(), arg1_shape, axis_vector, wip_arg1_shape);
+                    opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
+                                        reinterpret_cast<char*>(arg1_transpose_vec.data()),
+                                        arg1_shape,
+                                        axis_vector,
+                                        wip_arg1_shape,
+                                        sizeof(T));
 
                     arg1_update = arg1_transpose_vec.data();
                 }

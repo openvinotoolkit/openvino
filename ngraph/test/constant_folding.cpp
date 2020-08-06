@@ -2305,9 +2305,6 @@ TEST(constant_folding, constant_v1_split_specialized)
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
     auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
 
-    auto specialized_function = ::ngraph::specialize_function(
-        std::const_pointer_cast<ngraph::Function>(f), {}, {}, {}, true, true);
-
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
@@ -2661,7 +2658,7 @@ TEST(constant_folding, constant_tile_1d)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2690,7 +2687,7 @@ TEST(constant_folding, constant_tile_3d_small_data_rank)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2719,7 +2716,7 @@ TEST(constant_folding, constant_tile_3d_few_repeats)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2748,7 +2745,7 @@ TEST(constant_folding, constant_tile_1d_0_repeats)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
@@ -2777,7 +2774,7 @@ TEST(constant_folding, constant_tile_0_rank_data)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
