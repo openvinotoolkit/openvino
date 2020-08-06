@@ -18,6 +18,7 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 
@@ -49,11 +50,13 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<vpu::DynamicToStaticShape>();
         manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
-        manager.run_passes(function);
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         ngraph::pass::Manager ti_manager;
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         ti_manager.run_passes(function);
+
+        manager.run_passes(function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork,

@@ -28,6 +28,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -102,14 +103,15 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
-        manager.set_callback(transformations_callback);
-        manager.run_passes(nGraphFunc);
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         // Apply all transformations to TensorIterator body
         ngraph::pass::Manager ti_manager;
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         ti_manager.run_passes(nGraphFunc);
+
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }

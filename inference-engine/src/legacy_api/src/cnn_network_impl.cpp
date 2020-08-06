@@ -30,6 +30,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include "convert_function_to_cnn_network.hpp"
 
 using namespace std;
@@ -101,11 +102,13 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.run_passes(graph);
+    manager.register_pass<::ngraph::pass::UnrollTensorIterator>();
 
     ::ngraph::pass::Manager ti_manager;
     ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
     ti_manager.run_passes(graph);
+
+    manager.run_passes(graph);
 
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
