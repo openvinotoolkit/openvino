@@ -12,7 +12,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/specialize_function.hpp>
 
 void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
     auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
@@ -168,5 +167,5 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    register_matcher(m, callback);
 }

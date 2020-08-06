@@ -31,9 +31,9 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  *
  */
 
-class ngraph::pass::UnrollTensorIterator: public ngraph::pass::GraphRewrite {
+class ngraph::pass::UnrollTensorIterator: public ngraph::pass::MatcherPass {
 public:
-    UnrollTensorIterator() : GraphRewrite() {
+    UnrollTensorIterator() : MatcherPass() {
         unroll_tensor_iterator();
     }
 

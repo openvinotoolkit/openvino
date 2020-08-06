@@ -11,6 +11,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/utils/utils.hpp>
@@ -62,8 +63,11 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                 ngraph::ParameterVector{X, Y});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -141,8 +145,11 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                                                ngraph::ParameterVector{X, Y});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -223,8 +230,11 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                                                ngraph::ParameterVector{X, Y, Z});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -303,8 +313,11 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                                                ngraph::ParameterVector{X, Y});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -376,8 +389,11 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                                                ngraph::ParameterVector{X, Y});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -451,8 +467,11 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
                                                ngraph::ParameterVector{X, Y, Z});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::UnrollTensorIterator().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(f);
+
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
