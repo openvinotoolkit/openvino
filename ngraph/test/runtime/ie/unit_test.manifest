@@ -63,7 +63,6 @@ onnx_model_depth_to_space_chw
 onnx_model_space_to_depth_chw
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
-onnx_model_batch_norm_default
 onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
@@ -949,17 +948,14 @@ gelu_f32
 gelu_f64
 gelu_backprop_factor_f32
 gelu_backprop_factor_f64
+
+# Incorrect precision f64!
 batch_norm_inference_0eps_f64
 batch_norm_inference_f64
 batch_norm_training_0eps_f64
-batch_norm_training_0eps_f32
+
+# Function inputs number differ from number of given inputs
 batch_norm_inference_parameters_duplication
-batch_norm_fprop_b1c2h2w2
-batch_norm_fprop_b2c2h2w1
-batch_norm_fprop_b2c2d2h1w1
-batch_norm_bprop_n4c3h2w2
-batch_norm_fprop_inference_b2c2h2w1
-dyn_batch_norm_fprop_b1c2h2w2
 
 backwards_abs
 backwards_acos
@@ -1016,8 +1012,6 @@ backwards_abc
 backwards_reverse_3d_02
 backwards_maxpool_n4c1h4w4_kh2kw2_sh1sw1
 backwards_maxpool_n2c1h5w5_kh3kw3_sh2sw2
-backwards_batch_norm_training_4d
-backwards_batch_norm_training_3d
 backwards_reverse_sequence_n3_c2_h3
 backwards_reverse_sequence_n4d2c3h2w2
 backwards_gelu_f32
