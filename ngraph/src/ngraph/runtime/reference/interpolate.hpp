@@ -266,9 +266,8 @@ namespace ngraph
                 {
                     a[i] = antialias ? m_scales[i] : 1.0;
                     prod_a *= a[i];
-                    r[i] = (m_scales[i] > 1.0)
-                               ? static_cast<int64_t>(2)
-                               : static_cast<int64_t>(std::ceil(2.0f / a[i]));
+                    r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2)
+                                               : static_cast<int64_t>(std::ceil(2.0f / a[i]));
                     low_limits_vector[i] = -r[i];
                     high_limits_vector[i] = r[i];
                 }

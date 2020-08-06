@@ -285,7 +285,7 @@ namespace
     static constexpr std::size_t target_shape_port = 1;
     static constexpr std::size_t scales_port = 2;
     static constexpr std::size_t axes_port = 3;
-    static constexpr std::size_t max_num_of_ports= 4;
+    static constexpr std::size_t max_num_of_ports = 4;
 
     using size_t_vector = std::vector<std::size_t>;
 
@@ -392,7 +392,6 @@ namespace
             out_shape[axes[i]] = target_shape[i];
         }
         return out_shape;
-
     }
 
     template <typename T>
