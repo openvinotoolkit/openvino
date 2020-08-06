@@ -258,7 +258,7 @@ class InterpolateCalculation:
     def get_coordinate_transformation_mode(self):
         return GetOriginalCoordinate(self.coordinate_transformation_mode)
 
-    def shape_infer(self, input_data, target_spatial_shape):
+    def shape_infer(self, input_data, target_spatial_shape, scales):
         result = input_data.shape + self.pads_begin + self.pads_end
 
         if self.shape_calculation_mode == ShapeCalculationMode.SIZES:
@@ -287,11 +287,14 @@ class InterpolateCalculation:
         self.pads = list(zip(self.pads_begin, self.pads_end))
         self.axes = np.array(axes).astype(np.int64)
 
-        self.output_shape = self.shape_infer(input_data, target_spatial_shape)
+        self.output_shape = self.shape_infer(input_data, target_spatial_shape, scales)
         padded_data = np.pad(input_data, self.pads)
 
         if self.shape_calculation_mode == ShapeCalculationMode.SIZES:
-            self.scales = self.output_shape / padded_data.shape
+            num_of_axes = len(self.axes)
+            self.scales = np.zeros(num_of_axes)
+            for i, axis in enumerate(axes):
+                self.scales[i] = self.output_shape[axis] / padded_data.shape[axis]
         else:
             self.scales = scales
 
@@ -309,8 +312,8 @@ class InterpolateCalculation:
         for coordinates in np.ndindex(tuple(self.output_shape)):
             input_coords = np.array(coordinates, dtype=np.int64)
             cubic_coeffs = np.zeros((rank, 4))
-            for axis in self.axes:
-                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[axis], self.output_shape[axis], self.input_shape[axis])
+            for i, axis in enumerate(self.axes):
+                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[i], self.output_shape[axis], self.input_shape[axis])
                 in_coord_int = math.floor(in_coord)
                 input_coords[axis] = in_coord_int
                 cubic_coeffs[axis] = get_cubic_coeff(in_coord - in_coord_int, self.cube_coeff)
@@ -331,27 +334,27 @@ class InterpolateCalculation:
         num_of_axes = len(self.axes)
         is_downsample = False
 
-        for axis in self.axes:
-            is_downsample = is_downsample or (self.scales[axis] < 1)
+        for scale in self.scales:
+            is_downsample = is_downsample or (scale < 1)
 
         antialias = is_downsample and self.antialias
 
         a = np.zeros(num_of_axes)
-        for i, axis in enumerate(self.axes):
-            a[i] = self.scales[axis] if antialias else 1.0
+        for i, _ in enumerate(self.axes):
+            a[i] = self.scales[i] if antialias else 1.0
 
         prod_of_a = np.prod(a)
         r = np.zeros(num_of_axes).astype(np.int64)
-        for i, axis in enumerate(self.axes):
-            r[i] = 2 if self.scales[axis] > 1.0 else int(math.ceil(2.0/a[i]))
+        for i, _ in enumerate(self.axes):
+            r[i] = 2 if self.scales[i] > 1.0 else int(math.ceil(2.0/a[i]))
 
         indices = [tuple(np.array(ind).astype(np.int64) - r) for ind in np.ndindex(tuple(2 * r + 1))]
 
         for coordinates in np.ndindex(tuple(self.output_shape)):
             icoords = np.array(coordinates).astype(np.float64)
             icoords_r = np.array(coordinates).astype(np.float64)
-            for axis in self.axes:
-                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[axis], self.output_shape[axis], self.input_shape[axis])
+            for i, axis in enumerate(self.axes):
+                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[i], self.output_shape[axis], self.input_shape[axis])
                 icoords[axis] = in_coord
                 icoords_r[axis] = round(in_coord)
 
@@ -469,8 +472,8 @@ class InterpolateCalculation:
         num_of_axes = len(self.axes)
         for coordinates in np.ndindex(tuple(self.output_shape)):
             input_coords = np.array(coordinates, dtype=np.int64)
-            for axis in axes:
-                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[axis], self.output_shape[axis], self.input_shape[axis])
+            for i, axis in enumerate(self.axes):
+                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[i], self.output_shape[axis], self.input_shape[axis])
                 nearest_pixel = self.get_nearest_pixel(in_coord, self.scales[axis] < 1)
                 input_coords[axis] = max(0, min(nearest_pixel, self.input_shape[axis] - 1))
             result[coordinates] = input_data[tuple(input_coords)]
