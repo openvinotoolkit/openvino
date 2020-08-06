@@ -75,6 +75,7 @@ set(SRC
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
+    op_eval/split.cpp
     op_eval/strided_slice.cpp
     op_is.cpp
     opset1.cpp
@@ -198,10 +199,6 @@ foreach(HEADER ${NGRAPH_HEADER_LIST})
     configure_file("header_standalone.in.cpp" ${OUT_FILE})
     list(APPEND SRC ${OUT_FILE})
 endforeach()
-
-if(NGRAPH_JSON_ENABLE)
-    list(APPEND SRC core.cpp serialize.cpp)
-endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -397,9 +394,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
-if (NGRAPH_JSON_ENABLE)
-    target_link_libraries(unit-test PRIVATE libjson)
-endif()
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()

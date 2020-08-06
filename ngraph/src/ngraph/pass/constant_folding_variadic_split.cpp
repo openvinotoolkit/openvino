@@ -25,21 +25,21 @@
 using namespace std;
 using namespace ngraph;
 
-template <class T>
 shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
                                              shared_ptr<op::Slice> slice)
 {
     const Shape& out_shape = slice->get_shape();
-    runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
-    T* data_ptr = buffer.get_ptr<T>();
+    runtime::AlignedBuffer buffer(shape_size(out_shape) * constant->get_element_type().size());
+    char* data_ptr = buffer.get_ptr<char>();
 
-    runtime::reference::slice<T>(constant->get_data_ptr<T>(),
-                                 data_ptr,
-                                 constant->get_shape(),
-                                 slice->get_lower_bounds(),
-                                 slice->get_upper_bounds(),
-                                 slice->get_strides(),
-                                 out_shape);
+    runtime::reference::slice(constant->get_data_ptr<const char>(),
+                              data_ptr,
+                              constant->get_shape(),
+                              slice->get_lower_bounds(),
+                              slice->get_upper_bounds(),
+                              slice->get_strides(),
+                              out_shape,
+                              constant->get_element_type().size());
 
     return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
 }
@@ -116,54 +116,20 @@ void pass::ConstantFolding::construct_constant_variadic_split()
             switch (slice->get_output_element_type(0))
             {
             case element::Type_t::undefined:
-                NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_slice");
+                NGRAPH_CHECK(
+                    false, "Encountered 'undefined' element type in fold_constant_variadic_split");
                 break;
             case element::Type_t::dynamic:
-                NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_slice");
+                NGRAPH_CHECK(false,
+                             "Encountered 'dynamic' element type in fold_constant_variadic_split");
                 break;
             case element::Type_t::u1:
-                NGRAPH_CHECK(false, "Encountered 'u1' element type in fold_constant_slice");
+                NGRAPH_CHECK(false,
+                             "Encountered 'u1' element type in fold_constant_variadic_split");
                 break;
-            case element::Type_t::boolean:
-                replacement = fold_constant_slice<char>(const_data, slice_node);
-                break;
-            case element::Type_t::bf16:
-                replacement = fold_constant_slice<bfloat16>(const_data, slice_node);
-                break;
-            case element::Type_t::f16:
-                replacement = fold_constant_slice<float16>(const_data, slice_node);
-                break;
-            case element::Type_t::f32:
-                replacement = fold_constant_slice<float>(const_data, slice_node);
-                break;
-            case element::Type_t::f64:
-                replacement = fold_constant_slice<double>(const_data, slice_node);
-                break;
-            case element::Type_t::i8:
-                replacement = fold_constant_slice<int8_t>(const_data, slice_node);
-                break;
-            case element::Type_t::i16:
-                replacement = fold_constant_slice<int16_t>(const_data, slice_node);
-                break;
-            case element::Type_t::i32:
-                replacement = fold_constant_slice<int32_t>(const_data, slice_node);
-                break;
-            case element::Type_t::i64:
-                replacement = fold_constant_slice<int64_t>(const_data, slice_node);
-                break;
-            case element::Type_t::u8:
-                replacement = fold_constant_slice<uint8_t>(const_data, slice_node);
-                break;
-            case element::Type_t::u16:
-                replacement = fold_constant_slice<uint16_t>(const_data, slice_node);
-                break;
-            case element::Type_t::u32:
-                replacement = fold_constant_slice<uint32_t>(const_data, slice_node);
-                break;
-            case element::Type_t::u64:
-                replacement = fold_constant_slice<uint64_t>(const_data, slice_node);
-                break;
+            default: replacement = fold_constant_slice(const_data, slice_node); break;
             }
+
             replace_node(slice_node, replacement);
         }
 
