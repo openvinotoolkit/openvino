@@ -39,8 +39,9 @@ TEST(op_eval, swish_with_beta1)
     std::vector<float> expected_result{-0.18877034, 0.0, 0.31122968};
 
     auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
-                                         make_host_tensor<element::Type_t::f32>(Shape{}, {1.0})}));
+    ASSERT_TRUE(fun->evaluate({result},
+                              {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
+                               make_host_tensor<element::Type_t::f32>(Shape{}, {1.0})}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
@@ -59,8 +60,9 @@ TEST(op_eval, swish_with_beta0_75)
     std::vector<float> expected_result{-0.2036667, 0.0, 0.2963333};
 
     auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
-                                         make_host_tensor<element::Type_t::f32>(Shape{}, {0.75})}));
+    ASSERT_TRUE(fun->evaluate({result},
+                              {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
+                               make_host_tensor<element::Type_t::f32>(Shape{}, {0.75})}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
@@ -78,7 +80,8 @@ TEST(op_eval, swish_without_beta)
     std::vector<float> expected_result{-0.18877034, 0.0, 0.31122968};
 
     auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
+    ASSERT_TRUE(
+        fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);

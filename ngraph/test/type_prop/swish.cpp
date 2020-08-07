@@ -34,10 +34,12 @@ TEST(type_prop, swish_partial)
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto swish_func = make_shared<op::v4::Swish>(data);
     EXPECT_EQ(swish_func->get_element_type(), element::f32);
-    ASSERT_TRUE(swish_func->get_output_partial_shape(0).same_scheme(data->get_output_partial_shape(0)));
+    ASSERT_TRUE(
+        swish_func->get_output_partial_shape(0).same_scheme(data->get_output_partial_shape(0)));
 
     // rank unknown
-    auto swish_partial = make_shared<op::v4::Swish>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+    auto swish_partial = make_shared<op::v4::Swish>(
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(swish_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
@@ -46,7 +48,8 @@ TEST(type_prop, swish_partial_static_rank)
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto swish_func = make_shared<op::v4::Swish>(data);
     EXPECT_EQ(swish_func->get_element_type(), element::f32);
-    ASSERT_TRUE(swish_func->get_output_partial_shape(0).same_scheme(data->get_output_partial_shape(0)));
+    ASSERT_TRUE(
+        swish_func->get_output_partial_shape(0).same_scheme(data->get_output_partial_shape(0)));
     ASSERT_TRUE(swish_func->get_output_partial_shape(0).rank().is_static());
 }
 

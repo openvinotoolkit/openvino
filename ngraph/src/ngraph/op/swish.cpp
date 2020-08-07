@@ -54,7 +54,8 @@ void op::v4::Swish::validate_and_infer_types()
     if (inputs_count == 2)
     {
         NODE_VALIDATION_CHECK(this,
-                              input_value(0).get_element_type() == input_value(1).get_element_type(),
+                              input_value(0).get_element_type() ==
+                                  input_value(1).get_element_type(),
                               "Swish inputs must have the same type but they are: ",
                               input_value(0).get_element_type(),
                               " and ",
@@ -96,11 +97,13 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         if (arg1 != nullptr)
         {
-            runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+            runtime::reference::swish<T>(
+                arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         }
         else
         {
-            runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
+            runtime::reference::swish<T>(
+                arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
         }
         return true;
     }
