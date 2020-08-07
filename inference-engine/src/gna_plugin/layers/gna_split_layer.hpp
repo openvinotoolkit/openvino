@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "ie_layers.h"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 
 namespace GNAPluginNS {

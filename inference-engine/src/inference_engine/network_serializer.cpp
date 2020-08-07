@@ -13,6 +13,7 @@
 #include "xml_parse_utils.h"
 #include "ie_ngraph_utils.hpp"
 #include <ngraph/variant.hpp>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 namespace Serialization {

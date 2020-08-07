@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"

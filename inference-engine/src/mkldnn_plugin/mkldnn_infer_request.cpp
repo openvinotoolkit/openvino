@@ -11,7 +11,6 @@
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_split_node.h>
 #include <ie_compound_blob.h>
-#include "inference_engine.hpp"
 #include "mkldnn_exec_network.h"
 #include "mkldnn_itt.h"
 

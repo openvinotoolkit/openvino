@@ -10,7 +10,6 @@
 #include <description_buffer.hpp>
 #include "cldnn_infer_request.h"
 #include "cldnn_remote_context.h"
-#include "inference_engine.hpp"
 #include "cldnn_executable_network.h"
 #include "cldnn_itt.h"
 

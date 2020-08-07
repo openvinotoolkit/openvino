@@ -194,7 +194,7 @@ namespace ngraph
     public:
         virtual ~Node();
 
-        virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
+        virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
         /// \brief Evaluates the op on input_values putting results in output_values
@@ -531,14 +531,14 @@ namespace ngraph
 #define NGRAPH_RTTI_DECLARATION                                                                    \
     static const ::ngraph::Node::type_info_t type_info;                                            \
     const ::ngraph::Node::type_info_t& get_type_info() const override;                             \
-    static const ::ngraph::Node::type_info_t& get_type_info_static();
+    static const ::ngraph::Node::type_info_t& get_type_info_static()
 
 #define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                                                      \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info() const                                \
     {                                                                                              \
         return get_type_info_static();                                                             \
     }                                                                                              \
-    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static();
+    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
 #define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)        \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
     {                                                                                              \

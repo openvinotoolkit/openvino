@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
+#include "ie_layers.h"
 
 namespace GNAPluginNS {
 /**

@@ -8,6 +8,7 @@
 #include <frontend/model_quantizer.hpp>
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
+#include <ie_core.hpp>
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
