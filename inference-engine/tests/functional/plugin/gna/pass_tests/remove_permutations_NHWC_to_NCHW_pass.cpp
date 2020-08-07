@@ -87,7 +87,6 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
 };
 
     TEST_P(RemovePermutationsNHWCToNCHWPassTest, CompareWithRefImpl) {
-        threshold = 0.5;
         Run();
     };
 

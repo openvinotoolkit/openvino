@@ -105,24 +105,28 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetConfig / SetConfig
 //
 
+//Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
+        DISABLED_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
         ::testing::Values("GNA"));
 
+//Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
+        DISABLED_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
         ::testing::Values("GNA"));
 
+//Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
+        DISABLED_IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO))));
 
+//Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
+        DISABLED_IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_FP32),
                                              std::make_pair(GNA_CONFIG_KEY(SCALE_FACTOR), "5"),
@@ -141,8 +145,9 @@ TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
     ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngineException);
 }
 
+//Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
+        DISABLED_IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
