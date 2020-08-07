@@ -183,6 +183,8 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     return ss.str();
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
+
 bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 {
     for (shared_ptr<Function> f : functions)

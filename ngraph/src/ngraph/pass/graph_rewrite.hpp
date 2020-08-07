@@ -57,6 +57,8 @@ namespace ngraph
 class NGRAPH_API ngraph::pass::MatcherPass : public ngraph::pass::PassBase
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
+
     MatcherPass() = default;
 
     MatcherPass(const MatcherPass&) = delete;
@@ -114,6 +116,8 @@ private:
 class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
+
     GraphRewrite() = default;
 
     explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass)

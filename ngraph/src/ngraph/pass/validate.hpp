@@ -37,6 +37,8 @@ namespace ngraph
         class NGRAPH_API Validate : public FunctionPass
         {
         public:
+            NGRAPH_RTTI_DECLARATION;
+
             Validate()
                 : FunctionPass()
             {

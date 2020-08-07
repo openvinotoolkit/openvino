@@ -62,6 +62,10 @@ using namespace ngraph;
 // If MatcherPass register more than one node make sure that this nodes are registered in
 // topological order.
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
+
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");

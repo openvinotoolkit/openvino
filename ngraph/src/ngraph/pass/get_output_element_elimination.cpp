@@ -32,6 +32,10 @@
 using namespace ngraph;
 using namespace std;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GetOutputElementElimination,
+                       "ngraph::pass::GetOutputElementElimination",
+                       0);
+
 bool pass::GetOutputElementElimination::run_on_node(shared_ptr<Node> n)
 {
     bool optimized = false;
