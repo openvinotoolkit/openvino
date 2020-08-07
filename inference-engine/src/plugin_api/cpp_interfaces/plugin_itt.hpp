@@ -26,7 +26,7 @@
 namespace InferenceEngine {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(Plugin);
+    OV_ITT_DOMAIN(Plugin)
 }
 }
 }

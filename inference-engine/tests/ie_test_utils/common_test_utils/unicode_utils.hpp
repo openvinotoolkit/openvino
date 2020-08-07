@@ -9,7 +9,7 @@
 #include <fstream>
 #include <algorithm>
 
-#include <details/os/os_filesystem.hpp>
+#include <file_utils.h>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 namespace CommonTestUtils {
@@ -23,15 +23,13 @@ static void fixSlashes(std::wstring &str) {
 }
 
 static std::wstring stringToWString(std::string input) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    std::wstring result = converter.from_bytes(input);
-    return result;
+    return ::FileUtils::multiByteCharToWString(input.c_str());
 }
 
 static bool copyFile(std::wstring source_path, std::wstring dest_path) {
 #ifndef _WIN32
-    std::ifstream source(InferenceEngine::details::wStringtoMBCSstringChar(source_path), std::ios::binary);
-    std::ofstream dest(InferenceEngine::details::wStringtoMBCSstringChar(dest_path), std::ios::binary);
+    std::ifstream source(FileUtils::wStringtoMBCSstringChar(source_path), std::ios::binary);
+    std::ofstream dest(FileUtils::wStringtoMBCSstringChar(dest_path), std::ios::binary);
 #else
     fixSlashes(source_path);
     fixSlashes(dest_path);
@@ -68,7 +66,7 @@ static void removeFile(std::wstring path) {
 #ifdef _WIN32
         result = _wremove(path.c_str());
 #else
-        result = remove(InferenceEngine::details::wStringtoMBCSstringChar(path).c_str());
+        result = remove(FileUtils::wStringtoMBCSstringChar(path).c_str());
 #endif
     }
 }

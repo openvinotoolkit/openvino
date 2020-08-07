@@ -96,6 +96,8 @@ void pass::ConstantFolding::construct_constant_quantize()
 
     auto quantize_matcher =
         make_shared<pattern::Matcher>(quant, "ConstantFolding.ConstantQuantize");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         quantize_matcher, constant_quantize_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

@@ -82,6 +82,8 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
 
     auto gather_matcher_v1 = make_shared<pattern::Matcher>(
         gather_v1, "ConstantFolding.ConstantGatherV1WithDynamicSubgraph");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         gather_matcher_v1, concat_gather_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

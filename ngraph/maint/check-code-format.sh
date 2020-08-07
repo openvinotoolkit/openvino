@@ -48,7 +48,7 @@ pushd "${THIS_SCRIPT_DIR}/.."
 declare PYBIND_WRAPPER="python/pyngraph"
 
 declare ROOT_SUBDIR
-for ROOT_SUBDIR in src test doc/examples python/src/pyngraph; do
+for ROOT_SUBDIR in src test frontend python/src/pyngraph; do
     if ! [[ -d "${ROOT_SUBDIR}" ]]; then
         echo "In directory '$(pwd)', no subdirectory named '${ROOT_SUBDIR}' was found."
     else
