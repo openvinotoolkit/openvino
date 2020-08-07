@@ -22,6 +22,7 @@ bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
@@ -32,6 +33,7 @@ static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&,
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
+        {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
 };
 
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
@@ -183,6 +185,11 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
         }
     }
     return false;
+}
+
+bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    node->set_output_type(idx, to, node->output(idx).get_partial_shape());
+    return true;
 }
 
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
