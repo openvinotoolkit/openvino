@@ -49,6 +49,8 @@ private:
 template<class T>
 void ngraph::pass::MulAddVerification::mul_add_verification() {
     Shape shape{};
+    using std::make_shared;
+    using std::dynamic_pointer_cast;
     auto input1 = make_shared<pattern::op::Label>(element::f32, shape);
     auto input2 = make_shared<pattern::op::Label>(element::f32, shape);
     auto eltwise = make_shared<T>(input1, input2);
