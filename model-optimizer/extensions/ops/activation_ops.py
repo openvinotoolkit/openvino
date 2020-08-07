@@ -69,6 +69,11 @@ class Asinh(Activation):
     op = 'Asinh'
     operation = staticmethod(lambda x: np.arcsinh(x))
 
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
+
 
 class Cos(Activation):
     op = 'Cos'
@@ -89,6 +94,11 @@ class Acosh(Activation):
     op = 'Acosh'
     operation = staticmethod(lambda x: np.arccosh(x))
 
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
+
 
 class Tan(Activation):
     op = 'Tan'
@@ -108,6 +118,11 @@ class Atan(Activation):
 class Atanh(Activation):
     op = 'Atanh'
     operation = staticmethod(lambda x: np.arctanh(x))
+
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
 
 
 class ReLU6(AttributedClamp):
