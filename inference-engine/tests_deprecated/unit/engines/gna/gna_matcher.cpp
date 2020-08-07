@@ -24,6 +24,7 @@
 #include <legacy/net_pass.h>
 #include "matchers/input_data_matcher.hpp"
 #include <blob_factory.hpp>
+#include <ie_core.hpp>
 #include <legacy/details/ie_cnn_network_tools.h>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
