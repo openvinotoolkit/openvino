@@ -59,7 +59,14 @@ namespace ngraph
                 RNNCellBase();
                 virtual ~RNNCellBase() = default;
 
-                void validate_input_types(const std::vector<ngraph::PartialShape>& input);
+                ///
+                /// \brief      Validates static rank and dimension for provided input parameters.
+                ///             Additionally input_size dimension is checked for X and W inputs.
+                ///             
+                ///
+                /// \param[in]  input        Vector with input parameters 
+                ///
+                void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
 
                 virtual bool visit_attributes(AttributeVisitor& visitor);
                 std::size_t get_hidden_size() const { return m_hidden_size; }

@@ -66,7 +66,7 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void ngraph::op::util::RNNCellBase::validate_input_types(const std::vector<ngraph::PartialShape>& input)
+void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input)
 {
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)
@@ -75,7 +75,6 @@ void ngraph::op::util::RNNCellBase::validate_input_types(const std::vector<ngrap
                               (input[i].rank().is_static()), 
                               "RNNCellBase supports only static rank for input tensors.");
     }
-
 
     // Verify input dimension against values provided in spec (LSTMCell_1.md)
     for (size_t i = 0; i < input.size(); i++)
@@ -98,15 +97,8 @@ void ngraph::op::util::RNNCellBase::validate_input_types(const std::vector<ngrap
         }        
     }
 
-    // Compare batch_size dimension for X and initial hidden state inputs
-    const auto& x_pshape = input.at(0);
-    const auto& ht_pshape = input.at(1);
-
-    NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
-                          (x_pshape[0].compatible(ht_pshape[0])),
-                           "RNNCellBase mismatched batch_size dimension.");
-
     // Compare input_size dimension for X and W inputs
+    const auto& x_pshape = input.at(0);
     const auto& w_pshape = input.at(input.size() - 3);
 
     NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
