@@ -33,8 +33,8 @@
 #include "op/avg_pool.hpp"
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
-#include "opset0_downgrade.hpp"
 #include "pass/implicit_broadcast_elimination.hpp"
+#include "pass/opset0_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
