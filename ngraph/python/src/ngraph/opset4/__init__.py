@@ -139,6 +139,7 @@ from ngraph.opset1.ops import squared_difference
 from ngraph.opset1.ops import squeeze
 from ngraph.opset1.ops import strided_slice
 from ngraph.opset1.ops import subtract
+from ngraph.opset4.ops import swish
 from ngraph.opset1.ops import tan
 from ngraph.opset1.ops import tanh
 from ngraph.opset1.ops import tensor_iterator

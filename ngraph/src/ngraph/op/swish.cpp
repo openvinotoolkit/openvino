@@ -54,9 +54,8 @@ void op::v4::Swish::validate_and_infer_types()
     if (inputs_count == 2)
     {
         NODE_VALIDATION_CHECK(this,
-                              input_value(0).get_element_type() ==
-                                  input_value(1).get_element_type(),
-                              "Swish must have the same type but they are: ",
+                              input_value(0).get_element_type() == input_value(1).get_element_type(),
+                              "Swish inputs must have the same type but they are: ",
                               input_value(0).get_element_type(),
                               " and ",
                               input_value(1).get_element_type());
@@ -95,8 +94,14 @@ namespace
                          const size_t count)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::swish<T>(
-            arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        if (arg1 != nullptr)
+        {
+            runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        }
+        else
+        {
+            runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
+        }
         return true;
     }
 
@@ -122,5 +127,12 @@ namespace
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
+    if (inputs.size() == 2)
+    {
+        return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
+    }
+    else
+    {
+        return evaluate_swish(inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
+    }
 }

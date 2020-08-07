@@ -27,7 +27,7 @@ namespace ngraph
         {
             /// \brief A Swish Activation Function
             /// f(x) =  x / (1.0 + exp(-beta * x)) or
-            /// f(x) = x * sigmoid(x) when beta = 1.0
+            /// f(x) = x * sigmoid(beta * x)
             ///
             class NGRAPH_API Swish : public ngraph::op::Op
             {
