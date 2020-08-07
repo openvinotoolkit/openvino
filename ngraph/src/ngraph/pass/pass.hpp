@@ -57,6 +57,10 @@ namespace ngraph
 
             void set_callback(const param_callback& callback);
 
+            using type_info_t = DiscreteTypeInfo;
+
+            virtual const type_info_t& get_type_info() const = 0;
+
         protected:
             ManagerState& get_state();
             void set_state(ManagerState&);
@@ -82,6 +86,7 @@ namespace ngraph
         class NGRAPH_API FunctionPass : public PassBase
         {
         public:
+            NGRAPH_RTTI_DECLARATION;
             virtual ~FunctionPass();
             virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
         };
@@ -90,6 +95,7 @@ namespace ngraph
             : public PassBase
         {
         public:
+            NGRAPH_RTTI_DECLARATION;
             virtual ~NodePass();
             virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
         };
