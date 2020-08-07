@@ -10,7 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-auto check_constant_value = [](const std::shared_ptr<ngraph::opset4::Constant>& constant) {
+bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
     if (!constant) {
         return false;
     }
@@ -23,7 +23,7 @@ auto check_constant_value = [](const std::shared_ptr<ngraph::opset4::Constant>& 
         return false;
     }
     return true;
-};
+}
 
 ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto input = ngraph::pattern::any_input();
