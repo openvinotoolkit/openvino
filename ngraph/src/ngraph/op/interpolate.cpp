@@ -376,7 +376,7 @@ namespace
         {
             std::size_t axis = axes[i];
             float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i];
-            out_shape[axes[i]] = static_cast<std::size_t>(scaled_len);
+            out_shape[axis] = static_cast<std::size_t>(scaled_len);
         }
         return out_shape;
     }
@@ -412,7 +412,7 @@ namespace
         else
         {
             result = p;
-            result.insert(result.end(), rank - pad_len, 0);
+            result.insert(result.end(), rank - pad_len, T{});
         }
 
         return result;
@@ -457,7 +457,7 @@ namespace
 
         out->set_shape(out_shape);
 
-        std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}));
+        std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}), T{});
 
         runtime::NDimArrayView<T> padded_array_view{padded_input_data.data()};
         runtime::NDimArrayView<T> input_array_view{args[0]->get_data_ptr<ET>()};
@@ -497,7 +497,7 @@ namespace
     {
         bool rc = true;
 
-        switch (out->get_element_type())
+        switch (args[0]->get_element_type())
         {
             TYPE_CASE(i8)(args, out, attrs);
             break;
