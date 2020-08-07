@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 #include <set>
 
