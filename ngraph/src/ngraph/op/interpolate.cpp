@@ -426,6 +426,8 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
+        std::cout << "Started evaluation of Interpolate-4\n";
+
         Shape input_shape{args[data_port]->get_shape()};
         std::size_t input_rank = input_shape.size();
 
@@ -497,7 +499,8 @@ namespace
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     {
         bool rc = true;
-
+        std::cout << "Satrted the function evaluate_interpolate_v4\n";
+        std::cout << "Type of args[0] is " << args[0]->get_element_type() << "\n";
         switch (args[0]->get_element_type())
         {
             TYPE_CASE(i8)(args, out, attrs);
