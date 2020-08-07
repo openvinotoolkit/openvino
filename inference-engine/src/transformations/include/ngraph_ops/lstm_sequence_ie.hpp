@@ -42,6 +42,8 @@ public:
 
     ngraph::opset4::LSTMSequence::direction get_direction() { return m_direction; }
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
     ngraph::opset4::LSTMSequence::direction m_direction;
 };

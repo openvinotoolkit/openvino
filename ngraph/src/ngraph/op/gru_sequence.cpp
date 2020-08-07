@@ -71,7 +71,7 @@ void op::v4::GRUSequence::validate_and_infer_types()
                           static_cast<int64_t>(m_hidden_size)};
 
         const auto seq_len_in = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-            input_value(3).get_node_shared_ptr());
+            input_value(2).get_node_shared_ptr());
         if (seq_len_in)
         {
             auto seq_len = seq_len_in->cast_vector<size_t>()[0];

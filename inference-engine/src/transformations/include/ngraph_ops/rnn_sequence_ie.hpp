@@ -49,6 +49,8 @@ public:
 
     float get_clip() { return m_clip; }
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
     int64_t m_hidden_size{};
 

@@ -41,7 +41,7 @@ void op::GRUSequenceIE::validate_and_infer_types() {
                           static_cast<int64_t>(m_hidden_size)};
 
         const auto seq_len_in = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                input_value(3).get_node_shared_ptr());
+                input_value(2).get_node_shared_ptr());
         if (seq_len_in) {
             auto seq_len = seq_len_in->cast_vector<size_t>()[0];
             output_shape_0[2] = seq_len;
@@ -49,6 +49,12 @@ void op::GRUSequenceIE::validate_and_infer_types() {
     }
     set_output_type(0, arg_type, output_shape_0);
     set_output_type(1, arg_type, output_shape_1);
+}
+
+bool op::GRUSequenceIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("direction", m_direction);
+    visitor.on_attribute("linear_before_reset", m_linear_before_reset);
+    return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::GRUSequenceIE::clone_with_new_inputs(const OutputVector& new_args) const {

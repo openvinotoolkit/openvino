@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 bool ngraph::pass::ConvertOpSet4ToOpSet3::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager;
@@ -17,6 +18,7 @@ bool ngraph::pass::ConvertOpSet4ToOpSet3::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
     manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
     manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceMatcher>();

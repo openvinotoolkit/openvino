@@ -58,6 +58,19 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
     set_output_type(2, arg_type, output_shape_1);
 }
 
+bool ngraph::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("hidden_size", m_hidden_size);
+    visitor.on_attribute("activations", m_activations);
+    visitor.on_attribute("activations_alpha", m_activations_alpha);
+    visitor.on_attribute("activations_beta", m_activations_beta);
+    visitor.on_attribute("clip", m_clip);
+    visitor.on_attribute("direction", m_direction);
+
+//    visitor.on_attribute("input_forget", m_input_forget);
+//    visitor.on_attribute("weights_format", m_weights_format);
+    return true;
+}
+
 shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(

@@ -35,7 +35,7 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             return false;
         }
 
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
         auto lstm_sequence_ie = std::make_shared<ngraph::op::LSTMSequenceIE>(
                 lstm_sequence->input(0).get_source_output(),  // X
                 lstm_sequence->input(1).get_source_output(),  // initial_hidden_state
@@ -81,7 +81,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             return false;
         }
 
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
                 gru_sequence->input(0).get_source_output(),  // X
                 gru_sequence->input(1).get_source_output(),  // initial_hidden_state
@@ -127,7 +127,7 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             return false;
         }
 
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
         auto rnn_sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(
                 rnn_sequence->input(0).get_source_output(),  // X
                 rnn_sequence->input(1).get_source_output(),  // initial_hidden_state

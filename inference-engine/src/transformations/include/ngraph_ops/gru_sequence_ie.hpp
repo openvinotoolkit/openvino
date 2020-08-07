@@ -50,6 +50,8 @@ public:
 
     float get_clip() { return m_clip; }
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
