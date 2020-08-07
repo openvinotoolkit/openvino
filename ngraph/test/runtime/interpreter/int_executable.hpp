@@ -92,6 +92,8 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+#include "reference/detection_output.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -1110,6 +1112,36 @@ protected:
             {
                 throw ngraph_error("Unexpected type");
             }
+            break;
+        }
+        case OP_TYPEID::DetectionOutput_v0:
+        {
+            const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
+            reference::referenceDetectionOutput<T> refDetOut(
+                detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
+            if (node.get_input_size() == 3)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              nullptr,
+                              nullptr,
+                              out[0]->get_data_ptr<T>());
+            }
+            else if (node.get_input_size() == 5)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              args[3]->get_data_ptr<const T>(),
+                              args[4]->get_data_ptr<const T>(),
+                              out[0]->get_data_ptr<T>());
+            }
+            else
+            {
+                throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+            }
+
             break;
         }
 
