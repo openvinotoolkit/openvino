@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/swish.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/constant.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/swish.hpp"
@@ -27,13 +27,13 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v4::Swish::type_info;
 
 op::v4::Swish::Swish(const Output<Node>& arg)
-        : Op({arg})
+    : Op({arg})
 {
     constructor_validate_and_infer_types();
 }
 
 op::v4::Swish::Swish(const Output<Node>& arg, const Output<Node>& beta)
-        : Op({arg, beta})
+    : Op({arg, beta})
 {
     constructor_validate_and_infer_types();
 }
@@ -54,17 +54,18 @@ void op::v4::Swish::validate_and_infer_types()
     if (inputs_count == 2)
     {
         NODE_VALIDATION_CHECK(this,
-                      input_value(0).get_element_type() == input_value(1).get_element_type(),
-                      "Swish must have the same type but they are: ",
-                      input_value(0).get_element_type(),
-                      " and ",
-                      input_value(1).get_element_type());
+                              input_value(0).get_element_type() ==
+                                  input_value(1).get_element_type(),
+                              "Swish must have the same type but they are: ",
+                              input_value(0).get_element_type(),
+                              " and ",
+                              input_value(1).get_element_type());
         if (input_value(1).get_partial_shape().is_static())
         {
             NODE_VALIDATION_CHECK(this,
-                      input_value(1).get_shape().size() == 0,
-                      "Swish input with beta must be scalar but it has shape: ",
-                      input_value(1).get_shape());
+                                  input_value(1).get_shape().size() == 0,
+                                  "Swish input with beta must be scalar but it has shape: ",
+                                  input_value(1).get_shape());
         }
     }
     set_output_size(1);
@@ -88,14 +89,21 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
 namespace
 {
     template <element::Type_t ET>
-    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out, const size_t count)
+    inline bool evaluate(const HostTensorPtr& arg0,
+                         const HostTensorPtr& arg1,
+                         const HostTensorPtr& out,
+                         const size_t count)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::swish<T>(
+            arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 
-    bool evaluate_swish(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out, const size_t count)
+    bool evaluate_swish(const HostTensorPtr& arg0,
+                        const HostTensorPtr& arg1,
+                        const HostTensorPtr& out,
+                        const size_t count)
     {
         bool rc = true;
         out->set_unary(arg0);
@@ -106,7 +114,7 @@ namespace
             break;
             TYPE_CASE(f32)(arg0, arg1, out, count);
             break;
-            default: rc = false; break;
+        default: rc = false; break;
         }
         return rc;
     }
