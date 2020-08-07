@@ -120,7 +120,7 @@ TEST(op_eval, interpolate_v4_nearest)
     };
 
     std::vector<ShapesAndAttrs> shapes_and_attrs = {
-        ShapesAndAttrs{Shape{1, 1, 2, 4}
+        ShapesAndAttrs{Shape{1, 1, 2, 4},
                        {1, 2},
                        Shape{1, 1, 1, 2},
                        {0.6f, 0.6f},
@@ -144,7 +144,7 @@ TEST(op_eval, interpolate_v4_nearest)
         auto axes = std::make_shared<op::Parameter>(element::i64, Shape{2});
 
         InterpolateAttrs attrs;
-        attrs.mode = InterpolateMode::cubic;
+        attrs.mode = InterpolateMode::nearest;
         attrs.shape_calculation_mode = s.shape_calculation_mode;
         attrs.coordinate_transformation_mode = s.transform_mode;
         attrs.nearest_mode = s.nearest_mode;
@@ -160,7 +160,69 @@ TEST(op_eval, interpolate_v4_nearest)
         auto result = std::make_shared<HostTensor>();
         // ASSERT_TRUE(
         //     fun->evaluate({result},
-        //                   {make_host_tensor<element::Type_t::f32>(data_shape, input_data),
+        //                   {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i]),
+        //                    make_host_tensor<element::Type_t::i64>(Shape{2}, s.spatial_shape),
+        //                    make_host_tensor<element::Type_t::f32>(Shape{2}, s.scales_data),
+        //                    make_host_tensor<element::Type_t::i64>(Shape{2}, interp_axes)}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
+        // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
+        ++i;
+    }
+}
+
+TEST(op_eval, interpolate_v4_linear_onnx)
+{
+    struct ShapesAndAttrs{
+        Shape input_data_shape;
+        std::vector<int64_t> spatial_shape;
+        Shape out_shape;
+        std::vector<float> scales_data;
+        CoordinateTransformMode transform_mode;
+        ShapeCalcMode shape_calculation_mode;
+    };
+
+    std::vector<ShapesAndAttrs> shapes_and_attrs = {
+        ShapesAndAttrs{Shape{1, 1, 2, 4},
+                       {1, 2},
+                       Shape{1, 1, 1, 2},
+                       {0.6f, 0.6f},
+                       CoordinateTransformMode::half_pixel,
+                       ShapeCalcMode::scales}};
+
+    std::vector<std::vector<float>> input_data_list = {
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}};
+
+    std::vector<int64_t> interp_axes = {2, 3};
+
+    std::vector<std::vector<float>> expected_results = {{2.6666665f, 4.3333331f}};
+
+    std::size_t i = 0;
+    for (const auto& s : shapes_and_attrs)
+    {
+        auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
+        auto target_spatial_shape = std::make_shared<op::Parameter>(element::i64, Shape{2});
+        auto scales = std::make_shared<op::Parameter>(element::f32, Shape{2});
+        auto axes = std::make_shared<op::Parameter>(element::i64, Shape{2});
+
+        InterpolateAttrs attrs;
+        attrs.mode = InterpolateMode::linear_onnx;
+        attrs.shape_calculation_mode = s.shape_calculation_mode;
+        attrs.coordinate_transformation_mode = s.transform_mode;
+        attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+        attrs.antialias = false;
+        attrs.pads_begin = {0, 0, 0, 0};
+        attrs.pads_end = {0, 0, 0, 0};
+        attrs.cube_coeff = -0.75;
+
+        auto interp =
+            std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
+        auto fun = std::make_shared<Function>(
+            OutputVector{interp}, ParameterVector{image, target_spatial_shape, scales, axes});
+        auto result = std::make_shared<HostTensor>();
+        // ASSERT_TRUE(
+        //     fun->evaluate({result},
+        //                   {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i]),
         //                    make_host_tensor<element::Type_t::i64>(Shape{2}, s.spatial_shape),
         //                    make_host_tensor<element::Type_t::f32>(Shape{2}, s.scales_data),
         //                    make_host_tensor<element::Type_t::i64>(Shape{2}, interp_axes)}));
