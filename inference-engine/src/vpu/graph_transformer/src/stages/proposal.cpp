@@ -12,7 +12,7 @@
 #include <set>
 #include <vpu/compile_env.hpp>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 namespace vpu {
 

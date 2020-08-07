@@ -459,10 +459,18 @@ def get_node_id_with_ports(graph: Graph, node_name: str):
             if match.group(1) and match.group(3):
                 log.warning('Skipping the case with both in and out port specified, only one port can be specified')
                 continue
+            node = Node(graph, graph.get_node_id_by_name(name))
             if match.group(1):
                 in_port = int(match.group(1).replace(':', ''))
+                if in_port not in [e['in'] for e in node.in_edges().values()]:
+                    # skip found node if it doesn't have such port number
+                    continue
             if match.group(3):
                 out_port = int(match.group(3).replace(':', ''))
+                if out_port not in [e['out'] for e in node.out_edges().values()]:
+                    # skip found node if it doesn't have such port number
+                    continue
+
             found_names.append((in_port, out_port, name))
     if len(found_names) == 0:
         raise Error('No node with name {}'.format(node_name))

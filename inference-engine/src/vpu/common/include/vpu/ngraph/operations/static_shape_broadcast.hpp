@@ -38,7 +38,7 @@ public:
     PartialShape getEvaluatedShape() const { return m_evaluatedOutputShape; }
     void setEvaluatedShape(const PartialShape& shape) { m_evaluatedOutputShape = shape; }
 
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
 private:
     PartialShape m_evaluatedOutputShape;
