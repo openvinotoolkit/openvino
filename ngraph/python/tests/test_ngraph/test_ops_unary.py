@@ -116,6 +116,34 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
     result = run_op_node([input_data], ng_api_fn)
     assert np.allclose(result, expected)
 
+
+@pytest.mark.parametrize(
+    "ng_api_fn, numpy_fn, input_data",
+    [
+        (ng.absolute, np.abs, np.float32(-3)),
+        (ng.abs, np.abs, np.float32(-3)),
+        (ng.acos, np.arccos, np.float32(-0.5)),
+        (ng.asin, np.arcsin, np.float32(-0.5)),
+        (ng.atan, np.arctan, np.float32(-0.5)),
+        (ng.ceiling, np.ceil, np.float32(1.5)),
+        (ng.ceil, np.ceil, np.float32(1.5)),
+        (ng.cos, np.cos, np.float32(np.pi / 4.0)),
+        (ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
+        (ng.exp, np.exp, np.float32(1.5)),
+        (ng.floor, np.floor, np.float32(1.5)),
+        (ng.log, np.log, np.float32(1.5)),
+        (ng.relu, lambda x: np.maximum(0, x), np.float32(-0.125)),
+        (ng.sign, np.sign, np.float32(0.0)),
+        (ng.sin, np.sin, np.float32(np.pi / 4.0)),
+        (ng.sinh, np.sinh, np.float32(0.0)),
+        (ng.sqrt, np.sqrt, np.float32(3.5)),
+        (ng.tan, np.tan, np.float32(np.pi / 4.0)),
+        (ng.tanh, np.tanh, np.float32(0.1234)),
+    ],
+)
+def test_unary_op_scalar_raw_data(ng_api_fn, numpy_fn, input_data):
+    expected = numpy_fn(input_data)
+
     result = run_op_numeric_data(input_data, ng_api_fn)
     assert np.allclose(result, expected)
 
@@ -126,9 +154,16 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 def test_logical_not(input_data):
     expected = np.logical_not(input_data)
 
-    result = run_op_node([input_data], ng.logical_not)
-
+    result = run_op_numeric_data(input_data, ng.logical_not)
     assert np.allclose(result, expected)
+
+
+@pytest.mark.parametrize(
+    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
+)
+def test_logical_not_raw_data(input_data):
+    expected = np.logical_not(input_data)
+
     result = run_op_numeric_data(input_data, ng.logical_not)
     assert np.allclose(result, expected)
 
