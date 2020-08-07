@@ -182,7 +182,7 @@ def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List[slice]) -> np
     return output_shape
 
 
-def normalize_slice_indices(size: int, start: int, end: int, step: int) -> (int, int):
+def normalize_slice_indices(size: int, start: int, end: int, step: int) -> (int, int, int):
     # converts slice indices to format in which size of Slice can be calculated
     start = size + start if start < 0 else start
     end = size + end if end < 0 else end
