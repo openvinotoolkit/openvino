@@ -30,8 +30,7 @@ namespace ngraph
             class NGRAPH_API MatMul : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"MatMul", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 MatMul() = default;
                 /// \brief Constructs an Matrix Multiplication operation.
                 ///
@@ -53,7 +52,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
                 bool get_transpose_a() const { return m_transpose_a; }
                 bool get_transpose_b() const { return m_transpose_b; }

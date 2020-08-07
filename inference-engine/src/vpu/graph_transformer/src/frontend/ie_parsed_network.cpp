@@ -7,7 +7,7 @@
 #include <string>
 
 #include <details/ie_cnn_network_tools.h>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/compile_env.hpp>
 

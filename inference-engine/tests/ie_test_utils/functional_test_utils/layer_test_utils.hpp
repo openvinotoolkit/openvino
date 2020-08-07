@@ -14,6 +14,7 @@
 #include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -39,6 +40,7 @@ typedef std::tuple<
 
 enum RefMode {
     INTERPRETER,
+    INTERPRETER_TRANSFORMATIONS,
     CONSTANT_FOLDING,
     IE
 };
@@ -84,11 +86,17 @@ protected:
         return refMode;
     }
 
+    std::shared_ptr<InferenceEngine::Core> getCore() {
+        return core;
+    }
+
     void ConfigurePlugin();
+
+    void ConfigureNetwork() const;
 
     void LoadNetwork();
 
-    void Infer();
+    virtual void Infer();
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
@@ -109,8 +117,6 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    void ConfigureNetwork() const;
-
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
     std::shared_ptr<InferenceEngine::Core> core;
     RefMode refMode = RefMode::INTERPRETER;

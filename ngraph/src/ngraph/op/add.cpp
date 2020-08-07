@@ -104,14 +104,14 @@ namespace
     }
 }
 
-bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------- v1 ------------------------------------------
 
-constexpr NodeTypeInfo op::v1::Add::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,
@@ -133,7 +133,7 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }

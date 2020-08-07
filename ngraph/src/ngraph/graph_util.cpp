@@ -29,6 +29,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
@@ -305,11 +306,15 @@ std::vector<std::shared_ptr<ngraph::Node>>
                 }
             }
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
-            if (node->get_friendly_name() != node->get_name())
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            //  TODO: workaround for shape inference, delete it after fix
+            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
             {
-                // There is a friendly name for this node so copy it
-                cloned_node->set_friendly_name(node->get_friendly_name());
+                cloned_node->validate_and_infer_types();
             }
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
 
             for (auto tag : node->get_provenance_tags())
             {
@@ -369,11 +374,15 @@ std::list<std::shared_ptr<ngraph::Node>>
                 }
                 auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
                 cloned_nodes.push_back(cloned_node);
-                if (node->get_friendly_name() != node->get_name())
+                // There is a friendly name for this node so copy it
+                cloned_node->set_friendly_name(node->get_friendly_name());
+                //  TODO: workaround for shape inference, delete it after fix
+                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
                 {
-                    // There is a friendly name for this node so copy it
-                    cloned_node->set_friendly_name(node->get_friendly_name());
+                    cloned_node->validate_and_infer_types();
                 }
+                auto rt_info = node->get_rt_info();
+                cloned_node->get_rt_info() = rt_info;
 
                 for (auto tag : node->get_provenance_tags())
                 {
@@ -425,7 +434,9 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     }
 
     // create and return cloned function
-    return std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    result->set_friendly_name(func.get_friendly_name());
+    return result;
 }
 
 bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant)

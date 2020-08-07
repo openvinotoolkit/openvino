@@ -117,9 +117,12 @@ Standard TensorFlow\* operations:
 
 | Operation Name in TensorFlow\* | Limitations|
 | :----------| :----------|
+| Acosh | No |
 | Add | No |
 | AddN | No |
 | ArgMax | No |
+| Asinh | No |
+| Atanh | No |
 | AvgPool | No |
 | BatchToSpaceND | No |
 | BiasAdd | No |
@@ -285,11 +288,14 @@ Standard ONNX\* operators:
 | :----------| :----------|
 | Abs | No |
 | Acos | No |
+| Acosh | No |
 | Add | No |
 | Affine | No |
 | ArgMax | No |
 | Asin | No |
+| Asinh | No |
 | Atan | No |
+| Atanh | No |
 | AveragePool | No |
 | BatchMatMul | No |
 | BatchNormalization | No |

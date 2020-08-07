@@ -16,7 +16,7 @@
 
 #include <ie_icore.hpp>
 #include <ie_icnn_network.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/perf_report.hpp>

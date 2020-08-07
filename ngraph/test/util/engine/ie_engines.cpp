@@ -23,6 +23,8 @@
 
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace
 {
     /// Extracts the data from two blobs and returns them as a pair of vectors.
@@ -231,5 +233,6 @@ namespace InferenceEngine
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
 #endif
 }

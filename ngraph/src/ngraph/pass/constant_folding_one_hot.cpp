@@ -201,5 +201,7 @@ void pass::ConstantFolding::construct_constant_one_hot()
     };
     auto one_hot_matcher =
         make_shared<pattern::Matcher>(ont_hot_pattern, "ConstantFolding.ConstantOneHot");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(one_hot_matcher, one_hot_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
