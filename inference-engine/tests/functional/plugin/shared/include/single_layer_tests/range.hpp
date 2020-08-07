@@ -26,7 +26,7 @@ class RangeLayerTest : public testing::WithParamInterface<RangeParams>,
     float start, stop, step;
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
-    void Infer();
+    void Infer() override;
 
 protected:
     void SetUp() override;

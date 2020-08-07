@@ -96,7 +96,7 @@ protected:
 
     void LoadNetwork();
 
-    void Infer();
+    virtual void Infer();
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
