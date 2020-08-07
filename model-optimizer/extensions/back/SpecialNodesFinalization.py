@@ -126,26 +126,24 @@ class RemoveConstToResult(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('const_node', {'type': 'Const', 'kind': 'op'}),
-                ('const_data', {'kind': 'data'}),
+                ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
                 ('result_node', {'type': 'Result', 'kind': 'op'}),
             ],
             edges=[
-                ('const_node', 'const_data'),
                 ('const_data', 'result_node')
             ]
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        const_node = match['const_node']
         const_data_node = match['const_data']
         result_node = match['result_node']
         nodes_to_remove = [result_node.id]
 
         # in case only const data consumer that is the result node, remove the whole sub-graph
-        if len(const_node.out_port(0).get_destinations()) == 1:
-            nodes_to_remove.append(const_node.id)
+        parent_node = result_node.in_port(0).get_source().node
+        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
+            nodes_to_remove.append(parent_node.id)
             nodes_to_remove.append(const_data_node.id)
 
         graph.remove_nodes_from(nodes_to_remove)
