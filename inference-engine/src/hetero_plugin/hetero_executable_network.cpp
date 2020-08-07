@@ -9,7 +9,7 @@
 #include "hetero_graph_splitter.hpp"
 #include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vector>
 #include <deque>

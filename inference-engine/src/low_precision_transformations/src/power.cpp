@@ -5,7 +5,7 @@
 #include "low_precision_transformations/power.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 #include <memory>
 #include <vector>

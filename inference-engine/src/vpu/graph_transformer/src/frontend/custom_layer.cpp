@@ -27,7 +27,7 @@
 
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/simple_math.hpp>
 #include <vpu/utils/error.hpp>

@@ -6,7 +6,7 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <string>
 #include <memory>
 #include <vector>

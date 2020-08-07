@@ -11,7 +11,7 @@
 #include <sstream>
 #include <utility>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/small_vector.hpp>
 

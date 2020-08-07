@@ -4,7 +4,7 @@
 
 #include "list.hpp"
 #include "base.hpp"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 
 #include <cmath>
 #include <string>

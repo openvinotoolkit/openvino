@@ -5,7 +5,7 @@
 #include "low_precision_transformations/pooling.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 
 using namespace InferenceEngine;

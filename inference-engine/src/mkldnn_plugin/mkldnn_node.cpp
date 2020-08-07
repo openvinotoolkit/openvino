@@ -5,7 +5,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>

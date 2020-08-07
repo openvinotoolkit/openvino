@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "ie_ishape_infer_extension.hpp"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "ie_icnn_network.hpp"
 #include "ie_reshape_launcher.hpp"
 

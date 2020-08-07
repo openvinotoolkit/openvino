@@ -6,7 +6,7 @@
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
 #include "ie_common.h"
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <unordered_map>
 
 using namespace InferenceEngine;

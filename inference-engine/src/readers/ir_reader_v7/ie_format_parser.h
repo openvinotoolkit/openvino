@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "cnn_network_impl.hpp"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "ie_layers.h"
 #include "parsers.h"
 

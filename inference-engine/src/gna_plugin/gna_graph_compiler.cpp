@@ -24,7 +24,7 @@
 #include "gna_plugin_log.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "ie_memcpy.h"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "gna-api.h"
 #include "backend/am_intel_dnn.hpp"
 #include "runtime/pwl.h"

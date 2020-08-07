@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <unordered_map>
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "debug.h"
 
 using namespace std;
