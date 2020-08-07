@@ -7,7 +7,7 @@
 #include <ie_common.h>
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_set>

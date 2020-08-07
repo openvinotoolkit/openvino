@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "ie_const_infer_impl.hpp"
 
 namespace InferenceEngine {
