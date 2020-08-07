@@ -66,13 +66,14 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input)
+void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
+    const std::vector<ngraph::PartialShape>& input)
 {
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)
     {
         NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
-                              (input[i].rank().is_static()), 
+                              (input[i].rank().is_static()),
                               "RNNCellBase supports only static rank for input tensors.");
     }
 
@@ -81,20 +82,22 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
     {
         if (i == input.size() - 1)
         {
-            // verify only B input dimension which is 1D  
+            // verify only B input dimension which is 1D
             NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
-                                  (input[i].rank().get_length() == 1), 
+                                  (input[i].rank().get_length() == 1),
                                   "RNNCellBase B input tensor dimension is not correct.");
         }
         else
-        {   
+        {
             // Verify all other input dimensions which are 2D tensor types
             NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
-                                  (input[i].rank().get_length() == 2), 
+                                  (input[i].rank().get_length() == 2),
                                   "RNNCellBase input tensor dimension is not correct for ",
-                                  "following input parameter number: ", i, ". Current input length: ",
+                                  "following input parameter number: ",
+                                  i,
+                                  ". Current input length: ",
                                   input[i].rank().get_length());
-        }        
+        }
     }
 
     // Compare input_size dimension for X and W inputs
@@ -103,7 +106,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
 
     NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
                           (x_pshape[1].compatible(w_pshape[1])),
-                           "RNNCellBase mismatched input_size dimension.");
+                          "RNNCellBase mismatched input_size dimension.");
 }
 
 op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size_t idx) const

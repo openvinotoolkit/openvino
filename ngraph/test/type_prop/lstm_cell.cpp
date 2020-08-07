@@ -74,7 +74,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in w_pshape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in w_pshape"));
     }
 
     // Invalid R tensor shape.
@@ -87,8 +88,10 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                        std::string("Parameter hidden_size not matched for ht_pshape, ct_pshape and t_pshape."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string(
+                "Parameter hidden_size not matched for ht_pshape, ct_pshape and t_pshape."));
     }
 
     // Invalid H_t tensor shape.
@@ -101,8 +104,9 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for ht_pshape, ct_pshape and x_pshape"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Parameter batch_size not matched for ht_pshape, ct_pshape and x_pshape"));
     }
 
     // Invalid C_t tensor shape.
@@ -115,8 +119,9 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for ht_pshape, ct_pshape and x_pshape"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Parameter batch_size not matched for ht_pshape, ct_pshape and x_pshape"));
     }
 
     // Invalid B tensor shape.
@@ -130,7 +135,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in b_pshape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in b_pshape"));
     }
 
     // Invalid P tensor shape.
@@ -143,6 +149,7 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in p_pshape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in p_pshape"));
     }
 }

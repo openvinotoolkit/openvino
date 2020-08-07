@@ -62,9 +62,9 @@ namespace ngraph
                 ///
                 /// \brief      Validates static rank and dimension for provided input parameters.
                 ///             Additionally input_size dimension is checked for X and W inputs.
-                ///             
                 ///
-                /// \param[in]  input        Vector with input parameters 
+                ///
+                /// \param[in]  input        Vector with input parameters
                 ///
                 void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
 
