@@ -38,7 +38,7 @@ namespace ngraph
             class NGRAPH_API DepthToSpace : public ngraph::op::util::FusedOp
             {
             public:
-				NGRAPH_RTTI_DECLARATION;
+                NGRAPH_RTTI_DECLARATION;
 
                 enum class DepthToSpaceMode
                 {

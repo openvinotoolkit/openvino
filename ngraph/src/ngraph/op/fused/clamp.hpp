@@ -34,7 +34,7 @@ namespace ngraph
             class NGRAPH_API Clamp : public ngraph::op::util::FusedOp
             {
             public:
-				NGRAPH_RTTI_DECLARATION;
+                NGRAPH_RTTI_DECLARATION;
 
                 Clamp() = default;
                 /// \brief Constructs a Clamp node.

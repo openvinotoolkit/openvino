@@ -56,11 +56,10 @@ namespace ngraph
 
                 bool get_transpose_a() const { return m_transpose_a; }
                 bool get_transpose_b() const { return m_transpose_b; }
-
-				// TODO: LPT workaround
-				// void set_output_type(size_t i,
-				//	const element::Type& element_type,
-				//	const PartialShape& pshape) override;
+                // TODO: LPT workaround
+                // void set_output_type(size_t i,
+                //	const element::Type& element_type,
+                //	const PartialShape& pshape) override;
             private:
                 bool m_transpose_a;
                 bool m_transpose_b;

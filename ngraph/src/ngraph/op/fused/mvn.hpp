@@ -31,7 +31,7 @@ namespace ngraph
             class NGRAPH_API MVN : public ngraph::op::util::FusedOp
             {
             public:
-				NGRAPH_RTTI_DECLARATION;
+                NGRAPH_RTTI_DECLARATION;
 
                 MVN() = default;
                 /// \brief Constructs an MVN operation.

@@ -33,7 +33,7 @@ namespace ngraph
             class NGRAPH_API NormalizeL2 : public ngraph::op::util::FusedOp
             {
             public:
-				NGRAPH_RTTI_DECLARATION;
+                NGRAPH_RTTI_DECLARATION;
 
                 NormalizeL2() = default;
                 ///

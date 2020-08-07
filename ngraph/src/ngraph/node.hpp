@@ -220,8 +220,8 @@ namespace ngraph
         void set_argument(size_t position, const Output<Node>& argument);
 
         virtual void set_output_type(size_t i,
-                             const element::Type& element_type,
-                             const PartialShape& pshape);
+                                     const element::Type& element_type,
+                                     const PartialShape& pshape);
 
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
