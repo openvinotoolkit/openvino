@@ -27,11 +27,6 @@ from string import ascii_uppercase
 def _get_numpy_dtype(scalar):
     return np.array([scalar]).dtype
 
-def _get_shape(data):
-    if isinstance(data, (list, tuple, np.ndarray, np.array)):
-        return data.shape
-    else:
-        return [1]
 
 def run_op_node(input_data, op_fun, *args):
     # type: (NumericData, Callable, *Any) -> List[NumericData]
