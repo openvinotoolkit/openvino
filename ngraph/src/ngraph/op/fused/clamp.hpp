@@ -46,7 +46,7 @@ namespace ngraph
 
                 void pre_validate_and_infer_types() override;
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -56,7 +56,7 @@ namespace ngraph
                 double get_min() const { return m_min; }
                 double get_max() const { return m_max; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             private:
                 double m_min;

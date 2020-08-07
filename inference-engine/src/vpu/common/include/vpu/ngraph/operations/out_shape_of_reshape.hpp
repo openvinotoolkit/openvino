@@ -29,7 +29,7 @@ public:
     bool getSpecialZero() const { return m_specialZero; }
     void setSpecialZero(bool special_zero) { m_specialZero = special_zero; }
 
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
 private:
     bool m_specialZero;

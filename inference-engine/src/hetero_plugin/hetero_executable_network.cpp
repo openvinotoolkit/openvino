@@ -7,8 +7,9 @@
 #include "hetero_async_infer_request.hpp"
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
+#include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vector>
 #include <deque>
@@ -143,7 +144,7 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 
 void dumpGraph(InferenceEngine::ICNNNetwork&                                network,
-               const std::vector<std::shared_ptr<const ngraph::Function>>&  subFunctions,
+               const std::vector<std::shared_ptr<ngraph::Function>>&  subFunctions,
                std::ostream&                                                stream) {
     static const std::array<const char *, 9> colors{{"#FFC405",
                                                      "#20F608",
@@ -665,13 +666,13 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     InputsDataMap externalInputsData;
     network.getInputsInfo(externalInputsData);
     networks.resize(orderedSubgraphs.size());
-    std::vector<std::shared_ptr<const ngraph::Function>> subFunctions(orderedSubgraphs.size());
+    std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<const ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
         networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
@@ -939,7 +940,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     for (auto&& subnetwork : networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
-        desc._profilingTask = ProfilingTask{"Infer" + std::to_string(index++)};
+        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,

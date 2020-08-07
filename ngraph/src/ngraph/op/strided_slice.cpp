@@ -235,8 +235,11 @@ namespace
     {
         auto in_shape = in->get_shape();
         out->set_shape(sp.reshape_out_shape);
-        runtime::reference::strided_slice(
-            in->get_data_ptr<ET>(), out->get_data_ptr<ET>(), in_shape, sp);
+        runtime::reference::strided_slice(in->get_data_ptr<ET>(),
+                                          out->get_data_ptr<ET>(),
+                                          in_shape,
+                                          sp,
+                                          in->get_element_type().size());
         return true;
     }
 
@@ -286,7 +289,7 @@ namespace
 }
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
-                                    const HostTensorVector& input_values)
+                                    const HostTensorVector& input_values) const
 {
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],

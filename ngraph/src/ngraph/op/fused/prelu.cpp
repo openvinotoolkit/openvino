@@ -46,7 +46,7 @@ void ngraph::op::v0::PRelu::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-NodeVector op::PRelu::decompose_op() const
+OutputVector op::PRelu::decompose_op() const
 {
     auto data = input_value(0);
     auto data_shape = data.get_shape();
@@ -121,7 +121,7 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
     return rc;
 }
 
-bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

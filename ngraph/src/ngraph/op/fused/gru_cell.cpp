@@ -104,15 +104,16 @@ bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::GRUCell::pre_validate_and_infer_types()
 {
+    if (is_dynamic())
+    {
+        return;
+    }
+
     const auto& x_pshape = get_input_partial_shape(0);
     const auto& ht_pshape = get_input_partial_shape(1);
     const auto& w_pshape = get_input_partial_shape(2);
     const auto& r_pshape = get_input_partial_shape(3);
-
-    NODE_VALIDATION_CHECK(this,
-                          (x_pshape.is_static() || w_pshape.is_static() || r_pshape.is_static() ||
-                           ht_pshape.is_static()),
-                          "GRUCell supports only static input tensors.");
+    const auto& b_pshape = get_input_partial_shape(4);
 
     const Shape& x_shape{x_pshape.to_shape()};
 
@@ -151,13 +152,7 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
                           w_shape,
                           ".");
 
-    const auto& b_pshape = get_input_partial_shape(4);
-
-    NODE_VALIDATION_CHECK(
-        this, b_pshape.is_static(), "GRUCell supports only static input tensors.");
-
     const Shape& b_shape{b_pshape.to_shape()};
-
     NODE_VALIDATION_CHECK(
         this,
         (b_shape == Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()}),
@@ -168,7 +163,7 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
         ".");
 }
 
-NodeVector op::v3::GRUCell::decompose_op() const
+OutputVector op::v3::GRUCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -218,10 +213,10 @@ NodeVector op::v3::GRUCell::decompose_op() const
     auto Ht_R = make_shared<op::Dot>(H_t, R_transpose);
 
     // split to gates:
-    NodeVector Xt_W_zrh = builder::split(Xt_W, 3, 1);
-    NodeVector R_zrh = builder::split(R_transpose, 3, 1);
-    NodeVector Ht_R_zrh = builder::split(Ht_R, 3, 1);
-    NodeVector biases_zrh = m_linear_before_reset ? builder::split(B, 4) : builder::split(B, 3);
+    OutputVector Xt_W_zrh = builder::split(Xt_W, 3, 1);
+    OutputVector R_zrh = builder::split(R_transpose, 3, 1);
+    OutputVector Ht_R_zrh = builder::split(Ht_R, 3, 1);
+    OutputVector biases_zrh = m_linear_before_reset ? builder::split(B, 4) : builder::split(B, 3);
 
     // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
     auto z_t = m_activation_f(clip(add(Xt_W_zrh[0], add(Ht_R_zrh[0], biases_zrh[0]))));

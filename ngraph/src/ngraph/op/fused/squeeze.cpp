@@ -112,7 +112,7 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::Squeeze::decompose_op() const
+OutputVector op::Squeeze::decompose_op() const
 {
     NODE_VALIDATION_CHECK(
         this,
@@ -203,7 +203,8 @@ namespace
     }
 }
 
-bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }

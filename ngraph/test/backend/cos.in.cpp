@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, cos)
 {
@@ -52,25 +49,19 @@ NGRAPH_TEST(${BACKEND_NAME}, cos)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Cos>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    vector<float> input{0.f, 0.25f, -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f};
-    copy_data(a, input);
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(vector<float>{1.00000000f,
-                                                0.96891242f,
-                                                0.96891242f,
-                                                0.87758256f,
-                                                0.87758256f,
-                                                0.54030231f,
-                                                0.54030231f,
-                                                -0.41614684f,
-                                                -0.41614684f,
-                                                -0.65364362f,
-                                                -0.65364362f},
-                                  read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({0.f, 0.25f, -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f});
+    test_case.add_expected_output<float>(shape,
+                                         {1.00000000f,
+                                          0.96891242f,
+                                          0.96891242f,
+                                          0.87758256f,
+                                          0.87758256f,
+                                          0.54030231f,
+                                          0.54030231f,
+                                          -0.41614684f,
+                                          -0.41614684f,
+                                          -0.65364362f,
+                                          -0.65364362f});
+    test_case.run();
 }

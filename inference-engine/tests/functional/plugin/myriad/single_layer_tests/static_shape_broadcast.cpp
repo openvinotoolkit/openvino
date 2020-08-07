@@ -30,7 +30,7 @@ using StaticShapeBroadcastTestParam = std::tuple<
 namespace LayerTestsDefinitions {
 
 class StaticShapeBroadcastLayerTest : public testing::WithParamInterface<StaticShapeBroadcastTestParam>,
-                                      public LayerTestsUtils::LayerTestsCommon {
+                                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeBroadcastTestParam>& obj) {
         StaticShapeBroadcastParam shapes;

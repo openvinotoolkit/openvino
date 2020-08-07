@@ -111,14 +111,14 @@ namespace
     }
 }
 
-bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
 
 // ------------------------------ v1 -------------------------------------------
 
-constexpr NodeTypeInfo op::v1::Divide::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Divide, "Divide", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Divide::Divide(const Output<Node>& arg0,
                        const Output<Node>& arg1,
@@ -152,7 +152,7 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
         new_args.at(0), new_args.at(1), this->is_pythondiv(), this->get_autob());
 }
 
-bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }

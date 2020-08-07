@@ -48,7 +48,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         } // namespace v0
 
@@ -58,8 +58,8 @@ namespace ngraph
             class NGRAPH_API Multiply : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Multiply", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a multiplication operation.
                 Multiply()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
@@ -80,7 +80,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         } // namespace v1
 

@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 
 from ngraph.impl import Node, Shape
-from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
@@ -56,6 +56,44 @@ from ngraph.utils.types import (
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 
 # -------------------------------------------- ops ------------------------------------------------
+
+
+@nameable_op
+def ctc_loss(
+    logits: NodeInput,
+    logit_length: NodeInput,
+    labels: NodeInput,
+    label_length: NodeInput,
+    blank_index: Optional[NodeInput] = None,
+    preprocess_collapse_repeated: bool = False,
+    ctc_merge_repeated: bool = True,
+    unique: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs CTCLoss.
+
+    :param logits:                        3-D tensor of logits.
+    :param logit_length:                  1-D tensor of lengths for each object from a batch.
+    :param labels:                        2-D tensor of labels for which likelihood is estimated using logits.
+    :param label_length:                  1-D tensor of length for each label sequence.
+    :param blank_index:                   Scalar used to mark a blank index.
+    :param preprocess_collapse_repeated:  Flag for preprocessing labels before loss calculation.
+    :param ctc_merge_repeated:            Flag for merging repeated characters in a potential alignment.
+    :param unique:                        Flag to find unique elements in a target.
+    :return: The new node which performs CTCLoss
+    """
+    if blank_index is not None:
+        inputs = as_nodes(logits, logit_length, labels, label_length, blank_index)
+    else:
+        inputs = as_nodes(logits, logit_length, labels, label_length)
+
+    attributes = {
+        "preprocess_collapse_repeated": preprocess_collapse_repeated,
+        "ctc_merge_repeated": ctc_merge_repeated,
+        "unique": unique,
+    }
+
+    return _get_node_factory_opset4().create("CTCLoss", inputs, attributes)
 
 
 @nameable_op
@@ -99,3 +137,13 @@ def non_max_suppression(
     }
 
     return _get_node_factory_opset4().create("NonMaxSuppression", inputs, attributes)
+
+
+@nameable_op
+def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
+    """Return a node which performs Mish.
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs Mish
+    """
+    return _get_node_factory_opset4().create("Mish", as_nodes(data), {})

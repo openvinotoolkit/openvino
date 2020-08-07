@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, negative)
 {
@@ -52,18 +49,12 @@ NGRAPH_TEST(${BACKEND_NAME}, negative)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Negative>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{1, -2, 0, -4.75f, 8.75f, -8.75f};
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{1, -2, 0, -4.75f, 8.75f, -8.75f});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{-1, 2, 0, 4.75f, -8.75f, 8.75f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(a);
+    test_case.add_expected_output<float>(shape, {-1, 2, 0, 4.75f, -8.75f, 8.75f});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
@@ -74,16 +65,12 @@ NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<int32_t> a{1, 8, -8, 17, -2, 1, 8, -8, 17, -1};
 
-    auto a = backend->create_tensor(element::i32, shape_a);
-    copy_data(a, vector<int32_t>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1});
-    auto result = backend->create_tensor(element::i32, shape_rt);
-    vector<int32_t> expected{-1, -8, 8, -17, 2, -1, -8, 8, -17, 1};
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ(expected, read_vector<int32_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>(shape_a, a);
+    test_case.add_expected_output<int32_t>(shape_rt, {-1, -8, 8, -17, 2, -1, -8, 8, -17, 1});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, negative_f32)
@@ -94,16 +81,11 @@ NGRAPH_TEST(${BACKEND_NAME}, negative_f32)
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{1.35f, 8.76f, -8.0f, 17.234f, -2.121f, 1.0f, 8.7f, -8.92f, 17.0f, -1.0f};
 
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(
-        a, vector<float>{1.35f, 8.76f, -8.0f, 17.234f, -2.121f, 1.0f, 8.7f, -8.92f, 17.0f, -1.0f});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    vector<float> expected{
-        -1.35f, -8.76f, 8.0f, -17.234f, 2.121f, -1.0f, -8.7f, 8.92f, -17.0f, 1.0f};
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ(expected, read_vector<float>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape_a, a);
+    test_case.add_expected_output<float>(
+        shape_rt, {-1.35f, -8.76f, 8.0f, -17.234f, 2.121f, -1.0f, -8.7f, 8.92f, -17.0f, 1.0f});
+    test_case.run();
 }

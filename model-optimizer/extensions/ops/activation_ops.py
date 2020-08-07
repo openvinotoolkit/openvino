@@ -65,6 +65,16 @@ class Asin(Activation):
     operation = staticmethod(lambda x: np.arcsin(x))
 
 
+class Asinh(Activation):
+    op = 'Asinh'
+    operation = staticmethod(lambda x: np.arcsinh(x))
+
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
+
+
 class Cos(Activation):
     op = 'Cos'
     operation = staticmethod(lambda x: np.cos(x))
@@ -80,6 +90,16 @@ class Acos(Activation):
     operation = staticmethod(lambda x: np.arccos(x))
 
 
+class Acosh(Activation):
+    op = 'Acosh'
+    operation = staticmethod(lambda x: np.arccosh(x))
+
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
+
+
 class Tan(Activation):
     op = 'Tan'
     operation = staticmethod(lambda x: np.tan(x))
@@ -93,6 +113,16 @@ class Tanh(Activation):
 class Atan(Activation):
     op = 'Atan'
     operation = staticmethod(lambda x: np.arctan(x))
+
+
+class Atanh(Activation):
+    op = 'Atanh'
+    operation = staticmethod(lambda x: np.arctanh(x))
+
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
 
 
 class ReLU6(AttributedClamp):
@@ -225,3 +255,13 @@ class SoftPlus(Op):
             'infer': None
         }
         super().__init__(graph, mandatory_props, attrs)
+
+
+class Mish(Activation):
+    op = 'Mish'
+    operation = staticmethod(lambda x: x * np.tanh(np.ln(np.exp(x) + 1.0)))
+
+    def __init__(self, graph: Graph, attrs: dict):
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
