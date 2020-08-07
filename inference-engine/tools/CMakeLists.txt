@@ -23,9 +23,17 @@ add_subdirectory(benchmark_app/cpp)
 if(ENABLE_PYTHON)
     ie_cpack_add_component(python_tools REQUIRED DEPENDS core)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool
-            DESTINATION deployment_tools/tools
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_app/python
+            DESTINATION deployment_tools/tools/benchmark_app
             COMPONENT python_tools)
     install(FILES
             COMPONENT python_tools)
 endif()
+
+
+ie_cpack_add_component(benchmark_app REQUIRED DEPENDS core)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_app/cpp
+        DESTINATION deployment_tools/tools/benchmark_app
+        COMPONENT benchmark_app
+        USE_SOURCE_PERMISSIONS)
