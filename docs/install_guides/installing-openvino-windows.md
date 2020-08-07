@@ -186,7 +186,7 @@ Type commands in the opened window:
 cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer\install_prerequisites
 ```
 
-3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\*, MXNet\*, Kaldi\*, and ONNX\*:<br>
+3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\* 1.x, MXNet\*, Kaldi\*, and ONNX\*:<br>
 ```sh
 install_prerequisites.bat
 ```
@@ -205,9 +205,14 @@ cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer
    install_prerequisites_caffe.bat
    ```
 
-   * For **TensorFlow**:<br>
+   * For **TensorFlow 1.x**:<br>
    ```sh
    install_prerequisites_tf.bat
+   ```
+
+   * For **TensorFlow 2.x**:<br>
+   ```sh
+   install_prerequisites_tf2.bat
    ```
 
    * For **MXNet**:<br>
@@ -452,7 +457,7 @@ You are now ready to learn more about converting models trained with popular dee
 To learn more about converting deep learning models, go to:
 
 - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-- [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+- [Convert Your TensorFlow* 1.x and 2.x Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
 
