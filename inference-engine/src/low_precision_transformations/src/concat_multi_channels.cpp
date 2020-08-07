@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <blob_factory.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
