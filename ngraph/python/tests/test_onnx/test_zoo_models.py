@@ -29,9 +29,15 @@
 #     zoo_models.append({'model_name': '{}_opset{}'.format(model_name.replace('-', '_'), opset), 'url': url})
 #
 # sorted(zoo_models, key=itemgetter('model_name'))
-import tests
 from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_zoo_tester import ModelZooTestRunner
+from tests import (BACKEND_NAME,
+                   xfail_issue_36533,
+                   xfail_issue_36534,
+                   xfail_issue_35926,
+                   xfail_issue_36535,
+                   xfail_issue_36537,
+                   xfail_issue_36538)
 
 _GITHUB_MODELS_LTS = "https://media.githubusercontent.com/media/onnx/models/master/"
 
@@ -565,11 +571,58 @@ zoo_models = [
 ]
 
 # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
-OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
+OpenVinoOnnxBackend.backend_name = BACKEND_NAME
 
 # import all test cases at global scope to make them visible to pytest
 backend_test = ModelZooTestRunner(OpenVinoOnnxBackend, zoo_models, __name__)
 test_cases = backend_test.test_cases["OnnxBackendZooModelTest"]
+
+test_cases_list = [
+    test_cases.test_udnie_opset8_cpu,
+    test_cases.test_udnie_opset8_cpu,
+    test_cases.test_udnie_opset9_cpu,
+    test_cases.test_mosaic_opset8_cpu,
+    test_cases.test_vgg16_opset7_cpu,
+    test_cases.test_pointilism_opset9_cpu,
+    test_cases.test_vgg19_bn_opset7_cpu,
+    test_cases.test_candy_opset9_cpu,
+    test_cases.test_rain_princess_opset8_cpu,
+    test_cases.test_mosaic_opset9_cpu,
+    test_cases.test_pointilism_opset8_cpu,
+    test_cases.test_rain_princess_opset9_cpu,
+    test_cases.test_ssd_opset10_cpu,
+    test_cases.test_resnet152_v2_opset7_cpu,
+    test_cases.test_resnet50_v2_opset7_cpu,
+    test_cases.test_resnet18_v1_opset7_cpu,
+    test_cases.test_resnet18_v2_opset7_cpu,
+    test_cases.test_resnet34_v1_opset7_cpu,
+    test_cases.test_resnet34_v2_opset7_cpu,
+    test_cases.test_resnet101_v2_opset7_cpu,
+    test_cases.test_resnet101_v1_opset7_cpu,
+    test_cases.test_ResNet101_DUC_opset7_cpu,
+    test_cases.test_arcfaceresnet100_opset8_cpu,
+    test_cases.test_mobilenetv2_opset7_cpu,
+    test_cases.test_candy_opset8_cpu,
+    test_cases.test_resnet152_v1_opset7_cpu
+]
+
+xfail_issue_36534(test_cases.test_FasterRCNN_opset10_cpu)
+xfail_issue_36534(test_cases.test_MaskRCNN_opset10_cpu)
+
+xfail_issue_35926(test_cases.test_bertsquad_opset8_cpu)
+xfail_issue_35926(test_cases.test_bertsquad_opset10_cpu)
+
+xfail_issue_35926(test_cases.test_gpt2_opset10_cpu)
+
+xfail_issue_36535(test_cases.test_super_resolution_opset10_cpu)
+xfail_issue_36535(test_cases.test_tinyyolov2_opset7_cpu)
+xfail_issue_36535(test_cases.test_tinyyolov2_opset8_cpu)
+
+xfail_issue_36537(test_cases.test_shufflenet_v2_opset10_cpu)
+xfail_issue_36538(test_cases.test_yolov3_opset10_cpu)
+
+for test_case in test_cases_list:
+    xfail_issue_36533(test_case)
 
 del test_cases
 globals().update(backend_test.enable_report().test_cases)

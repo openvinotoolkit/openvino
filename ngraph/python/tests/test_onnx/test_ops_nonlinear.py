@@ -17,7 +17,8 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import run_node, xfail_issue_35918, xfail_issue_35923, xfail_issue_35924
+from tests.test_onnx.utils import run_node
+from tests import xfail_issue_35918, xfail_issue_35923, xfail_issue_35924
 
 
 def import_and_compute(op_type, input_data, **node_attrs):

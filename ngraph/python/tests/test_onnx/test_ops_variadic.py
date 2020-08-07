@@ -19,7 +19,8 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import run_node, xfail_issue_35926
+from tests.test_onnx.utils import run_node
+from tests import xfail_issue_35926
 
 
 @xfail_issue_35926

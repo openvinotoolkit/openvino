@@ -17,8 +17,10 @@ import numpy as np
 
 import ngraph as ng
 from tests.runtime import get_runtime
+from tests import xfail_issue_34323
 
 
+@xfail_issue_34323
 def test_split():
     runtime = get_runtime()
     input_tensor = ng.constant(np.array([0, 1, 2, 3, 4, 5], dtype=np.int32))
@@ -32,6 +34,7 @@ def test_split():
     assert np.allclose(split_results, expected_results)
 
 
+@xfail_issue_34323
 def test_variadic_split():
     runtime = get_runtime()
     input_tensor = ng.constant(np.array([[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]], dtype=np.int32))

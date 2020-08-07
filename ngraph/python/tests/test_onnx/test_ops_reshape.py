@@ -19,14 +19,8 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import (all_arrays_equal,
-                                   get_node_model,
-                                   import_onnx_model,
-                                   run_model,
-                                   run_node,
-                                   xfail_issue_35926,
-                                   xfail_issue_35927
-                                   )
+from tests.test_onnx.utils import all_arrays_equal, get_node_model, import_onnx_model, run_model, run_node
+from tests import xfail_issue_35926, xfail_issue_35927
 
 
 @xfail_issue_35926

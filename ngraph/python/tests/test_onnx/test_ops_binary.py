@@ -18,7 +18,8 @@ import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
-from tests.test_onnx.utils import run_model, skip_segfault
+from tests.test_onnx.utils import run_model
+from tests import skip_segfault
 
 
 def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **node_attributes):
