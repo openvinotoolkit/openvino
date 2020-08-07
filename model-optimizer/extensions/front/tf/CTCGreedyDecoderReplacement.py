@@ -67,7 +67,10 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         if sequence_length_node.value is None:
             raise Error('The second input to the CTCGreedyDecoder node "{}" is not constant. This case is not '
                         'supported with the Inference Engine.'.format(decoder_node_name))
+
+        # the batch size is the dimension with index 1 for the layer CTCGreedyDecoder
         mask_value = np.ones([decoder_node.in_node(0).shape[1], sequence_length_node.value[0]])
+        mask_value[:, 0] = 0
         mask_value = np.transpose(mask_value)
         mask_node = Const(graph, {'name': decoder_node_name + '/Mask',
                                   'value': mask_value}).create_node()

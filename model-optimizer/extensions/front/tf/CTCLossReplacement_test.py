@@ -16,6 +16,7 @@
 
 import numpy as np
 import unittest
+from argparse import Namespace
 
 from extensions.front.tf.CTCLossReplacement import CTCLossReplacement
 from mo.front.common.partial_infer.utils import int64_array
@@ -84,6 +85,7 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
 
                              ('ctc_loss', 'last', {'out': 0, 'in': 0}),
                              ], nodes_with_edges_only=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
         graph.stage = 'front'
         CTCLossReplacement().find_and_replace_pattern(graph)
 

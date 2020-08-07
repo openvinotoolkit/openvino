@@ -63,7 +63,8 @@ class CTCLoss(Op):
     @staticmethod
     def infer(node: Node):
         node_name = node.soft_get('name', node.id)
-        assert len(node.in_nodes()) == 4 or len(node.in_nodes()) == 5, \
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        assert len(connected_in_ports) in [4, 5], \
             "Incorrect number of inputs for {} node".format(node_name)
 
         logits_shape = node.in_port(0).data.get_shape()

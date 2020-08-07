@@ -29,6 +29,7 @@ class CTCGreedyDecoderOp(Op):
             'version': 'opset1',
 
             'infer': self.infer,
+            'reinterp_shape': True,
 
             'in_ports_count': 2,
             'out_ports_count': 1
@@ -43,7 +44,8 @@ class CTCGreedyDecoderOp(Op):
     @staticmethod
     def infer(node: Node):
         node_name = node.soft_get('name', node.id)
-        assert len(node.in_nodes()) == 2, \
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        assert len(connected_in_ports) == 2, \
             "Incorrect number of inputs for {} node".format(node_name)
 
         logits_shape = node.in_port(0).data.get_shape()
@@ -60,6 +62,3 @@ class CTCGreedyDecoderOp(Op):
         batch_size = logits_shape[1]
         time_size = logits_shape[0]
         node.out_port(0).data.set_shape(int64_array([batch_size, time_size, 1, 1]))
-
-        # This operation should be inferred in original layout
-        node['reinterp_shape'] = True

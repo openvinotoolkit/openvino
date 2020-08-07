@@ -24,36 +24,40 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 
-nodes_attributes = {'logits': {'shape': None, 'value': None, 'kind': 'data'},
-                    'seq_mask': {'shape': None, 'value': None, 'kind': 'data'},
+nodes_attributes = {'logits': {'kind': 'op'},
+                    'logits_data': {'shape': None, 'value': None, 'kind': 'data'},
+                    'seq_mask': {'kind': 'op'},
+                    'seq_mask_data': {'shape': None, 'value': None, 'kind': 'data'},
                     'ctcgreedydecoder_node': {'op': 'CTCGreedyDecoder', 'kind': 'op',
                                               'ctc_merge_repeated': True},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1
-edges1 = [('logits', 'ctcgreedydecoder_node', {'in': 0}),
-          ('seq_mask', 'ctcgreedydecoder_node', {'in': 1}),
+edges1 = [('logits', 'logits_data'),
+          ('seq_mask', 'seq_mask_data'),
+          ('logits_data', 'ctcgreedydecoder_node', {'in': 0}),
+          ('seq_mask_data', 'ctcgreedydecoder_node', {'in': 1}),
           ('ctcgreedydecoder_node', 'output', {'out': 0})]
 
 # valid test case
-inputs1 = {'logits': {'shape': int64_array([100, 4, 5])},
-           'seq_mask': {'shape': int64_array([100, 4])}}
+inputs1 = {'logits_data': {'shape': int64_array([100, 4, 5])},
+           'seq_mask_data': {'shape': int64_array([100, 4])}}
 
 # invalid test case with incorrect rank for the first input tensor
-inputs1_inv = {'logits': {'shape': int64_array([100, 4, 5, 6])},
-               'seq_mask': {'shape': int64_array([100, 4])}}
+inputs1_inv = {'logits_data': {'shape': int64_array([100, 4, 5, 6])},
+               'seq_mask_data': {'shape': int64_array([100, 4])}}
 
 # invalid test case with incorrect rank for the second input tensor
-inputs2_inv = {'logits': {'shape': int64_array([100, 4, 5])},
-               'seq_mask': {'shape': int64_array([100])}}
+inputs2_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([100])}}
 
 # invalid test case with incorrect time dimension
-inputs3_inv = {'logits': {'shape': int64_array([100, 4, 5])},
-               'seq_mask': {'shape': int64_array([101, 4])}}
+inputs3_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([101, 4])}}
 
 # invalid test case with incorrect batch dimension
-inputs4_inv = {'logits': {'shape': int64_array([100, 4, 5])},
-               'seq_mask': {'shape': int64_array([100, 14])}}
+inputs4_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([100, 14])}}
 
 class TestCTCGreedyDecoder(unittest.TestCase):
     def test_infer1(self):

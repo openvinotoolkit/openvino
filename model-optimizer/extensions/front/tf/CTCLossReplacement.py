@@ -38,10 +38,13 @@ from mo.utils.error import Error
 
 class CTCLossReplacement(FrontReplacementSubgraph):
     """
-    The CTCLoss appears along with CTCGreedyDecoder operation in particular. Since the TF CTCGreedyDecoder outputs
-    sparse tensor format, the OpenVINO CTCGreedyDecoder has a different format and the CTCLoss is also affected
+    The CTCLoss appears along with CTCGreedyDecoder operation in particular. Since the TensorFlow* CTCGreedyDecoder
+    outputs sparse tensor format, the OpenVINO CTCGreedyDecoder has a different format and the CTCLoss is also affected
     in terms of different format for its inputs. So the corresponding sub-graph with CTCGreedyDecoding and CTCLoss
     must be transformed properly.
+    Also, the transformation changes the input sequence length format into a mask format. For example, 1D tensor of
+    sequence lengths equal to [4 2] is coded as 2D tensor [[1 1 1 1 0], [1 1 0 0 0]] with a time dimension is
+    equal to 5.
     """
     enabled = True
 
@@ -52,7 +55,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('seq_len', dict(op='Parameter', data_type=np.int32)),
+                ('seq_len', dict(op='Parameter')),
                 ('transpose', dict(op='Transpose')),
                 ('ctc_greedy_decoder', dict(op='CTCGreedyDecoder')),
                 ('cast', dict(op='Cast')),
@@ -94,6 +97,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         if seq_len_tf_shape is None or len(seq_len_tf_shape) != 2:
             raise Error('The sequence length that is the second input to the CTCGreedyDecoder node "{}"'
                         ' must be specified in a mask format.'.format(ctc_greedy_decoder_tf_name))
+        log.error('The format of input sequence length has been changed to a mask format', extra={'is_warning': True})
         seq_len_tf_type = seq_len_tf.soft_get('data_type', None)
         seq_len_tf_name = seq_len_tf.soft_get('name', seq_len_tf.id)
         seq_mask_placeholder = Parameter(graph, {'name': seq_len_tf_name, 'shape': seq_len_tf_shape,
@@ -104,9 +108,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         reduce_to_seq_len_node.in_port(0).connect(seq_mask_placeholder.out_port(0))
         seq_len_tf.out_port(0).get_connection().set_source(reduce_to_seq_len_node.out_port(0))
 
-        cast_fp_type = np.float32
-        if 'data_type' in graph.graph['cmd_params']:
-            cast_fp_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        cast_fp_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
         casted_seq_mask_node = Cast(graph, {'name': seq_len_tf_name + '/CastToFP32', 'dst_type': cast_fp_type}).create_node()
         casted_seq_mask_node.in_port(0).connect(seq_mask_placeholder.out_port(0))
         permuted_casted_seq_mask = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])},
@@ -161,7 +163,8 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         labels_shape_op = Shape(graph, {'name': output_sparse_to_dense_name + '/ShapeOf'}).create_node()
         labels_shape_op.in_port(0).connect(equal_op.out_port(0))
         broadcast_one = create_op_with_const_inputs(graph, Broadcast, {0: np.array([1], dtype=np.int32)},
-                                                    {'name': output_sparse_to_dense_name + '/One'})
+                                                    {'mode': 'numpy',
+                                                     'name': output_sparse_to_dense_name + '/One'})
         broadcast_one.in_port(1).connect(labels_shape_op.out_port(0))
         broadcast_zero = create_op_with_const_inputs(graph, Broadcast, {0: np.array([0], dtype=np.int32)},
                                                      {'mode': 'numpy',
