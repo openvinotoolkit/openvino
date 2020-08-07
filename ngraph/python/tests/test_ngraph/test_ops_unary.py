@@ -77,7 +77,7 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         (ng.tanh, np.tanh, -100.0, 100.0),
     ],
 )
-def test_unary_op_array_row_data(ng_api_fn, numpy_fn, range_start, range_end):
+def test_unary_op_array_using_constants(ng_api_fn, numpy_fn, range_start, range_end):
     np.random.seed(133391)
     input_data = range_start + np.random.rand(2, 3, 4) * (range_end - range_start)
     expected = numpy_fn(input_data)
@@ -141,10 +141,10 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
         (ng.tanh, np.tanh, np.float32(0.1234)),
     ],
 )
-def test_unary_op_scalar_raw_data(ng_api_fn, numpy_fn, input_data):
+def test_unary_op_scalar_using_constants(ng_api_fn, numpy_fn, input_data):
     expected = numpy_fn(input_data)
 
-    result = run_op_numeric_data(input_data, ng_api_fn)
+    result = run_op_node([input_data], ng_api_fn)
     assert np.allclose(result, expected)
 
 
@@ -154,14 +154,14 @@ def test_unary_op_scalar_raw_data(ng_api_fn, numpy_fn, input_data):
 def test_logical_not(input_data):
     expected = np.logical_not(input_data)
 
-    result = run_op_numeric_data(input_data, ng.logical_not)
+    result = run_op_node([input_data], ng.logical_not)
     assert np.allclose(result, expected)
 
 
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
 )
-def test_logical_not_raw_data(input_data):
+def test_logical_not_using_constants(input_data):
     expected = np.logical_not(input_data)
 
     result = run_op_numeric_data(input_data, ng.logical_not)
@@ -197,6 +197,11 @@ def test_erf():
 
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
+
+
+def test_erf_using_constants():
+    input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
+    expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]
 
     result = run_op_numeric_data(input_tensor, ng.erf)
     assert np.allclose(result, expected)
