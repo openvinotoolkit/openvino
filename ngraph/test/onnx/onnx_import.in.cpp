@@ -35,10 +35,10 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "ngraph/frontend/onnx_import/core/null_node.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
-#include "ngraph/frontend/onnx_import/onnx_utils.hpp"
-#include "ngraph/frontend/onnx_import/default_opset.hpp"
+#include "onnx_import/core/null_node.hpp"
+#include "onnx_import/onnx.hpp"
+#include "onnx_import/onnx_utils.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/constant_folding.hpp"

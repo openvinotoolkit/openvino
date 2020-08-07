@@ -4,7 +4,7 @@
 
 #include "ie_onnx_reader.hpp"
 #include <ie_api.h>
-#include <ngraph/frontend/onnx_import/onnx.hpp>
+#include <onnx_import/onnx.hpp>
 
 using namespace InferenceEngine;
 

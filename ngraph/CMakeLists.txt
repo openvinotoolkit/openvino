@@ -485,6 +485,8 @@ endif()
 
 add_subdirectory(src)
 
+add_subdirectory(frontend)
+
 if (NGRAPH_TEST_UTIL_ENABLE)
     include(cmake/external_gtest.cmake)
 endif()

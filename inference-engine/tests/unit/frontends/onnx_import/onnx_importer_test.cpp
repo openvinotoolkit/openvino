@@ -8,7 +8,7 @@
 #include <fstream>
 
 #include "ngraph/file_util.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
+#include "onnx_import/onnx.hpp"
 
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
     auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "add_abc_initializers.prototxt");
