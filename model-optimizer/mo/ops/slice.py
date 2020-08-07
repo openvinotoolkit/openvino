@@ -48,9 +48,6 @@ class AttributedSlice(Op):
             'infer': None,
         }, attrs)
 
-    def supported_attrs(self):
-        return ['axes', 'starts', 'ends']
-
 
 class CaffeSlice(Op):
     """
@@ -70,8 +67,6 @@ class CaffeSlice(Op):
             'infer': None,
         }, attrs)
 
-    def supported_attrs(self):
-        return ['slice_point', 'axis']
 
 
 class TFSlice(Op):
@@ -124,7 +119,7 @@ class Slice(Op):
     op = 'Slice'
     enabled = False
 
-    def __init__(self, graph: Graph, attrs: dict = None):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
             'op': 'Slice',
