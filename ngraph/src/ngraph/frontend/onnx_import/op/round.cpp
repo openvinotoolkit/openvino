@@ -30,36 +30,46 @@ namespace ngraph
         {
             namespace set_1
             {
-                // WARNING!
-                // Current version is:
-                // data_floor = floor(data)
-                // diff = data - data_floor
-                // if(diff < 0.5f)
-                //   return data_floor
-                // else
-                //   return data_floor + 1.0f
-                //
-                // The correct version should contain condition:
-                // if (diff < 0.5f || (diff == 0.5f && static_cast<int>(data_floor) % 2 == 0))
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
 
-                    const auto one_const =
-                        default_opset::Constant::create(data.get_element_type(), {}, {1.0f});
+                    const auto zero_const =
+                        default_opset::Constant::create(data.get_element_type(), {}, {0.0f});
                     const auto half_const =
                         default_opset::Constant::create(data.get_element_type(), {}, {0.5f});
+                    const auto one_const =
+                        default_opset::Constant::create(data.get_element_type(), {}, {1.0f});
+                    const auto two_const =
+                        default_opset::Constant::create(data.get_element_type(), {}, {2.0f});
 
                     const auto data_floor = std::make_shared<default_opset::Floor>(data);
                     const auto data_floor_plus_one =
                         std::make_shared<default_opset::Add>(data_floor, one_const);
 
                     const auto diff = std::make_shared<default_opset::Subtract>(data, data_floor);
-                    const auto less_than_half =
+
+                    const auto diff_equals_half =
+                        std::make_shared<default_opset::Equal>(diff, half_const);
+                    const auto mod = std::make_shared<default_opset::Mod>(data_floor, two_const);
+                    const auto mod_equals_zero =
+                        std::make_shared<default_opset::Equal>(mod, zero_const);
+                    const auto diff_equals_half_and_mod_equals_zero =
+                        std::make_shared<default_opset::LogicalAnd>(diff_equals_half,
+                                                                    mod_equals_zero);
+
+                    const auto diff_less_than_half =
                         std::make_shared<default_opset::Less>(diff, half_const);
 
+                    const auto round_condition = std::make_shared<default_opset::LogicalOr>(
+                        diff_less_than_half, diff_equals_half_and_mod_equals_zero);
+
+                    // if (diff < 0.5f || (diff == 0.5f && (data_floor % 2) == 0))
+                    //   return data_floor
+                    // else
+                    //   return data_floor + 1.0f
                     return {std::make_shared<default_opset::Select>(
-                        less_than_half, data_floor, data_floor_plus_one)};
+                        round_condition, data_floor, data_floor_plus_one)};
                 }
             } // namespace set_1
 
