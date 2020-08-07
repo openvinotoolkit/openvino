@@ -15,6 +15,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API SwishFusion;
 class TRANSFORMATIONS_API SwishFusionWithSigmoid;
+class TRANSFORMATIONS_API SwishFusionWithSigmoidWithBeta;
 class TRANSFORMATIONS_API SwishFusionWithBeta;
 class TRANSFORMATIONS_API SwishFusionWithoutBeta;
 
@@ -29,6 +30,7 @@ class ngraph::pass::SwishFusion: public ngraph::pass::GraphRewrite {
 public:
     SwishFusion() {
         add_matcher<ngraph::pass::SwishFusionWithSigmoid>();
+        add_matcher<ngraph::pass::SwishFusionWithSigmoidWithBeta>();
         add_matcher<ngraph::pass::SwishFusionWithBeta>();
         add_matcher<ngraph::pass::SwishFusionWithoutBeta>();
     }
@@ -37,6 +39,11 @@ public:
 class ngraph::pass::SwishFusionWithSigmoid: public ngraph::pass::MatcherPass {
 public:
     SwishFusionWithSigmoid();
+};
+
+class ngraph::pass::SwishFusionWithSigmoidWithBeta: public ngraph::pass::MatcherPass {
+public:
+    SwishFusionWithSigmoidWithBeta();
 };
 
 class ngraph::pass::SwishFusionWithBeta: public ngraph::pass::MatcherPass {

@@ -64,7 +64,7 @@ void op::v4::Swish::validate_and_infer_types()
             NODE_VALIDATION_CHECK(this,
                       input_value(1).get_shape().size() == 0,
                       "Swish input with beta must be scalar but it has shape: ",
-                      input_value(0).get_shape());
+                      input_value(1).get_shape());
         }
     }
     set_output_size(1);
@@ -76,7 +76,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
     Output<Node> beta;
     if (new_args.size() == 1)
     {
-        beta = op::v0::Constant::create(new_args.at(0).get_element_type(), Shape{1}, {1.0});
+        beta = op::v0::Constant::create(new_args.at(0).get_element_type(), Shape{}, {1.0});
     }
     else
     {

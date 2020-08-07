@@ -41,7 +41,7 @@ namespace ngraph {
                 /// \param data Input tensor
                 /// \param beta Scalar with beta value. If the argument is not specified then use the default value 1.0
                 Swish(const Output<Node> &arg, const Output<Node> &beta);
-                Swish(const Output<Node> &arg);
+                explicit Swish(const Output<Node> &arg);
 
                 bool visit_attributes(AttributeVisitor &visitor) override;
                 void validate_and_infer_types() override;
