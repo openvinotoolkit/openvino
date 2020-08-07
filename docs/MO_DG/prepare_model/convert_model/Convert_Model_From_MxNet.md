@@ -38,7 +38,8 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 **Other supported topologies**
 
-* Style transfer [model](https://github.com/zhaw/neural_style) can be converted using [instruction](mxnet_specific/Convert_Style_Transfer_From_MXNet.md),
+* [GluonCV SSD and YOLO-v3 models](https://gluon-cv.mxnet.io/model_zoo/detection.html) can be converted using the following [instructions](mxnet_specific/Convert_GluonCV_Models.md).
+* [Style transfer model](https://github.com/zhaw/neural_style) can be converted using the following [instructions](mxnet_specific/Convert_Style_Transfer_From_MXNet.md).
 
 ## Convert an MXNet* Model <a name="ConvertMxNet"></a>
 
