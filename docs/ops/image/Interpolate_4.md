@@ -214,38 +214,12 @@ class InterpolateCalculation:
         }[self.mode]
         self.attrs = attrs
 
-        if not('pads_begin' in attrs):
-            self.pads_begin = [0]
-        else:
-            self.pads_begin = attrs['pads_begin']
-
-        if not('pads_end' in attrs):
-            self.pads_end = [0]
-        else:
-            self.pads_end = attrs['pads_end']
-
-        if not ('coordinate_transformation_mode' in attrs):
-            self.coordinate_transformation_mode = 'half_pixel'
-        else:
-            self.coordinate_transformation_mode = attrs['coordinate_transformation_mode']
-
-        if ('align_corners' in attrs) and attrs['align_corners']:
-            self.coordinate_transformation_mode = 'align_corners'
-
-        if not ('nearest_mode' in attrs):
-            self.nearest_mode = 'round_prefer_floor'
-        else:
-            self.nearest_mode = attrs['nearest_mode']
-
-        if not ('cube_coeff' in attrs):
-            self.cube_coeff = -0.75
-        else:
-            self.cube_coeff = attrs['cube_coeff']
-
-        if not ('antialias' in attrs):
-            self.antialias = False
-        else:
-            self.antialias = attrs['antialias']
+        self.pads_begin = attrs.get('pads_begin', [0])
+        self.pads_end = attrs.get('pads_end', [0])
+        self.coordinate_transformation_mode = attrs.get('coordinate_transformation_mode', 'half_pixel')
+        self.nearest_mode = attrs.get('nearest_mode', 'round_prefer_floor')
+        self.cube_coeff = attrs.get('cube_coeff', -0.75)
+        self.antialias = attrs.get('antialias', False)
 
         self.shape_calculation_mode = {
             'sizes': ShapeCalculationMode.SIZES,
@@ -253,6 +227,7 @@ class InterpolateCalculation:
         }[attrs['shape_calculation_mode']]
 
         self.get_original_coordinate = self.get_coordinate_transformation_mode()
+        self.get_nearest_pixel = GetNearestPixel(self.nearest_mode)
 
 
     def get_coordinate_transformation_mode(self):
@@ -288,7 +263,7 @@ class InterpolateCalculation:
         self.axes = np.array(axes).astype(np.int64)
 
         self.output_shape = self.shape_infer(input_data, target_spatial_shape, scales)
-        padded_data = np.pad(input_data, self.pads)
+        padded_data = np.pad(input_data, self.pads, 'constant')
 
         if self.shape_calculation_mode == ShapeCalculationMode.SIZES:
             num_of_axes = len(self.axes)
@@ -403,8 +378,8 @@ class InterpolateCalculation:
         output_width = self.output_shape[1] if rank == 2 else self.output_shape[3]
         input_height = self.input_shape[0] if rank == 2 else self.input_shape[2]
         input_width = self.input_shape[1] if rank == 2 else self.input_shape[3]
-        height_scale = self.scales[0] if rank == 2 else self.scales[2]
-        width_scale = self.scales[1] if rank == 2 else self.scales[3]
+        height_scale = self.scales[0]
+        width_scale = self.scales[1]
         batch_size = 1 if rank == 2 else self.input_shape[0]
         num_channels = 1 if rank == 2 else self.input_shape[1]
 
@@ -462,11 +437,6 @@ class InterpolateCalculation:
         return np.reshape(result, self.output_shape)
 
     def nearest_interpolation(self, input_data):
-        if not ('nearest_mode' in self.attrs):
-            self.attrs['nearest_mode'] = 'floor'
-
-        self.get_nearest_pixel = GetNearestPixel(self.attrs['nearest_mode'])
-
         result = np.zeros(self.output_shape)
 
         num_of_axes = len(self.axes)
@@ -474,7 +444,7 @@ class InterpolateCalculation:
             input_coords = np.array(coordinates, dtype=np.int64)
             for i, axis in enumerate(self.axes):
                 in_coord = self.get_original_coordinate(coordinates[axis], self.scales[i], self.output_shape[axis], self.input_shape[axis])
-                nearest_pixel = self.get_nearest_pixel(in_coord, self.scales[axis] < 1)
+                nearest_pixel = self.get_nearest_pixel(in_coord, self.scales[i] < 1)
                 input_coords[axis] = max(0, min(nearest_pixel, self.input_shape[axis] - 1))
             result[coordinates] = input_data[tuple(input_coords)]
 
