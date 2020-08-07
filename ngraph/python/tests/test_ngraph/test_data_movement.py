@@ -18,6 +18,7 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_35926, xfail_issue_34323
 
 
 def test_reverse_sequence():
@@ -165,6 +166,7 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_35926
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
@@ -189,6 +191,7 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_select():
     cond = [[False, False], [True, False], [True, True]]
     then_node = [[-1, 0], [1, 2], [3, 4]]
