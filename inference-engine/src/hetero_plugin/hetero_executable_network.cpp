@@ -5,7 +5,7 @@
 #include "ie_metric_helpers.hpp"
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "hetero_graph_splitter.hpp"
 #include "hetero_itt.hpp"
 #include "xml_parse_utils.h"

@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <ie_ishape_infer_extension.hpp>
-
-#include <description_buffer.hpp>
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <description_buffer.hpp>
 #include "caseless.hpp"
+
+#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace InferenceEngine {
 namespace ShapeInfer {

@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "cnn_network_impl.hpp"
-#include <ngraph/attribute_visitor.hpp>
+#include <ngraph/function.hpp>
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 namespace details {

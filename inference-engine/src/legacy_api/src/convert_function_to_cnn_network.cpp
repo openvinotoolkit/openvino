@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_function_to_cnn_network.hpp"
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -37,16 +35,16 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "ie_cnn_layer_builder_ngraph.h"
 #include "caseless.hpp"
-
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
+#include "legacy/convert_function_to_cnn_network.hpp"
 #include "ie_legacy_itt.hpp"
+#include "ie_cnn_layer_builder_ngraph.h"
 
 namespace InferenceEngine {
 namespace details {

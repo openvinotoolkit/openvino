@@ -4,7 +4,7 @@
 
 #include "mkldnn_activation_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <algorithm>
 #include <string>
 #include <mkldnn_extension_utils.h>
