@@ -40,4 +40,3 @@ def test_swish_props_without_beta():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
-
