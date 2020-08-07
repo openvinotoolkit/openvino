@@ -5,6 +5,7 @@ try:
     from ngraph.impl.op import Parameter
     from ngraph.impl import Function, Shape, Type
     ngraph_available=True
+    print("ngraph")
 except:
     ngraph_available=False
 
@@ -13,6 +14,7 @@ import pytest
 
 if not ngraph_available:
     pytest.skip("NGraph is not installed, skip", allow_module_level=True)
+
 
 def test_CreateIENetworkFromNGraph():
     element_type = Type.f32
@@ -24,6 +26,7 @@ def test_CreateIENetworkFromNGraph():
     assert cnnNetwork != None
     assert ng.function_from_cnn(cnnNetwork) != None
     assert len(cnnNetwork.layers) == 2
+
 
 def test_GetIENetworkFromNGraph():
     element_type = Type.f32
