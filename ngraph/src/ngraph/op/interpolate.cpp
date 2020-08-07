@@ -455,8 +455,8 @@ namespace
 
         Shape out_shape{out_shape_vector};
 
-        out->set_shape(out_shape);
         out->set_element_type(args[0]->get_element_type());
+        out->set_shape(out_shape);
 
         std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}), T{});
 
