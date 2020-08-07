@@ -114,7 +114,14 @@ namespace
         {
             if (arg_shape_vec[i].is_dynamic())
             {
-                result_shape[i] = Dimension::dynamic();
+                if (target_shape[i] == 1)
+                {
+                    result_shape[i] = Dimension::dynamic();
+                }
+                else
+                {
+                    result_shape[i] = target_shape[i];
+                }
                 continue;
             }
             const size_t arg_shape_dim = arg_shape_vec[i].get_length();

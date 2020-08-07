@@ -1065,7 +1065,8 @@ TEST(type_prop, broadcast_v3_output_rank_deduced_from_arg)
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
-    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), 8, 6, 4}));
 }
 
 TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
@@ -1077,12 +1078,8 @@ TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 5);
-    ASSERT_TRUE(
-        broadcast_v3->get_output_partial_shape(0).same_scheme(PartialShape{8,
-                                                                           Dimension::dynamic(),
-                                                                           Dimension::dynamic(),
-                                                                           Dimension::dynamic(),
-                                                                           Dimension::dynamic()}));
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(
+        PartialShape{8, 6, Dimension::dynamic(), 5, Dimension::dynamic()}));
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_dynamic_input)
@@ -1166,23 +1163,21 @@ TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
     auto bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 16, 50, Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 16, 50, 50}));
 
     data = make_shared<op::Parameter>(element::f32,
                                       PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()});
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, Dimension::dynamic(), 50, Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 50, 50}));
 
     data = make_shared<op::Parameter>(element::f32,
                                       PartialShape{16, Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, 16, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 16, 50, 50}));
 
     data = make_shared<op::Parameter>(
         element::f32,
@@ -1190,6 +1185,5 @@ TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 50, 50}));
 }
