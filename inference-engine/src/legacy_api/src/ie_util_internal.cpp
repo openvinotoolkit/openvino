@@ -17,10 +17,8 @@
 #include <utility>
 #include <vector>
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
-#include "details/os/os_filesystem.hpp"
-#include "file_utils.h"
 #include "graph_tools.hpp"
 #include "net_pass.h"
 #include "precision_utils.h"

@@ -62,6 +62,10 @@ using namespace ngraph;
 // If MatcherPass register more than one node make sure that this nodes are registered in
 // topological order.
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GraphRewrite, "ngraph::pass::GraphRewrite", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0);
+
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");
@@ -248,9 +252,11 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
 void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
                                      const graph_rewrite_callback& callback)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     // TODO: before deprecate this function, by default expect the
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(

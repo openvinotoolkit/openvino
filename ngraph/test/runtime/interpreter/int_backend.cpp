@@ -72,37 +72,6 @@ bool runtime::interpreter::INTBackend::is_supported(const Node& node) const
     return m_unsupported_op_name_list.find(node.description()) == m_unsupported_op_name_list.end();
 }
 
-std::shared_ptr<runtime::Executable> runtime::interpreter::INTBackend::load(istream& in)
-{
-    shared_ptr<Executable> exec;
-    cpio::Reader reader(in);
-    auto file_info = reader.get_file_info();
-    string save_info;
-    for (const cpio::FileInfo& info : file_info)
-    {
-        if (info.get_name() == "save_info")
-        {
-            vector<char> buffer = reader.read(info);
-            save_info = string(buffer.data(), buffer.size());
-            break;
-        }
-    }
-    if (save_info == "INTERPRETER Save File 1.0")
-    {
-        for (const cpio::FileInfo& info : file_info)
-        {
-            if (info.get_name() == "model")
-            {
-                vector<char> buffer = reader.read(info);
-                string model_string = string(buffer.data(), buffer.size());
-                exec = shared_ptr<INTExecutable>(new INTExecutable(model_string));
-                break;
-            }
-        }
-    }
-    return exec;
-}
-
 bool runtime::interpreter::INTBackend::set_config(const map<string, string>& config, string& error)
 {
     bool rc = false;

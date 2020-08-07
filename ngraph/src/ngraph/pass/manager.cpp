@@ -66,6 +66,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             pass->set_callback(m_transformation_callback);
         }
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         if (auto module_pass = dynamic_pointer_cast<ModulePass>(pass))
         {
             if (auto vt_pass = dynamic_pointer_cast<pass::VisualizeTree>(module_pass))
@@ -138,6 +139,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             }
             function_changed = call_graph_pass->run_on_call_graph(func->get_ordered_ops());
         }
+        NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (m_visualize)
         {

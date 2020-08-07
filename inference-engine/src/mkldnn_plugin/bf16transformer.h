@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 #include <set>
 #include "inference_engine.hpp"

@@ -38,7 +38,7 @@
 #include "exec_graph_info.hpp"
 
 #include "ie_cnn_layer_builder_ngraph.h"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
