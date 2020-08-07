@@ -36,7 +36,6 @@ const auto ScatterNDUpdateCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-// open after ops support in ngraph merged
-// INSTANTIATE_TEST_CASE_P(ScatterNDUpdate, ScatterNDUpdateLayerTest, ScatterNDUpdateCases, ScatterNDUpdateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(ScatterNDUpdate, ScatterNDUpdateLayerTest, ScatterNDUpdateCases, ScatterNDUpdateLayerTest::getTestCaseName);
 
 }  // namespace
