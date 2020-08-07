@@ -119,7 +119,7 @@ class Slice(Op):
     op = 'Slice'
     enabled = False
 
-    def __init__(self, graph: Graph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict = None):
         super().__init__(graph, {
             'type': None,
             'op': 'Slice',
