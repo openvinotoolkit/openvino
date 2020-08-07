@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
 #include "graph_tools.hpp"
 #include "net_pass.h"
