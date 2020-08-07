@@ -165,4 +165,3 @@ def swish(
     else:
         inputs = as_nodes(data, beta)
     return _get_node_factory_opset4().create("Swish", inputs, {})
-
