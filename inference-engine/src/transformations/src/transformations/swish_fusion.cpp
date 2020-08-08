@@ -42,11 +42,12 @@ bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant)
 }
 
 ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
+    // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(input);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -61,10 +62,11 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
 
 ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
+    // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
     auto mul_beta = std::make_shared<ngraph::opset4::Multiply>(input, beta);
@@ -80,7 +82,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         Output<Node> new_beta;
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
-                new_beta = op::v0::Constant::create(beta_input.get_element_type(), Shape{}, {beta_constant->cast_vector<float>()[0]});
+                new_beta = opset4::Constant::create(beta_input.get_element_type(), Shape{}, {beta_constant->cast_vector<float>()[0]});
             } else {
                 return false;
             }
@@ -107,6 +109,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
 }
 
 ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
+    // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, beta);
@@ -145,6 +148,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
 }
 
 ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
+    // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto neg = std::make_shared<ngraph::opset4::Negative>(input);
     auto exp = std::make_shared<ngraph::opset4::Exp>(neg);

@@ -60,12 +60,13 @@ void op::v4::Swish::validate_and_infer_types()
                               input_value(0).get_element_type(),
                               " and ",
                               input_value(1).get_element_type());
-        if (input_value(1).get_partial_shape().is_static())
+        if (get_input_partial_shape(1).rank().is_static())
         {
+            auto beta_rank = get_input_partial_shape(1).rank().get_length();
             NODE_VALIDATION_CHECK(this,
-                                  input_value(1).get_shape().size() == 0,
-                                  "Swish input with beta must be scalar but it has shape: ",
-                                  input_value(1).get_shape());
+                                  beta_rank == 0,
+                                  "Swish input with beta must be scalar but it has rank: ",
+                                  beta_rank);
         }
     }
     set_output_size(1);
@@ -74,16 +75,14 @@ void op::v4::Swish::validate_and_infer_types()
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    Output<Node> beta;
     if (new_args.size() == 1)
     {
-        beta = op::v0::Constant::create(new_args.at(0).get_element_type(), Shape{}, {1.0});
+        return make_shared<op::v4::Swish>(new_args.at(0));
     }
     else
     {
-        beta = new_args.at(1);
+        return make_shared<op::v4::Swish>(new_args.at(0), new_args.at(1));
     }
-    return make_shared<op::v4::Swish>(new_args.at(0), beta);
 }
 
 namespace
