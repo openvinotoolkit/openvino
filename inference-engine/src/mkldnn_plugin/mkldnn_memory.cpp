@@ -1073,7 +1073,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             data_type = mkldnn::memory::data_type::bf16;
             break;
         default:
-            THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!";
+            THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision: " << tDesc.getPrecision();
     }
 
     mkldnn::memory::format mkldnnFormat = memory::format::format_undef;
