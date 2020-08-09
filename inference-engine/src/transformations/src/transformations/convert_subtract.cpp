@@ -20,6 +20,19 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
             return false;
         }
 
+        std::shared_ptr<Node> child = sub->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        if ((sub->get_output_size() == 1ul) && (is_type<opset1::Convolution>(child) || is_type<opset1::GroupConvolution>(child))) {
+            const auto input1Type = sub->input(0).get_element_type();
+            const auto input2Type = sub->input(1).get_element_type();
+            if (((input1Type == element::u8) && (input2Type == element::u8)) ||
+                ((input1Type == element::i8) && (input2Type == element::i8))) {
+                // we should not execute transformation by reasons:
+                // 1. LPT asymmetric quantization pattern has to be keep as is
+                // 2. Subtract operation has unsigned/signed integer value which is not safe to multiply by -1
+                return false;
+            }
+        }
+
         auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
                                                               opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
 
@@ -28,6 +41,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         add->set_friendly_name(sub->get_friendly_name());
         ngraph::copy_runtime_info(sub, {neg, add});
         ngraph::replace_node(sub, add);
+
         return true;
     };
 

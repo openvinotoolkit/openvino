@@ -35,6 +35,7 @@ public:
     // This pass finally converts single Multiply and Add operations to ScaleShift or Power operation
     ConvertMulOrAddFinally() : GraphRewrite() {
         convert_mul_or_add_finally<ngraph::opset1::Add>();
+        convert_mul_or_add_finally<ngraph::opset1::Subtract>();
         convert_mul_or_add_finally<ngraph::opset1::Multiply>();
     }
 
@@ -52,6 +53,8 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
         et = ELTWISE_TYPE::Prod;
     } else if (std::is_same<T, ngraph::opset1::Add>()) {
         et = ELTWISE_TYPE::Sum;
+    } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
+        et = ELTWISE_TYPE::Sub;
     } else {
         return false;
     }
@@ -66,7 +69,7 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
 template <typename T>
 ngraph::graph_rewrite_callback get_callback() {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
-        static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Multiply>(),
+        static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Subtract>() || std::is_same<T, ngraph::opset1::Multiply>(),
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
         auto lin_op = std::dynamic_pointer_cast<T> (m.get_match_root());

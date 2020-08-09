@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "elementwise_args.hpp"
+#include "binary_elementwise_arithmetic.hpp"
 
 using namespace ngraph;
 
@@ -31,7 +32,8 @@ std::tuple<element::Type, PartialShape>
     {
         for (size_t i = 1; i < node->get_input_size(); ++i)
         {
-			if (!multi_type) {
+			// if (!multi_type) {
+			if (!ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global) {
 				const auto input_element_type = node->get_input_element_type(i);
 				NODE_VALIDATION_CHECK(
 					node,
