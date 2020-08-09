@@ -22,7 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Convert::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Convert, "Convert", 0);
 
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg})
