@@ -73,7 +73,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(mul_beta);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
@@ -105,7 +105,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidWithBetaFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
 
 ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
@@ -119,7 +119,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -144,7 +144,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithBetaFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
 
 ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
@@ -156,7 +156,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -179,5 +179,5 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithoutBetaFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
