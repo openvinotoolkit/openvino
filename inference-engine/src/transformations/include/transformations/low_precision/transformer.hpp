@@ -43,9 +43,7 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params) {
-        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = typeid(Operation).name();
-
+        const std::string typeName = getType<Operation>();
         const auto it = branchSpecificTransformations.find(typeName);
         if (it != branchSpecificTransformations.end()) {
             branchSpecificTransformations.erase(it);
@@ -61,9 +59,7 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& add(const LayerTransformation::Params& params) {
-        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = typeid(Operation).name();
-
+        const std::string typeName = getType<Operation>();
         const auto it = transformations.find(typeName);
         if (it != transformations.end()) {
             transformations.erase(it);
@@ -79,9 +75,7 @@ public:
      */
     template <class Transformation, class Operation>
     LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params) {
-        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = typeid(Operation).name();
-
+        const std::string typeName = getType<Operation>();
         const auto it = cleanupTransformations.find(typeName);
         if (it == cleanupTransformations.end()) {
             cleanupTransformations.emplace(typeName, std::vector<LayerTransformationPtr>{ std::make_shared<Transformation>(params) });
@@ -91,14 +85,29 @@ public:
         return *this;
     }
 
+    /**
+     * Add cleanup transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation>
+    LowPrecisionTransformations& addStandaloneCleanup(const LayerTransformation::Params& params) {
+        const std::string typeName = typeid(Transformation).name();
+        const auto it = standaloneCleanupTransformations.find(typeName);
+        if (it != standaloneCleanupTransformations.end()) {
+            standaloneCleanupTransformations.erase(it);
+        }
+
+        standaloneCleanupTransformations.emplace(typeName, std::make_shared<Transformation>(params));
+        return *this;
+    }
+
     template <class Operation>
     static std::string getType() {
-        // return typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        return typeid(Operation).name();
+        return Operation::get_type_info_static().name;
     }
 
     static std::string getType(const Node& operation) {
-        return typeid(operation).name();
+        return operation.get_type_name();
     }
 
     LayerTransformationPtr find(const std::string& transformationName) const;
@@ -132,7 +141,7 @@ public:
     std::map<std::string, LayerTransformationPtr> branchSpecificTransformations;
     std::map<std::string, LayerTransformationPtr> transformations;
     std::map<std::string, std::vector<LayerTransformationPtr>> cleanupTransformations;
-    std::map<std::string, LayerTransformationPtr> cleanupTransformations2;
+    std::map<std::string, LayerTransformationPtr> standaloneCleanupTransformations;
 
 private:
     static void setParamsManager(IParamsManager* paramsManager, std::map<std::string, LayerTransformationPtr>& transformations) noexcept;

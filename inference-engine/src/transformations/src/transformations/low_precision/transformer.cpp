@@ -41,8 +41,10 @@
 #include "transformations/low_precision/relu.hpp"
 #include "transformations/low_precision/squeeze.hpp"
 #include "transformations/low_precision/subtract.hpp"
+#include "transformations/low_precision/split.hpp"
 #include "transformations/low_precision/transpose.hpp"
 #include "transformations/low_precision/unsqueeze.hpp"
+#include "transformations/low_precision/variadic_split.hpp"
 
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
@@ -207,18 +209,18 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
+        add<SplitTransformation, opset1::Split>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
+        add<VariadicSplitTransformation, opset1::VariadicSplit>(params).
 
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params).
-        addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params);
-        // addCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params);
+        addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
+        // addCleanup<ConvertTransformation, opset1::Convert>(params);
 
-    // TODO: fix it. workaround for multiple layer matching
-    transformer.cleanupTransformations2.emplace(typeid(ngraph::op::TypeRelaxed<opset1::Multiply>).name(),
-            std::make_shared<SubtractMultiplyToMultiplyAddTransformation>(params) );
+        addStandaloneCleanup<SubtractMultiplyToMultiplyAddTransformation>(params);
 
     return transformer;
 }
@@ -318,15 +320,18 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     }
 
     {
-        // Step #4: Sub Mul to Mul Add transformations execution
-        GraphRewrite pass;
-        registerAllMatchers(transformations.cleanupTransformations2, pass, context);
-        pass.run_on_function(network);
+        // Step #4: standalone cleanup transformations execution
+        for (const auto it : transformations.standaloneCleanupTransformations) {
+            GraphRewrite pass;
+            it.second->registerMatcherIn(pass, context);
+            pass.run_on_function(network);
+        }
     }
 }
 
 std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
-    const LayerTransformationPtr transformation = transformations.find(LowPrecisionTransformations::getType(op));
+    const std::string operantionType = LowPrecisionTransformations::getType(op);
+    const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return std::vector<element::Type>();
     }
@@ -335,7 +340,6 @@ std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(c
 
 bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
-
     const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return false;

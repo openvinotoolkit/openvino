@@ -31,7 +31,7 @@ public:
     template <class T, class Operation>
     ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
         // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = typeid(Operation).name();
+        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
 
         const auto it = transformations.find(typeName);
         if (it != transformations.end()) {
