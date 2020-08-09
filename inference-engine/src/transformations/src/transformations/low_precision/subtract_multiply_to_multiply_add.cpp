@@ -73,7 +73,6 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
 
-
     multiply = separateInStandaloneBranch(multiply);
     dequantization = get(multiply);
     if (dequantization.empty()) {
@@ -86,32 +85,20 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         std::dynamic_pointer_cast<Node>(dequantization.multiply) :
         dequantization.subtract;
 
-    Shape constShape = dequantization.multiply != nullptr ?
-        dequantization.multiply->get_input_node_shared_ptr(1)->get_output_shape(0) :
-        dequantization.subtract->get_input_node_shared_ptr(1)->get_output_shape(0);
+    const Shape shape = dequantization.multiply->get_input_node_ptr(0)->get_output_shape(NetworkHelper::getInputIndex(
+        dequantization.multiply->get_input_node_shared_ptr(0),
+        dequantization.multiply));
+    Shape constShape = std::vector<size_t>(shape.size(), 1ul);
+    constShape[1] = shape[1];
 
-    size_t constShapeVolume = 1ul;
-    if (!constShape.empty()) {
-        for (size_t i = 0; i < constShape.size(); ++i) {
-            constShapeVolume *= constShape[i];
-        }
-    }
-
-    const bool convertPowerToScaleShift = true;
-    if ((constShapeVolume == 1ul) && convertPowerToScaleShift) {
-        const Shape shape = dequantization.multiply->get_input_node_ptr(0)->get_output_shape(NetworkHelper::getInputIndex(
-            dequantization.multiply->get_input_node_shared_ptr(0),
-            dequantization.multiply));
-        constShape = std::vector<size_t>(shape.size(), 1ul);
-        constShape[1] = shape[1];
-    }
+    const size_t constShapeVolume = shape_size(constShape);
 
     {
         std::shared_ptr<Node> multiplyConstant = dequantization.multiply != nullptr ?
             dequantization.multiply->get_input_node_shared_ptr(1) :
             std::make_shared<opset1::Constant>(precisionAfterDequantization, constShape, std::vector<float>(constShapeVolume, 1));
 
-        if (convertPowerToScaleShift) {
+        {
             multiplyConstant = fold<opset1::Broadcast>(
                 multiplyConstant,
                 std::make_shared<opset1::Constant>(element::i32, Shape{ constShape.size() }, constShape));
@@ -122,6 +109,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
                 ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
+
             NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew), precisionAfterDequantization);
 
         } else {
@@ -135,7 +123,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         lastNewPrecision = precisionAfterDequantization;
     }
 
-    if ((dequantization.subtract != nullptr) || (convertPowerToScaleShift && (dequantization.subtract == nullptr))) {
+    {
         std::shared_ptr<Node> originalSubtractConstant = dequantization.subtract != nullptr ?
             dequantization.subtract->get_input_node_shared_ptr(1) :
             std::make_shared<opset1::Constant>(precisionAfterDequantization, constShape, std::vector<float>(constShapeVolume, 0));
@@ -146,7 +134,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 std::make_shared<opset1::Constant>(precisionAfterDequantization, Shape{}, std::vector<float>{ -1.f })),
             fold<opset1::Convert>(dequantization.multiply->get_input_node_shared_ptr(1), precisionAfterDequantization));
 
-        if (convertPowerToScaleShift) {
+        {
             subtractConstant = fold<opset1::Broadcast>(
                 subtractConstant,
                 std::make_shared<opset1::Constant>(element::i32, Shape{ constShape.size() }, constShape));
@@ -179,12 +167,19 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     FakeQuantizeDequantization dequantization = get(op);
-
     if (is_type<opset1::FakeQuantize>(dequantization.data)) {
         return false;
     }
 
-    return op->get_output_shape(0).size() >= 4;
+    // TODO: check if Convert & Subtract & Multiply are LPT dequantization operations
+
+    if (op->get_output_shape(0).size() < 4) {
+        return false;
+    }
+
+    // TODO: check if dequantization operations have appropriate Shape for ScaleShift
+
+    return true;
 }
 
 } // namespace low_precision
