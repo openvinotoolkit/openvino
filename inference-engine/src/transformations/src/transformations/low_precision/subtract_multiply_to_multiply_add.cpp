@@ -164,19 +164,38 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     FakeQuantizeDequantization dequantization = get(op);
-    if (is_type<opset1::FakeQuantize>(dequantization.data)) {
+    if (dequantization.empty() || is_type<opset1::FakeQuantize>(dequantization.data)) {
         return false;
     }
 
     // TODO: check if Convert & Subtract & Multiply are LPT dequantization operations
 
-    if (op->get_output_shape(0).size() < 4) {
+    if (op->get_output_shape(0).size() < 4ul) {
         return false;
     }
 
     // TODO: check if dequantization operations have appropriate Shape for ScaleShift
+    auto isSupportedByScaleShift = [](const std::shared_ptr<Node> eltwise) -> bool {
+        const ngraph::PartialShape constPartialShape = eltwise->get_input_partial_shape(1);
+        if (constPartialShape.is_dynamic()) {
+            return false;
+        }
 
-    return true;
+        const ngraph::Shape constShape = constPartialShape.to_shape();
+        if ((constShape.size() == 0ul) || (constShape.size() == 1ul)) {
+            return true;
+        }
+
+        if (constShape.size() < 4ul) {
+            return false;
+        }
+
+        return shape_size(constShape) == constShape[1];
+    };
+
+    return
+        ((dequantization.subtract == nullptr) || isSupportedByScaleShift(dequantization.subtract)) &&
+        isSupportedByScaleShift(dequantization.multiply);
 }
 
 } // namespace low_precision
