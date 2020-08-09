@@ -98,11 +98,9 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
             dequantization.multiply->get_input_node_shared_ptr(1) :
             std::make_shared<opset1::Constant>(precisionAfterDequantization, constShape, std::vector<float>(constShapeVolume, 1));
 
-        {
-            multiplyConstant = fold<opset1::Broadcast>(
-                multiplyConstant,
-                std::make_shared<opset1::Constant>(element::i32, Shape{ constShape.size() }, constShape));
-        }
+        multiplyConstant = fold<opset1::Broadcast>(
+            multiplyConstant,
+            std::make_shared<opset1::Constant>(element::i32, Shape{ constShape.size() }, constShape));
 
         if (lastNewPrecision != precisionAfterDequantization) {
             lastNew = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
@@ -111,7 +109,6 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
 
             NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew), precisionAfterDequantization);
-
         } else {
             lastNew = std::make_shared<opset1::Multiply>(lastNew, multiplyConstant);
         }
