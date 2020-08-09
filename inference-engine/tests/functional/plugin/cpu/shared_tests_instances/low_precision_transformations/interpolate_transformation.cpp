@@ -23,22 +23,22 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 };
 
 const std::vector<ngraph::op::InterpolateAttrs> interpAttrs = {
-    {
-        ngraph::AxisSet{2, 3},
-        "nearest",
-        false,
-        false,
-        {0},
-        {0}
-    },
-    {
-        ngraph::AxisSet{2, 3},
-        "nearest",
-        false,
-        true,
-        {0},
-        {0}
-    },
+    // {
+    //    ngraph::AxisSet{2, 3},
+    //    "nearest",
+    //    false,
+    //    false,
+    //    {0},
+    //    {0}
+    // },
+    // {
+    //    ngraph::AxisSet{2, 3},
+    //    "nearest",
+    //    false,
+    //    true,
+    //    {0},
+    //    {0}
+    // },
 };
 
 const auto combineValues = ::testing::Combine(
