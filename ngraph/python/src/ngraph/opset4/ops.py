@@ -160,8 +160,6 @@ def swish(
     :param data: Tensor with input data floating point type.
     :return: The new node which performs Swish
     """
-    if beta is not None:
-        inputs = as_nodes(data)
-    else:
-        inputs = as_nodes(data, beta)
-    return _get_node_factory_opset4().create("Swish", inputs, {})
+    if beta is None:
+        beta = make_constant_node(1.0, np.float32)
+    return _get_node_factory_opset4().create("Swish", as_nodes(inputs, beta), {})
