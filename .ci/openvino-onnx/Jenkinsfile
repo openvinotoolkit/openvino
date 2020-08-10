@@ -68,10 +68,8 @@ def buildDockerImage() {
 
 def runTests(String imageTAG) {
     sh """
-        docker run -it --rm --privileged \
-                --name ${DOCKER_CONTAINER_NAME} \
-                --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
-                ${imageTAG} tail -f /dev/null
+        docker run --rm --name ${DOCKER_CONTAINER_NAME} \
+        --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx ${imageTAG}
     """
 }
 
@@ -120,7 +118,6 @@ pipeline {
                 deleteDir()
                 sh """
                     docker image prune -f
-                    docker rm -f ${DOCKER_CONTAINER_NAME}
                 """
             }
         }
