@@ -12,6 +12,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/itt.hpp"
 #include "transformations/mish_fusion.hpp"
+#include "transformations/softplus_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>
