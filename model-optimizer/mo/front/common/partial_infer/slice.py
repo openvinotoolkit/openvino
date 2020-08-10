@@ -121,48 +121,6 @@ def convert_negative_indices(indices: np.array, shape: np.array):
             indices[ind] += shape[ind]
 
 
-def caffe_slice_infer(node):
-    """
-    Slices an input layer to multiple output layers along a given dimension
-    with given slice indices
-    Parameters
-    ----------
-    node
-
-    """
-    top_shape = node.in_node(0).shape
-    slice_axis = node.axis
-    bottom_slice_axis = node.in_node(0).shape[node.axis]
-    if len(node.slice_point) == 0:
-        new_shape = np.array(top_shape, dtype=np.int64)
-        new_shape[slice_axis] = bottom_slice_axis / len(node.out_nodes())
-        for i in range(0, len(node.out_nodes())):
-            node.out_node(i).shape = new_shape
-        return
-
-    assert (len(node.slice_point) == len(node.out_nodes()) - 1)
-    prev = 0
-    slices = []
-    for slice_point in node.slice_point:
-        if slice_point <= prev:
-            raise Error(
-                'Check failed for the layer {}. Slice points should be ordered in increasing manner. '.format(node.id) +
-                'Current slice point {} is not greater than the previous slice point {}. '.format(slice_point, prev) +
-                'Please verify your model correctness')
-        slices.append(slice_point - prev)
-        prev = slice_point
-
-    slices.append(bottom_slice_axis - prev)
-    if sum(slices) != bottom_slice_axis:
-        raise Error(
-            'Check failed for the layer {}. Sum of slices points {} does not equal '.format(node.id, sum(slices)) +
-            'to the value of input blob shape by the given slice axis {}'.format(bottom_slice_axis))
-    for i in range(len(node.out_nodes())):
-        new_shape = np.array(top_shape, dtype=np.int64)
-        new_shape[slice_axis] = slices[i]
-        node.out_node(i).shape = new_shape
-
-
 def mxnet_slice_axis_infer(node):
     in_shape = node.in_node(0).shape
     node.axis = get_canonical_axis_index(in_shape, node.axis)

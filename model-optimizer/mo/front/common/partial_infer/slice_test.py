@@ -18,8 +18,7 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.slice import caffe_slice_infer, tf_strided_slice_infer, \
-    convert_negative_indices, mxnet_slice_axis_infer
+from mo.front.common.partial_infer.slice import tf_strided_slice_infer, convert_negative_indices, mxnet_slice_axis_infer
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
@@ -48,133 +47,6 @@ nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
 
 tf_slice_edges = [('tf_slice_input', 'tf_slice'), ('tf_slice_begin', 'tf_slice'), ('tf_slice_size', 'tf_slice'),
                   ('tf_slice', 'tf_slice_output')]
-
-
-class TestSSliceInfer(unittest.TestCase):
-    def test_slice_infer_ideal(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'Slice_node'),
-                             ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3'),
-                             ('node_2', 'op_output'),
-                             ('node_3', 'op_output_1')
-                             ],
-                            {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'shape': None},
-                             'node_3': {'shape': None},
-                             'Slice_node': {'axis': 1, 'slice_point': np.array([256])}
-                             })
-
-        slice_node = Node(graph, 'Slice_node')
-
-        caffe_slice_infer(slice_node)
-        exp_shape1 = np.array([1, 256, 56, 56])
-        exp_shape2 = np.array([1, 32, 56, 56])
-        res_shape1 = graph.node['node_2']['shape']
-        res_shape2 = graph.node['node_3']['shape']
-
-        for i in range(0, len(exp_shape1)):
-            self.assertEqual(exp_shape1[i], res_shape1[i])
-
-        for i in range(0, len(exp_shape2)):
-            self.assertEqual(exp_shape2[i], res_shape2[i])
-
-    def test_slice_infer_no_slice_point(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'Slice_node'),
-                             ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3'),
-                             ('node_2', 'op_output'),
-                             ('node_3', 'op_output_1')
-                             ],
-                            {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'shape': None},
-                             'node_3': {'shape': None},
-                             'Slice_node': {'axis': 1, 'slice_point': []}
-                             })
-
-        slice_node = Node(graph, 'Slice_node')
-
-        caffe_slice_infer(slice_node)
-        exp_shape = np.array([1, 144, 56, 56])
-        res_shape1 = graph.node['node_2']['shape']
-        res_shape2 = graph.node['node_3']['shape']
-
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape1[i])
-
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape2[i])
-
-    def test_slice_infer_3_outs_no_slice_point(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'Slice_node'),
-                             ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3'),
-                             ('Slice_node', 'node_4'),
-                             ('node_2', 'op_output'),
-                             ('node_3', 'op_output_1'),
-                             ('node_2', 'op_output_2')
-                             ],
-                            {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'shape': None},
-                             'node_3': {'shape': None},
-                             'node_4': {'shape': None},
-                             'Slice_node': {'axis': 1, 'slice_point': []}
-                             })
-
-        slice_node = Node(graph, 'Slice_node')
-
-        caffe_slice_infer(slice_node)
-        exp_shape = np.array([1, 96, 56, 56])
-        res_shape1 = graph.node['node_2']['shape']
-        res_shape2 = graph.node['node_3']['shape']
-        res_shape3 = graph.node['node_4']['shape']
-
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape1[i])
-
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape2[i])
-
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape3[i])
-
-    def test_slice_infer_3_outs(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'Slice_node'),
-                             ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3'),
-                             ('Slice_node', 'node_4'),
-                             ('node_2', 'op_output'),
-                             ('node_3', 'op_output_1'),
-                             ('node_2', 'op_output_2')
-                             ],
-                            {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'shape': None},
-                             'node_3': {'shape': None},
-                             'node_4': {'shape': None},
-                             'Slice_node': {'axis': 1, 'slice_point': [100, 150]}
-                             })
-
-        slice_node = Node(graph, 'Slice_node')
-
-        caffe_slice_infer(slice_node)
-        exp_shape1 = np.array([1, 100, 56, 56])
-        exp_shape2 = np.array([1, 50, 56, 56])
-        exp_shape3 = np.array([1, 138, 56, 56])
-        res_shape1 = graph.node['node_2']['shape']
-        res_shape2 = graph.node['node_3']['shape']
-        res_shape3 = graph.node['node_4']['shape']
-
-        for i in range(0, len(exp_shape1)):
-            self.assertEqual(exp_shape1[i], res_shape1[i])
-
-        for i in range(0, len(exp_shape2)):
-            self.assertEqual(exp_shape2[i], res_shape2[i])
-
-        for i in range(0, len(exp_shape3)):
-            self.assertEqual(exp_shape3[i], res_shape3[i])
 
 
 class TestTFStridedSliceInfer(unittest.TestCase):
