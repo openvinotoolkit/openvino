@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 DOCKER_HOME = "/openvino"
-DOCKER_CONTAINER_PREFIX = "jenkins_ngraph-onnx_ci"
-DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${BUILD_NUMBER}"
+DOCKER_CONTAINER_NAME="jenkins_ngraph-onnx_ci_${BUILD_NUMBER}"
 
 def getGitPrInfo(String project) {
     def gitPrInfo = [
@@ -60,18 +59,6 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
-def runDockerContainer(String imageID) {
-    CONTAINER_ID = sh (
-    script: """
-            docker run -id --privileged \
-                    --name ${DOCKER_CONTAINER_NAME} \
-                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
-                    ${imageID} tail -f /dev/null
-            """,
-    returnStdout: true
-    ).trim()
-}
-
 def buildDockerImage() {
     sh """
         docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
@@ -84,6 +71,18 @@ def buildDockerImage() {
             """,
             returnStdout: true
             ).trim()
+}
+
+def runDockerContainer(String imageID) {
+    CONTAINER_ID = sh (
+    script: """
+            docker run -id --privileged \
+                    --name ${DOCKER_CONTAINER_NAME} \
+                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
+                    ${imageID} tail -f /dev/null
+            """,
+    returnStdout: true
+    ).trim()
 }
 
 def runTests() {
