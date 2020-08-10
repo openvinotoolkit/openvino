@@ -16,9 +16,9 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "ngraph/frontend/onnx_import/default_opset.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"

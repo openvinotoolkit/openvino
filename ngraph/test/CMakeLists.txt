@@ -91,8 +91,10 @@ set(SRC
     tensor.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
+    type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
+    type_prop/binary_convolution.cpp
     type_prop/binary_elementwise.cpp
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
@@ -102,6 +104,7 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/ctc_loss.cpp
+    type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp

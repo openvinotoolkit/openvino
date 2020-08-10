@@ -14,10 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/tan.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/tan.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/tan.hpp"
@@ -83,5 +85,6 @@ namespace
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tan::evaluate");
     return evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

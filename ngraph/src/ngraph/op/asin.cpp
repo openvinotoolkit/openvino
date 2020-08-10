@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/asin.hpp"
 
 #include "ngraph/axis_set.hpp"
@@ -87,5 +89,6 @@ namespace
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Asin::evaluate");
     return evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

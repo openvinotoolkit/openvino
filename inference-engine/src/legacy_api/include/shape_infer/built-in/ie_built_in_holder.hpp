@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {

@@ -20,7 +20,7 @@
 #include <memory>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin_config.hpp"
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
