@@ -355,17 +355,23 @@ public:
                 }
 
                 // Add registered extensions to new plugin
-                for (const auto& ext : extensions) {
-                    plugin.AddExtension(ext);
-                }
+                allowNotImplemented([&](){
+                    for (const auto& ext : extensions) {
+                        plugin.AddExtension(ext);
+                    }
+                });
 
                 // configuring
                 {
-                    allowNotImplemented([&](){ plugin.SetConfig(desc.defaultConfig); });
+                    allowNotImplemented([&]() {
+                        plugin.SetConfig(desc.defaultConfig);
+                    });
 
-                    for (auto&& extensionLocation : desc.listOfExtentions) {
-                        plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
-                    }
+                    allowNotImplemented([&]() {
+                        for (auto&& extensionLocation : desc.listOfExtentions) {
+                            plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                        }
+                    });
                 }
 
                 plugins[deviceName] = plugin;
@@ -464,7 +470,9 @@ public:
         // set config for already created plugins
         for (auto& plugin : plugins) {
             if (deviceName.empty() || deviceName == plugin.first) {
-                allowNotImplemented([&](){ plugin.second.SetConfig(config); });
+                allowNotImplemented([&]() {
+                    plugin.second.SetConfig(config);
+                });
             }
         }
     }
