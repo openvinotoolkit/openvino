@@ -116,11 +116,15 @@ class CreateConstNodesReplacement(BackReplacementPattern):
 
 class RemoveConstToResult(BackReplacementPattern):
     """
-    Transformation looks for a sub-graph "Const->Result" and removes Result node.
-    Currently IE is unable to handle such graph so this transformation removes to work around this case.
+    Transformation looks for a constant sub-graph followed by Result operation.
+    If sub-graph is Const->data->Result -- then all three nodes are removed.
+    If there is more complex constant sub-graph -- then only Result node is removed.
+
+    Currently IE is unable to handle such graph so this transformation is a work around for such case.
     For instance, this case appears for Wide and Deep model.
     """
     enabled = True
+    force_clean_up = True
 
     @staticmethod
     def pattern():
@@ -171,7 +175,6 @@ class NormalizeTI(BackReplacementPattern):
         ti.input_port_map = [dict(unique_r) for unique_r in set([tuple(rec.items()) for rec in ti.input_port_map])]
         ti.output_port_map = [dict(unique_r) for unique_r in set([tuple(rec.items()) for rec in ti.output_port_map])]
         ti.back_edges = [dict(unique_rec) for unique_rec in set([tuple(rec.items()) for rec in ti.back_edges])]
-
 
     @staticmethod
     def external_nodes_normalization(ti):
