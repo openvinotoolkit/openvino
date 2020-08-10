@@ -189,6 +189,8 @@ struct format {
         g_is_os_zyx_osv16_isv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
         g_is_os_yx_osv16_isv16,
+        os_is_zyx_osv16_isv16,
+        g_os_is_zyx_osv16_isv16,        
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,

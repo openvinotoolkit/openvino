@@ -205,6 +205,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_is_zyx_isv16_osv16";
         case format::g_os_is_yx_osv16_isv4:
             return "g_os_is_yx_osv16_isv4";
+        case format::g_os_is_zyx_osv16_isv16:
+            return "g_os_is_zyx_osv16_isv16";
         case format::g_os_zyx_is_osv16_isv4:
             return "g_os_zyx_is_osv16_isv4";
         case format::g_os_zyx_is_osv16_isv16:

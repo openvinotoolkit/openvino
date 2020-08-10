@@ -459,6 +459,8 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (weights_layout.size.batch[0] % 16 == 0 || (weights_layout.size.batch[0] == 8 && conv->groups > 1)) &&
         conv->dilation == tensor(1))
         return true;
+    if ((input_layout.format == format::b_fs_zyx_fsv16) && (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8))
+        return true;
     return false;
 }
 
@@ -650,6 +652,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
             convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
+        } else if ((_optimization_attributes.b_fs_zyx_fsv16_network &&
+            convolution_b_fs_zyx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+            expected_format = cldnn::format::b_fs_zyx_fsv16;
         } else {
             expected_format = imad_case(node);
         }
