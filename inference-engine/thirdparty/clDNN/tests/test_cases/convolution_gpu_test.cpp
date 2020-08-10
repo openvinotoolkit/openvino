@@ -7132,11 +7132,11 @@ TEST_P(convolution_grouped_gpu, base) {
         input_lay = layout(data_types::u8, format::bfyx, input_size);
     }
     std::vector<uint8_t> input_flat(input_lay.get_linear_size());
-    for (size_t b = 0; b < batch_num; b++)
-        for (size_t f = 0; f < input_f; f++)
-            for (size_t z = 0; z < input_z; z++)
-                for (size_t y = 0; y < input_y; y++)
-                    for (size_t x = 0; x < input_x; x++) {
+    for (int b = 0; b < batch_num; b++)
+        for (int f = 0; f < input_f; f++)
+            for (int z = 0; z < input_z; z++)
+                for (int y = 0; y < input_y; y++)
+                    for (int x = 0; x < input_x; x++) {
                         tensor coords = tensor(batch(b), feature(f), spatial(x, y, z, 0));
                         size_t offset = input_lay.get_linear_offset(coords);
                         input_flat[offset] = input_rnd[b][f][z][y][x];
