@@ -1,9 +1,9 @@
-
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 DOCKER_HOME = "/openvino"
 DOCKER_CONTAINER_NAME="jenkins_ngraph-onnx_ci_${BUILD_NUMBER}"
+COMMIT_HASH = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
 
 def getGitPrInfo(String project) {
     def gitPrInfo = [
@@ -17,7 +17,7 @@ def getGitPrInfo(String project) {
             gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
             gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
             gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
-            gitPrInfo.commitHash = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
+            gitPrInfo.commitHash = ${COMMIT_HASH}
         }
     }
     catch(e) {
@@ -60,40 +60,25 @@ def gitSubmoduleUpdate(String repository_name) {
 }
 
 def buildDockerImage() {
+    IMAGE_TAG = "openvino-onnx-ci:${COMMIT_HASH}"
+
     sh """
-        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        docker build --tag=${IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """
-    IMAGE_ID = sh (
-    script: """
-            docker images -f="reference=openvino-onnx-ci" -q
-            """,
-            returnStdout: true
-            ).trim()
 }
 
-def runDockerContainer(String imageID) {
+def runTests(String imageTAG) {
     CONTAINER_ID = sh (
     script: """
             docker run -id --privileged \
                     --name ${DOCKER_CONTAINER_NAME} \
                     --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
-                    ${imageID} tail -f /dev/null
+                    ${imageTAG} tail -f /dev/null
             """,
     returnStdout: true
     ).trim()
-}
-
-def runTests() {
-    PYTHONPATH = "/openvino/bin/intel64/Release/lib/python_api/python3.8"
-    sh """
-        docker exec -e NGRAPH_CPP_BUILD_PATH=/openvino/dist \
-                    -e LD_LIBRARY_PATH=/openvino/dist/lib \
-                    -e NGRAPH_ONNX_IMPORT_ENABLE=TRUE \
-                    -e PYTHONPATH=${PYTHONPATH} \
-                    -w ${DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
-    """
 }
 
 def dockerRemove(String container_ID) {
@@ -126,13 +111,12 @@ pipeline {
             steps{
                 dir("${WORKDIR}") {
                     buildDockerImage()
-                    runDockerContainer("${IMAGE_ID}")
                 }
             }
         }
         stage("Run tests") {
             steps{
-                runTests()
+                runTests("${IMAGE_TAG}")
             }
         }
     }
