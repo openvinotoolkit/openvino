@@ -17,6 +17,7 @@
 #include <functional>
 #include <set>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fused/unsqueeze.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -164,7 +165,9 @@ namespace
     }
 }
 
-bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
     return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }

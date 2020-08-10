@@ -30,13 +30,12 @@ namespace ngraph
             class NGRAPH_API ScatterNDBase : public Op
             {
             public:
+                static constexpr NodeTypeInfo type_info{"ScatterNDBase", 3};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 // Respective input ordinal number.
                 static constexpr int INPUTS = 0;
                 static constexpr int INDICES = 1;
                 static constexpr int UPDATES = 2;
-                static constexpr NodeTypeInfo type_info{"ScatterNDBase", 3};
-
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 virtual void validate_and_infer_types() override;
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
 

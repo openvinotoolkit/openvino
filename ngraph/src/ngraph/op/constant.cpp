@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -317,8 +318,9 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
 }
 
 op::Constant::Constant(const Constant& other)
-    : Constant(other.m_element_type, other.m_shape)
 {
+    m_element_type = other.m_element_type;
+    m_shape = other.m_shape;
     m_data = other.m_data;
     m_all_elements_bitwise_identical = other.m_all_elements_bitwise_identical;
     constructor_validate_and_infer_types();
@@ -627,8 +629,10 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Constant::evaluate");
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;

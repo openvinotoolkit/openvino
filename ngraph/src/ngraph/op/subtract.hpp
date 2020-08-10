@@ -48,7 +48,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
 
         } // namespace v0
@@ -59,8 +59,8 @@ namespace ngraph
             class NGRAPH_API Subtract : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Subtract", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Subtract()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
                 {
@@ -79,7 +79,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         } // namespace v1
 

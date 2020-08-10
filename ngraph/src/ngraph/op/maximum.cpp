@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/maximum.hpp"
@@ -89,8 +90,10 @@ namespace
     }
 }
 
-bool op::v0::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Maximum::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Maximum::evaluate");
     return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -112,7 +115,9 @@ shared_ptr<Node> op::v1::Maximum::clone_with_new_inputs(const OutputVector& new_
     return make_shared<op::v1::Maximum>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Maximum::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Maximum::evaluate");
     return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }

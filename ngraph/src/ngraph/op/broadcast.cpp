@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/broadcast.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/sum.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -88,15 +90,21 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const
 
 namespace
 {
-    PartialShape
-        get_result_shape_bidirectional(Node* this_ptr, Shape& arg_shape, Shape& target_shape)
+    PartialShape get_result_shape_bidirectional(const Node* this_ptr,
+                                                const PartialShape& arg_shape,
+                                                Shape& target_shape)
     {
+        if (arg_shape.rank().is_dynamic())
+        {
+            return PartialShape::dynamic();
+        }
+        auto arg_shape_vec = static_cast<std::vector<Dimension>>(arg_shape);
         PartialShape result_shape;
         // Add left padding to shorter target or argument shape
-        const auto target_padded_rank = std::max(arg_shape.size(), target_shape.size());
-        while (arg_shape.size() < target_padded_rank)
+        const auto target_padded_rank = std::max(arg_shape_vec.size(), target_shape.size());
+        while (arg_shape_vec.size() < target_padded_rank)
         {
-            arg_shape.insert(arg_shape.begin(), 1);
+            arg_shape_vec.insert(arg_shape_vec.begin(), 1);
         }
         while (target_shape.size() < target_padded_rank)
         {
@@ -106,15 +114,28 @@ namespace
         result_shape = target_shape;
         for (auto i = 0; i < target_shape.size(); ++i)
         {
+            if (arg_shape_vec[i].is_dynamic())
+            {
+                if (target_shape[i] == 1)
+                {
+                    result_shape[i] = Dimension::dynamic();
+                }
+                else
+                {
+                    result_shape[i] = target_shape[i];
+                }
+                continue;
+            }
+            const size_t arg_shape_dim = arg_shape_vec[i].get_length();
             NODE_VALIDATION_CHECK(this_ptr,
-                                  arg_shape[i] == 1 || target_shape[i] == 1 ||
-                                      arg_shape[i] == target_shape[i],
+                                  arg_shape_dim == 1 || target_shape[i] == 1 ||
+                                      arg_shape_dim == target_shape[i],
                                   "Broadcast incorrect target shape. Expecting either 1 or ",
-                                  arg_shape[i],
+                                  arg_shape_dim,
                                   ". Got ",
                                   target_shape[i]);
 
-            result_shape[i] = std::max(arg_shape[i], target_shape[i]);
+            result_shape[i] = std::max(arg_shape_dim, target_shape[i]);
         }
         return result_shape;
     }
@@ -141,9 +162,9 @@ void op::v3::Broadcast::validate_and_infer_types()
     auto result_shape = get_output_partial_shape(0);
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
     {
-        if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
+        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
         {
-            auto arg_shape = get_input_shape(0);
+            auto arg_shape = get_input_partial_shape(0);
 
             const auto shape_constant =
                 as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
@@ -186,13 +207,16 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
         auto arg_shape = inputs[0]->get_shape();
         Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        PartialShape result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
+        PartialShape result_shape =
+            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
         auto pair_broadcast_axes =
             get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
         return op::util::BroadcastBase::evaluate_broadcast(
@@ -264,8 +288,10 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
@@ -406,8 +432,10 @@ namespace
     }
 }
 
-bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Broadcast::evaluate");
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }
 

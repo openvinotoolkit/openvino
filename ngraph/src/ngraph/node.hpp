@@ -167,16 +167,40 @@ namespace ngraph
         /// on deep networks.
         void safe_delete(NodeVector& nodes, bool recurse);
 
+        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output shapes, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to know which nodes must be statically
+        /// evaluated in order to complete shape specialization. (For example, the shape input of
+        /// DynReshape must be evaluated statically in order for the output shape to be
+        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
+        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
+        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
+
+        /// \brief Marks an input as being relevant or irrelevant to the output values of this
+        ///        node.
+        /// \param i The index of the input to mark as relevant or irrelevant.
+        /// \param relevant true if the input is relevant to output values, false otherwise.
+        ///
+        /// This is used by the shape specialization pass to cut short evaluation in cases where
+        /// an input value does not actually have any effect on the output value of the node. (As
+        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
+        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
+        /// function to mark value-irrelevant inputs.
+        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
+
     public:
         virtual ~Node();
 
-        virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
+        virtual bool visit_attributes(AttributeVisitor&) { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
-                              const HostTensorVector& input_values);
+                              const HostTensorVector& input_values) const;
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
@@ -194,6 +218,10 @@ namespace ngraph
         void set_arguments(const OutputVector& arguments);
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
+
+        void set_output_type(size_t i,
+                             const element::Type& element_type,
+                             const PartialShape& pshape);
 
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
@@ -220,45 +248,6 @@ namespace ngraph
         ///        set_friendly_name then the node's unique name is returned.
         /// \returns A const reference to the node's friendly name.
         const std::string& get_friendly_name() const;
-
-        /// Return true if this has the same implementing class as node. This
-        /// will be used by the pattern matcher when comparing a pattern
-        /// graph against the graph.
-        bool is_same_op_type(const std::shared_ptr<Node>& node) const
-        {
-            return get_type_info() == node->get_type_info();
-        }
-
-        /// \brief Marks an input as being relevant or irrelevant to the output shapes of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output shapes, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to know which nodes must be statically
-        /// evaluated in order to complete shape specialization. (For example, the shape input of
-        /// DynReshape must be evaluated statically in order for the output shape to be
-        /// determined.) By default, all inputs are marked as shape-irrelevant. Overrides of
-        /// validate_and_infer_types should call this function to mark shape-relevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_shape(size_t i, bool relevant = true);
-
-        /// \brief Marks an input as being relevant or irrelevant to the output values of this
-        ///        node.
-        /// \param i The index of the input to mark as relevant or irrelevant.
-        /// \param relevant true if the input is relevant to output values, false otherwise.
-        ///
-        /// This is used by the shape specialization pass to cut short evaluation in cases where
-        /// an input value does not actually have any effect on the output value of the node. (As
-        /// of this writing, the only example of this is ShapeOf.) By default, all inputs are
-        /// marked as value-relevant. Overrides of validate_and_infer_types should call this
-        /// function to mark value-irrelevant inputs.
-        // TODO(amprocte): should be protected
-        void set_input_is_relevant_to_value(size_t i, bool relevant = true);
-
-        // TODO(amprocte): should this be protected?
-        void set_output_type(size_t i,
-                             const element::Type& element_type,
-                             const PartialShape& pshape);
 
         virtual bool is_dynamic() const;
         size_t get_instance_id() const { return m_instance_id; }
@@ -499,6 +488,107 @@ namespace ngraph
 
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node&);
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
+
+#define _NGRAPH_RTTI_EXPAND(X) X
+
+/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
+/// Should be used in the scope of class that requires type identification besides one provided by
+/// C++ RTTI.
+/// Recommended to be used for all classes that are inherited from class ngraph::Node to enable
+/// pattern
+/// matching for them. Accepts necessary type identification details like type of the operation,
+/// version and optional parent class.
+///
+/// Applying this macro within a class definition provides declaration of type_info static
+/// constant for backward compatibility with old RTTI definition for Node,
+/// static function get_type_info_static which returns a reference to an object that is equal to
+/// type_info but not necessary to the same object, and get_type_info virtual function that
+/// overrides Node::get_type_info and returns a reference to the same object that
+/// get_type_info_static gives.
+///
+/// Use this macro as a public part of the class definition:
+///
+///     class MyOp : public Node
+///     {
+///         public:
+///             // Don't use Node as a parent for type_info, it doesn't have any value and
+///             prohibited
+///             NGRAPH_RTTI_DECLARATION;
+///
+///             ...
+///     };
+///
+///     class MyInheritedOp : public MyOp
+///     {
+///         public:
+///             NGRAPH_RTTI_DECLARATION;
+///
+///             ...
+///     };
+///
+/// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
+///
+#define NGRAPH_RTTI_DECLARATION                                                                    \
+    static const ::ngraph::Node::type_info_t type_info;                                            \
+    const ::ngraph::Node::type_info_t& get_type_info() const override;                             \
+    static const ::ngraph::Node::type_info_t& get_type_info_static()
+
+#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                                                      \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const                                \
+    {                                                                                              \
+        return get_type_info_static();                                                             \
+    }                                                                                              \
+    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)        \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    {                                                                                              \
+        static const ::ngraph::Node::type_info_t type_info_static{                                 \
+            TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};                     \
+        return type_info_static;                                                                   \
+    }                                                                                              \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                        \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    {                                                                                              \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX};      \
+        return type_info_static;                                                                   \
+    }                                                                                              \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
+
+/// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
+/// NGRAPH_RTTI_DECLARATION.
+/// Should be used outside the class definition scope in place where ODR is ensured.
+///
+/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied.
+/// \param TYPE_NAME a string literal of type const char* that names your class in type
+/// identification namespace;
+///        It is your choice how to name it, but it should be unique among all
+///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
+///        used in conjunction with each other in one transformation flow.
+/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
+///        operations that shares the same TYPE_NAME
+/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
+///        it only in case if there is a need to capture any operation from some group of operations
+///        that all derived from some common base class. Don't use Node as a parent, it is a base
+///        class
+///        for all operations and doesn't provide ability to define some perfect subset of
+///        operations. PARENT_CLASS should define RTTI with NGRAPH_RTTI_{DECLARATION/DEFINITION}
+///        macros.
+///
+/// Examples (see corresponding declarations in NGRAPH_RTTI_DECLARATION description):
+///
+///     NGRAPH_RTTI_DEFINITION(MyOp,"MyOp", 1);
+///     NGRAPH_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
+///
+/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
+///
+#define NGRAPH_RTTI_DEFINITION(...)                                                                \
+    _NGRAPH_RTTI_EXPAND(_NGRAPH_RTTI_DEFINITION_SELECTOR(                                          \
+        __VA_ARGS__, _NGRAPH_RTTI_DEFINITION_WITH_PARENT, _NGRAPH_RTTI_DEFINITION_NO_PARENT)(      \
+        __VA_ARGS__))
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput

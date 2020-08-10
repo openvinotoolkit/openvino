@@ -21,13 +21,11 @@
 #include <net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
-#include "details/caseless.hpp"
 #include "cldnn_async_infer_request.h"
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
 
-#include <exec_graph_info.hpp>
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
 

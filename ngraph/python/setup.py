@@ -28,6 +28,8 @@ PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
+# Change current working dircectory to ngraph/python
+os.chdir(PYNGRAPH_ROOT_DIR)
 
 
 def find_ngraph_dist_dir():
@@ -203,7 +205,6 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
     "pyngraph/tensor_iterator_builder.cpp",

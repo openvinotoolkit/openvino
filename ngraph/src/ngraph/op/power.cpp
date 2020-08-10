@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/power.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -86,8 +87,9 @@ namespace
     }
 }
 
-bool op::v0::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Power::evaluate");
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -109,7 +111,8 @@ shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<op::v1::Power>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Power::evaluate");
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }

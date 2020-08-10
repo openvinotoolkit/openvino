@@ -16,6 +16,7 @@
 
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/gather.hpp"
@@ -235,8 +236,11 @@ namespace
     {
         auto in_shape = in->get_shape();
         out->set_shape(sp.reshape_out_shape);
-        runtime::reference::strided_slice(
-            in->get_data_ptr<ET>(), out->get_data_ptr<ET>(), in_shape, sp);
+        runtime::reference::strided_slice(in->get_data_ptr<ET>(),
+                                          out->get_data_ptr<ET>(),
+                                          in_shape,
+                                          sp,
+                                          in->get_element_type().size());
         return true;
     }
 
@@ -286,8 +290,9 @@ namespace
 }
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
-                                    const HostTensorVector& input_values)
+                                    const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::StridedSlice::evaluate");
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],
                                   input_values[2],

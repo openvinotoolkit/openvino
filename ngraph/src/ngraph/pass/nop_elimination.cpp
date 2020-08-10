@@ -254,7 +254,6 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
 
     auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(node);
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
-    auto data_shape = input->input_value(0).get_partial_shape();
     auto squeeze = as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
@@ -269,6 +268,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
     // eliminate redundant squeeze->unsqueeze
     if (squeeze)
     {
+        const auto& data_shape = squeeze->input_value(0).get_partial_shape();
         if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
                                       unsqueeze->input_value(1).get_node_shared_ptr()))
         {
@@ -310,6 +310,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
     auto unsqueeze_i = as_type_ptr<opset3::Unsqueeze>(input);
     if (unsqueeze_i)
     {
+        const auto& data_shape = unsqueeze_i->input_value(0).get_partial_shape();
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic())
         {
             return false;
@@ -418,21 +419,21 @@ static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node)
     return true;
 }
 
-static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-    dispatcher{{TI(op::v0::Pad), &eliminate_nop},
-               {TI(opset3::Pad), &eliminate_nop},
-               {TI(op::v0::Sum), &eliminate_sum},
-               {TI(opset3::Convert), &eliminate_convert},
-               {TI(op::v0::Slice), &eliminate_nop},
-               {TI(op::v0::StopGradient), &eliminate_stop_gradient},
-               {TI(opset3::Reshape), &eliminate_reshape_v1},
-               {TI(opset3::Concat), &eliminate_concat},
-               {TI(opset3::Squeeze), &eliminate_squeeze},
-               {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
-               {TI(op::v0::Broadcast), &eliminate_nop}};
-
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function)
 {
+    static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
+        dispatcher{{TI(op::v0::Pad), &eliminate_nop},
+                   {TI(opset3::Pad), &eliminate_nop},
+                   {TI(op::v0::Sum), &eliminate_sum},
+                   {TI(opset3::Convert), &eliminate_convert},
+                   {TI(op::v0::Slice), &eliminate_nop},
+                   {TI(op::v0::StopGradient), &eliminate_stop_gradient},
+                   {TI(opset3::Reshape), &eliminate_reshape_v1},
+                   {TI(opset3::Concat), &eliminate_concat},
+                   {TI(opset3::Squeeze), &eliminate_squeeze},
+                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
+                   {TI(op::v0::Broadcast), &eliminate_nop}};
+
     bool clobbered = false;
 
     for (const auto& n : function->get_ops())

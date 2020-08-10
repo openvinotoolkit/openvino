@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "gtest/gtest.h"

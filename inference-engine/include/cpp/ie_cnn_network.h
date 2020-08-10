@@ -9,17 +9,17 @@
  */
 #pragma once
 
-#include <details/ie_exception_conversion.hpp>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ie_icnn_network.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
+#include "details/ie_exception_conversion.hpp"
 
 namespace ngraph {
 

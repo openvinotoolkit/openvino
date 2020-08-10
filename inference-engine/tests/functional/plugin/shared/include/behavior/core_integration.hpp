@@ -263,12 +263,6 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-// TODO: Issue: 31197 Remove this code
-#if defined(_WIN32) || defined(_WIN64)
-    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
-        GTEST_SKIP();
-    }
-#endif
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(pluginXML, content);
@@ -282,14 +276,14 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             Core ie;
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.RegisterPlugins(wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #if defined __linux__  && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
