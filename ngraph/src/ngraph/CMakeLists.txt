@@ -543,12 +543,6 @@ set (SRC
     variant.hpp
     )
 
-if(NGRAPH_JSON_ENABLE)
-    list(APPEND SRC serializer.cpp serializer.hpp)
-else()
-    list(APPEND SRC serializer_stub.cpp)
-endif()
-
 configure_file(version.in.hpp version.hpp)
 
 add_library(ngraph SHARED ${SRC})
@@ -558,13 +552,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-if(NOT NGRAPH_JSON_ENABLE)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
-endif()
-
 target_link_libraries(ngraph PRIVATE openvino::itt)
-
-add_subdirectory(frontend)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)
@@ -580,9 +568,6 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
     set_target_properties(ngraph PROPERTIES
         VERSION ${NGRAPH_VERSION}
         SOVERSION ${NGRAPH_API_VERSION})
-endif()
-if(NGRAPH_JSON_ENABLE)
-    target_link_libraries(ngraph PRIVATE libjson)
 endif()
 target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
 

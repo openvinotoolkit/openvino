@@ -92,6 +92,10 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+#include "reference/detection_output.hpp"
+#include "reference/scatter_nd_update.hpp"
+#include "reference/scatter_update.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -128,8 +132,6 @@ public:
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
 
-    virtual void save(std::ostream& output_stream) override;
-
     void set_nan_check(bool enable);
 
     std::vector<PerformanceCounter> get_performance_data() const override;
@@ -145,8 +147,6 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    INTExecutable(const std::string& model_string);
-
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
@@ -1114,6 +1114,111 @@ protected:
             {
                 throw ngraph_error("Unexpected type");
             }
+            break;
+        }
+        case OP_TYPEID::DetectionOutput_v0:
+        {
+            const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
+            reference::referenceDetectionOutput<T> refDetOut(
+                detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
+            if (node.get_input_size() == 3)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              nullptr,
+                              nullptr,
+                              out[0]->get_data_ptr<T>());
+            }
+            else if (node.get_input_size() == 5)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              args[3]->get_data_ptr<const T>(),
+                              args[4]->get_data_ptr<const T>(),
+                              out[0]->get_data_ptr<T>());
+            }
+            else
+            {
+                throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterNDUpdate_v3:
+        {
+            const op::ScatterNDUpdate* scatterNDUpd =
+                static_cast<const op::v3::ScatterNDUpdate*>(&node);
+            auto idxType = scatterNDUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterNdUpdate<T, int32_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int32_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterNdUpdate<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int64_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterUpdate_v3:
+        {
+            const op::v3::ScatterUpdate* scatterUpd =
+                static_cast<const op::v3::ScatterUpdate*>(&node);
+
+            if (scatterUpd->get_input_element_type(3) != element::i64)
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
+
+            auto idxType = scatterUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterUpdate<T, int32_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int32_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterUpdate<T, int64_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int64_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
             break;
         }
 

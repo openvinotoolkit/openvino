@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_unicode.hpp"
 #include "ie_iextension.h"
 #include "details/ie_so_pointer.hpp"
 
@@ -46,7 +45,9 @@ public:
      *
      * @param name Full or relative path to extension library
      */
-    explicit Extension(const file_name_t& name): actual(name) {}
+    template <typename C,
+              typename = details::enableIfSupportedChar<C>>
+    explicit Extension(const std::basic_string<C>& name): actual(name) {}
 
     /**
      * @brief Gets the extension version information
@@ -101,18 +102,27 @@ protected:
     /**
      * @brief A SOPointer instance to the loaded templated object
      */
-    InferenceEngine::details::SOPointer<IExtension> actual;
+    details::SOPointer<IExtension> actual;
 };
 
 /**
  * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
  *
- * @param name Name of the shared library file
+ * @param name A std::string name of the shared library file
  * @return shared_pointer A wrapper for the given type from a specific shared module
  */
 template <>
-inline std::shared_ptr<IExtension> make_so_pointer(const file_name_t& name) {
+inline std::shared_ptr<IExtension> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
 }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+template <>
+inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
+    return std::make_shared<Extension>(name);
+}
+
+#endif
 
 }  // namespace InferenceEngine

@@ -98,4 +98,10 @@ public:
     FluidI420toRGBComputation(test::Mat inMat_y, test::Mat inMat_u, test::Mat inMat_v, test::Mat outMat);
 };
 
+class FLUID_COMPUTATION_VISIBILITY FluidU16ToF32Computation : public FluidComputation
+{
+public:
+    FluidU16ToF32Computation(test::Mat inMatU16, test::Mat outMatF32);
+};
+
 #endif // FLUID_TEST_COMPUTATIONS_HPP

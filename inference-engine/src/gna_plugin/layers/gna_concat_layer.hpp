@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "inference_engine.hpp"
+#include "ie_layers.h"
 
 namespace GNAPluginNS {
 class GNAConcatLayer {

@@ -16,6 +16,7 @@
 
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/shape_util.hpp"
@@ -81,5 +82,6 @@ namespace
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceProd::evaluate");
     return evaluate_product(inputs[0], outputs[0], get_reduction_axes());
 }

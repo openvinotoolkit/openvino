@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/log.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/log.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/log.hpp"
@@ -81,5 +83,6 @@ namespace
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Log::evaluate");
     return evaluate_log(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

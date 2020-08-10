@@ -162,7 +162,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 
     // Fix unicode name
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = InferenceEngine::details::multiByteCharToWString(modelPath.c_str());
+    std::wstring model_path = FileUtils::multiByteCharToWString(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
@@ -197,7 +197,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             if (!bPath.empty()) {
                 // Open weights file
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                std::wstring weights_path = InferenceEngine::details::multiByteCharToWString(bPath.c_str());
+                std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
 #else
                 std::string weights_path = bPath;
 #endif

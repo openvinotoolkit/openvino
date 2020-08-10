@@ -38,37 +38,46 @@ include(CMakeParseArguments)
 
 #
 # ie_headers_compilation_with_custom_flags(TEST_SUFFIX <prefix>
-#                                          FLAGS <flags>
-#                                          DEFINITIONS <definitions>
-#                                          HEADERS_TO_SKIP <skip headers>
-#                                          CXX_STANDARD <number>)
+#                                          [FLAGS <flags>]
+#                                          [PLUGIN_API]
+#                                          [DEFINITIONS <definitions>]
+#                                          [HEADERS_TO_SKIP <skip headers>]
+#                                          [CXX_STANDARD <number>])
 #
 # Tests compilation with modern flags
 #
 function(ie_headers_compilation_with_custom_flags)
-    set(options)
-    set(oneValueArgs TEST_SUFFIX CXX_STANDARD)
-    set(multiValueArgs FLAGS DEFINITIONS HEADERS_TO_SKIP)
+    set(options PLUGIN_API)
+    set(oneValueArgs FLAGS TEST_SUFFIX CXX_STANDARD)
+    set(multiValueArgs DEFINITIONS HEADERS_TO_SKIP)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    file(GLOB_RECURSE header_files RELATIVE "${IE_MAIN_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/include/*")
+    if(IE_TEST_PLUGIN_API)
+        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/src/plugin_api")
+    else()
+        set(IE_TEST_INCLUDE_DIRECTORY "${IE_MAIN_SOURCE_DIR}/include")
+    endif()
+
+    file(GLOB_RECURSE header_files RELATIVE "${IE_TEST_INCLUDE_DIRECTORY}"
+        "${IE_TEST_INCLUDE_DIRECTORY}/*")
 
     if(NOT IE_TEST_CXX_STANDARD)
         set(IE_TEST_CXX_STANDARD ${CMAKE_CXX_STANDARD})
     endif()
 
-    if(NOT CLDNN__IOCL_ICD_INCDIRS)
-        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
-                                            "gpu/gpu_context_api_ocl.hpp"
-                                            "gpu/gpu_context_api_va.hpp"
-                                            "gpu/gpu_context_api_dx.hpp")
-    endif()
-    if(NOT WIN32)
-        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp")
-    endif()
-    if(NOT LIBVA_FOUND)
-        list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp")
+    if(NOT IE_TEST_PLUGIN_API)
+        if(NOT CLDNN__IOCL_ICD_INCDIRS)
+            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
+                                                "gpu/gpu_context_api_ocl.hpp"
+                                                "gpu/gpu_context_api_va.hpp"
+                                                "gpu/gpu_context_api_dx.hpp")
+        endif()
+        if(NOT WIN32)
+            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp")
+        endif()
+        if(NOT LIBVA_FOUND)
+            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp")
+        endif()
     endif()
 
     set(content "\n")
@@ -96,16 +105,27 @@ function(ie_headers_compilation_with_custom_flags)
 
     set(target_name ieFuncTestsCompilation${IE_TEST_TEST_SUFFIX})
     add_library(${target_name} OBJECT ${source_file})
-    target_include_directories(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(${target_name} PRIVATE "${IE_TEST_INCLUDE_DIRECTORY}"
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
+
+    if(IE_TEST_PLUGIN_API)
+        # ngraph, pugixml, openvino::itt, inference_engine_preproc headers
+        target_include_directories(${target_name} SYSTEM PRIVATE
+            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_include_directories(${target_name} PRIVATE
+            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+    else()
+        # OpenCL headers if any
+        if(CLDNN__IOCL_ICD_INCDIRS)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+        endif()
+    endif()
 
     # To include TBB headers as system
     set_ie_threading_interface_for(${target_name})
-
-    # OpenCL headers if any
-    if(CLDNN__IOCL_ICD_INCDIRS)
-        target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
-    endif()
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
@@ -123,15 +143,19 @@ function(ie_headers_compilation_with_custom_flags)
     add_dependencies(${TARGET_NAME} ${target_name})
 endfunction()
 
-# compilation with c++17
-ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17 CXX_STANDARD 17)
+#
+# Public headers tests
+#
+
+ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
+                                         CXX_STANDARD 17)
 
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
                                                  FLAGS "-Werror-all -Werror -Wall")
     else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS "-Wpedantic")
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
@@ -139,11 +163,36 @@ else()
                                                              "gpu/gpu_context_api_ocl.hpp"
                                                              "gpu/gpu_context_api_dx.hpp"
                                              FLAGS  "/we4996 /W4 /WX")
-    ie_headers_compilation_with_custom_flags(TEST_SUFFIX Unicode
-                                             DEFINITIONS UNICODE _UNICODE)
 endif()
 
 # compilation with -Wweak-vtables
 # if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 #     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WeakTables FLAGS -Wweak-vtables)
 # endif()
+
+#
+# Plugin API headers tests
+#
+
+ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
+                                         HEADERS_TO_SKIP "generic_ie.hpp"
+                                         CXX_STANDARD 17 PLUGIN_API)
+
+if(UNIX)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
+                                                 HEADERS_TO_SKIP "generic_ie.hpp"
+                                                 FLAGS "-Werror-all -Werror -Wall"
+                                                 PLUGIN_API)
+    else()
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
+                                                 HEADERS_TO_SKIP "generic_ie.hpp"
+                                                 PLUGIN_API)
+    endif()
+else()
+    # TODO: enable
+    # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
+    #                                          HEADERS_TO_SKIP "generic_ie.hpp"
+    #                                          FLAGS  "/we4996 /W4 /WX"
+    #                                          PLUGIN_API)
+endif()
