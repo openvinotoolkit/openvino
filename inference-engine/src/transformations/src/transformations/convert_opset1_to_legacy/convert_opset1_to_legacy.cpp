@@ -4,6 +4,7 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 
+#include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/itt.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
@@ -56,6 +57,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // List if Decomposition and Conversion transformations that can be
     // applied simultaneously in a single graph traversal
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();

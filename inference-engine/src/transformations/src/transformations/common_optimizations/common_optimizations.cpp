@@ -18,7 +18,6 @@
 #include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-#include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_divide.hpp>
 #include <transformations/convert_mod.hpp>
 #include <transformations/convert_minimum_to_power_and_max.hpp>
@@ -52,7 +51,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
 
-    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
