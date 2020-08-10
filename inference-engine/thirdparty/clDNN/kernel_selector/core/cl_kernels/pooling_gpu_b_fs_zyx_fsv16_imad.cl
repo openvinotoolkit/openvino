@@ -35,7 +35,6 @@
 #error
 #endif
 
-
 inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
@@ -62,9 +61,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const uint f    = (bf * FEATURE_SLICE_SIZE) % ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
     const uint b    = (bf * FEATURE_SLICE_SIZE) / ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
 
-/*
     const bool last_in_f_group = (f == FEATURE_SLICE_SIZE * ((INPUT0_FEATURE_NUM - 1) / FEATURE_SLICE_SIZE));
-*/
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -113,13 +110,12 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                         {
                             const uint input_idx = batch_and_feature_offset + input_offset_z*IN_Z_PITCH + input_offset_y*IN_Y_PITCH + input_offset_x*IN_X_PITCH;
                             IN_VEC16 ch16_data;
-/*
+
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             if (!last_in_f_group) {
 #endif
-*/
                                 ch16_data = vload16(0, (input + input_idx));
-/*
+
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             } else {
                                 __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -128,19 +124,15 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                                 }
                             }
 #endif
-*/
 
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             if (!last_in_f_group) {
 #endif
-*/
                                 __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
                                 for(uint k = 0; k < FEATURE_SLICE_SIZE; k++)
                                 {
                                     result[k] = FUNC_CALL(apply_pooling)(result[k], ch16_data[k]);
                                 }
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             } else {
                                 __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -150,7 +142,6 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                                 }
                             }
 #endif
-*/
 
         #ifdef DYNAMIC_KERNEL_DIVIDER
                             num_elements++;
@@ -183,13 +174,10 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
             for(uint px = 0; px < POOL_SIZE_X; px++)
             {
                 IN_VEC16 ch16_data;
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 if (!last_in_f_group) {
 #endif
-*/
                     ch16_data = vload16(0, (input + input_idx));
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 } else {
                     __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -198,19 +186,15 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                     }
                 }
 #endif
-*/
 
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 if (!last_in_f_group) {
 #endif
-*/
                     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
                     for(uint k = 0; k < FEATURE_SLICE_SIZE; k++)
                     {
                         result[k] = FUNC_CALL(apply_pooling)(result[k], ch16_data[k]);
                     }
-/*
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 } else {
                     __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -220,7 +204,6 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                     }
                 }
 #endif
-*/
                 input_idx += IN_X_PITCH;
             }
             input_idx += (IN_Y_PITCH - POOL_SIZE_X*IN_X_PITCH);
@@ -287,13 +270,11 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #endif
 
 #if OUTPUT_TYPE_SIZE == 1
-/*
+
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     if (!last_in_f_group) {
 #endif
-*/
         vstore16(final_result, 0, ((output + output_pos)));
-/*
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     } else {
         __attribute__((opencl_unroll_hint(OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -302,15 +283,11 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
         }
     }
 #endif
-*/
 #else
-/*
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     if (!last_in_f_group) {
 #endif
-*/
         *((__global OUT_VEC16*)(output + output_pos)) = final_result;
-/*
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     } else {
         __attribute__((opencl_unroll_hint(OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -319,7 +296,6 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
         }
     }
 #endif
-*/
 #endif
 }
 
