@@ -38,6 +38,11 @@ namespace ngraph
         class NGRAPH_API Output
         {
         public:
+            Output()
+                : m_node(nullptr)
+            {
+            }
+
             /// \param node Node that owns this output.
             /// \param index Position of the output tensor in all output tensors
             /// \param tensor The tensor where the value will be written

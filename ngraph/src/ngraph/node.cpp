@@ -35,6 +35,28 @@ using namespace ngraph;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
+Node::Node(const Node& node)
+    : m_control_dependents(node.m_control_dependents)
+    , m_control_dependencies(node.m_control_dependencies)
+    // skip m_node_type -- will be generated automatically
+    , m_instance_id(m_next_instance_id.fetch_add(1))
+    , m_friendly_name(node.m_friendly_name)
+    // skip m_unique_name -- will be generated automatically
+    , m_provenance_tags(node.m_provenance_tags)
+    , m_provenance_group(node.m_provenance_group)
+    , m_inputs(node.m_inputs) // will be modified in the body
+    // skip m_outputs -- should be initialized outside
+    , m_op_annotations(node.m_op_annotations)
+    , m_rt_info(node.m_rt_info)
+{
+    // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
+    for (auto& input : m_inputs)
+    {
+        input = descriptor::Input(this, input.get_index(), input.get_output());
+        input.get_output().add_input(&input);
+    }
+}
+
 Node::Node(size_t output_size)
     : Node()
 {
@@ -228,11 +250,17 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
-    for (size_t i = m_outputs.size(); i < n; ++i)
+    if (n < m_outputs.size())
     {
-        // create the descriptors
-        get_output_descriptor(i);
+        m_outputs.resize(n);
+    }
+    else
+    {
+        for (size_t i = m_outputs.size(); i < n; ++i)
+        {
+            // create the descriptors
+            get_output_descriptor(i);
+        }
     }
 }
 
@@ -263,12 +291,9 @@ void Node::set_output_type(size_t i, const element::Type& element_type, const Pa
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
-const std::string& Node::description() const
+std::string Node::description() const
 {
-    // Terrible transitional kludge to keep description working while we change
-    // type_name to const_char and virtual description() to virtual get_type_name()
-    const_cast<Node*>(this)->m_node_type = get_type_name();
-    return m_node_type;
+    return get_type_name();
 }
 
 const std::string& Node::get_friendly_name() const
@@ -731,7 +756,7 @@ NodeVector Node::get_users(bool check_is_used) const
 std::string ngraph::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
-    ss << "While validating node '" << *node << "'";
+    ss << "While validating node '" << *node << "'with friendly_name " << node->get_friendly_name();
     return ss.str();
 }
 
