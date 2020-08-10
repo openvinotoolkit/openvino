@@ -75,7 +75,8 @@ namespace
     }
 }
 
-bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::SoftPlus::evaluate");
     return evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
