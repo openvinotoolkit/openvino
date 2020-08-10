@@ -227,10 +227,16 @@ def unary_op(op_str, a):
         return ng.abs(a)
     elif op_str == "Acos":
         return ng.acos(a)
+    elif op_str == "Acosh":
+        return ng.acosh(a)
     elif op_str == "Asin":
         return ng.asin(a)
+    elif op_str == "Asinh":
+        return ng.asinh(a)
     elif op_str == "Atan":
         return ng.atan(a)
+    elif op_str == "Atanh":
+        return ng.atanh(a)
     elif op_str == "Ceiling":
         return ng.ceiling(a)
     elif op_str == "Cos":
