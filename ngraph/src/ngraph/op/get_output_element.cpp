@@ -54,17 +54,14 @@ Output<Node> op::GetOutputElement::get_as_output() const
     return input_value(0);
 }
 
-NodeVector op::GetOutputElement::get_arguments() const
-{
-    return NodeVector{input_value(0).get_node_shared_ptr()};
-}
-
 NodeVector op::get_output_elements(const shared_ptr<Node>& mon)
 {
     NodeVector goes(mon->get_output_size());
     for (auto o : mon->outputs())
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         goes.at(o.get_index()) = o.as_single_output_node();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return goes;
 }

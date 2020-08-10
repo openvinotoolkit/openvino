@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/sign.hpp"
 
 using namespace std;
@@ -78,7 +80,8 @@ namespace
     }
 }
 
-bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sign::evaluate");
     return evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

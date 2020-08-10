@@ -53,6 +53,8 @@ namespace ngraph
             class NGRAPH_API BinaryElementwiseLogical : public Op
             {
             protected:
+                NGRAPH_RTTI_DECLARATION;
+
                 BinaryElementwiseLogical();
 
                 /// \brief Constructs a binary elementwise logical operation.
@@ -68,11 +70,10 @@ namespace ngraph
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }
                 void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
-                bool supports_auto_broadcast() const override { return true; }
-                bool is_binary_elementwise_logical() const override { return true; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
+                void validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob);
                 AutoBroadcastSpec m_autob;
             };
         }

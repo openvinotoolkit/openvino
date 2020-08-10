@@ -16,6 +16,7 @@
 
 #include "ngraph/op/max.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
@@ -119,8 +120,9 @@ namespace
     }
 }
 
-bool op::v0::Max::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Max::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Max::evaluate");
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes());
 }
 
@@ -140,7 +142,9 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
     return make_shared<op::v1::ReduceMax>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMax::evaluate");
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes());
 }

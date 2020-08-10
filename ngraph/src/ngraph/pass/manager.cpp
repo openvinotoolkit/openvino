@@ -15,10 +15,6 @@
 //*****************************************************************************
 
 #include <algorithm>
-#ifdef _WIN32
-#else
-#include <cxxabi.h>
-#endif
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -26,10 +22,12 @@
 #include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/serialize.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
 
@@ -38,8 +36,6 @@ using namespace ngraph;
 
 pass::Manager::Manager()
     : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
-    , m_serialize(getenv_bool("NGRAPH_ENABLE_SERIALIZE_TRACING"))
-
 {
 }
 
@@ -49,93 +45,110 @@ pass::Manager::~Manager()
 
 void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
+
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
     get_state().set_function(func);
-    vector<std::pair<shared_ptr<Function>, bool>> fs{std::make_pair(func, func->is_dynamic())};
     vector<shared_ptr<Function>> f_array{func};
 
     size_t index = 0;
     stopwatch pass_timer;
     stopwatch overall_timer;
     overall_timer.start();
-    for (shared_ptr<PassBase> pass : m_pass_list)
+    bool function_changed = false;
+    for (auto& pass : m_pass_list)
     {
         pass_timer.start();
         pass->set_state(get_state());
-        auto module_pass = dynamic_pointer_cast<ModulePass>(pass);
-        auto function_pass = dynamic_pointer_cast<FunctionPass>(pass);
-        auto node_pass = dynamic_pointer_cast<NodePass>(pass);
-        auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass);
-        if (module_pass)
+        if (!m_has_default_callback)
+        {
+            pass->set_callback(m_transformation_callback);
+        }
+
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        if (auto module_pass = dynamic_pointer_cast<ModulePass>(pass))
         {
             if (auto vt_pass = dynamic_pointer_cast<pass::VisualizeTree>(module_pass))
             {
                 vt_pass->set_ops_to_details(get_state().get_visualize_tree_ops_map());
             }
-            module_pass->run_on_module(f_array);
+            function_changed = module_pass->run_on_module(f_array);
         }
-        else if (function_pass)
+        else if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
         {
-            for (auto f_pair : fs)
+            // This checks is to skip the graph transformation when the graph pass relies on
+            // static shape but the function state is dynamic.
+            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
             {
-                shared_ptr<Function> f = f_pair.first;
-                // This checks is to skip the graph optimization when the graph pass relies on
-                // static shape but the function state is dynamic.
-                // we update the function dynamic state only if we run the graph pass successfully.
-                if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                    f_pair.second)
-                {
-                    continue;
-                }
-                bool function_modified = function_pass->run_on_function(f);
-                // If the pass may change the function's is_dynamic property, we need to
-                // update the cached value.
-                if (function_modified &&
-                    function_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE))
-                {
-                    f_pair.second = f->is_dynamic();
-                }
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
+                continue;
             }
+            // GraphRewrite is a temporary container for MatcherPass to make execution
+            // on on entire ngraph::Function
+            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
         }
-        else if (node_pass)
+        else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
         {
-            for (auto f_pair : fs)
+            // This checks is to skip the graph transformation when the graph pass relies on
+            // static shape but the function state is dynamic.
+            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
             {
-                shared_ptr<Function> f = f_pair.first;
-                if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f_pair.second)
-                {
-                    continue;
-                }
-                for (shared_ptr<Node> n : f->get_ops())
-                {
-                    node_pass->run_on_node(n);
-                }
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
+                continue;
             }
-        }
-        else if (call_graph_pass)
-        {
-            for (auto f_pair : fs)
-            {
-                shared_ptr<Function> f = f_pair.first;
-                if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                    f_pair.second)
-                {
-                    continue;
-                }
-                bool function_modified = call_graph_pass->run_on_call_graph(f->get_ordered_ops());
-                f_pair.second = (function_modified == true) ? f->is_dynamic() : f_pair.second;
-            }
-        }
 
-        if (m_visualize || m_serialize)
+            if (dynamic_pointer_cast<Validate>(pass))
+            {
+                if (function_changed)
+                {
+                    function_pass->run_on_function(func);
+                    function_changed = false;
+                }
+            }
+            else
+            {
+                function_changed = function_pass->run_on_function(func);
+            }
+        }
+        else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass))
+        {
+            if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            {
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
+                continue;
+            }
+            for (shared_ptr<Node> n : func->get_ops())
+            {
+                function_changed |= node_pass->run_on_node(n);
+            }
+        }
+        else if (auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass))
+        {
+            if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
+            {
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
+                continue;
+            }
+            function_changed = call_graph_pass->run_on_call_graph(func->get_ordered_ops());
+        }
+        NGRAPH_SUPPRESS_DEPRECATED_END
+
+        if (m_visualize)
         {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = f_array.at(0)->get_name() + std::string("_") + index_str +
-                                 std::string("_") + m_pass_names.at(index);
+                                 std::string("_") + pass->get_name();
 
             if (m_visualize)
             {
@@ -145,24 +158,12 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                 vt.set_ops_to_details(get_state().get_visualize_tree_ops_map());
                 vt.run_on_module(f_array);
             }
-
-            if (m_serialize)
-            {
-                pass::Serialization st(base_filename + ".json");
-                st.run_on_module(f_array);
-            }
         }
         index++;
         pass_timer.stop();
         if (profile_enabled)
         {
-            PassBase* p = pass.get();
-            string name = typeid(*p).name();
-#ifndef _WIN32
-            int status;
-            name = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
-#endif
-            cout << setw(7) << pass_timer.get_milliseconds() << "ms " << name << "\n";
+            cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
     }
     if (profile_enabled)

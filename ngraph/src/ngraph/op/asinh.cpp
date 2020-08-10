@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/asinh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/asinh.hpp"
@@ -73,7 +74,8 @@ namespace
     }
 }
 
-bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Asinh::evaluate");
     return evaluate_asinh(inputs[0], outputs[0]);
 }

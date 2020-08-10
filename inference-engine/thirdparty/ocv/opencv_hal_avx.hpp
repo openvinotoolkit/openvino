@@ -3142,13 +3142,38 @@ static inline v_uint8x32 v_shuffle_s8(const v_uint8x32& a, const v_uint8x32& mas
     return v_uint8x32(_mm256_shuffle_epi8(a.val, mask.val));
 }
 
+#if !defined(__GNUC__) || defined(__GNUC__) && defined(__x86_64)
 template<int index>
-static inline v_uint8x32 v_insert64(v_uint8x32& a, const int64_t& i)
+static inline __m256i v_insert64(v_uint8x32& a, const int64_t& i)
 {
-    return v_uint8x32(_mm256_insert_epi64(a.val, i, index));
+    return _mm256_insert_epi64(a.val, i, index);
+}
+#endif
+
+static inline void v_setr64(v_uint8x32& val_0, v_uint8x32& val_1,v_uint8x32& val_2, v_uint8x32& val_3, const short mapsx[],
+                            uint8_t tmp[], const int& x, const int& shift) {
+    val_0.val = _mm256_setr_epi64x(*reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 0]]),
+                                   *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]),
+                                   *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 2]]),
+                                   *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]));
+
+    val_1.val = _mm256_setr_epi64x(*reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + shift + 0]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + shift + 1]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + shift + 2]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + shift + 3]]));
+
+    val_2.val = _mm256_setr_epi64x(*reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 2*shift + 0]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 2*shift + 1]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 2*shift + 2]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 2*shift + 3]]));
+
+    val_3.val = _mm256_setr_epi64x(*reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3 * shift + 0]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3 * shift + 1]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3 * shift + 2]]),
+                                  *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3 * shift + 3]]));
 }
 
-static inline v_uint8x32 v_permutevar8x32(v_uint8x32& a, v_uint32x8& idxs)
+static inline v_uint8x32 v_permute32(v_uint8x32& a, v_uint32x8& idxs)
 {
     return v_uint8x32(_mm256_permutevar8x32_epi32(a.val, idxs.val));
 }

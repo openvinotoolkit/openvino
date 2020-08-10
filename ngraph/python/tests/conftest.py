@@ -25,11 +25,17 @@ def pytest_addoption(parser):
         choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO"],
         help="Select target device",
     )
+    parser.addoption(
+        "--additional_models",
+        default="",
+        type=str,
+    )
 
 
 def pytest_configure(config):
     backend_name = config.getvalue("backend")
     tests.BACKEND_NAME = backend_name
+    tests.ADDITIONAL_MODELS_DIR = config.getvalue("additional_models")
 
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
@@ -43,6 +49,7 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     backend_name = config.getvalue("backend")
+    tests.ADDITIONAL_MODELS_DIR = config.getvalue("additional_models")
 
     keywords = {
         "CPU": "skip_on_cpu",

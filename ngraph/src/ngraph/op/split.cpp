@@ -19,7 +19,11 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/split.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
+
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/slice.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -51,7 +55,8 @@ void op::v0::Split::pre_validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, is_scalar(axis_shape), "The 'axis' input node must be scalar");
 
     const auto axis_node = input_value(1).get_node_shared_ptr();
-    NODE_VALIDATION_CHECK(this, axis_node->is_constant(), "The 'axis' input node must be constant");
+    NODE_VALIDATION_CHECK(
+        this, op::is_constant(axis_node), "The 'axis' input node must be constant");
     const auto axis_node_const = as_type_ptr<op::Constant>(axis_node);
     m_axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
@@ -102,7 +107,7 @@ void op::v0::Split::pre_validate_and_infer_types()
     set_input_is_relevant_to_shape(0);
 }
 
-NodeVector op::v0::Split::decompose_op() const
+OutputVector op::v0::Split::decompose_op() const
 {
     return builder::split(input_value(0), m_splits, m_axis);
 }
@@ -142,7 +147,7 @@ void op::v1::Split::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
-    if (input_value(1).get_node_shared_ptr()->is_constant() && data_ps.is_static())
+    if (op::is_constant(input_value(1).get_node()) && data_ps.is_static())
     {
         const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];
@@ -183,4 +188,78 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
 {
     check_new_args_count(this, new_args);
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
+}
+
+namespace
+{
+    inline bool evaluate(const HostTensorPtr& in,
+                         const HostTensorPtr& out,
+                         const Coordinate& lower_bounds,
+                         const Coordinate& upper_bounds)
+    {
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  lower_bounds,
+                                  upper_bounds,
+                                  Strides(lower_bounds.size(), 1),
+                                  out->get_shape(),
+                                  in->get_element_type().size());
+
+        return true;
+    }
+
+    bool evaluate_split(const HostTensorPtr& data_tensor,
+                        const HostTensorPtr& axis_tensor,
+                        const HostTensorVector& outputs,
+                        const int64_t num_splits,
+                        const Node* split_node)
+    {
+        int64_t axis;
+        switch (axis_tensor->get_element_type())
+        {
+        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0];
+        case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
+        case element::Type_t::u64:
+            axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);
+            break;
+        default:
+            NODE_VALIDATION_CHECK(split_node,
+                                  false,
+                                  "Not supported axis type: ",
+                                  axis_tensor->get_element_type(),
+                                  " during evaluate Split:v1");
+            break;
+        }
+        axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+
+        const auto data_shape = data_tensor->get_shape();
+        const size_t axis_dim_length = data_shape.at(axis);
+        const size_t part_length = axis_dim_length / num_splits;
+
+        Shape output_shape = data_shape;
+        output_shape.at(axis) = part_length;
+
+        std::vector<size_t> lower_bounds(data_shape.size(), 0);
+        std::vector<size_t> upper_bounds = data_shape;
+        upper_bounds.at(axis) = part_length;
+
+        for (const auto& output : outputs)
+        {
+            output->set_shape(output_shape);
+            evaluate(data_tensor, output, lower_bounds, upper_bounds);
+            lower_bounds.at(axis) += part_length;
+            upper_bounds.at(axis) += part_length;
+        }
+
+        return true;
+    }
+}
+
+bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto& axis = inputs[1];
+
+    return evaluate_split(data, axis, outputs, m_num_splits, this);
 }

@@ -19,9 +19,11 @@
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "opset1_upgrade.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace ngraph;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace
 {
@@ -203,6 +205,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset2.begin(), opset2.end());
     const auto& opset3 = get_opset3().get_type_info_set();
     ie_ops.insert(opset3.begin(), opset3.end());
+    const auto& opset4 = get_opset4().get_type_info_set();
+    ie_ops.insert(opset4.begin(), opset4.end());
     return ie_ops;
 }
 
@@ -229,5 +233,6 @@ namespace InferenceEngine
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
 #endif
 }

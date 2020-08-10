@@ -18,9 +18,10 @@
 
 #include "debug.h"
 #include "graph_tools.hpp"
-#include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer_v7.hpp"
+#include "exec_graph_info.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include <ngraph/graph_util.hpp>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
@@ -28,6 +29,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include "convert_function_to_cnn_network.hpp"
 
 using namespace std;
@@ -90,14 +92,21 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraphImplPtr->cloneFunction();
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::CommonOptimizations>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.run_passes(graph);
+
+    ::ngraph::pass::Manager ti_manager;
+    ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.run_passes(graph);
+
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 
@@ -387,7 +396,26 @@ StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtens
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
     try {
-        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        // A flag for serializing executable graph information (not complete IR)
+        bool execGraphInfoSerialization = false;
+
+        const std::vector<CNNLayerPtr> ordered = Serialization::TopologicalSort((InferenceEngine::ICNNNetwork&)*this);
+        // If first layer has perfCounter parameter set then it's executable graph info serialization.
+        // All other layers must also have this parameter set.
+        if (ordered[0]->params.find(ExecGraphInfoSerialization::PERF_COUNTER) != ordered[0]->params.end()) {
+            execGraphInfoSerialization = true;
+            for (const auto& layer : ordered) {
+                if (layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER) == layer->params.end()) {
+                    THROW_IE_EXCEPTION << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
+                                    << " parameter set in case of executable graph info serialization";
+                }
+            }
+        }
+
+        if (execGraphInfoSerialization) {
+            Serialization::Serialize(xmlPath, (InferenceEngine::ICNNNetwork&)*this);
+            return OK;
+        }
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
@@ -395,7 +423,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
-    return OK;
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

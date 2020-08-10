@@ -139,7 +139,9 @@ namespace ngraph
                                                      const Shape& output_shape,
                                                      const Shape& source_shape)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             shared_ptr<Node> broadcasted_node = value.as_single_output_node();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             // If node already has the required shape, return original node
             if (output_shape == value.get_shape())
             {
@@ -200,7 +202,9 @@ namespace ngraph
             // If node already has the required shape, return original node
             if (output_shape == value_shape)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return value.as_single_output_node();
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             if (axis == -1)
@@ -249,8 +253,10 @@ namespace ngraph
             // Handle the trivial case...
             if (arg1_in_shape == arg2_in_shape)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return make_pair(args.first.as_single_output_node(),
                                  args.second.as_single_output_node());
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             NodeVector bcasted_outputs =
@@ -317,65 +323,6 @@ namespace ngraph
 
             return {numpy_broadcast_node(left, left_output_shape, left_full_shape),
                     numpy_broadcast_node(right, right_output_shape, right_full_shape)};
-        }
-
-        OutputVector legacy_broadcast_for_binary_operation(const Output<Node>& left,
-                                                           const Output<Node>& right,
-                                                           size_t start_match_axis)
-        {
-            const auto& left_shape = left.get_shape();
-            const auto& right_shape = right.get_shape();
-
-            bool dimensions_identical = (left_shape == right_shape);
-            if (dimensions_identical)
-            {
-                return {left, right};
-            }
-
-            // Prepare new shape of right operand for broadcasting
-            // Remove dimensions with length=1 from back
-            auto new_right_shape = right_shape;
-            for (int dimension = new_right_shape.size() - 1; dimension >= 0; --dimension)
-            {
-                if (new_right_shape[dimension] == 1)
-                {
-                    new_right_shape.pop_back();
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            // Find first dimensions at front with length different from 1
-            size_t num_ones = 0;
-            for (size_t dimension : new_right_shape)
-            {
-                if (dimension == 1)
-                {
-                    ++num_ones;
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            // Remove dimensions with length=1 from front
-            new_right_shape.erase(begin(new_right_shape), next(begin(new_right_shape), num_ones));
-
-            auto reshape_right =
-                make_shared<op::Reshape>(right, get_default_order(right_shape), new_right_shape);
-
-            // Move broadcast start axis parameter to right
-            start_match_axis += num_ones;
-
-            auto broadcast_right = make_shared<op::Broadcast>(
-                reshape_right,
-                left_shape,
-                calculate_broadcast_axes(left_shape, new_right_shape, start_match_axis));
-
-            return {left, broadcast_right};
         }
 
         OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis)

@@ -61,8 +61,9 @@ protected:
     void compareWithRef(const InferenceEngine::CNNNetwork &network,
                         const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
         IE_SUPPRESS_DEPRECATED_START
-        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(
-                InferenceEngine::details::CNNNetSortTopologically(network),
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
+                InferenceEngine::details::CNNNetSortTopologically(*convertedNetwork),
                 refLayersVec, false));
         IE_SUPPRESS_DEPRECATED_END
     }
@@ -122,12 +123,12 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(_modelPath, modelPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _modelPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(modelPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(modelPath) << "'";
             }
             is_copy_successfully = CommonTestUtils::copyFile(_weightsPath, weightsPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _weightsPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(weightsPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(weightsPath) << "'";
             }
             GTEST_COUT << "Test " << testIndex << std::endl;
             InferenceEngine::Core ie;
@@ -198,10 +199,19 @@ TEST(NetReaderTest, IRSupportModelDetection) {
 </net>
 )V0G0N";
 
+    // For supported model detection the IRReader uses first 512 bytes from model.
+    // These headers shifts the trim place.
+
     std::string headers[] = {
         R"()",
-        R"(<!-- <net name="Network" version="100500"> -->)",
-        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)"
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)",
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->)"
     };
 
     InferenceEngine::Blob::CPtr weights;

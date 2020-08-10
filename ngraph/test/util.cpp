@@ -28,7 +28,6 @@
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
-#include "ngraph/serializer.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
@@ -164,20 +163,6 @@ TEST(util, all_close)
     EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
 }
 #endif
-
-TEST(util, traverse_functions)
-{
-    // First create "f(A,B,C) = (A+B)*C".
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C}, "f");
-
-    vector<Function*> functions;
-    traverse_functions(f, [&](shared_ptr<Function> fp) { functions.push_back(fp.get()); });
-    ASSERT_EQ(1, functions.size());
-}
 
 class CloneTest : public ::testing::Test
 {

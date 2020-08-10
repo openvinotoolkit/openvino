@@ -90,10 +90,7 @@
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
-#  ifdef __INTEL_COMPILER
-#   define ENABLE_UNICODE_PATH_SUPPORT
-#  endif
-#  if defined _MSC_VER && defined _MSVC_LANG && _MSVC_LANG < 201703L
+#  if defined __INTEL_COMPILER || defined _MSC_VER
 #   define ENABLE_UNICODE_PATH_SUPPORT
 #  endif
 # elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)

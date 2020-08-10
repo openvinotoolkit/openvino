@@ -40,8 +40,8 @@ void StaticShapeNonZero::validate_and_infer_types() {
     set_output_type(1, m_output_type, {Dimension(2)});
 }
 
-std::shared_ptr<Node> StaticShapeNonZero::copy_with_new_args(
-        const NodeVector& new_args) const {
+std::shared_ptr<Node> StaticShapeNonZero::clone_with_new_inputs(
+        const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<StaticShapeNonZero>(new_args.at(0), m_output_type);
 }
@@ -63,8 +63,8 @@ void evaluateStaticShapeNonZero(const Shape& inputShape,
     const auto outShapeBuffer = outShape->get_data_ptr<OutType>();
 
     const auto totalInputSize = shape_size(inputShape);
-    const auto inputRank = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[0]);
-    const auto nonZeroCount = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[1]);
+    const auto inputRank = nonZeroOutput->get_partial_shape()[0].get_length();
+    const auto nonZeroCount = nonZeroOutput->get_partial_shape()[1].get_length();
 
     for (size_t i = 0; i < inputRank; ++i) {
         for (size_t j = 0; j < nonZeroCount; j++) {
@@ -79,7 +79,7 @@ void evaluateStaticShapeNonZero(const Shape& inputShape,
 } // namespace
 
 bool StaticShapeNonZero::evaluate(const HostTensorVector& outputs,
-                                  const HostTensorVector& inputs) {
+                                  const HostTensorVector& inputs) const {
     const auto& input = inputs[0];
     const auto& outIndices = outputs[0];
     const auto& outShape = outputs[1];

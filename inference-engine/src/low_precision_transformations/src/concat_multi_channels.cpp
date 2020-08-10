@@ -4,12 +4,11 @@
 
 #include "low_precision_transformations/concat_multi_channels.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -18,7 +17,6 @@
 
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
-#include "network_serializer.h"
 
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"

@@ -4,12 +4,10 @@
 
 #include "low_precision_transformations/common/dequantization_info.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>

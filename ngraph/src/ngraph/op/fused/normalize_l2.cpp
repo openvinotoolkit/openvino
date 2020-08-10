@@ -23,6 +23,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/fused/normalize_l2.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -55,7 +56,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, axes_node->is_constant(), "Input axes must be Constant type");
+    NODE_VALIDATION_CHECK(this, op::is_constant(axes_node), "Input axes must be Constant type");
 
     if (axes_rank.is_static())
     {
@@ -94,7 +95,7 @@ AxisSet op::NormalizeL2::get_reduction_axes() const
     return axes;
 }
 
-NodeVector op::NormalizeL2::decompose_op() const
+OutputVector op::NormalizeL2::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     const Shape input_shape{data.get_shape()};
@@ -107,7 +108,7 @@ NodeVector op::NormalizeL2::decompose_op() const
 
     data = make_shared<op::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
-    return as_node_vector({data});
+    return OutputVector{data};
 }
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const

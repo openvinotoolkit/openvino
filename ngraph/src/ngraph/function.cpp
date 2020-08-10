@@ -20,7 +20,9 @@
 
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
@@ -34,39 +36,33 @@ Function::Function(const ResultVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
     : Lambda(results, parameters)
-    , m_temporary_pool_size(0)
-    , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_name(name)
-    , m_unique_name("Function_" + to_string(m_instance_id))
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    init();
+    validate_nodes_and_infer_types();
 }
 
 Function::Function(const OutputVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
     : Lambda(results, parameters)
-    , m_temporary_pool_size(0)
-    , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_name(name)
-    , m_unique_name("Function_" + to_string(m_instance_id))
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    init();
+    validate_nodes_and_infer_types();
 }
 
 Function::Function(const NodeVector& results,
                    const ParameterVector& parameters,
                    const std::string& name)
     : Lambda(as_output_vector(results), parameters)
-    , m_temporary_pool_size(0)
-    , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_name(name)
-    , m_unique_name("Function_" + to_string(m_instance_id))
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    init();
+    validate_nodes_and_infer_types();
 }
 
 Function::Function(const std::shared_ptr<Node>& result,
@@ -78,12 +74,14 @@ Function::Function(const std::shared_ptr<Node>& result,
 
 void Function::validate_nodes_and_infer_types()
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
+
     for (auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
 
         // If we find a parameter make sure it is in the list of parameters of the function
-        if (node->is_parameter())
+        if (op::is_parameter(node))
         {
             auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
             if (it == m_parameters.end())
@@ -94,13 +92,10 @@ void Function::validate_nodes_and_infer_types()
     }
 }
 
-void Function::init()
-{
-    validate_nodes_and_infer_types();
-}
-
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
+
     vector<shared_ptr<Node>> nodes;
     for (auto& r : get_results())
     {
@@ -161,24 +156,7 @@ const std::string& Function::get_name() const
 
 void Function::set_friendly_name(const string& name)
 {
-    if (m_name.empty())
-    {
-        m_name = name;
-    }
-    else
-    {
-        throw ngraph_error("Function name may be set exactly once");
-    }
-}
-
-size_t Function::get_temporary_pool_size()
-{
-    return m_temporary_pool_size;
-}
-
-void Function::set_temporary_pool_size(size_t size)
-{
-    m_temporary_pool_size = size;
+    m_name = name;
 }
 
 std::ostream& operator<<(std::ostream& out, const Function& f)

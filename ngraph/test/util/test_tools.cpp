@@ -31,7 +31,9 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
     for (auto it = nodes.rbegin(); it != nodes.rend(); it++)
     {
         auto node_tmp = *it;
-        auto dependencies_tmp = node_tmp->get_arguments();
+        NodeVector dependencies_tmp;
+        for (auto& val : node_tmp->input_values())
+            dependencies_tmp.emplace_back(val.get_node_shared_ptr());
         vector<Node*> dependencies;
 
         for (shared_ptr<Node> n : dependencies_tmp)
@@ -207,17 +209,6 @@ string get_results_str(const std::vector<char>& ref_data,
     return ss.str();
 }
 
-#ifndef NGRAPH_JSON_DISABLE
-std::shared_ptr<Function> make_function_from_file(const std::string& file_name)
-{
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, file_name);
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    return func;
-}
-#endif
-
 ::testing::AssertionResult test_ordered_ops(shared_ptr<Function> f, const NodeVector& required_ops)
 {
     unordered_set<Node*> seen;
@@ -262,7 +253,7 @@ std::shared_ptr<Function> make_function_from_file(const std::string& file_name)
 constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
 
 bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs)
+                                      const HostTensorVector& inputs) const
 {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
     inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());

@@ -17,14 +17,16 @@
 #include <memory>
 
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Concat::type_info;
+NGRAPH_RTTI_DEFINITION(op::Concat, "Concat", 0);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis)
     : Op(args)
@@ -162,8 +164,9 @@ namespace
     }
 }
 
-bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Concat::evaluate");
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }

@@ -167,7 +167,11 @@ VPU_DECLARE_ENUM(StageType,
     Concat = 128,
     Broadcast = 129,
     StaticShapeNMS = 130,
+    Mish = 131,
+    Gelu = 132,
     StridedSlice = 133,
+    SoftPlus = 134,
+    Swish = 135,
 )
 
 //

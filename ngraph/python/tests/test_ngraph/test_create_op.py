@@ -515,19 +515,6 @@ def test_convert_like():
     assert node.get_output_element_type(0) == Type.i8
 
 
-def test_reverse():
-    parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
-    parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)
-    expected_shape = [3, 10, 100, 200]
-
-    node = ng.reverse(parameter_data, parameter_axis, "index")
-
-    assert node.get_type_name() == "Reverse"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
-    assert node.get_output_element_type(0) == Type.f32
-
-
 def test_bucketize():
     data = ng.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
     buckets = ng.parameter([5], name="buckets", dtype=np.int64)
@@ -813,7 +800,7 @@ def test_tensor_iterator():
     zero = ng.constant(0, dtype=np.int32)
     one = ng.constant(1, dtype=np.int32)
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
-    iter_cnt = ng.ops.range(zero, np.int32(16), np.int32(1))
+    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])

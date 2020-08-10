@@ -247,7 +247,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
                 // Don't constant fold a constant; it would make a copy
                 bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override
@@ -442,7 +442,6 @@ namespace ngraph
                         get_data_ptr());
                 }
 
-                bool is_constant() const override { return true; }
                 bool get_all_data_elements_bitwise_identical() const
                 {
                     return m_all_elements_bitwise_identical;

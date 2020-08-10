@@ -101,5 +101,7 @@ IE_SUPPRESS_DEPRECATED_END
  */
 INFERENCE_ENGINE_API_CPP(void) ConvertPrecision(ICNNNetwork& net, Precision from, Precision to);
 
+INFERENCE_ENGINE_API_CPP(void) ConvertIOPrecision(ICNNNetwork& net, Precision from, Precision to);
+
 }  // namespace NetPass
 }  // namespace InferenceEngine

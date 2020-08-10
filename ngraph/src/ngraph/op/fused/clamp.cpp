@@ -16,6 +16,7 @@
 #include "ngraph/op/fused/clamp.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/maximum.hpp"
 #include "ngraph/op/minimum.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
@@ -83,8 +84,9 @@ namespace
     }
 }
 
-bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Clamp::evaluate");
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }
@@ -104,7 +106,7 @@ void op::Clamp::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-NodeVector op::Clamp::decompose_op() const
+OutputVector op::Clamp::decompose_op() const
 {
     const auto data = input_value(0);
     const auto type = data.get_element_type();

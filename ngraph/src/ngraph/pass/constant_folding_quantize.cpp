@@ -66,7 +66,6 @@ void pass::ConstantFolding::construct_constant_quantize()
 
         NGRAPH_CHECK(revalidate_and_ensure_static(quantize_op));
 
-        auto args = quant_match->get_arguments();
         auto scale = static_pointer_cast<op::Constant>(quant_match->get_input_node_shared_ptr(1));
         auto offset = static_pointer_cast<op::Constant>(quant_match->get_input_node_shared_ptr(2));
 
@@ -97,6 +96,8 @@ void pass::ConstantFolding::construct_constant_quantize()
 
     auto quantize_matcher =
         make_shared<pattern::Matcher>(quant, "ConstantFolding.ConstantQuantize");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         quantize_matcher, constant_quantize_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

@@ -14,8 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not.hpp"
@@ -39,7 +42,7 @@ bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v1::LogicalNot::validate_and_infer_types()
 {
-    auto args_et_pshape = validate_and_infer_elementwise_args();
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
@@ -90,8 +93,10 @@ namespace
     }
 }
 
-bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalNot::evaluate");
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
@@ -106,7 +111,7 @@ op::v0::Not::Not(const Output<Node>& arg)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v0::Not::validate_and_infer_types()
 {
-    auto args_et_pshape = validate_and_infer_elementwise_args();
+    auto args_et_pshape = ngraph::op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
@@ -119,7 +124,8 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<v0::Not>(new_args.at(0));
 }
 
-bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Not::evaluate");
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -61,7 +61,7 @@ void op::Interp::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::Interp::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::Interp::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<Interp>(new_args.at(0), m_attrs);
 }
@@ -90,7 +90,7 @@ void op::ResampleV2::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
                               "Layer shape must have rank 4 or 5", const_shape->get_shape());
 
-        auto out_shape = static_cast<const int64_t*>(const_shape->get_data_ptr());
+        auto out_shape = const_shape->cast_vector<int64_t>();
         Shape output_shape;
         for (size_t i = 0; i < const_shape->get_shape()[0]; i++) {
             output_shape.push_back((out_shape[i] > 0) ? out_shape[i] : 0);
@@ -101,7 +101,7 @@ void op::ResampleV2::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::ResampleV2::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::ResampleV2::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<ResampleV2>(new_args.at(0), new_args.at(1), m_attrs);
 }

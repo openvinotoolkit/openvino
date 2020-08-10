@@ -209,11 +209,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         fmt_prev == format::bfyx &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
-        (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
-        (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8)))) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] % 16 == 0 && prev_output_layout.size.feature[0] == 3) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3 &&
         (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+        return true;
+
+    if (next.is_type<convolution>() &&
+        fmt_prev == format::bfyx &&
+        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4)
         return true;
 
     if (next.is_type<convolution>() &&
@@ -397,7 +400,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
     auto required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
     auto correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
                                weights_layout.size.batch[0] * weights_layout.size.group[0] >= required_feature_num);
-    if (!correct_in_feature && input_layout.size.feature[0] == 3 && weights_layout.size.batch[0] >= feature_block_size)
+    if (!correct_in_feature && input_layout.size.feature[0] <= 4 && weights_layout.size.batch[0] >= feature_block_size)
         correct_in_feature = true;
     auto depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
     auto out_features_per_group = weights_layout.size.batch[0];
@@ -625,6 +628,10 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
         return format::bfzyx;
     }
 
+    if ((out_size.feature[0] == 8 || out_size.feature[0] == 12) && out_size.spatial[1] > 512) {
+        return format::b_fs_yx_fsv4;
+    }
+
     if (stride.spatial[0] != stride.spatial[1] || out_size.spatial[0] != out_size.spatial[1] ||
         (weights_dt != data_types::u8 && weights_dt != data_types::i8)) {
         return format::byxf_af32;
@@ -753,7 +760,14 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else if (_optimization_attributes.b_fs_yx_fsv16_network &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         expected_tensor = current_layout.size;
-        expected_format = cldnn::format::b_fs_yx_fsv16;
+        auto input_tensor = node.get_dependency(0).get_output_layout().size;
+        int input_features = input_tensor.feature[0];
+        int output_features = expected_tensor.feature[0];
+        float r = float(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        if (r > 0.5f)
+            expected_format = cldnn::format::b_fs_yx_fsv16;
+        else
+            expected_format = cldnn::format::bfyx;
     }
     return layout(expected_data_type, expected_format, expected_tensor);
 }

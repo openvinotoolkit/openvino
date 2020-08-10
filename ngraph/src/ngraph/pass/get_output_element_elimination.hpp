@@ -26,8 +26,12 @@ namespace ngraph
     }
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 class NGRAPH_API ngraph::pass::GetOutputElementElimination : public NodePass
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
+
     bool run_on_node(std::shared_ptr<Node> node) override;
 };
+NGRAPH_SUPPRESS_DEPRECATED_END

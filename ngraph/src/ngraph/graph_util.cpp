@@ -29,6 +29,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/provenance.hpp"
@@ -96,14 +98,6 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
     }
 }
 
-void ngraph::traverse_nodes(const NodeVector& subgraph_results,
-                            std::function<void(std::shared_ptr<Node>)> f,
-                            bool,
-                            const NodeVector& subgraph_params)
-{
-    traverse_nodes(subgraph_results, f, subgraph_params);
-}
-
 NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2)
 {
     std::unordered_set<std::shared_ptr<Node>> node1_args;
@@ -138,7 +132,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
                           std::shared_ptr<Node> replacement,
                           const std::vector<int64_t>& output_order)
 {
-    if (target->is_output())
+    if (ngraph::op::is_output(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -193,7 +187,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
 void ngraph::replace_node(const std::shared_ptr<Node>& target,
                           const OutputVector& replacement_values)
 {
-    if (target->is_output())
+    if (ngraph::op::is_output(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -266,7 +260,7 @@ bool ngraph::is_post_dominated(Node* X, Node* Y)
     {
         ngraph::Node* curr = stack.top();
         visited.insert(curr);
-        if (curr->is_output())
+        if (ngraph::op::is_output(curr))
         {
             return false;
         }
@@ -312,11 +306,15 @@ std::vector<std::shared_ptr<ngraph::Node>>
                 }
             }
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
-            if (node->get_friendly_name() != node->get_name())
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            //  TODO: workaround for shape inference, delete it after fix
+            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
             {
-                // There is a friendly name for this node so copy it
-                cloned_node->set_friendly_name(node->get_friendly_name());
+                cloned_node->validate_and_infer_types();
             }
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
 
             for (auto tag : node->get_provenance_tags())
             {
@@ -376,11 +374,15 @@ std::list<std::shared_ptr<ngraph::Node>>
                 }
                 auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
                 cloned_nodes.push_back(cloned_node);
-                if (node->get_friendly_name() != node->get_name())
+                // There is a friendly name for this node so copy it
+                cloned_node->set_friendly_name(node->get_friendly_name());
+                //  TODO: workaround for shape inference, delete it after fix
+                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
                 {
-                    // There is a friendly name for this node so copy it
-                    cloned_node->set_friendly_name(node->get_friendly_name());
+                    cloned_node->validate_and_infer_types();
                 }
+                auto rt_info = node->get_rt_info();
+                cloned_node->get_rt_info() = rt_info;
 
                 for (auto tag : node->get_provenance_tags())
                 {
@@ -432,7 +434,9 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     }
 
     // create and return cloned function
-    return std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    result->set_friendly_name(func.get_friendly_name());
+    return result;
 }
 
 bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant)
@@ -473,7 +477,6 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
     // Make parameter node
     shared_ptr<op::Parameter> par_node = make_shared<op::Parameter>(
         src_node->get_output_element_type(0), src_node->get_output_shape(0));
-    par_node->set_placement(dst_node->get_placement());
 
     // Fix input / output among src, dst and par
     std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
@@ -497,7 +500,6 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
     // Add res node
     // Add [4], [5], [6], [7]
     shared_ptr<op::Result> res_node = make_shared<op::Result>(src_node);
-    res_node->set_placement(src_node->get_placement());
 
     return make_pair(res_node, par_node);
 }
@@ -649,7 +651,7 @@ bool ngraph::is_used(Node* node)
         ngraph::Node* n = stack.top();
         if (instances_seen.count(n) == 0)
         {
-            if (n->is_output())
+            if (ngraph::op::is_output(n))
             {
                 return true;
             }
@@ -683,7 +685,7 @@ bool ngraph::possibly_overwritten(Node* node)
     {
         for (auto& input : output.get_target_inputs())
         {
-            if (input.get_node()->is_op())
+            if (op::is_op(input.get_node()))
             {
                 auto op = static_cast<ngraph::op::Op*>(input.get_node());
                 if (auto op_annotations = op->get_op_annotations())
@@ -722,7 +724,7 @@ bool ngraph::is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t
 
 bool ngraph::compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2)
 {
-    if (!(n1->is_constant() && n2->is_constant()))
+    if (!(op::is_constant(n1) && op::is_constant(n2)))
     {
         return false;
     }
@@ -875,12 +877,6 @@ bool ngraph::check_for_cycles(const ngraph::Function* func,
     }
     // no cycles
     return false;
-}
-
-void ngraph::traverse_functions(std::shared_ptr<Function> p,
-                                std::function<void(std::shared_ptr<Function>)> f)
-{
-    f(p);
 }
 
 bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>& replacement)

@@ -28,6 +28,8 @@ PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
+# Change current working dircectory to ngraph/python
+os.chdir(PYNGRAPH_ROOT_DIR)
 
 
 def find_ngraph_dist_dir():
@@ -185,12 +187,11 @@ sources = [
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
+    "pyngraph/node_input.cpp",
+    "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
-    "pyngraph/ops/get_output_element.cpp",
-    "pyngraph/ops/op.cpp",
     "pyngraph/ops/parameter.cpp",
-    "pyngraph/ops/regmodule_pyngraph_op.cpp",
     "pyngraph/ops/result.cpp",
     "pyngraph/ops/util/arithmetic_reduction.cpp",
     "pyngraph/ops/util/binary_elementwise_arithmetic.cpp",
@@ -204,7 +205,6 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
     "pyngraph/tensor_iterator_builder.cpp",
@@ -215,6 +215,10 @@ sources = [
 
 packages = [
     "ngraph",
+    "ngraph.opset1",
+    "ngraph.opset2",
+    "ngraph.opset3",
+    "ngraph.opset4",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",

@@ -18,6 +18,7 @@
 #include <functional>
 #include <set>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fused/squeeze.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -112,7 +113,7 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::Squeeze::decompose_op() const
+OutputVector op::Squeeze::decompose_op() const
 {
     NODE_VALIDATION_CHECK(
         this,
@@ -203,7 +204,9 @@ namespace
     }
 }
 
-bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
     return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }

@@ -17,9 +17,11 @@
 #include <functional>
 #include <set>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fused/unsqueeze.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -42,7 +44,7 @@ void op::Unsqueeze::pre_validate_and_infer_types()
 
     const auto axes_node = input_value(1).get_node_shared_ptr();
 
-    if (data_rank.is_dynamic() || !axes_node->is_constant())
+    if (data_rank.is_dynamic() || !op::is_constant(axes_node))
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
@@ -74,7 +76,7 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-NodeVector op::Unsqueeze::decompose_op() const
+OutputVector op::Unsqueeze::decompose_op() const
 {
     NODE_VALIDATION_CHECK(
         this,
@@ -163,7 +165,9 @@ namespace
     }
 }
 
-bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
     return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }

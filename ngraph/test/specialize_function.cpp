@@ -133,11 +133,12 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val)
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
     ASSERT_EQ(g->get_output_element_type(0), element::f32);
 
-    auto plus_node = as_type_ptr<op::Add>(g->get_results().at(0)->get_argument(0));
+    auto plus_node =
+        as_type_ptr<op::Add>(g->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(plus_node);
-    auto convert_node = as_type_ptr<op::Convert>(plus_node->get_argument(1));
+    auto convert_node = as_type_ptr<op::Convert>(plus_node->input_value(1).get_node_shared_ptr());
     ASSERT_TRUE(convert_node);
-    auto const_node = as_type_ptr<op::Constant>(convert_node->get_argument(0));
+    auto const_node = as_type_ptr<op::Constant>(convert_node->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(const_node);
 
     ASSERT_EQ(const_node->get_output_element_type(0), element::i32);
@@ -320,45 +321,4 @@ TEST(specialize_function, value_count_wrong)
                                 param_vals);
         },
         CheckFailure);
-}
-
-// Test checks that constant sharing is working
-TEST(specialize_function, share_constants)
-{
-    auto p0 = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 64, 64});
-    auto mul_const = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1, 2, 3});
-    auto mul = std::make_shared<op::Multiply>(p0, mul_const, op::AutoBroadcastType::NUMPY);
-
-    auto add_const = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {4, 5, 6});
-    auto add = std::make_shared<op::Multiply>(mul, add_const, op::AutoBroadcastType::NUMPY);
-
-    auto f = std::make_shared<Function>(add, ParameterVector{p0});
-
-    auto f_specialized =
-        specialize_function(f, {element::f32}, {PartialShape{2, 3, 64, 64}}, {nullptr}, true, true);
-
-    ASSERT_EQ(mul_const->get_output_target_inputs(0).size(), 2);
-    ASSERT_EQ(add_const->get_output_target_inputs(0).size(), 2);
-}
-
-// Test checks that constant sharing works when constant folding replaces constants
-TEST(specialize_function, share_constants_with_cf)
-{
-    auto p0 = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 64, 64});
-    auto mul_const = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1, 2, 3});
-    auto mul = std::make_shared<op::Multiply>(p0, mul_const, op::AutoBroadcastType::NUMPY);
-
-    auto add_const_1 = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {4, 5, 6});
-    auto add_const_2 = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1, 2, 3});
-    auto add_const = std::make_shared<op::Add>(add_const_1, add_const_2);
-    auto add = std::make_shared<op::Add>(mul, add_const, op::AutoBroadcastType::NUMPY);
-
-    auto f = std::make_shared<Function>(add, ParameterVector{p0});
-
-    auto f_specialized =
-        specialize_function(f, {element::f32}, {PartialShape{2, 3, 64, 64}}, {nullptr}, true, true);
-
-    ASSERT_EQ(mul_const->get_output_target_inputs(0).size(), 2);
-    ASSERT_EQ(add_const_1->get_output_target_inputs(0).size(), 1);
-    ASSERT_EQ(add_const_2->get_output_target_inputs(0).size(), 1);
 }

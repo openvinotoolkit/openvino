@@ -11,6 +11,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include "gna_executable_network.hpp"
 #include "gna_plugin_config.hpp"
+#include <ie_util_internal.hpp>
 
 namespace GNAPluginNS {
 
@@ -35,7 +36,7 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        return std::make_shared<GNAExecutableNetwork>(*cloneNet(network), plg);
+        return std::make_shared<GNAExecutableNetwork>(*cloneNetwork(network), plg);
     }
 
     void SetConfig(const std::map<std::string, std::string> &config) override {

@@ -37,6 +37,12 @@ static vector<string> to_lower_case(const vector<string>& vs)
     return res;
 }
 
+op::util::RNNCellBase::RNNCellBase()
+    : m_clip(0.f)
+    , m_hidden_size(0)
+{
+}
+
 op::util::RNNCellBase::RNNCellBase(size_t hidden_size,
                                    float clip,
                                    const vector<string>& activations,
@@ -105,7 +111,9 @@ shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const
 {
     if (m_clip == 0.f)
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         return data.as_single_output_node();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     return make_shared<op::Clamp>(data, -m_clip, m_clip);
