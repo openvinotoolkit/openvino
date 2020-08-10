@@ -71,44 +71,6 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
     element::Type deformable_values_et = get_input_element_type(1);
     element::Type filters_et = get_input_element_type(2);
 
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_begin.size() == 0)
-    {
-        m_pads_begin = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_end.size() == 0)
-    {
-        m_pads_end = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        if (data_batch_shape.is_static() && filters_shape.is_static())
-        {
-            m_pads_begin.clear();
-            m_pads_end.clear();
-            auto filter_shape = filters_shape.to_shape();
-            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            infer_auto_padding(data_batch_shape.to_shape(),
-                               filter_shape,
-                               m_strides,
-                               m_dilations,
-                               m_auto_pad,
-                               m_pads_end,
-                               m_pads_begin);
-        }
-    }
-
     if (deformable_values_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(
@@ -160,15 +122,75 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
         filters_et,
         ").");
 
-    const PartialShape result_shape =
-        infer_convolution_forward(this,
-                                  data_batch_shape,
-                                  Strides(m_strides.size(), 1), // dummy data dilations
-                                  m_pads_begin,
-                                  m_pads_end,
-                                  filters_shape,
-                                  m_strides,
-                                  m_dilations);
+    PartialShape result_shape = PartialShape::dynamic();
+    if (data_batch_shape.rank().is_static())
+    {
+        result_shape =
+            std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
+
+        if (data_batch_shape.rank().get_length() > 1)
+        {
+            result_shape[0] = data_batch_shape[0]; // batch size
+        }
+
+        if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
+        {
+            result_shape[1] = filters_shape[0]; // filter channel size
+        }
+    }
+
+    if (m_strides.size() == 0)
+    {
+        m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
+    }
+
+    if (m_dilations.size() == 0)
+    {
+        m_dilations = conv_default_strides(this, data_batch_shape, filters_shape);
+    }
+
+    if (m_pads_begin.size() == 0)
+    {
+        m_pads_begin = conv_default_padding(this, data_batch_shape, filters_shape);
+    }
+
+    if (m_pads_end.size() == 0)
+    {
+        m_pads_end = conv_default_padding(this, data_batch_shape, filters_shape);
+    }
+
+    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+    {
+        bool auto_padding_applied = false;
+        if (filters_shape.is_static())
+        {
+            m_pads_begin.clear();
+            m_pads_end.clear();
+            auto filter_shape = filters_shape.to_shape();
+            filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
+            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
+                                                          filter_shape,
+                                                          m_strides,
+                                                          m_dilations,
+                                                          m_auto_pad,
+                                                          m_pads_end,
+                                                          m_pads_begin);
+        }
+        if (!auto_padding_applied)
+        {
+            set_output_type(0, data_batch_et, result_shape);
+            return;
+        }
+    }
+
+    result_shape = infer_convolution_forward(this,
+                                             data_batch_shape,
+                                             Strides(m_strides.size(), 1), // dummy data dilations
+                                             m_pads_begin,
+                                             m_pads_end,
+                                             filters_shape,
+                                             m_strides,
+                                             m_dilations);
 
     set_output_type(0, result_et, result_shape);
 }
