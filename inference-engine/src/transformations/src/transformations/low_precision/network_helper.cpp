@@ -704,16 +704,24 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     const size_t dequantizationIndex = getInputIndex(dequantization.multiply, operation);
     inputs[dequantizationIndex] = dequantization.data;
 
-    std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
+    const std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
     newOperation->set_friendly_name(operation->get_friendly_name());
     // copyInfo(operation, newOperation);
 
+    if (updatePrecision) {
+        auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
+        if (op == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*newOperation) << "not possible to update precision for not TypeRelaxedBase operation";
+        }
+        op->set_overridden_output_type(newOperation->get_input_element_type(0));
+        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+    }
+
     const bool shouldConvert = (newOperation->get_output_element_type(0) != dequantization.multiply->get_output_element_type(0));
-    const std::shared_ptr<ngraph::opset1::Convert> convert = (updatePrecision || shouldConvert) ? dequantization.convert : nullptr;
 
     auto parent = newOperation;
-    if (convert != nullptr) {
-        parent = std::make_shared<opset1::Convert>(parent, convert->get_output_element_type(0));
+    if (shouldConvert) {
+        parent = std::make_shared<opset1::Convert>(parent, dequantization.convert->get_output_element_type(0));
     }
     if (dequantization.subtract != nullptr) {
         auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
@@ -724,16 +732,6 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         parent = std::make_shared<opset1::Multiply>(parent, multiplyConstant);
     }
     replace_node(operation, parent);
-
-    if (updatePrecision) {
-        // NetworkHelper::setOutDataPrecision(op, newOperation->get_input_element_type(0));
-        auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
-        if (op == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*newOperation) << "not possible to update precision for not type relaxed operation";
-        }
-        op->set_overridden_output_type(newOperation->get_input_element_type(0));
-        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
-    }
 
     return InsertDequantizationResult(newOperation, parent);
 }
