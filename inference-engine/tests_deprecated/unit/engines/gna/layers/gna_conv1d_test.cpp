@@ -100,7 +100,7 @@ TEST_P(GNAConv1DTest, SplitToConcatWith2Inputs) {
     }
 }
 
-//TODO: for I16 for commented values: PWL after CNN output size mismatch
+//TODO: Issue 36867
 INSTANTIATE_TEST_CASE_P(
         GNALayerTests,
         GNAConv1DTest,

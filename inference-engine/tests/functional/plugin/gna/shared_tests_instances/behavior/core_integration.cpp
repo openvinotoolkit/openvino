@@ -76,12 +76,12 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetMetric
 //
 
-// TODO: 2D convolution is not supported by GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
 
-// TODO: 2D convolution is not supported by GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
@@ -91,12 +91,12 @@ INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
 
-// TODO: 2D convolution is not supported by GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::Values("GNA"/*, "MULTI:GNA", "HETERO:GNA" */));
 
-// TODO: 2D convolution is not supported by GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
@@ -105,17 +105,17 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetConfig / SetConfig
 //
 
-//Convolution with 3D input is not supported on GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
         ::testing::Values("GNA"));
 
-//Convolution with 3D input is not supported on GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
         ::testing::Values("GNA"));
 
-//Convolution with 3D input is not supported on GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_CASE_P(
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO))));
 
-//Convolution with 3D input is not supported on GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
@@ -145,7 +145,7 @@ TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
     ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngineException);
 }
 
-//Convolution with 3D input is not supported on GNA
+// TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
         ::testing::Combine(::testing::Values("GNA"),
