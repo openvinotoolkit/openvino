@@ -28,11 +28,16 @@ public:
 
 private:
     static void fillDequantization(
-        ngraph::Node& layer,
-        const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
+        std::shared_ptr<ngraph::Node> layer,
+        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
         std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate);
 
-    static void fillQuantization(const ngraph::Node& layer, std::vector<ngraph::opset1::FakeQuantize*>& fakeQuantizes);
+    static void fillQuantization(const std::shared_ptr<ngraph::Node> layer, std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes);
+
+    static void updateDequantizationShapesIfNecessary(
+        std::shared_ptr<ngraph::Node> layer,
+        std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes,
+        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize);
 
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
     std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptPrecisionPreserved(const std::shared_ptr<Node>& op) const noexcept;

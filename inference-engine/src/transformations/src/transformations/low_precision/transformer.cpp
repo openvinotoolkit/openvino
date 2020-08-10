@@ -46,6 +46,7 @@
 #include "transformations/low_precision/transpose.hpp"
 #include "transformations/low_precision/unsqueeze.hpp"
 #include "transformations/low_precision/variadic_split.hpp"
+#include "transformations/low_precision/split.hpp"
 
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
