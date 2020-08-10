@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/atan.hpp"
 
 #include "ngraph/axis_set.hpp"
@@ -86,5 +88,6 @@ namespace
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Atan::evaluate");
     return evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -20,6 +20,7 @@ function(STYLE_APPLY_FILE PATH)
 endfunction()
 
 set(DIRECTORIES_OF_INTEREST
+    frontend
     src
     doc
     test

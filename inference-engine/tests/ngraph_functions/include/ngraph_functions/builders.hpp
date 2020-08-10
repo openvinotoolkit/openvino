@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -313,6 +314,9 @@ std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::LogicalTypes logicalType);
+
+std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
+                                                  const ngraph::op::DetectionOutputAttrs& attrs);
 
 }  // namespace builder
 }  // namespace ngraph
