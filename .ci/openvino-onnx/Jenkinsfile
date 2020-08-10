@@ -65,6 +65,7 @@ def runDockerContainer(String imageID) {
     script: """
             docker run -id --privileged \
                     --name ${DOCKER_CONTAINER_NAME} \
+                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
                     ${imageID} tail -f /dev/null
             """,
     returnStdout: true
