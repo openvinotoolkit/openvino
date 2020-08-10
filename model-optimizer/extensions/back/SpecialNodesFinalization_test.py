@@ -118,7 +118,7 @@ class RemoveConstToResultReplacementTest(unittest.TestCase):
         """Result node is only consumer of Const data node"""
         nodes = [
             ('const_node', {'type': 'Const', 'kind': 'op'}),
-            ('const_data', {'kind': 'data'}),
+            ('const_data', {'kind': 'data', 'value': np.array(5)}),
             ('result_node', {'type': 'Result', 'kind': 'op'}),
 
             ('placeholder_1', {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'}),
@@ -166,7 +166,7 @@ class RemoveConstToResultReplacementTest(unittest.TestCase):
         """Const data node has two consumers: Result and ReLu"""
         nodes = [
             ('const_node', {'type': 'Const', 'kind': 'op'}),
-            ('const_data', {'kind': 'data'}),
+            ('const_data', {'kind': 'data', 'value': np.array(5)}),
             ('result_node', {'type': 'Result', 'kind': 'op'}),
             ('relu_1', {'type': 'ReLU', 'kind': 'op', 'op': 'ReLU'}),
             ('relu_1_data', {'kind': 'data'}),
