@@ -108,50 +108,7 @@ void Basic_LSTM_S::Run() {
     Infer();
 
     const auto& actualOutputs = GetOutputs();
-
-    //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
-    auto reference_model = CreateGraphWithUnrolledTI();
-
-    auto refCnnNetwork = InferenceEngine::CNNNetwork{ reference_model };
-    auto refExecutableNetwork = core->LoadNetwork(refCnnNetwork, targetDevice);
-
-    auto refInferRequest = refExecutableNetwork.CreateInferRequest();
-    std::vector<InferenceEngine::InputInfo::Ptr> refInfos;
-    for (const auto& input : refCnnNetwork.getInputsInfo()) {
-        const auto& info = input.second;
-        refInfos.push_back(info);
-    }
-
-    for (std::size_t i = 0; i < inputs.size(); ++i) {
-        const auto& input = inputs[i];
-        const auto& info = refInfos[i];
-
-        refInferRequest.SetBlob(info->name(), input);
-    }
-
-    refInferRequest.Infer();
-
-    auto refOutputs = std::vector<InferenceEngine::Blob::Ptr>{};
-    for (const auto& output : refCnnNetwork.getOutputsInfo()) {
-        const auto& name = output.first;
-        refOutputs.push_back(refInferRequest.GetBlob(name));
-    }
-
-    auto referenceOutputs = std::vector<std::vector<std::uint8_t>>(refOutputs.size());
-    for (std::size_t i = 0; i < refOutputs.size(); ++i) {
-        const auto& reference = refOutputs[i];
-        const auto refSize = reference->byteSize();
-
-        auto& expectedOutput = referenceOutputs[i];
-        expectedOutput.resize(refSize);
-
-        auto refMemory = InferenceEngine::as<InferenceEngine::MemoryBlob>(reference);
-        IE_ASSERT(refMemory);
-        const auto refLockedMemory = refMemory->wmap();
-        const auto referenceBuffer = refLockedMemory.as<const std::uint8_t*>();
-
-        std::copy(referenceBuffer, referenceBuffer + refSize, expectedOutput.data());
-    }
+    auto referenceOutputs = CalculateRefs();
 
     Compare(referenceOutputs, actualOutputs);
 }
@@ -205,6 +162,54 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
     return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S_Ref");
+}
+
+std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
+    //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
+    auto reference_model = CreateGraphWithUnrolledTI();
+
+    auto refCnnNetwork = InferenceEngine::CNNNetwork{ reference_model };
+    auto refExecutableNetwork = core->LoadNetwork(refCnnNetwork, targetDevice);
+
+    auto refInferRequest = refExecutableNetwork.CreateInferRequest();
+    std::vector<InferenceEngine::InputInfo::Ptr> refInfos;
+    for (const auto& input : refCnnNetwork.getInputsInfo()) {
+        const auto& info = input.second;
+        refInfos.push_back(info);
+    }
+
+    for (std::size_t i = 0; i < inputs.size(); ++i) {
+        const auto& input = inputs[i];
+        const auto& info = refInfos[i];
+
+        refInferRequest.SetBlob(info->name(), input);
+    }
+
+    refInferRequest.Infer();
+
+    auto refOutputs = std::vector<InferenceEngine::Blob::Ptr>{};
+    for (const auto& output : refCnnNetwork.getOutputsInfo()) {
+        const auto& name = output.first;
+        refOutputs.push_back(refInferRequest.GetBlob(name));
+    }
+
+    auto referenceOutputs = std::vector<std::vector<std::uint8_t>>(refOutputs.size());
+    for (std::size_t i = 0; i < refOutputs.size(); ++i) {
+        const auto& reference = refOutputs[i];
+        const auto refSize = reference->byteSize();
+
+        auto& expectedOutput = referenceOutputs[i];
+        expectedOutput.resize(refSize);
+
+        auto refMemory = InferenceEngine::as<InferenceEngine::MemoryBlob>(reference);
+        IE_ASSERT(refMemory);
+        const auto refLockedMemory = refMemory->wmap();
+        const auto referenceBuffer = refLockedMemory.as<const std::uint8_t*>();
+
+        std::copy(referenceBuffer, referenceBuffer + refSize, expectedOutput.data());
+    }
+
+    return referenceOutputs;
 }
 
 TEST_P(Basic_LSTM_S, CompareWithRefImpl) {
