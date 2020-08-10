@@ -274,22 +274,16 @@ if (ENABLE_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-    if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna")
-    else()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-            set(GNA_VERSION "01.00.00.1401")
-        endif()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.0925")
-        endif()
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
-                TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
+    if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
+        set(GNA_VERSION "01.00.00.1401")
     endif()
+    if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
+        set(GNA_VERSION "02.00.00.0925")
+    endif()
+    RESOLVE_DEPENDENCY(GNA
+            ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
+            TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
 endif()
