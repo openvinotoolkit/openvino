@@ -45,27 +45,27 @@ bool ngraph::pass::ConvertPowerSumAddRsqrtToNormalizeL2::is_applicable(pattern::
     }
 
     auto minus_one = inv->input_value(1).get_node_shared_ptr();
-    if (!minus_one->is_constant()) {
+    if (!ngraph::op::is_constant(minus_one)) {
         return false;
     }
 
     auto half = sqrt->input_value(1).get_node_shared_ptr();
-    if (!half->is_constant()) {
+    if (!ngraph::op::is_constant(half)) {
         return false;
     }
 
     auto epsilon = add->input_value(1).get_node_shared_ptr();
-    if (!epsilon->is_constant()) {
+    if (!ngraph::op::is_constant(epsilon)) {
         return false;
     }
 
     auto axes = reduce_sum->input_value(1).get_node_shared_ptr();
-    if (!axes->is_constant()) {
+    if (!ngraph::op::is_constant(axes)) {
         return false;
     }
 
     auto two = square->input_value(1).get_node_shared_ptr();
-    if (!two->is_constant()) {
+    if (!ngraph::op::is_constant(two)) {
         return false;
     }
 
