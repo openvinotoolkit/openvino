@@ -36,9 +36,9 @@ TEST(op_eval, variadic_split_same_lengths)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{4});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<int64_t> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0);
@@ -55,11 +55,10 @@ TEST(op_eval, variadic_split_same_lengths)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{1}),
-                     make_host_tensor<element::Type_t::i64>(Shape{4}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{1}),
+                             make_host_tensor<element::Type_t::i64>({4}, split_lengths_vec)}));
 
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
@@ -77,9 +76,9 @@ TEST(op_eval, variadic_split_different_lengths)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<int64_t> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0);
@@ -95,11 +94,10 @@ TEST(op_eval, variadic_split_different_lengths)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{0}),
-                     make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{0}),
+                             make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
@@ -117,9 +115,9 @@ TEST(op_eval, variadic_split_neg_length)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<int64_t> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0);
@@ -133,11 +131,10 @@ TEST(op_eval, variadic_split_neg_length)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{1}),
-                     make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{1}),
+                             make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{3, 1, 3};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
@@ -155,9 +152,9 @@ TEST(op_eval, variadic_split_neg_length_neg_axis)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<int64_t> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0);
@@ -171,11 +168,10 @@ TEST(op_eval, variadic_split_neg_length_neg_axis)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{-2}),
-                     make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{-2}),
+                             make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 2, 2};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
@@ -193,9 +189,9 @@ TEST(op_eval, variadic_split_neg_length_bool_data_type)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<char> data_vec{true, true, false, false, true, false, true, false, true, false};
 
@@ -208,11 +204,10 @@ TEST(op_eval, variadic_split_neg_length_bool_data_type)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::boolean>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{2}),
-                     make_host_tensor<element::Type_t::i64>(Shape{3}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::boolean>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{2}),
+                             make_host_tensor<element::Type_t::i64>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 2, 2};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
@@ -230,9 +225,9 @@ TEST(op_eval, variadic_split_neg_length_axis_ui64)
     const auto axis = make_shared<op::Parameter>(element::u64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<int64_t> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0);
@@ -268,9 +263,9 @@ TEST(op_eval, variadic_split_data_float_length_i32)
     const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const auto split_lengths = make_shared<op::Parameter>(element::i32, Shape{3});
 
-    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
+    auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
-    auto f = make_shared<Function>(split, ParameterVector{data, axis, split_lengths});
+    auto f = make_shared<Function>(var_split, ParameterVector{data, axis, split_lengths});
 
     std::vector<float> data_vec(shape_size(data_shape));
     std::iota(data_vec.begin(), data_vec.end(), 0.0f);
@@ -285,11 +280,10 @@ TEST(op_eval, variadic_split_data_float_length_i32)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
-                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{-1}),
-                     make_host_tensor<element::Type_t::i32>(Shape{3}, split_lengths_vec)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::i64>({}, std::vector<int64_t>{-1}),
+                             make_host_tensor<element::Type_t::i32>({3}, split_lengths_vec)}));
 
     const vector<size_t> expected_lengths{1, 1, 1};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
