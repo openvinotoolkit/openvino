@@ -5,7 +5,7 @@
 #include "hetero_infer_request.hpp"
 #include "hetero_itt.hpp"
 #include <ie_blob.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <ie_algorithm.hpp>

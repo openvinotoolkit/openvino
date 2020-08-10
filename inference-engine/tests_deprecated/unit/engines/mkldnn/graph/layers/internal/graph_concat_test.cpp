@@ -6,7 +6,7 @@
 
 #include "single_layer_common.hpp"
 #include <unordered_set>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include "tests_common.hpp"
