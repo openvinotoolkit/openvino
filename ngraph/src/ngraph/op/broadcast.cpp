@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/broadcast.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/sum.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -89,7 +91,7 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const
 namespace
 {
     PartialShape
-        get_result_shape_bidirectional(Node* this_ptr, Shape& arg_shape, Shape& target_shape)
+        get_result_shape_bidirectional(const Node* this_ptr, Shape& arg_shape, Shape& target_shape)
     {
         PartialShape result_shape;
         // Add left padding to shorter target or argument shape
@@ -186,8 +188,10 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
         auto arg_shape = inputs[0]->get_shape();
@@ -264,8 +268,10 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
@@ -406,8 +412,10 @@ namespace
     }
 }
 
-bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Broadcast::evaluate");
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }
 

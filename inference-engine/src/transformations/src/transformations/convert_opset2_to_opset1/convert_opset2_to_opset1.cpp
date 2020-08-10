@@ -7,6 +7,7 @@
 #include "transformations/convert_gelu.hpp"
 #include "transformations/convert_batch_to_space.hpp"
 #include "transformations/convert_space_to_batch.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -14,6 +15,8 @@
 #include <ngraph/pass/manager.hpp>
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet2ToOpSet1");
+
     ngraph::pass::Manager manager;
 
     manager.register_pass<ngraph::pass::ConvertGELU>();

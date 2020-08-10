@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <ie_layers.h>
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
@@ -68,7 +67,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
             newPtr.reset(new InputInfo());
             copyPreProcess(it.second->getPreProcess(), newPtr->getPreProcess());
             DataPtr newData(new Data(*it.second->getInputData()));
-            getInputTo(newData).clear();
             newPtr->setInputData(newData);
         }
         _networkInputs[it.first] = newPtr;
@@ -77,7 +75,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         DataPtr newData;
         if (it.second) {
             newData.reset(new Data(*it.second));
-            getInputTo(newData).clear();
         }
         _networkOutputs[it.first] = newData;
     }

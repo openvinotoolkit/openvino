@@ -33,43 +33,11 @@ namespace ngraph
 class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
 {
 public:
-    enum class CFTransformations
-    {
-        RESHAPE,
-        BROADCAST,
-        PAD,
-        DEQUANTIZE,
-        UNARY,
-        BINARY,
-        QUANTIZE,
-        CONVERT,
-        SHAPE_OF,
-        REVERSE,
-        ARITHMETIC_REDUCTION,
-        LOGICAL_REDUCTION,
-        CONCAT,
-        GATHER,
-        SCATTER,
-        SLICE,
-        DYN_RESHAPE,
-        TRANSPOSE,
-        RANGE,
-        SELECT,
-        SQUEEZE,
-        UNSQUEEZE,
-        SPLIT,
-        VARIADIC_SPLIT,
-        ONE_HOT,
-        TILE,
-        NON_ZERO
-    };
-
     ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap())
         : GraphRewrite()
     {
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
-        construct_constant_split();
         construct_constant_variadic_split();
         construct_constant_pad();
         construct_constant_quantize();
@@ -80,12 +48,8 @@ public:
         construct_constant_logical_reduction();
         construct_constant_gather_with_subgraph();
         construct_constant_scatter_elements_update();
-        construct_constant_slice();
-        construct_constant_dyn_reshape();
-        construct_constant_transpose();
         construct_constant_select();
         construct_constant_one_hot();
-        construct_constant_tile();
         construct_constant_default();
     }
 
@@ -99,14 +63,9 @@ private:
     void construct_constant_logical_reduction();
     void construct_constant_gather_with_subgraph();
     void construct_constant_scatter_elements_update();
-    void construct_constant_slice();
-    void construct_constant_dyn_reshape();
-    void construct_constant_transpose();
     void construct_constant_select();
-    void construct_constant_split();
     void construct_constant_variadic_split();
     void construct_constant_one_hot();
-    void construct_constant_tile();
     void construct_constant_default();
 
     ngraph::BuildNodeExecutorMap m_cfmap;

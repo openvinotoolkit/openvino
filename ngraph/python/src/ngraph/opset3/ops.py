@@ -406,22 +406,6 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
 
 
 @nameable_op
-def reverse(data: NodeInput, axis: NodeInput, mode: str, name: Optional[str] = None) -> Node:
-    """Perform axis-reverse operation.
-
-    :param data: The input node on which operation will be carried out.
-    :param axis: The list of indices of axes to be reversed.
-    :param mode: The mode specifies how the second input tensor should be interpreted:
-                 as a set of indices or a mask. Range of values: index, mask.
-    :param name: The optional name of the output node.
-    :return: The new node with reversed axes.
-    """
-    return _get_node_factory_opset3("opset1").create(
-        "Reverse", as_nodes(data, axis), {"mode": mode.lower()}
-    )
-
-
-@nameable_op
 def rnn_cell(
     X: NodeInput,
     initial_hidden_state: NodeInput,

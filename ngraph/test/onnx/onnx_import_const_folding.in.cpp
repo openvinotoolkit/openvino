@@ -18,11 +18,11 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "ngraph/frontend/onnx_import/default_opset.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/test_control.hpp"
 #include "util/type_prop.hpp"

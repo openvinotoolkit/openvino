@@ -62,7 +62,7 @@ namespace ngraph
                 void set_axes(const AxisSet& axes);
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         }
 
@@ -97,7 +97,7 @@ namespace ngraph
                 size_t get_axis() const { return m_axis; }
                 void set_axis(const size_t axis) { m_axis = axis; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
             private:
                 size_t m_axis;

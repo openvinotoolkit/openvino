@@ -13,8 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+
 #include "ngraph/op/fused/prelu.hpp"
 #include <runtime/reference/prelu.hpp>
+#include "ngraph/itt.hpp"
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/add.hpp"
@@ -121,7 +123,8 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
     return rc;
 }
 
-bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::PRelu::evaluate");
     return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

@@ -6,7 +6,7 @@
 #include "low_precision_transformations/network_helper.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 #include <vector>
 

@@ -180,6 +180,8 @@ void pass::ConstantFolding::construct_constant_convert()
 
     auto convert_matcher =
         make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantConvert");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(
         convert_matcher, constant_convert_callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

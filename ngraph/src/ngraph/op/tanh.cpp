@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/tanh.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
+#include "ngraph/op/tanh.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/tanh.hpp"
@@ -78,7 +80,8 @@ namespace
     }
 }
 
-bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tanh::evaluate");
     return evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

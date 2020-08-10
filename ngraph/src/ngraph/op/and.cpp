@@ -15,13 +15,14 @@
 //*****************************************************************************
 
 #include "ngraph/op/and.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::LogicalAnd::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::LogicalAnd, "LogicalAnd", 1, util::BinaryElementwiseLogical);
 
 op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
                                const Output<Node>& arg1,
@@ -89,7 +90,9 @@ namespace
     }
 }
 
-bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalAnd::evaluate");
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <ie_parallel.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <threading/ie_immediate_executor.hpp>
 #include <ie_system_conf.h>

@@ -98,6 +98,7 @@ def main():
     parser.add_argument('binary', help='test binary to execute')
     parser.add_argument('--gtest_parallel', help='path to gtest-parallel to use',
                         default='gtest_parallel')
+    parser.add_argument('--timeout', help='timeout for tests run within gtest-parallel')
     parser.add_argument('-d', '--output_dir',
                         required=args.timeline_report or args.upload or args.compare,
                         help='output directory for test logs')
@@ -148,6 +149,7 @@ def main():
     returncode, _ = run([sys.executable, args.gtest_parallel] +
                         (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
                         (['--workers', f'{args.workers}'] if args.workers else []) +
+                        (['--timeout', f'{args.timeout}'] if args.timeout else []) +
                         [args.binary] +
                         ['--'] + binary_args)
 
