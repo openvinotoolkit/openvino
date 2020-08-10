@@ -45,7 +45,7 @@ pass::Manager::~Manager()
 
 void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::Manager::run_passes");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
 
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/non_zero.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/non_zero.hpp"
@@ -161,5 +162,6 @@ namespace
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::NonZero::evaluate");
     return evaluate_nonzero(inputs[0], outputs[0]);
 }

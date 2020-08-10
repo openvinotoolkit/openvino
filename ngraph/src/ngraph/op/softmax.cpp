@@ -20,6 +20,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -153,6 +154,7 @@ namespace
 bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Softmax::evaluate");
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], get_axes());
 }
@@ -197,6 +199,7 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Softmax::evaluate");
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }

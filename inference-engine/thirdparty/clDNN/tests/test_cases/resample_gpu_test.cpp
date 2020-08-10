@@ -775,4 +775,6 @@ INSTANTIATE_TEST_CASE_P(smoke,
 
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ), );

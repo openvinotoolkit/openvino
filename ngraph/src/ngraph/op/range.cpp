@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -279,6 +280,8 @@ bool try_evaluate_range(const HostTensorPtr& out,
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Range::evaluate");
+
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];

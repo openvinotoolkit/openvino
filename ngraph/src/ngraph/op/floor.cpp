@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/floor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
@@ -98,5 +99,6 @@ namespace
 
 bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Floor::evaluate");
     return evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

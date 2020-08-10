@@ -554,8 +554,6 @@ set_target_properties(ngraph PROPERTIES
 
 target_link_libraries(ngraph PRIVATE openvino::itt)
 
-add_subdirectory(frontend)
-
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)
     set_property(SOURCE pass/visualize_tree.cpp APPEND PROPERTY COMPILE_DEFINITIONS GRAPHVIZ_FOUND)
