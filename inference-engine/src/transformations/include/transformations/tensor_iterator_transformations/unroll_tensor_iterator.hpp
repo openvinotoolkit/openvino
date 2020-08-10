@@ -19,17 +19,11 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
 }  // namespace pass
 }  // namespace ngraph
 
-/*
- * Description:
- * TODO:fill
- *
- * Usage:
- * TODO:fill
- *
- * Callback example:
- * TODO: fill
- *
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief
  */
+
 
 class ngraph::pass::UnrollTensorIterator: public ngraph::pass::MatcherPass {
 public:

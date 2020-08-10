@@ -15,7 +15,7 @@
 
 void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
     auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
         if (!ti) {
             return false;

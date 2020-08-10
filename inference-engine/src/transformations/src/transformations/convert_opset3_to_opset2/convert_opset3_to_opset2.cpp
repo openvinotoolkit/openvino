@@ -16,7 +16,6 @@
 
 #include <ngraph/pass/manager.hpp>
 
-
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet3ToOpSet2");
 
@@ -27,6 +26,7 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertShapeOf3>();
     manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
     manager.register_pass<ngraph::pass::ConvertTopK3>();
+
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
