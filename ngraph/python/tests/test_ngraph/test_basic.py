@@ -32,7 +32,7 @@ from tests import (xfail_issue_34323,
                    xfail_issue_36479,
                    xfail_issue_36480)
 
-from openvino.inference_engine import IECore, IENetwork
+from openvino.inference_engine import IENetwork
 
 
 def test_ngraph_function_api():
