@@ -21,7 +21,10 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief
+ * @brief Unrolls the body of the TensorIterator layer. Multiple body copies, the number of which is determined by
+ * the number of iterations of the TensorIterator layer, are created and connected to each other and to the external
+ * network. If the number of TensorIterator iterations is greater than 1, then additional Concat and Split layers
+ * are added to the network.
  */
 
 
