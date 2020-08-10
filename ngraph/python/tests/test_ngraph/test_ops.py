@@ -341,7 +341,7 @@ def test_acos():
 
 
 def test_acosh():
-    input_list = [-1, 0, 0.5, 1]
+    input_list = [2., 3., 1.5, 1.0]
     op_str = "Acosh"
     unary_op_exec(op_str, input_list)
 
