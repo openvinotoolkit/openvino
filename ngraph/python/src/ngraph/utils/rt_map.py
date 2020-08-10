@@ -15,6 +15,8 @@
 # ******************************************************************************
 """Overrides pybind PyRTMap class methods."""
 
+from typing import Any
+
 import _pyngraph
 
 from _pyngraph import Variant
@@ -22,7 +24,7 @@ from ngraph.impl import VariantInt, VariantString
 from ngraph.exceptions import UserInputError
 
 
-def _convert_to_variant(item):
+def _convert_to_variant(item: Any) -> Variant:
     """Convert value to Variant class, otherwise throw error."""
     if isinstance(item, Variant):
         return item
@@ -42,7 +44,7 @@ def _convert_to_variant(item):
 binding_copy = _pyngraph.PyRTMap.__setitem__
 
 
-def _setitem(self, arg0: str, arg1) -> None:
+def _setitem(self: _pyngraph.PyRTMap, arg0: str, arg1: Any) -> None:
     """Override setting values in dictionary."""
     binding_copy(self, arg0, _convert_to_variant(arg1))
 
