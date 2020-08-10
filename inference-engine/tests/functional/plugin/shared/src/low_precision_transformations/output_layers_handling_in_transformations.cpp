@@ -33,7 +33,7 @@ std::string OutputLayersHandlingInTransformations::getTestCaseName(testing::Test
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;

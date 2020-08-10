@@ -19,14 +19,13 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-
+#include "ng_test_utils.hpp"
 
 namespace LayerTestsUtils {
 
@@ -38,68 +37,37 @@ typedef std::tuple<
         TargetDevice                 // Target Device
 > basicParams;
 
-enum RefMode {
-    INTERPRETER,
-    INTERPRETER_TRANSFORMATIONS,
-    CONSTANT_FOLDING,
-    IE
-};
-
-class LayerTestsCommon : public CommonTestUtils::TestsCommon {
+class LayerTestsCommon :  public FuncTestUtils::ComparableNGTestCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr generateInput(const InferenceEngine::InputInfo &info) const;
 
-    virtual void Run();
-
-    virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    virtual void compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
-
-    virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
-
-    virtual void SetRefMode(RefMode mode);
 
 protected:
     LayerTestsCommon();
 
     ~LayerTestsCommon() override;
 
-    template<class T>
-    void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
-        std::cout << std::endl;
-        for (std::size_t i = 0; i < size; ++i) {
-            const auto &ref = expected[i];
-            const auto &res = actual[i];
-            const auto absoluteDifference = std::abs(res - ref);
-            if (absoluteDifference <= threshold) {
-                continue;
-            }
-
-            const auto max = std::max(std::abs(res), std::abs(ref));
-            ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
-                                        << "Relative comparison of values expected: " << ref << " and actual: " << res
-                                        << " at index " << i << " with threshold " << threshold
-                                        << " failed";
-        }
-    }
-
-    RefMode GetRefMode() {
-        return refMode;
-    }
-
     std::shared_ptr<InferenceEngine::Core> getCore() {
         return core;
     }
 
-    void ConfigurePlugin();
+    void configurePlugin();
 
-    void ConfigureNetwork() const;
+    void configureNetwork() const;
 
-    void LoadNetwork();
+    void loadNetwork();
 
-    virtual void Infer();
+    void getActualResults() override;
+
+    virtual void infer();
+
+    void setInput() override;
+
+    void validate() override;
 
     TargetDevice targetDevice;
-    std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -108,18 +76,10 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
-    float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
-    virtual void Validate();
-
-    virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
-
     InferenceEngine::InferRequest inferRequest;
-
-private:
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
+    std::vector<InferenceEngine::Blob::Ptr> getOutputs();
     std::shared_ptr<InferenceEngine::Core> core;
-    RefMode refMode = RefMode::INTERPRETER;
 };
 
 }  // namespace LayerTestsUtils

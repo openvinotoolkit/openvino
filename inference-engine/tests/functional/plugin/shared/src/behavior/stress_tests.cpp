@@ -26,7 +26,7 @@ void MultipleAllocations::SetUp() {
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
+        configurePlugin();
 
     InferenceEngine::CNNNetwork cnnNet(function);
     auto ie = PluginCache::get().ie();
@@ -41,12 +41,13 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     // Experiments demonstrated that 10 cycles are enough to reproduce the issue
     int infersCount = 10;
     for (int j = 0; j < infersCount; ++j) {
-        LoadNetwork();
+        loadNetwork();
 
         std::cout << "Infer(): " << j << std::flush;
 
-        Infer();
-        Validate();
+        setInput();
+        infer();
+        validate();
     }
 };
 

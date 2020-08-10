@@ -3,7 +3,6 @@
 //
 #pragma once
 
-
 #include <cmath>
 #include <string>
 #include <algorithm>
@@ -11,12 +10,17 @@
 #include <type_traits>
 
 #include <gtest/gtest.h>
+#include <ngraph_functions/pass/convert_prc.hpp>
+#include <common_test_utils/test_common.hpp>
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
 #include "precision_utils.h"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "ng_test_utils.hpp"
 
 namespace FuncTestUtils {
 namespace Bf16TestUtils {
@@ -574,7 +578,88 @@ static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
     fillInputsByCosValues(lm.as<float*>(), mblob->size());
     return 0;
 }
+template <class T>
+struct FillingBoundaries {
+    T left;
+    T right;
+    FillingBoundaries() {
+        if (std::is_same<T, int>::value) {
+            left = defaultLeftIntBoundary;
+            right = defaultRightIntBoundary;
+        } else if (std::is_same<T, float>::value) {
+            left = defaultLeftFloatBoundary;
+            right = defaultRightFloatBoundary;
+        }
+    }
+    FillingBoundaries(T _l, T _r): left(_l), right(_r) {}
+private:
+    int defaultLeftIntBoundary = 0;
+    int defaultRightIntBoundary = 127;
+    float defaultLeftFloatBoundary = -10.0f;
+    float defaultRightFloatBoundary = 10.0f;
+};
+template<class T>
+void fillByteVectorAsTyped(std::vector<std::vector<uint8_t>>& byteVector, FillingBoundaries<T> fb = FillingBoundaries<T>()) {
+    for (auto vecIt = byteVector.begin(); vecIt != byteVector.end(); ++vecIt) {
+        size_t ratio = sizeof(T) / sizeof(uint8_t);
+        ASSERT_EQ(vecIt->size() % ratio, 0) << "Byte vector has incorrect size";
+        size_t typedSize = vecIt->size() / ratio;
+        T currTValue = fb.left;
+        T typedShift;
+        for (size_t idx = 0; idx < typedSize; idx++) {
+            float shift = (static_cast<float>(fb.right - fb.left) * idx / (typedSize - 1));
+            typedShift = static_cast<T>(shift);
+            currTValue = fb.left + typedShift;
+            uint8_t *bytePointer = &vecIt->at(idx * ratio);
+            memcpy(bytePointer, &currTValue, ratio);
+        }
+    }
+}
+static void fillByteVectorRandomly(std::vector<std::vector<std::uint8_t>> &inputVector, unsigned seed = 1) {
+        int modulo4 = 0;
+        int randInt;
+        unsigned char randUChar;
+        uint8_t randByte;
+        for (auto vecIt = inputVector.begin(); vecIt != inputVector.end(); vecIt++) {
+            for (auto byteIt = vecIt->begin(); byteIt != vecIt->end(); byteIt++) {
+                switch (modulo4 % 4) {
+                    case 0: randInt = rand_r(&seed);
+                        randUChar = (unsigned char)randInt;
+                        break;
+                    case 1: randUChar = (unsigned char)randInt >> 8;
+                        break;
+                    case 2: randUChar = (unsigned char)randInt >> 16;
+                        break;
+                    case 3: randUChar = (unsigned char)randInt >> 24;
+                        break;
+                }
+                randByte = reinterpret_cast<uint8_t>(randUChar);
+                *byteIt = randByte;
+                modulo4++;
+            }
+        }
+    }
+template<class T>
+std::vector<std::vector<T>> getTypedVector(std::vector<std::vector<std::uint8_t>> &byteVector) {
+    size_t ratio;
+    if (std::is_same<T, int>::value || std::is_same<T, float>::value) {
+        ratio = sizeof(T) / sizeof(uint8_t);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported precision";
+    }
+    std::vector<std::vector<T>> typedVector;
 
+    for (auto &vec : byteVector) {
+        if (vec.size() % ratio != 0) {
+            THROW_IE_EXCEPTION << "Byte vector doesn't match given vector type";
+        }
+        std::vector<T> innerVector(vec.size() / ratio);
+        memcpy(static_cast<void *>(innerVector.data()), static_cast<void *>(vec.data()),
+               vec.size());
+        typedVector.push_back(innerVector);
+    }
+    return typedVector;
+}
 
 namespace Bf16TestUtils {
 static float reducePrecisionBitwise(const float in) {

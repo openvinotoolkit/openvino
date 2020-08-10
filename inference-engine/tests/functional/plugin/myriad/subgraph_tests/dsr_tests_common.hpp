@@ -67,7 +67,7 @@ protected:
     }
 
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+        SetRefMode(FuncTestUtils::RefMode::CONSTANT_FOLDING);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
         if (CommonTestUtils::vpu::CheckMyriad2()) {
             configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);

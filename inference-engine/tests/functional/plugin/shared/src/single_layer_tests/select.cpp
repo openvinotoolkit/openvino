@@ -37,7 +37,7 @@ namespace LayerTestsDefinitions {
     }
 
     void SelectLayerTest::SetUp() {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+        setRefMode(FuncTestUtils::RefMode::CONSTANT_FOLDING);
 
         std::vector<std::vector<size_t>> inputShapes(numOfInputs);
         InferenceEngine::Precision inputPrecision;

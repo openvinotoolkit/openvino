@@ -69,7 +69,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<Det
     return result.str();
 }
 
-void DetectionOutputLayerTest::Infer() {
+void DetectionOutputLayerTest::infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 
@@ -100,7 +100,7 @@ void DetectionOutputLayerTest::Infer() {
     inferRequest.Infer();
 }
 
-void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+void DetectionOutputLayerTest::compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
     ASSERT_EQ(expected.size(), actual->byteSize());
 
     size_t expSize = 0;
@@ -125,7 +125,7 @@ void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected
         actSize += 7;
     }
     ASSERT_EQ(expSize, actSize);
-    LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
+    LayerTestsCommon::compareValues<float>(expBuf, actBuf, expSize, 1e-2f);
 }
 
 void DetectionOutputLayerTest::SetUp() {

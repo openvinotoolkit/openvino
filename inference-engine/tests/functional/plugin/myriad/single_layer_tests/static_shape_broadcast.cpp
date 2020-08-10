@@ -55,7 +55,7 @@ public:
 
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
+        SetRefMode(FuncTestUtils::RefMode::INTERPRETER);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
         StaticShapeBroadcastParam shapes;

@@ -41,7 +41,7 @@ std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestC
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiChannel::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;

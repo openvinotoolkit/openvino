@@ -82,7 +82,7 @@ class ActivationLayerTest : public testing::WithParamInterface<activationParams>
 public:
     ngraph::helpers::ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    InferenceEngine::Blob::Ptr generateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;
@@ -90,7 +90,7 @@ protected:
 
 class ActivationParamLayerTest : public ActivationLayerTest {
 public:
-    void Infer() override;
+    void infer() override;
 
 protected:
     void SetUp() override;

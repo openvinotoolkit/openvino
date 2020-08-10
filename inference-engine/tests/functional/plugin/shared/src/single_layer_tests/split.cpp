@@ -38,7 +38,7 @@ std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> 
 }
 
 void SplitLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+    setRefMode(FuncTestUtils::RefMode::CONSTANT_FOLDING);
     size_t axis, numSplits;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;

@@ -33,7 +33,7 @@ std::string RangeLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> 
     return result.str();
 }
 
-void RangeLayerTest::Infer() {
+void RangeLayerTest::infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 

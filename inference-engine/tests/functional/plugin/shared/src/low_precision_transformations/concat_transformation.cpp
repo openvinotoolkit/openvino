@@ -32,7 +32,7 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTe
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ConcatTransformation::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -44,7 +44,7 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
 }
 
 void ConcatTransformation::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::IE);
+    setRefMode(FuncTestUtils::RefMode::IE);
 
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;

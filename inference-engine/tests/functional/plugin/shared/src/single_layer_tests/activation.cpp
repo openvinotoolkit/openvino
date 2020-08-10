@@ -46,7 +46,7 @@ void ActivationLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
 
-InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ActivationLayerTest::generateInput(const InferenceEngine::InputInfo &info) const {
     bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
     int32_t data_start_from;
     uint32_t data_range;
@@ -158,7 +158,7 @@ void ActivationParamLayerTest::generateActivationBlob() {
     }
 }
 
-void ActivationParamLayerTest::Infer() {
+void ActivationParamLayerTest::infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
     auto blobInput = inferRequest.GetBlob("Input");

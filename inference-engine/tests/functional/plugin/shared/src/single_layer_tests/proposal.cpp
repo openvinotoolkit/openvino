@@ -129,7 +129,7 @@ void ProposalLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 
-InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ProposalLayerTest::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::Blob::Ptr blobPtr;
 
     const std::string name = info.name();
@@ -146,7 +146,7 @@ InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngin
 }
 
 // TODO: for validation, reference version is required (#28373)
-void ProposalLayerTest::Validate() {}
+void ProposalLayerTest::validate() {}
 
 TEST_P(ProposalLayerTest, CompareWithRefs) {
     Run();

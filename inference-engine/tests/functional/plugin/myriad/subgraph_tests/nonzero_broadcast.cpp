@@ -22,7 +22,7 @@ class NonZero_Broadcast : public testing::WithParamInterface<BroadcastExplicitTe
                           virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+        SetRefMode(FuncTestUtils::RefMode::CONSTANT_FOLDING);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
         // DISABLE_REORDER is needed for Myriad2 cases
         if (CommonTestUtils::vpu::CheckMyriad2()) {

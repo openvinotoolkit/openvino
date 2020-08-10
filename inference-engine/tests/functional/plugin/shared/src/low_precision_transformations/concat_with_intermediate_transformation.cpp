@@ -46,7 +46,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     InferenceEngine::Precision netPrecision;

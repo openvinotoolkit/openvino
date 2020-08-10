@@ -62,8 +62,8 @@ class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOut
     static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj);
     ngraph::op::DetectionOutputAttrs attrs;
     std::vector<InferenceEngine::SizeVector> inShapes;
-    void Infer() override;
-    void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) override;
+    void infer() override;
+    void compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
   protected:
     void SetUp() override;
 };

@@ -9,17 +9,9 @@
 
 namespace LayerTestsUtils {
 
-LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
+LayerTestsCommon::LayerTestsCommon() {
+    threshold = 1e-2f;
     core = PluginCache::get().ie(targetDevice);
-}
-
-void LayerTestsCommon::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    ConfigurePlugin();
-    LoadNetwork();
-    Infer();
-    Validate();
 }
 
 LayerTestsCommon::~LayerTestsCommon() {
@@ -28,49 +20,17 @@ LayerTestsCommon::~LayerTestsCommon() {
     }
 }
 
-InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr LayerTestsCommon::generateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
-    ASSERT_EQ(expected.size(), actual->byteSize());
-    const auto &expectedBuffer = expected.data();
-
-    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-    IE_ASSERT(memory);
-    const auto lockedMemory = memory->wmap();
-    const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
-
-    const auto &precision = actual->getTensorDesc().getPrecision();
-    auto bufferSize = actual->size();
-    // With dynamic batch, you need to size
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
-        auto batchSize = actual->getTensorDesc().getDims()[0];
-        auto halfBatchSize = batchSize > 1 ? batchSize/ 2 : 1;
-        bufferSize = (actual->size() * halfBatchSize / batchSize);
-    }
-    const auto &size = bufferSize;
-    switch (precision) {
-        case InferenceEngine::Precision::FP32:
-            Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
-                    size, threshold);
-            break;
-        case InferenceEngine::Precision::I32:
-            Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
-                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
-            break;
-        default:
-            FAIL() << "Comparator for " << precision << " precision isn't supported";
-    }
-}
-
-void LayerTestsCommon::ConfigurePlugin() {
+void LayerTestsCommon::configurePlugin() {
     if (!configuration.empty()) {
         core->SetConfig(configuration, targetDevice);
     }
 }
 
-void LayerTestsCommon::ConfigureNetwork() const {
+void LayerTestsCommon::configureNetwork() const {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
             in.second->setLayout(inLayout);
@@ -90,19 +50,21 @@ void LayerTestsCommon::ConfigureNetwork() const {
     }
 }
 
-void LayerTestsCommon::LoadNetwork() {
+void LayerTestsCommon::loadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
-    ConfigureNetwork();
+    configureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
 }
 
-void LayerTestsCommon::Infer() {
+void LayerTestsCommon::setInput() {
+    configurePlugin();
+    loadNetwork();
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
-        auto blob = GenerateInput(*info);
+        auto blob = generateInput(*info);
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
     }
@@ -111,63 +73,41 @@ void LayerTestsCommon::Infer() {
         auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
+}
+
+void LayerTestsCommon::getActualResults() {
+    infer();
+}
+
+void LayerTestsCommon::infer() {
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        inferRequest.SetBatch(batchSize);
+    }
     inferRequest.Infer();
 }
 
-std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
-    // nGraph interpreter does not support f16
-    // IE converts f16 to f32
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
-    function->validate_nodes_and_infer_types();
-    auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
-    for (std::size_t i = 0; i < inputs.size(); ++i) {
-        const auto& input = inputs[i];
-        const auto& inputSize = input->byteSize();
+static void SetByteVectorFromBlobVector(std::vector<std::vector<std::uint8_t>> &byteVector,
+        const std::vector<InferenceEngine::Blob::Ptr> blobVector) {
+    byteVector.clear();
+    byteVector.resize(blobVector.size());
+    for (std::size_t i = 0; i < blobVector.size(); ++i) {
+        const auto& blob = blobVector[i];
+        const auto& vectorSize = blob->byteSize();
 
-        auto& referenceInput = referenceInputs[i];
-        referenceInput.resize(inputSize);
+        auto& innerVector = byteVector[i];
+        innerVector.resize(vectorSize);
 
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
         IE_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto buffer = lockedMemory.as<const std::uint8_t*>();
-        std::copy(buffer, buffer + inputSize, referenceInput.data());
+        std::copy(buffer, buffer + vectorSize, innerVector.data());
     }
-
-    const auto &actualOutputs = GetOutputs();
-    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[0]->getTensorDesc().getPrecision());
-    std::vector<std::vector<std::uint8_t>> expectedOutputs;
-    switch (refMode) {
-        case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, convertType);
-            break;
-        }
-        case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
-            break;
-        }
-        case IE: {
-            // reference inference on device with other options and nGraph function has to be implemented here
-            break;
-        }
-        case INTERPRETER_TRANSFORMATIONS: {
-            auto cloned_function = ngraph::clone_function(*function);
-
-            // todo: add functionality to configure the necessary transformations for each test separately
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
-            m.register_pass<ngraph::pass::ConvertBatchToSpace>();
-            m.run_passes(cloned_function);
-            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
-            break;
-        }
-    }
-
-    return expectedOutputs;
 }
 
-std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
+std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::getOutputs() {
     auto outputs = std::vector<InferenceEngine::Blob::Ptr>{};
     for (const auto &output : cnnNetwork.getOutputsInfo()) {
         const auto &name = output.first;
@@ -176,29 +116,72 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
     return outputs;
 }
 
-void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+void LayerTestsCommon::compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+    SetByteVectorFromBlobVector(actualByteOutput, actualOutputs);
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
         const auto& expected = expectedOutputs[outputIndex];
-        const auto& actual = actualOutputs[outputIndex];
-        Compare(expected, actual);
+        const auto& actual = actualByteOutput[outputIndex];
+        ASSERT_EQ(expected.size(), actual.size());
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actualOutputs[outputIndex]);
+        IE_ASSERT(memory);
+        const unsigned char *expectedBuffer = expected.data();
+        const unsigned char *actualBuffer = actual.data();
+        const InferenceEngine::Precision precision = actualOutputs[outputIndex]->getTensorDesc().getPrecision();
+        auto size = actualByteOutput.size();
+        // TODO:  crop blobs before comparation instead
+        // With dynamic batch, you need to size
+        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
+            auto batchSize = actualOutputs[outputIndex]->getTensorDesc().getDims()[0];
+            auto halfBatchSize = batchSize > 1 ? batchSize/ 2 : 1;
+            size = (actualOutputs[outputIndex]->size() * halfBatchSize / batchSize);
+        }
+        compareValues(expectedBuffer, actualBuffer, size, precision);
     }
 }
 
-void LayerTestsCommon::Validate() {
-    auto expectedOutputs = CalculateRefs();
-    const auto& actualOutputs = GetOutputs();
+void LayerTestsCommon::validate() {
+    const auto& actualOutputs = getOutputs();
+    SetByteVectorFromBlobVector(byteInputData, inputs);
 
-    if (expectedOutputs.empty()) {
+    // nGraph interpreter does not support f16
+    // IE converts f16 to f32
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
+    function->validate_nodes_and_infer_types();
+    ::ngraph::element::Type convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[0]->getTensorDesc().getPrecision());
+    switch (refMode) {
+        case FuncTestUtils::RefMode::INTERPRETER: {
+            expectedByteOutput = ngraph::helpers::interpreterFunction(function, byteInputData, convertType);
+            break;
+        }
+        case FuncTestUtils::RefMode::CONSTANT_FOLDING: {
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, byteInputData);
+            expectedByteOutput = ngraph::helpers::getConstData(foldedFunc, convertType);
+            break;
+        }
+        case FuncTestUtils::RefMode::IE: {
+            // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+        case FuncTestUtils::RefMode::INTERPRETER_TRANSFORMATIONS: {
+            auto cloned_function = ngraph::clone_function(*function);
+
+            // todo: add functionality to configure the necessary transformations for each test separately
+            ngraph::pass::Manager m;
+            m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
+            m.register_pass<ngraph::pass::ConvertBatchToSpace>();
+            m.run_passes(cloned_function);
+            expectedByteOutput = ngraph::helpers::interpreterFunction(cloned_function, byteInputData, convertType);
+            break;
+        }
+    }
+
+    if (expectedByteOutput.empty()) {
         return;
     }
 
-    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    IE_ASSERT(actualOutputs.size() == expectedByteOutput.size())
+    << "nGraph interpreter has " << expectedByteOutput.size() << " outputs, while IE " << actualOutputs.size();
 
-    Compare(expectedOutputs, actualOutputs);
-}
-
-void LayerTestsCommon::SetRefMode(RefMode mode) {
-    refMode = mode;
+    compare(expectedByteOutput, actualOutputs);
 }
 }  // namespace LayerTestsUtils

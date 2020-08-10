@@ -33,7 +33,7 @@ std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(test
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::generateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
