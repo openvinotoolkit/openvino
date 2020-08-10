@@ -31,6 +31,6 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SoftPlusFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(log, "SoftPlusFusion");
     register_matcher(m, matcher_pass_callback);
 }
