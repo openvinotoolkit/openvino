@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-DOCKER_CONTAINER_NAME="jenkins_ngraph-onnx_ci_${BUILD_NUMBER}"
-DOCKER_IMAGE_TAG = "openvino-onnx-ci"
+DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
+DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 def getGitPrInfo(String project) {
     def gitPrInfo = [
@@ -66,10 +66,10 @@ def buildDockerImage() {
     """
 }
 
-def runTests(String imageTAG) {
+def runTests() {
     sh """
         docker run --rm --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx ${imageTAG}
+        --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
     """
 }
 
