@@ -135,13 +135,31 @@ namespace openvino
  * @ingroup ie_dev_profiling
  * @brief Declare domain with a given name.
  * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param domainDisplayName [in] Domain name used as the ITT counter name and displayed in Intel VTune. Parameter is optional.
  */
-#define OV_ITT_DOMAIN(domainName)                                                                   \
+#define OV_ITT_DOMAIN(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_DOMAIN, __VA_ARGS__)
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_DOMAIN_1(domainName)                                                                 \
 inline openvino::itt::domain_t domainName() noexcept                                                \
 {                                                                                                   \
     static auto d = openvino::itt::internal::domain(#domainName);                                   \
     return d;                                                                                       \
 }
+
+#define OV_ITT_DOMAIN_2(domainName, domainDisplayName)                                              \
+inline openvino::itt::domain_t domainName() noexcept                                                \
+{                                                                                                   \
+    static auto d = openvino::itt::internal::domain(domainDisplayName);                             \
+    return d;                                                                                       \
+}
+
+/**
+ * @endcond
+ */
 
 /**
  * @def OV_ITT_SCOPED_TASK(domain, handleOrTaskName)
@@ -149,7 +167,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
  * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
  * @details In case if handle or taskName absent, the current function name is used.
  * @param domainName [in] Known at compile time name of module or library (the domain name).
- * @param handleOrTaskName [in] The annotation name or handle for section of code.
+ * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
  */
 #define OV_ITT_SCOPED_TASK(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_SCOPED_TASK, __VA_ARGS__)
 

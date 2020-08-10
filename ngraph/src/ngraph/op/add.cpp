@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/add.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/add.hpp"
 
@@ -106,6 +107,7 @@ namespace
 
 bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Add::evaluate");
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -135,5 +137,6 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
