@@ -594,12 +594,10 @@ test_cases_list = [
     test_cases.test_resnet152_v2_opset7_cpu,
     test_cases.test_resnet18_v1_opset7_cpu,
     test_cases.test_resnet18_v2_opset7_cpu,
-    test_cases.test_resnet34_v1_opset7_cpu,
     test_cases.test_resnet34_v2_opset7_cpu,
     test_cases.test_resnet101_v2_opset7_cpu,
     test_cases.test_resnet101_v1_opset7_cpu,
     test_cases.test_ResNet101_DUC_opset7_cpu,
-    test_cases.test_mobilenetv2_opset7_cpu,
     test_cases.test_candy_opset8_cpu,
     test_cases.test_resnet152_v1_opset7_cpu
 ]
