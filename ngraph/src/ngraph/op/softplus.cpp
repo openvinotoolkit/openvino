@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
