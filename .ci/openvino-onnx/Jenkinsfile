@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-DOCKER_HOME = "/openvino"
 DOCKER_CONTAINER_NAME="jenkins_ngraph-onnx_ci_${BUILD_NUMBER}"
+DOCKER_IMAGE_TAG = "openvino-onnx-ci"
 
 def getGitPrInfo(String project) {
     def gitPrInfo = [
@@ -59,30 +59,19 @@ def gitSubmoduleUpdate(String repository_name) {
 }
 
 def buildDockerImage() {
-    IMAGE_TAG = "openvino-onnx-ci"
-
     sh """
-        docker build --tag=${IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
+        docker build --tag=${DOCKER_IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """
 }
 
 def runTests(String imageTAG) {
-    CONTAINER_ID = sh (
-    script: """
-            docker run -id --privileged \
-                    --name ${DOCKER_CONTAINER_NAME} \
-                    --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
-                    ${imageTAG} tail -f /dev/null
-            """,
-    returnStdout: true
-    ).trim()
-}
-
-def dockerRemove(String container_ID) {
     sh """
-        docker rm -f ${container_ID}
+        docker run -id --privileged \
+                --name ${DOCKER_CONTAINER_NAME} \
+                --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
+                ${imageTAG} tail -f /dev/null
     """
 }
 
@@ -115,7 +104,7 @@ pipeline {
         }
         stage("Run tests") {
             steps{
-                runTests("${IMAGE_TAG}")
+                runTests("${DOCKER_IMAGE_TAG}")
             }
         }
     }
@@ -131,8 +120,8 @@ pipeline {
                 deleteDir()
                 sh """
                     docker image prune -f
+                    docker rm -f ${DOCKER_CONTAINER_NAME}
                 """
-                dockerRemove("${CONTAINER_ID}")
             }
         }
     }
