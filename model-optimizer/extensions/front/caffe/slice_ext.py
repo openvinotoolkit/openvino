@@ -14,11 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.slice import MXSlice
+from mo.ops.slice import CaffeSlice
 
 
 class SliceFrontExtractor(FrontExtractorOp):
@@ -27,12 +25,22 @@ class SliceFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node_attrs = {
-            'crop_begin': np.array(attrs.tuple("begin", int, ())),
-            'crop_end': np.array(attrs.tuple("end", int, ())),
-            'step': np.array(attrs.tuple("step", int, ())),
+        proto_layer = node.pb
+        param = proto_layer.slice_param
+
+        # slice_dim is deprecated parameter and is used as alias for axis
+        # however if slice_dim is defined and axis is default, we use slice_dim
+        if param.slice_dim != 1 and param.axis == 1:
+            axis = param.slice_dim
+        else:
+            axis = param.axis
+
+        update_attrs = {
+            'axis': axis,
+            'slice_point': int64_array(param.slice_point),
+            'in_ports_count': 1,
+            'out_ports_count': len(param.slice_point) + 1,
         }
 
-        MXSlice.update_node_stat(node, node_attrs)
+        CaffeSlice.update_node_stat(node, update_attrs)
         return cls.enabled
