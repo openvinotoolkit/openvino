@@ -338,7 +338,7 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
         convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
@@ -1262,7 +1262,7 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+void GNAPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                              const std::map<std::string, std::string>& config,
                              InferenceEngine::QueryNetworkResult& res) const {
     if (network.getFunction()) {
@@ -1270,9 +1270,7 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
     }
 
     std::unordered_set<CNNLayer *> allLayers;
-    InferenceEngine::InputsDataMap inputs;
-
-    network.getInputsInfo(inputs);
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
 
     if (inputs.empty()) {

@@ -30,7 +30,7 @@ private:
 
 public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-                                                const InferenceEngine::ICNNNetwork &network,
+                                                const InferenceEngine::CNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
@@ -59,7 +59,7 @@ public:
         return GetCurrentPlugin()->GetName();
     }
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+    void QueryNetwork(const InferenceEngine::CNNNetwork& network,
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult& res) const override {
         auto plg = GetCurrentPlugin();

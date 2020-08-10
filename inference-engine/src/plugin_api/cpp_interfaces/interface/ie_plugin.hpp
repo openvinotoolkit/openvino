@@ -86,7 +86,7 @@ public:
      * @param config Map of pairs: (config parameter name, config parameter value)
      * @param res Reference to query network result
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual void QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                               QueryNetworkResult& res) const noexcept {
         (void)network;
         (void)config;

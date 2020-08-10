@@ -397,11 +397,8 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
     cldnn::topology topology;
 
     // 1. create inputs
-    InferenceEngine::InputsDataMap networkInputs;
-    network.getInputsInfo(networkInputs);
-
-    InferenceEngine::OutputsDataMap networkOutputs;
-    network.getOutputsInfo(networkOutputs);
+    InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
     p_currentOutputs = networkOutputs;
 
     if (networkInputs.empty()) {

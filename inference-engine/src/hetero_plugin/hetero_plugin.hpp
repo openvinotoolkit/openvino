@@ -25,11 +25,11 @@ public:
     Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const Configs &config) override;
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const Configs &config) override;
 
     void SetConfig(const Configs &config) override;
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    void QueryNetwork(const InferenceEngine::CNNNetwork &network,
                       const Configs& config, InferenceEngine::QueryNetworkResult &res) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string,

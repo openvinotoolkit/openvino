@@ -172,7 +172,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
@@ -221,7 +221,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), context, conf);
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                RemoteContext::Ptr context,
                                                                const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs;
@@ -275,7 +275,7 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+void clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                const std::map<std::string,
                                std::string>& config,
                                QueryNetworkResult& res) const {

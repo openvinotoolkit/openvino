@@ -95,7 +95,7 @@ public:
         delete this;
     }
 
-    void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    void QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                       QueryNetworkResult& res) const noexcept override {
         TO_STATUSVAR(_impl->QueryNetwork(network, config, res), res.rc, &res.resp);
     }
@@ -125,7 +125,7 @@ public:
         return _impl->GetDefaultContext();
     }
 
-    ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) override {
         return _impl->LoadNetwork(network, config, context);
     }

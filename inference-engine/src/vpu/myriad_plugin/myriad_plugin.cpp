@@ -34,7 +34,7 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
@@ -85,7 +85,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 void Engine::QueryNetwork(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::map<std::string, std::string>& config,
         QueryNetworkResult& res) const {
     VPU_PROFILE(QueryNetwork);

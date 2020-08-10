@@ -129,7 +129,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
@@ -278,7 +278,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
     extensionManager->AddExtension(extension);
 }
 
-void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
+void Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
     MKLDNNWeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -318,7 +318,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             }
         }
     } else {
-        details::CNNNetworkIterator i(&network);
+        details::CNNNetworkIterator i(network);
         while (i != details::CNNNetworkIterator()) {
             try {
                 mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));

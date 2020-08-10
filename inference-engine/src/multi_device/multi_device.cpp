@@ -463,7 +463,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     }
 }
 
-ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with MULTI device via InferencEngine::Core object";
@@ -503,7 +503,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                                           enablePerfCounters);
 }
 
-void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                        network,
+void MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                        network,
                                               const std::map<std::string, std::string>& config,
                                               QueryNetworkResult&                       queryResult) const {
     if (GetCore() == nullptr) {
@@ -528,7 +528,7 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
                 auto& deviceName = value.first;
                 auto& metaDevice = value.second;
                 auto clonedNetwork = cloneNetwork(network);
-                try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config); }
+                try { GetCore()->QueryNetwork(CNNNetwork{clonedNetwork}, deviceName, metaDevice.config); }
                 catch (const InferenceEngine::details::InferenceEngineException & ex) {
                     std::string message = ex.what();
                     return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
@@ -540,9 +540,9 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
         auto& deviceName = value.first;
         auto& metaDevice = value.second;
 
-        auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
+        auto queryNetwork = [&] (const InferenceEngine::CNNNetwork & networkObject) {
             auto clonedNetwork = cloneNetwork(networkObject);
-            auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config);
+            auto deviceQr = GetCore()->QueryNetwork(CNNNetwork{clonedNetwork}, deviceName, metaDevice.config);
             std::unordered_set<std::string> deviceSupportedLayers;
             for (auto&& layerQr : deviceQr.supportedLayersMap) {
                 deviceSupportedLayers.emplace(layerQr.first);
@@ -555,7 +555,7 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
         if (network.getFunction()) {
             if (!allSupportsNgraph) {
                 auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
-                queryNetwork(*cnnNetworkImpl);
+                queryNetwork(CNNNetwork{cnnNetworkImpl});
             } else {
                 queryNetwork(network);
             }

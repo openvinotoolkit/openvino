@@ -278,7 +278,7 @@ public:
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
-    QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
         QueryNetworkResult res;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -667,7 +667,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
 }
 
-QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
     return _impl->QueryNetwork(network, deviceName, config);
 }

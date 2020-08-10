@@ -114,22 +114,22 @@ public:
     /**
      * @brief Creates an executable network from an pares network object, users can create as many networks as they need
      * and use them simultaneously (up to the limitation of the HW resources)
-     * @param executableNetwork - a reference to a shared ptr of the returned network interface
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param executableNetwork A reference to a shared ptr of the returned network interface
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
      */
-    virtual void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
+    virtual void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const CNNNetwork& network,
                              const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                                           RemoteContext::Ptr context) = 0;
     /**
      * @brief Registers extension within plugin
@@ -222,7 +222,7 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @param      res      The result of query operator containing supported layers map
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual void QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                               QueryNetworkResult& res) const = 0;
 };
 

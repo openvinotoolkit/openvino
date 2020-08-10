@@ -151,13 +151,13 @@ public:
     MultiDeviceInferencePlugin();
     ~MultiDeviceInferencePlugin() override = default;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     Parameter GetConfig(const std::string& name,
                         const std::map<std::string, Parameter> & options) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
+    void QueryNetwork(const InferenceEngine::CNNNetwork&       network,
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult&      res) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,

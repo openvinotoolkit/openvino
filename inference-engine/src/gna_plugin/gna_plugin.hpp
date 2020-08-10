@@ -105,14 +105,14 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &executableNetwork,
                      const InferenceEngine::ICNNNetwork &network,
                      const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     void Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
     void SetCore(InferenceEngine::ICore*) noexcept override {}
     InferenceEngine::ICore* GetCore() const noexcept override {return nullptr;}
     void Reset();
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    void QueryNetwork(const InferenceEngine::CNNNetwork &network,
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult &res) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);

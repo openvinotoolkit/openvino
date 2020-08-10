@@ -138,7 +138,7 @@ public:
      * @param config A configuration map
      * @param res Query results
      */
-    void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    void QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                       QueryNetworkResult& res) const {
         if (actual == nullptr) THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized";
         actual->QueryNetwork(network, config, res);

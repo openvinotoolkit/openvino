@@ -39,7 +39,7 @@ class MockPluginImpl {
                                                 const std::map<std::string, InferenceEngine::Parameter> & options));
     MOCK_CONST_METHOD2(GetMetric, InferenceEngine::Parameter(const std::string& name,
                                                 const std::map<std::string, InferenceEngine::Parameter> & options));
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+    void QueryNetwork(const InferenceEngine::CNNNetwork &network,
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult &res) const { }
 
     MOCK_METHOD1(CreateContext, InferenceEngine::RemoteContext::Ptr(const std::map<std::string, InferenceEngine::Parameter> & options));
