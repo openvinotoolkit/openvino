@@ -45,6 +45,7 @@
 #include "transformations/low_precision/transpose.hpp"
 #include "transformations/low_precision/unsqueeze.hpp"
 #include "transformations/low_precision/variadic_split.hpp"
+#include "transformations/low_precision/split.hpp"
 
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
@@ -348,6 +349,7 @@ bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) co
 
 bool LowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
+
     const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return false;
