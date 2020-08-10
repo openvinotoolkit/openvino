@@ -21,11 +21,11 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_import/op/conv_integer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_import/op/gather_nd.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_import/op/quant_conv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_import/op/round.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_import/op/scatter_nd.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/gather_nd.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/round.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/scatter_nd.cpp
     )
 list(REMOVE_ITEM PUBLIC_HEADERS 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
