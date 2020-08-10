@@ -162,4 +162,4 @@ def swish(
     """
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
-    return _get_node_factory_opset4().create("Swish", as_nodes(inputs, beta), {})
+    return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})
