@@ -24,7 +24,6 @@ from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, Variant
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-<<<<<<< HEAD
 from tests import (xfail_issue_34323,
                    xfail_issue_35929,
                    xfail_issue_35926,
@@ -33,10 +32,6 @@ from tests import (xfail_issue_34323,
                    xfail_issue_36479,
                    xfail_issue_36480)
 
-from ngraph.impl import Type, VariantString
-from ngraph.impl.op import Parameter
-=======
->>>>>>> a5ee0095... Re-work of monkey patch and clean-up
 from openvino.inference_engine import IECore, IENetwork
 
 
