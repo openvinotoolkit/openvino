@@ -427,5 +427,5 @@ def test_runtime_info():
     capsule = Function.to_capsule(ng_function)
     cnn_network = IENetwork(capsule)
     cnn_layer = cnn_network.layers["testReLU"]
-    assert None != cnn_layer
+    assert cnn_layer is not None
     assert cnn_layer.affinity == "test_affinity"

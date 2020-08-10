@@ -26,10 +26,9 @@ def _convert_to_variant(item):
     """Convert value to Variant class, otherwise throw error."""
     if isinstance(item, Variant):
         return item
-    
     variant_mapping = {
-        int : VariantInt,
-        str : VariantString,
+        int: VariantInt,
+        str: VariantString,
     }
 
     new_type = variant_mapping.get(type(item), None)
