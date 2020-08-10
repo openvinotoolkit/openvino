@@ -429,18 +429,49 @@ namespace
         std::cout << "Started evaluation of Interpolate-4\n";
 
         Shape input_shape{args[data_port]->get_shape()};
+        std::cout << "Input shape: " << input_shape << "\n";
         std::size_t input_rank = input_shape.size();
 
         auto axes = get_axes_vector(args);
+        std::cout << "Axes: ";
+        for (std::size_t axis : axes)
+        {
+            std::cout << axis << " ";
+        }
+        std::cout << "\n";
 
         std::size_t num_of_axes = axes.size();
 
         auto scales = get_scales_vector(args, input_shape, attrs, axes);
+        std::cout << "Scales: ";
+        for (float scale : scales)
+        {
+            std::cout << scale << " ";
+        }
+        std::cout << "\n";
 
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
+        std::cout << "pads_begin: ";
+        for (std::size_t p : pads_begin)
+        {
+            std::cout << p << " ";
+        }
+        std::cout << "\n";
+        std::cout << "pads_end: ";
+        for (std::size_t p : pads_end)
+        {
+            std::cout << p << " ";
+        }
+        std::cout << "\n";
 
         auto padded_input_shape = get_padded_input_shape(input_shape, pads_begin, pads_end);
+        std::cout << "padded_input_shape: ";
+        for (std::size_t p : padded_input_shape)
+        {
+            std::cout << p << " ";
+        }
+        std::cout << "\n";
 
         std::vector<std::size_t> out_shape_vector;
 
@@ -456,6 +487,7 @@ namespace
         }
 
         Shape out_shape{out_shape_vector};
+        std::cout << "output shape acording to the method evaluate(): " << out_shape << "\n";
 
         out->set_element_type(args[0]->get_element_type());
         out->set_shape(out_shape);
