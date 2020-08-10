@@ -143,16 +143,14 @@ pipeline {
                 gitPrInfo = getGitPrInfo(PROJECT_NAME)
                 notifyByEmail(gitPrInfo)
             }
-             cleanup {
-                dir("${WORKDIR}") {
-                    deleteDir()
-                    sh """
-                        docker image prune -f
-                    """
-                    dockerRemove("${CONTAINER_ID}")
-                }
+        }
+        cleanup {
+            dir("${WORKDIR}") {
+                deleteDir()
+                sh """
+                    docker image prune -f
+                """
             }
         }
-
     }
 }
