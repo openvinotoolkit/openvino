@@ -126,7 +126,7 @@ pipeline {
         stage("Prepare Docker environment") {
             steps{
                 dir("${WORKDIR}") {
-                    buildDockegit rImage()
+                    buildDockerImage()
                     runDockerContainer("${IMAGE_ID}")
                 }
             }
