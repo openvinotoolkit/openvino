@@ -68,7 +68,7 @@ def buildDockerImage() {
 
 def runTests(String imageTAG) {
     sh """
-        docker run -id --privileged \
+        docker run -it --rm --privileged \
                 --name ${DOCKER_CONTAINER_NAME} \
                 --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx \
                 ${imageTAG} tail -f /dev/null
