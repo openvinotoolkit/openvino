@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include "ngraph/function.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -154,6 +155,7 @@ bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
 bool op::v0::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Reshape::evaluate");
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
 
@@ -330,6 +332,8 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Reshape::evaluate");
+
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     size_t output_rank = inputs[1]->get_shape()[0];

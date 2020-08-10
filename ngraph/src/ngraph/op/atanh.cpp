@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/atanh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/atanh.hpp"
@@ -75,5 +76,6 @@ namespace
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Atanh::evaluate");
     return evaluate_atanh(inputs[0], outputs[0]);
 }
