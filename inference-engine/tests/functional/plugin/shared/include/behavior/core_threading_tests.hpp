@@ -64,7 +64,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
-                FileUtils::makeSharedLibraryName<char>({}, "extension_tests"));
+                FileUtils::makeSharedLibraryName<char>({}, "template_extension"));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::details::InferenceEngineException & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: experimental");

@@ -5,8 +5,6 @@
 
 set(TARGET_NAME ieFuncTests)
 
-add_subdirectory(extension_lib)
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -22,7 +20,7 @@ addIeTargetTest(
             inference_engine_transformations
         ADD_CPPLINT
         DEPENDENCIES
-            extension_tests
+            template_extension
             mock_engine
             inference_engine_ir_reader
             inference_engine_ir_v7_reader

@@ -21,7 +21,7 @@ using ExtensionTests = ::testing::Test;
 
 std::string getExtensionPath() {
     return FileUtils::makeSharedLibraryName<char>({},
-            std::string("extension_tests") + IE_BUILD_POSTFIX);
+            std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 TEST(ExtensionTests, testGetOpSets) {
