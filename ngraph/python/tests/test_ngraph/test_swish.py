@@ -16,13 +16,12 @@
 import numpy as np
 
 import ngraph as ng
-from ngraph.impl import Type
+from ngraph.impl import Shape, Type
 
 
 def test_swish_props_with_beta():
-    float_dtype = np.float32
-    data = ng.parameter([3, 10], dtype=float_dtype, name="data")
-    beta = ng.parameter([], dtype=float_dtype, name="beta")
+    data = ng.parameter(Shape([3, 10]), dtype=Type.f32, name="data")
+    beta = ng.parameter(Shape([]), dtype=Type.f32, name="beta")
 
     node = ng.swish(data, beta)
     assert node.get_type_name() == "Swish"
@@ -32,8 +31,7 @@ def test_swish_props_with_beta():
 
 
 def test_swish_props_without_beta():
-    float_dtype = np.float32
-    data = ng.parameter([3, 10], dtype=float_dtype, name="data")
+    data = ng.parameter(Shape([3, 10]), dtype=Type.f32, name="data")
 
     node = ng.swish(data)
     assert node.get_type_name() == "Swish"
