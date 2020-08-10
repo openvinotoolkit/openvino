@@ -27,6 +27,7 @@ macro(STYLE_CHECK_FILE PATH)
 endmacro()
 
 set(DIRECTORIES_OF_INTEREST
+    frontend
     src
     doc
     test

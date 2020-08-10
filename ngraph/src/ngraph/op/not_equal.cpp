@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/not_equal.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not_equal.hpp"
 
@@ -85,8 +86,10 @@ namespace
     }
 }
 
-bool op::v0::NotEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::NotEqual::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::NotEqual::evaluate");
     return evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -108,7 +111,9 @@ shared_ptr<Node> op::v1::NotEqual::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v1::NotEqual>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::NotEqual::evaluate");
     return evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }

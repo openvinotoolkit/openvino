@@ -44,7 +44,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
     auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 2, 1});
     Shape shape_r{2, 2, 3};
 
-    auto tile = make_shared<op::Tile>(A, repeats);
+    auto tile = make_shared<op::v0::Tile>(A, repeats);
 
     auto f = make_shared<Function>(tile, ParameterVector{A});
 
@@ -71,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats)
     auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 1});
     Shape shape_r{2, 2, 3};
 
-    auto tile = make_shared<op::Tile>(A, repeats);
+    auto tile = make_shared<op::v0::Tile>(A, repeats);
 
     auto f = make_shared<Function>(tile, ParameterVector{A});
 

@@ -27,8 +27,18 @@ void regclass_pyngraph_op_util_IndexReduction(py::module m)
 {
     py::class_<ngraph::op::util::IndexReduction, std::shared_ptr<ngraph::op::util::IndexReduction>>
         indexReduction(m, "IndexRedection");
-    indexReduction.def_property_readonly("reduction_axis",
-                                         &ngraph::op::util::IndexReduction::get_reduction_axis);
-    indexReduction.def_property_readonly("index_element_type",
-                                         &ngraph::op::util::IndexReduction::get_index_element_type);
+
+    indexReduction.def("get_reduction_axis", &ngraph::op::util::IndexReduction::get_reduction_axis);
+    indexReduction.def("set_reduction_axis", &ngraph::op::util::IndexReduction::set_reduction_axis);
+    indexReduction.def("get_index_element_type",
+                       &ngraph::op::util::IndexReduction::get_index_element_type);
+    indexReduction.def("set_index_element_type",
+                       &ngraph::op::util::IndexReduction::set_index_element_type);
+
+    indexReduction.def_property("reduction_axis",
+                                &ngraph::op::util::IndexReduction::get_reduction_axis,
+                                &ngraph::op::util::IndexReduction::set_reduction_axis);
+    indexReduction.def_property("index_element_type",
+                                &ngraph::op::util::IndexReduction::get_index_element_type,
+                                &ngraph::op::util::IndexReduction::set_index_element_type);
 }

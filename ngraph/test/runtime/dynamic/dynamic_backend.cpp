@@ -26,9 +26,9 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
 #include "pass/dyn_elimination.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_downgrade.hpp"
 #include "pass/shape_relevance.hpp"
 
 using namespace std;

@@ -32,7 +32,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 
 class QuantConvBackpropDataLayerTest : public testing::WithParamInterface<quantConvBackpropDataLayerTestParamsSet>,
-                                            public LayerTestsUtils::LayerTestsCommon {
+                                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet> obj);
 

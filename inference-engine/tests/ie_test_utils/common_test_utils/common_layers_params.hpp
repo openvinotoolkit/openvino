@@ -96,4 +96,10 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimz,
                      int32_t &dimn);
 
+enum class OpType {
+    SCALAR,
+    VECTOR
+};
+std::ostream& operator<<(std::ostream & os, OpType type);
+
 }  // namespace CommonTestUtils

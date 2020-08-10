@@ -20,12 +20,6 @@ set (SRC
     backend_manager.hpp
     cache.cpp
     cache.hpp
-    opset0_downgrade.cpp
-    opset0_downgrade.hpp
-    opset1_downgrade.cpp
-    opset1_downgrade.hpp
-    opset1_upgrade.cpp
-    opset1_upgrade.hpp
     executable.cpp
     executable.hpp
     performance_counter.hpp
@@ -33,6 +27,10 @@ set (SRC
     dynamic/dynamic_backend.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
+    op/convolution.cpp
+    op/convolution.hpp
+    op/group_conv.cpp
+    op/group_conv.hpp
     pass/dyn_elimination.cpp
     pass/dyn_elimination.hpp
     pass/fused_op_decomposition.cpp
@@ -43,6 +41,12 @@ set (SRC
     pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
+    pass/opset0_downgrade.cpp
+    pass/opset0_downgrade.hpp
+    pass/opset1_downgrade.cpp
+    pass/opset1_downgrade.hpp
+    pass/opset1_upgrade.cpp
+    pass/opset1_upgrade.hpp
     pass/shape_relevance.cpp
     pass/shape_relevance.hpp
     )

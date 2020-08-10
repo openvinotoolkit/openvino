@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <ie_icnn_network.hpp>
 #include <map>
 #include <string>

@@ -19,9 +19,11 @@
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "opset1_upgrade.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace ngraph;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace
 {
@@ -231,5 +233,6 @@ namespace InferenceEngine
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
 #endif
 }

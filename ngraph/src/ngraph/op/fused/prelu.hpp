@@ -51,7 +51,7 @@ namespace ngraph
                 void pre_validate_and_infer_types() override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
             };
         }
         using v0::PRelu;

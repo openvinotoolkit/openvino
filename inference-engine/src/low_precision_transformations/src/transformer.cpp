@@ -4,13 +4,14 @@
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/network_helper.hpp"
+#include "low_precision_transformations/itt.hpp"
 
 #include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -289,6 +290,8 @@ void LowPrecisionTransformer::rename(ICNNNetwork& network) const {
 }
 
 void LowPrecisionTransformer::transform(ICNNNetwork& network) {
+    OV_ITT_SCOPED_TASK(itt::domains::LPT, "LowPrecisionTransformer::transform");
+
 #ifdef LPT_ORIGINAL_MODEL_PATH
     ResponseDesc originalModelResponse;
     network.serialize(

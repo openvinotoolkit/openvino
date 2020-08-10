@@ -20,13 +20,14 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/matmul_factory.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::MatMul::type_info;
+NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
@@ -226,7 +227,8 @@ namespace
     }
 }
 
-bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }

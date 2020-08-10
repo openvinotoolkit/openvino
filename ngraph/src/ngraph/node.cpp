@@ -22,6 +22,7 @@
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/get_output_element.hpp"
@@ -800,7 +801,14 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    if (graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
+    // Check if a type of a given node, which produces graph_value, matches the type of `this` node
+    // or `this` node type is an ancestor of that node type. It is not the exact matching, types of
+    // the nodes
+    // may not match, but they are connected by the inheritance relation.
+    // Not exact matching allows using base classes in the patterns and successfully matching such
+    // patterns
+    // with sub-graph of descent nodes types.
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
         matcher->match_arguments(this, graph_value.get_node_shared_ptr()))
     {
         auto& pattern_map = matcher->get_pattern_value_map();
@@ -932,13 +940,16 @@ vector<Output<const Node>> Node::outputs() const
     return result;
 }
 
-bool Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values)
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values) const
 {
     return false;
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
+
     // If all the inputs are constants, try to evaluate the outputs
     HostTensorVector input_tensors;
     for (auto input : input_values)

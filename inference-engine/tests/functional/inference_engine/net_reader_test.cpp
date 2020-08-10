@@ -123,12 +123,12 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(_modelPath, modelPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _modelPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(modelPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(modelPath) << "'";
             }
             is_copy_successfully = CommonTestUtils::copyFile(_weightsPath, weightsPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _weightsPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(weightsPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(weightsPath) << "'";
             }
             GTEST_COUT << "Test " << testIndex << std::endl;
             InferenceEngine::Core ie;

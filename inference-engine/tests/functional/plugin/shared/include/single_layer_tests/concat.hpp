@@ -23,7 +23,7 @@ using concatParamsTuple = typename std::tuple<
         std::string>;                      // Device name
 
 class ConcatLayerTest : public testing::WithParamInterface<concatParamsTuple>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<concatParamsTuple> &obj);
 

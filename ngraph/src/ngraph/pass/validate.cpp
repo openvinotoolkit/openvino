@@ -16,8 +16,11 @@
 
 #include "ngraph/pass/validate.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 
 using namespace ngraph;
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::Validate, "ngraph::pass::Validate", 0);
 
 bool pass::Validate::run_on_function(std::shared_ptr<Function> f)
 {
