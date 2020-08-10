@@ -198,9 +198,9 @@ class LeakyReLU(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
-            'infer': __class__.infer,
+            'type': self.op,
+            'op': self.op,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -265,3 +265,36 @@ class Mish(Activation):
         sp_attrs = {'version': 'opset4'}
         sp_attrs.update(attrs)
         super().__init__(graph, sp_attrs)
+
+
+class Swish(Op):
+    op = 'Swish'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': self.op,
+            'type': self.op,
+            'version': 'opset4',
+
+            'infer': self.infer,
+
+            'in_ports_count': 2,
+            'out_ports_count': 1,
+        }
+        super().__init__(graph, mandatory_props, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+
+        beta = 1.0
+        if node.is_in_port_connected(1):
+            beta = node.in_port(1).data.get_value()
+            if beta is not None:
+                assert beta.ndim == 0, 'The "beta" value for node {} must be a scalar'.format(node_name)
+                beta = beta.item()
+
+        input_value = node.in_port(1).data.get_value()
+        if input_value is not None and beta is not None:
+            node.out_port(0).data.set_value(input_value / (1.0 + np.exp(-input_value * beta)))

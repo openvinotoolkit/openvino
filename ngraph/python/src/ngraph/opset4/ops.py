@@ -147,3 +147,19 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
     :return: The new node which performs Mish
     """
     return _get_node_factory_opset4().create("Mish", as_nodes(data), {})
+
+
+@nameable_op
+def swish(
+    data: NodeInput,
+    beta: Optional[NodeInput] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs Swish
+    """
+    if beta is None:
+        beta = make_constant_node(1.0, np.float32)
+    return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})

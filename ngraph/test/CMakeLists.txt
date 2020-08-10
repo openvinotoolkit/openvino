@@ -77,6 +77,7 @@ set(SRC
     op_eval/non_zero.cpp
     op_eval/split.cpp
     op_eval/strided_slice.cpp
+    op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
     partial_shape.cpp
@@ -165,6 +166,7 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/sum.cpp
+    type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
     type_prop/tile.cpp

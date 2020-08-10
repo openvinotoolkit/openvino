@@ -332,6 +332,8 @@ set (SRC
     op/subtract.hpp
     op/sum.cpp
     op/sum.hpp
+    op/swish.cpp
+    op/swish.hpp
     op/variadic_split.cpp
     op/variadic_split.hpp
     op/tan.cpp
