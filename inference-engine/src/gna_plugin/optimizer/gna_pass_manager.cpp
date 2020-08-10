@@ -15,15 +15,15 @@
 #include <limits>
 #include <iomanip>
 
-#include <graph_transformer.h>
+#include <legacy/graph_transformer.h>
 #include <gna-api.h>
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
-#include <net_pass.h>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
+#include <legacy/net_pass.h>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"

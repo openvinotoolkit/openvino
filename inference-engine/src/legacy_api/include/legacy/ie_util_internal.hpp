@@ -4,11 +4,6 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-#include "details/ie_cnn_network_iterator.hpp"
-
-#include <ie_icnn_network.hpp>
-#include <cnn_network_impl.hpp>
 #include <deque>
 #include <functional>
 #include <string>
@@ -17,6 +12,10 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include <cpp/ie_cnn_network.h>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 

@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "ie_icnn_network.hpp"
-#include "graph_tools.hpp"
+#include "legacy/graph_tools.hpp"
 
 namespace InferenceEngine {
 namespace NetPass {
