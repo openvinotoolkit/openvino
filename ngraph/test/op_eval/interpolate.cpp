@@ -40,7 +40,8 @@ TEST(op_eval, interpolate_v4_cubic)
 {
     auto data_shape = Shape{1, 1, 4, 4};
 
-    struct ShapesAndAttrs{
+    struct ShapesAndAttrs
+    {
         std::vector<int64_t> spatial_shape;
         Shape out_shape;
         std::vector<float> scales_data;
@@ -60,16 +61,15 @@ TEST(op_eval, interpolate_v4_cubic)
 
     std::vector<int64_t> interp_axes = {2, 3};
 
-    std::vector<std::vector<float>> expected_results = {
-        {1.47119141f,
-         2.78125f,
-         4.08251953f,
-         6.71142578f,
-         8.02148438f,
-         9.32275391f,
-         11.91650391f,
-         13.2265625f,
-         14.52783203f}};
+    std::vector<std::vector<float>> expected_results = {{1.47119141f,
+                                                         2.78125f,
+                                                         4.08251953f,
+                                                         6.71142578f,
+                                                         8.02148438f,
+                                                         9.32275391f,
+                                                         11.91650391f,
+                                                         13.2265625f,
+                                                         14.52783203f}};
 
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
@@ -94,11 +94,11 @@ TEST(op_eval, interpolate_v4_cubic)
             std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
         auto fun = std::make_shared<Function>(OutputVector{interp}, ParameterVector{image});
         auto result = std::make_shared<HostTensor>();
-        ASSERT_TRUE(
-            fun->evaluate({result},
-                          {make_host_tensor<element::Type_t::f32>(data_shape, input_data)}));
-        // EXPECT_EQ(result->get_element_type(), element::f32);
-        // EXPECT_EQ(result->get_shape(), s.out_shape);
+        ASSERT_TRUE(fun->evaluate(
+            {result},
+            {make_host_tensor<element::Type_t::f32>(data_shape, input_data)}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
         // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
@@ -106,7 +106,8 @@ TEST(op_eval, interpolate_v4_cubic)
 
 TEST(op_eval, interpolate_v4_nearest)
 {
-    struct ShapesAndAttrs{
+    struct ShapesAndAttrs
+    {
         Shape input_data_shape;
         std::vector<int64_t> spatial_shape;
         Shape out_shape;
@@ -155,11 +156,11 @@ TEST(op_eval, interpolate_v4_nearest)
             std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
         auto fun = std::make_shared<Function>(OutputVector{interp}, ParameterVector{image});
         auto result = std::make_shared<HostTensor>();
-        ASSERT_TRUE(
-            fun->evaluate({result},
-                          {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        // EXPECT_EQ(result->get_element_type(), element::f32);
-        // EXPECT_EQ(result->get_shape(), s.out_shape);
+        ASSERT_TRUE(fun->evaluate(
+            {result},
+            {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
         // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
@@ -167,7 +168,8 @@ TEST(op_eval, interpolate_v4_nearest)
 
 TEST(op_eval, interpolate_v4_linear_onnx)
 {
-    struct ShapesAndAttrs{
+    struct ShapesAndAttrs
+    {
         Shape input_data_shape;
         std::vector<int64_t> spatial_shape;
         Shape out_shape;
@@ -214,11 +216,11 @@ TEST(op_eval, interpolate_v4_linear_onnx)
             std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
         auto fun = std::make_shared<Function>(OutputVector{interp}, ParameterVector{image});
         auto result = std::make_shared<HostTensor>();
-        ASSERT_TRUE(
-            fun->evaluate({result},
-                          {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        // EXPECT_EQ(result->get_element_type(), element::f32);
-        // EXPECT_EQ(result->get_shape(), s.out_shape);
+        ASSERT_TRUE(fun->evaluate(
+            {result},
+            {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
         // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
