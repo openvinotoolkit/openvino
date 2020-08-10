@@ -225,6 +225,22 @@ TEST(nop_elimination, concat_elimination_single_input_dynamic)
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
 }
 
+TEST(nop_elimination, unsqueeze_elimination)
+{
+    const auto axis = op::Constant::create<int64_t>(element::i64, {}, {0});
+    const auto A = make_shared<op::Parameter>(
+        element::f32, PartialShape{3, Dimension::dynamic(), Dimension::dynamic()});
+    const auto unsqueeze = make_shared<op::v0::Unsqueeze>(A, axis);
+    auto f = make_shared<Function>(unsqueeze, ParameterVector{A});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 1);
+}
+
 TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination)
 {
     auto check_usecase = [](const PartialShape& shape,

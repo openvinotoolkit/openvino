@@ -254,7 +254,6 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
 
     auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(node);
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
-    auto data_shape = input->input_value(0).get_partial_shape();
     auto squeeze = as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
@@ -269,6 +268,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
     // eliminate redundant squeeze->unsqueeze
     if (squeeze)
     {
+        const auto& data_shape = squeeze->input_value(0).get_partial_shape();
         if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
                                       unsqueeze->input_value(1).get_node_shared_ptr()))
         {
@@ -310,6 +310,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node)
     auto unsqueeze_i = as_type_ptr<opset3::Unsqueeze>(input);
     if (unsqueeze_i)
     {
+        const auto& data_shape = unsqueeze_i->input_value(0).get_partial_shape();
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic())
         {
             return false;
