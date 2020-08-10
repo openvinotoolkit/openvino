@@ -4,15 +4,15 @@
 
 #include "mkldnn_tensoriterator_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers.h>
+#include <legacy/ie_layers_internal.hpp>
 #include <string>
 #include <vector>
 #include <map>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <ie_memcpy.h>
-#include "graph_transformer.h"
+#include <legacy/graph_transformer.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
