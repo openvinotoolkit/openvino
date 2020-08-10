@@ -41,6 +41,8 @@ class HeightMap;
 class NGRAPH_API ngraph::pass::VisualizeTree : public ModulePass
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
+
     using node_modifiers_t =
         std::function<void(const Node& node, std::vector<std::string>& attributes)>;
     VisualizeTree(const std::string& file_name,

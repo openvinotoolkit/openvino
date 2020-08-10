@@ -40,6 +40,7 @@ from ngraph.opset1.ops import convolution_backprop_data
 from ngraph.opset1.ops import cos
 from ngraph.opset1.ops import cosh
 from ngraph.opset1.ops import ctc_greedy_decoder
+from ngraph.opset4.ops import ctc_loss
 from ngraph.opset3.ops import cum_sum
 from ngraph.opset3.ops import cum_sum as cumsum
 from ngraph.opset1.ops import deformable_convolution
@@ -83,6 +84,7 @@ from ngraph.opset1.ops import matmul
 from ngraph.opset1.ops import max_pool
 from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
+from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
 from ngraph.opset1.ops import multiply
 from ngraph.opset2.ops import mvn
