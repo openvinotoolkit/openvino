@@ -102,7 +102,7 @@ pipeline {
         }
         stage("Run tests") {
             steps{
-                runTests("${DOCKER_IMAGE_TAG}")
+                runTests()
             }
         }
     }
