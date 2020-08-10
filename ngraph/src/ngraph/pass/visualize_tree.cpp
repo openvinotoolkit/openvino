@@ -24,6 +24,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
@@ -182,6 +183,8 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     return ss.str();
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
+
 bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 {
     for (shared_ptr<Function> f : functions)
@@ -226,6 +229,9 @@ bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 
     render();
 
+    // Clean up local variable not to hold node pointers
+    m_nodes_with_attributes.clear();
+
     return false;
 }
 
@@ -247,11 +253,11 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
         if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
         {
-            m_ss << add_attributes(node);
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
-                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\"]\n";
+                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
+                 << get_constant_value(arg) << "\"]\n";
             m_ss << "    " << clone_name << " -> " << node->get_name()
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
@@ -296,37 +302,6 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node)
     return rc;
 }
 
-template <typename T>
-static std::string pretty_value(const vector<T>& value)
-{
-    std::stringstream ss;
-    if (value.empty())
-    {
-        return "";
-    }
-    const size_t max_size = 20;
-    if (value.size() > max_size && std::equal(value.begin() + 1, value.end(), value.begin()))
-    {
-        ss << "populated with " << value[0];
-    }
-    else
-    {
-        for (size_t i = 0; i < value.size() && i < max_size; ++i)
-        {
-            if (i)
-            {
-                ss << ", ";
-                if (i % 5 == 0)
-                    ss << "\n";
-            }
-            ss << value[i];
-        }
-        if (value.size() > max_size)
-            ss << "...";
-    }
-    return ss.str();
-}
-
 static std::string pretty_partial_shape(const PartialShape& shape)
 {
     std::stringstream ss;
@@ -362,12 +337,68 @@ static std::string pretty_partial_shape(const PartialShape& shape)
     return ss.str();
 }
 
+template <typename T>
+static std::string pretty_value(const vector<T>& value)
+{
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& i : value)
+    {
+        if (!first)
+            ss << ", ";
+        ss << i;
+        first = false;
+    }
+    return ss.str();
+}
+
+std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
+{
+    if (!op::is_constant(node))
+        return {};
+    std::stringstream ss;
+    ss << "{" << node->get_element_type().get_type_name() << "}";
+    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+
+    if (ngraph::shape_size(node->get_shape()) > max_elements)
+        return ss.str();
+
+    ss << "\nvalue: ";
+    const auto constant = as_type_ptr<op::Constant>(node);
+    switch (constant->get_output_element_type(0))
+    {
+    case element::Type_t::undefined: ss << "[ undefined value ]"; break;
+    case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
+    case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::bf16:
+    case element::Type_t::f16:
+    case element::Type_t::f32:
+    case element::Type_t::f64:
+        ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
+        break;
+    case element::Type_t::i8:
+    case element::Type_t::i16:
+    case element::Type_t::i32:
+    case element::Type_t::i64:
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
+        break;
+    case element::Type_t::boolean:
+    case element::Type_t::u8:
+    case element::Type_t::u16:
+    case element::Type_t::u32:
+    case element::Type_t::u64:
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
+        break;
+    }
+    return ss.str();
+}
+
 string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 {
     vector<string> attributes;
     attributes.push_back("shape=box");
 
-    if (node->is_output())
+    if (ngraph::op::is_output(node))
     {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");
@@ -383,24 +414,17 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
         label << "label=\"" << get_node_name(node);
 
         static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-        if (nvtos)
-        {
-            // The shapes of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " " << (node->get_output_size() != 1
-                                 ? string("[skipped]")
-                                 : pretty_partial_shape(node->get_output_partial_shape(0)));
-        }
-
         static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
-        if (nvtot)
-        {
-            // The types of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " "
-                  << ((node->get_output_size() != 1) ? string("[skipped]")
-                                                     : node->get_element_type().c_type_string());
-        }
+
+        if (nvtos || nvtot)
+            for (const auto& output : node->outputs())
+            {
+                label << "\\n" << to_string(output.get_index()) << ": ";
+                if (nvtot)
+                    label << "{" << output.get_element_type().get_type_name() << "}";
+                if (nvtos)
+                    label << pretty_partial_shape(output.get_partial_shape());
+            }
 
         auto eh = m_ops_to_details.find(node->get_type_info());
         if (eh != m_ops_to_details.end())
@@ -428,57 +452,6 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
     if (node->get_friendly_name() != node->get_name())
     {
         rc += "\\n" + node->get_name();
-    }
-    rc += "\n";
-    rc += node->get_type_name();
-    // if (auto ck = as_type_ptr<ngraph::op::CompiledKernel>(node))
-    // {
-    //    rc += "\\n{";
-    //    // add sub-graph node names
-    //    for (auto& ck_node : ck->get_node_list())
-    //    {
-    //        rc += ck_node->get_name();
-    //        rc += ", ";
-    //    }
-    //    rc += "}\\n";
-    // }
-
-    for (const auto& output : node->outputs())
-        rc += "\\n" + to_string(output.get_index()) + ": " +
-              pretty_partial_shape(output.get_partial_shape()) + '<' +
-              output.get_element_type().get_type_name() + '>';
-
-    rc += "\\n";
-    if (node->is_constant())
-    {
-        rc += "value: ";
-        const auto constant = as_type_ptr<op::Constant>(node);
-
-        switch (constant->get_output_element_type(0))
-        {
-        case element::Type_t::undefined: rc += "[ undefined value ]"; break;
-        case element::Type_t::dynamic: rc += "[ dynamic value ]"; break;
-        case element::Type_t::u1: rc += "[ u1 value ]"; break;
-        case element::Type_t::bf16:
-        case element::Type_t::f16:
-        case element::Type_t::f32:
-        case element::Type_t::f64:
-            rc += "[" + pretty_value(constant->cast_vector<double>()) + "]";
-            break;
-        case element::Type_t::i8:
-        case element::Type_t::i16:
-        case element::Type_t::i32:
-        case element::Type_t::i64:
-            rc += "[" + pretty_value(constant->cast_vector<int64_t>()) + "]";
-            break;
-        case element::Type_t::boolean:
-        case element::Type_t::u8:
-        case element::Type_t::u16:
-        case element::Type_t::u32:
-        case element::Type_t::u64:
-            rc += "[" + pretty_value(constant->cast_vector<uint64_t>()) + "]";
-            break;
-        }
     }
     return rc;
 }

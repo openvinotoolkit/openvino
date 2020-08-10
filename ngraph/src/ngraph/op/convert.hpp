@@ -29,7 +29,7 @@ namespace ngraph
             class NGRAPH_API Convert : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs a conversion operation.
                 Convert() = default;

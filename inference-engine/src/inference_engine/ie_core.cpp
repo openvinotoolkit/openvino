@@ -355,9 +355,7 @@ public:
                     cppPlugin.SetConfig(desc.defaultConfig);
 
                     for (auto&& extensionLocation : desc.listOfExtentions) {
-                        // TODO: fix once InferenceEngine::Extension can accept FileUtils::FilePath
-                        // currently, extensions cannot be loaded using wide path
-                        cppPlugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
+                        cppPlugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
                     }
                 }
 
@@ -551,6 +549,15 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
     return versions;
 }
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
+    return ReadNetwork(FileUtils::wStringtoMBCSstringChar(modelPath),
+                       FileUtils::wStringtoMBCSstringChar(binPath));
+}
+
+#endif
+
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     return _impl->ReadNetwork(modelPath, binPath);
 }
@@ -660,7 +667,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
 }
 
-QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
     return _impl->QueryNetwork(network, deviceName, config);
 }

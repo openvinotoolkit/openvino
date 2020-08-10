@@ -20,8 +20,8 @@
 #include <memory>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin_config.hpp"
-#include "details/caseless.hpp"
-#include <details/ie_cnn_network_tools.h>
+#include "caseless.hpp"
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
@@ -37,9 +37,9 @@
 #include <transformations/low_precision/mat_mul.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include "convert_function_to_cnn_network.hpp"
-#include <ie_util_internal.hpp>
-#include <graph_transformer.h>
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_transformer.h>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -108,6 +108,11 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
+
+            // Apply all transformations to TensorIterator body
+            ngraph::pass::Manager ti_manager;
+            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            ti_manager.run_passes(nGraphFunc);
         }
 
         CLDNNPlugin::Config config = _impl->m_config;
@@ -133,12 +138,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
-        }
 
-        // Apply all transformations to TensorIterator body
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(nGraphFunc);
+            // Apply all transformations to TensorIterator body
+            ngraph::pass::Manager ti_manager;
+            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            ti_manager.run_passes(nGraphFunc);
+        }
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }

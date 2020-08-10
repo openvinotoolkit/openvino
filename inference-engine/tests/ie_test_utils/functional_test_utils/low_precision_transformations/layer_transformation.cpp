@@ -13,6 +13,7 @@
 #include <ie_core.hpp>
 #include <net_pass.h>
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include <legacy/net_pass.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -21,7 +22,7 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 

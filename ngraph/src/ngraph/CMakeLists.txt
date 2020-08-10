@@ -332,6 +332,8 @@ set (SRC
     op/subtract.hpp
     op/sum.cpp
     op/sum.hpp
+    op/swish.cpp
+    op/swish.hpp
     op/variadic_split.cpp
     op/variadic_split.hpp
     op/tan.cpp
@@ -553,8 +555,6 @@ set_target_properties(ngraph PROPERTIES
                       VISIBILITY_INLINES_HIDDEN ON)
 
 target_link_libraries(ngraph PRIVATE openvino::itt)
-
-add_subdirectory(frontend)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)

@@ -13,12 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 from extensions.ops.elementwise import Add
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node
 from mo.graph.port import Port
 from mo.ops.concat import Concat
 from mo.ops.const import Const
@@ -219,3 +220,4 @@ def get_shape_and_rank_nodes_by_port(port: Port, return_as_a_scalar: bool = True
     rank = create_op_node_with_second_input(graph, Squeeze, int64_array([0]), {'name': input_node_name + '/0dRankOf'},
                                             rank_1_d)
     return shape, rank
+

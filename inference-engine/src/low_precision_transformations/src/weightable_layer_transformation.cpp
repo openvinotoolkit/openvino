@@ -5,7 +5,7 @@
 #include "low_precision_transformations/weightable_layer_transformation.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>
