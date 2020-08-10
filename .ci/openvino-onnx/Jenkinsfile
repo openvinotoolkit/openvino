@@ -74,14 +74,17 @@ def runDockerContainer(String imageID) {
 }
 
 def buildDockerImage() {
+    sh """
+        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
+        --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
+    """
     IMAGE_ID = sh (
-        script: """
-                docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
-                --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
-                --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
-                """,
-                returnStdout: true
-                ).trim().tokenize()[-4]
+    script: """
+            docker images -f="reference=openvino-onnx-ci" -q
+            """,
+            returnStdout: true
+            ).trim()
 }
 
 def runTests() {
