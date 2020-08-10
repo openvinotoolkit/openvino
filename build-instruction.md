@@ -242,7 +242,9 @@ with the following content:
       libgstreamer1.0-dev:armhf \
       libgstreamer-plugins-base1.0-dev:armhf \
       libpython3-dev:armhf \
-      python3-pip
+      python3-pip \
+      python-minimal \
+      python-argparse
 
   RUN wget https://www.cmake.org/files/v3.14/cmake-3.14.3.tar.gz && \
       tar xf cmake-3.14.3.tar.gz && \
