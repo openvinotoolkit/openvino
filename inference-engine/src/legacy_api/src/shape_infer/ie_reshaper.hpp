@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ie_layers.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -13,9 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "ie_ishape_infer_extension.hpp"
 #include "caseless.hpp"
 #include "ie_icnn_network.hpp"
+
+#include <legacy/ie_ishape_infer_extension.hpp>
+#include <legacy/ie_layers.h>
 #include "ie_reshape_launcher.hpp"
 
 namespace InferenceEngine {

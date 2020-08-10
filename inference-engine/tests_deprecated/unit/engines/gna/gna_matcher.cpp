@@ -21,14 +21,14 @@
 
 #include <gmock/gmock-more-actions.h>
 #include "gmock/gmock.h"
-#include "net_pass.h"
+#include <legacy/net_pass.h>
 #include "matchers/input_data_matcher.hpp"
 #include <blob_factory.hpp>
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
-#include "details/ie_cnn_network_iterator.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 using namespace std;
 using namespace InferenceEngine;

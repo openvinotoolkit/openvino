@@ -12,7 +12,7 @@
 
 #include <cmath>
 
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>

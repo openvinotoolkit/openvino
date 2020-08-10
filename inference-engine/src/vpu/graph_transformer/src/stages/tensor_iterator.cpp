@@ -6,11 +6,11 @@
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/utils/auto_scope.hpp"
 #include "vpu/compile_env.hpp"
-#include "graph_transformer.h"
+#include <legacy/graph_transformer.h>
 #include "vpu/model/data_contents/ie_blob_content.hpp"
 
-#include "ie_layers_internal.hpp"
-#include "net_pass.h"
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 
 #include <unordered_map>
 #include <memory>

@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "ie_layers.h"
-#include "ie_layers_internal.hpp"
+#include <legacy/ie_layers.h>
+#include <legacy/ie_layers_internal.hpp>
 #include "single_layer_common.hpp"
 
 namespace {

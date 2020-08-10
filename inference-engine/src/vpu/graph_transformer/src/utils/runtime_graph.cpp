@@ -4,7 +4,7 @@
 
 #include "vpu/utils/runtime_graph.hpp"
 
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <exec_graph_info.hpp>
 
 #include <vector>
