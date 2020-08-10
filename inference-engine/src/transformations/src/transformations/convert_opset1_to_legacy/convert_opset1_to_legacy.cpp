@@ -32,6 +32,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/convert_subtract.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp>
 #include <transformations/convert_depth_to_space.hpp>
@@ -129,6 +130,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
     anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSwishToSwishIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
     anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
