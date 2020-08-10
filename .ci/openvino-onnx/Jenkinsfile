@@ -3,7 +3,6 @@
 
 DOCKER_HOME = "/openvino"
 DOCKER_CONTAINER_NAME="jenkins_ngraph-onnx_ci_${BUILD_NUMBER}"
-COMMIT_HASH = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
 
 def getGitPrInfo(String project) {
     def gitPrInfo = [
@@ -17,7 +16,7 @@ def getGitPrInfo(String project) {
             gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
             gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
             gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
-            gitPrInfo.commitHash = ${COMMIT_HASH}
+            gitPrInfo.commitHash = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
         }
     }
     catch(e) {
@@ -60,7 +59,7 @@ def gitSubmoduleUpdate(String repository_name) {
 }
 
 def buildDockerImage() {
-    IMAGE_TAG = "openvino-onnx-ci:${COMMIT_HASH}"
+    IMAGE_TAG = "openvino-onnx-ci"
 
     sh """
         docker build --tag=${IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
