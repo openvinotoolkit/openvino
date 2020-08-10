@@ -6,8 +6,8 @@
 #include <tuple>
 
 #include "ie_api.h"
-#include "ie_layers.h"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_layers.h>
+#include "legacy/ie_util_internal.hpp"
 
 namespace InferenceEngine {
 

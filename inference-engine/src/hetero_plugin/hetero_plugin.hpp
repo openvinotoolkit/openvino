@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 

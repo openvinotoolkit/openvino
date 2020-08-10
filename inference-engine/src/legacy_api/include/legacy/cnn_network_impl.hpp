@@ -4,20 +4,21 @@
 
 #pragma once
 
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "ie_layers.h"
-#include "ie_ishape_infer_extension.hpp"
-#include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+#include <ie_icnn_network.hpp>
+#include "description_buffer.hpp"
+
+#include <legacy/ie_layers.h>
+#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace InferenceEngine {
 namespace ShapeInfer {

@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"

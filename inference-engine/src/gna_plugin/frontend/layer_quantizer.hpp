@@ -17,7 +17,7 @@
 #include "precision_ex.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "weights_converter.hpp"
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 
 namespace GNAPluginNS {
 namespace frontend {

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <ie_core.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include "common_test_utils/common_utils.hpp"
 
 using namespace ::testing;

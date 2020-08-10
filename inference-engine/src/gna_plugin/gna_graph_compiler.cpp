@@ -14,7 +14,7 @@
 #include <utility>
 #include <limits>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <gna-api-types-xnn.h>
 #include <ie_algorithm.hpp>
 #include <debug.h>

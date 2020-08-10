@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <ie_icnn_network.hpp>
 
 namespace vpu {

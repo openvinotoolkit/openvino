@@ -6,7 +6,7 @@
 
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
-# include <ie_ngraph_utils.hpp>
+# include <legacy/ie_ngraph_utils.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>

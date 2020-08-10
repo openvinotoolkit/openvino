@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <gtest/gtest.h>
 #include <ie_data.h>
 #include "ie_precision.hpp"
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 using namespace std;
 using InferenceEngine::X_AXIS;

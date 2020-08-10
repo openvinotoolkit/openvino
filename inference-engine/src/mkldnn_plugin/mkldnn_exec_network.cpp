@@ -4,7 +4,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include "mkldnn_exec_network.h"
 
 #include "mkldnn_async_infer_request.h"
@@ -12,8 +12,8 @@
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
 #include "bf16transformer.h"
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/eltwise.hpp"

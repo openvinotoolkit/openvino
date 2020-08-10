@@ -7,7 +7,7 @@
 #include "mkldnn_depthwise_node.h"
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_extension_utils.h>

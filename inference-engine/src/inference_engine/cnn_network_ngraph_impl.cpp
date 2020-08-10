@@ -24,15 +24,12 @@
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
-#include "graph_tools.hpp"
 #include "exec_graph_info.hpp"
-#include "graph_transformer.h"
-#include "ie_util_internal.hpp"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "ie_itt.hpp"
 #include "network_serializer.hpp"
 #include "generic_ie.hpp"
-#include <shape_infer/built-in/ie_built_in_holder.hpp>
+#include <legacy/shape_infer/built-in/ie_built_in_holder.hpp>
 
 using namespace std;
 using namespace InferenceEngine;

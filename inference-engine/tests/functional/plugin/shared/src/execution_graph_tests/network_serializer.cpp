@@ -6,7 +6,7 @@
 #include <deque>
 #include <unordered_set>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <ie_icnn_network.hpp>
 
 using namespace InferenceEngine;

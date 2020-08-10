@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"

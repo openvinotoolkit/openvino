@@ -12,7 +12,6 @@
 #include <cassert>
 #include <algorithm>
 #include <ie_common.h>
-#include <ie_layers_property.hpp>
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"

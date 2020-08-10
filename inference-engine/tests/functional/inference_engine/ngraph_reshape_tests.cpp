@@ -23,7 +23,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/graph_util.hpp>
 
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_common.hpp"

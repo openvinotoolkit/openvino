@@ -5,8 +5,8 @@
 #include "ie_api_impl.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "cnn_network_impl.hpp"
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/cnn_network_impl.hpp>
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},

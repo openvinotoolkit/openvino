@@ -12,7 +12,7 @@
 #include "network_utils.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "blob_utils.hpp"
-#include "net_pass.h"
+#include <legacy/net_pass.h>
 
 namespace FuncTestUtils {
 

@@ -10,7 +10,7 @@
 
 #include <ie_plugin_config.hpp>
 #include "single_layer_common.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <math.h>

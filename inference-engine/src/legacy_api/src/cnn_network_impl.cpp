@@ -2,26 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cnn_network_impl.hpp"
-
-#include <ie_common.h>
-#include <math.h>
-
+#include <cmath>
 #include <cassert>
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
 #include <unordered_set>
 
 #include "debug.h"
-#include "graph_tools.hpp"
-#include "network_serializer_v7.hpp"
 #include "exec_graph_info.hpp"
-#include "details/ie_cnn_network_tools.h"
 #include <ngraph/graph_util.hpp>
+#include <ie_common.h>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
@@ -30,7 +23,13 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/apply_transformations_to_ti_body.hpp>
-#include "convert_function_to_cnn_network.hpp"
+
+#include "legacy/convert_function_to_cnn_network.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
+#include "network_serializer_v7.hpp"
+#include <shape_infer/ie_reshaper.hpp>
 
 using namespace std;
 using namespace InferenceEngine;

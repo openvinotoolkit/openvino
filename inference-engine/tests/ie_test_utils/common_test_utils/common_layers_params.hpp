@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "details/ie_exception.hpp"
-#include "ie_layers_property.hpp"
+#include <legacy/ie_layers_property.hpp>
 #include "ie_blob.h"
 
 namespace CommonTestUtils {

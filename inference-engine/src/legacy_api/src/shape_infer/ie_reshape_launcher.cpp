@@ -2,23 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/ie_reshape_launcher.hpp"
-
-#include <debug.h>
-#include <ie_layers.h>
-
-#include <details/ie_exception.hpp>
-#include <ie_layer_validators.hpp>
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
 #include <string>
 #include <vector>
 
-#include "built-in/ie_tensor_iterator_shape_infer.hpp"
-#include "ie_reshape_launcher.hpp"
+#include <debug.h>
+#include <details/ie_exception.hpp>
+
+#include <legacy/ie_layers.h>
 #include "shape_infer/ie_reshape_io_controllers.hpp"
+#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
+#include "shape_infer/built-in/ie_tensor_iterator_shape_infer.hpp"
+#include "ie_layer_validators.hpp"
+#include "shape_infer/ie_reshape_launcher.hpp"
+#include "ie_reshape_launcher.hpp"
 
 using namespace InferenceEngine;
 using namespace ShapeInfer;

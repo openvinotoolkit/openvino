@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include "caseless.hpp"
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "parsers.h"
 
 namespace InferenceEngine {

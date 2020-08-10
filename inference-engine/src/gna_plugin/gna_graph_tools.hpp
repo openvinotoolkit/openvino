@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "graph_tools.hpp"
+#include <legacy/graph_tools.hpp>
 #include "gna_plugin_log.hpp"
 
 #include <utility>

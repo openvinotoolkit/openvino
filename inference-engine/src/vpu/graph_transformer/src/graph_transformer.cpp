@@ -27,10 +27,10 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>

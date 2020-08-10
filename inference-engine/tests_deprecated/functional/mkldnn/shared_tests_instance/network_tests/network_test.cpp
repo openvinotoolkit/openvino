@@ -11,7 +11,7 @@
 #include <multi-device/multi_device_config.hpp>
 #include "low_precision_transformations/transformer.hpp"
 #include "common/validation.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #include "network_i8.hpp"
 

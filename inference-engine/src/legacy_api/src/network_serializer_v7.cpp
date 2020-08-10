@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "network_serializer_v7.hpp"
-
 #include <fstream>
 #include <map>
 #include <queue>
@@ -14,6 +12,7 @@
 #include <sstream>
 
 #include "xml_parse_utils.h"
+#include "network_serializer_v7.hpp"
 
 namespace InferenceEngine {
 namespace Serialization {

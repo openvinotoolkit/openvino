@@ -7,7 +7,7 @@
 
 #include "tests_common.hpp"
 #include <ie_core.hpp>
-#include "details/ie_cnn_network_iterator.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <ngraph/ngraph.hpp>
 

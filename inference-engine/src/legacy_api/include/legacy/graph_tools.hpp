@@ -17,10 +17,11 @@
 #include <utility>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_icnn_network.hpp"
-#include "layer_transform.hpp"
+
+#include <legacy/layer_transform.hpp>
+#include <legacy/cnn_network_impl.hpp>
 
 IE_SUPPRESS_DEPRECATED_START
 

@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <unordered_set>

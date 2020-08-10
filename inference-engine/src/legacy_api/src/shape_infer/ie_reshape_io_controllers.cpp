@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/ie_reshape_io_controllers.hpp"
-
-#include <ie_layers.h>
-
-#include <blob_factory.hpp>
-#include <ie_layer_validators.hpp>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <blob_factory.hpp>
+
+#include <legacy/ie_layers.h>
+#include <ie_layer_validators.hpp>
+#include "shape_infer/ie_reshape_io_controllers.hpp"
 
 using namespace InferenceEngine;
 using namespace ShapeInfer;

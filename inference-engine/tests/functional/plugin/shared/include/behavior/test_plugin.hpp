@@ -10,7 +10,7 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>

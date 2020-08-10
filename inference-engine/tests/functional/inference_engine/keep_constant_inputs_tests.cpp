@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <cpp/ie_cnn_network.h>
-#include <cnn_network_impl.hpp>  // deprecated API
+#include <legacy/cnn_network_impl.hpp>  // deprecated API
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -14,7 +14,7 @@
 #include <ie_precision.hpp>
 #include <functional_test_utils/precision_utils.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include <convert_function_to_cnn_network.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>

@@ -9,10 +9,10 @@
 #include <unordered_set>
 
 #include <ie_algorithm.hpp>
-#include <ie_util_internal.hpp>
-#include <graph_transformer.h>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_transformer.h>
 #include "util_test.hpp"
-#include "graph_tools.hpp"
+#include <legacy/graph_tools.hpp>
 
 namespace {
 bool checkLayers(const std::vector<IE::CNNLayerPtr>& layers, std::initializer_list<const char*> layersToCheck) {

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_layers_internal.hpp"
-
-#include <math.h>
-
+#include <cmath>
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -14,7 +11,8 @@
 #include <tuple>
 #include <vector>
 
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
+#include "legacy/ie_layers_internal.hpp"
 
 namespace InferenceEngine {
 

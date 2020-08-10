@@ -11,7 +11,7 @@
 #include <string>
 #include <map>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "gna_plugin_log.hpp"

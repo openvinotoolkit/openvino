@@ -11,7 +11,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include "gna_executable_network.hpp"
 #include "gna_plugin_config.hpp"
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 namespace GNAPluginNS {
 

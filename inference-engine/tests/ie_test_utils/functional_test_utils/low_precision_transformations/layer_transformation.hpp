@@ -7,7 +7,7 @@
 #include <string>
 #include <tuple>
 
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"

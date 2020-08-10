@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "debug.h"
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "xml_parse_utils.h"
 
 #ifdef __clang__

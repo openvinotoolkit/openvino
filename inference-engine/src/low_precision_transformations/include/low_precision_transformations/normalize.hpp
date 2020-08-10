@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "low_precision_transformations/layer_transformation.hpp"
 
 namespace InferenceEngine {

@@ -4,7 +4,7 @@
 
 #include <format_reader_ptr.h>
 #include <gtest/gtest.h>
-#include "graph_tools.hpp"
+#include <legacy/graph_tools.hpp>
 #include "raw_matcher.hpp"
 #include <precision_utils.h>
 

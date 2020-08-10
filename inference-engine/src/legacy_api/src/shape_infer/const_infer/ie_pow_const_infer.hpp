@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_blob.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <precision_utils.h>
 
 #include <cmath>

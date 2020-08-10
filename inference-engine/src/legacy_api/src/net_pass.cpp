@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "net_pass.h"
+#include "legacy/net_pass.h"
 
 #include <algorithm>
 #include <memory>
@@ -16,11 +16,11 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "cnn_network_impl.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
 #include "cnn_network_ngraph_impl.hpp"
-#include "graph_tools.hpp"
-#include "ie_layers_internal.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/ie_layers_internal.hpp"
 #include "ie_memcpy.h"
 #include "precision_utils.h"
 

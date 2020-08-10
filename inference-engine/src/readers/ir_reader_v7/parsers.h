@@ -6,7 +6,7 @@
 
 #include <ie_icnn_network.hpp>
 
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 
 namespace pugi {
 class xml_node;

@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 

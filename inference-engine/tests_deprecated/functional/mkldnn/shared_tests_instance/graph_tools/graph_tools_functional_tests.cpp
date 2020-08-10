@@ -5,7 +5,7 @@
 #include <ie_core.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include "graph_tools_functional_tests.hpp"
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace testing;
 using namespace InferenceEngine::details;

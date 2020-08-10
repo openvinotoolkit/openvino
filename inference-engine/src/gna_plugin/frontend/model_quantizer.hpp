@@ -8,9 +8,9 @@
 #include <utility>
 #include <string>
 
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 #include "gna_graph_tools.hpp"
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"

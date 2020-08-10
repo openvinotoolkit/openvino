@@ -12,7 +12,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include <ie_core.hpp>
 

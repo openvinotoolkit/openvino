@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include <net_pass.h>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/net_pass.h>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <vpu/compile_env.hpp>
 

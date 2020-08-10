@@ -13,7 +13,7 @@
 #include <vector>
 #include <string>
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <functional_test_utils/behavior_test_utils.hpp>
 #include <exec_graph_info.hpp>
 #include "common_test_utils/common_utils.hpp"

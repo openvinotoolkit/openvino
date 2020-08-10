@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include "ie_parallel.hpp"
 
 namespace InferenceEngine {

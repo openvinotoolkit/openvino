@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include <graph_tools/graph_test_base.hpp>
 
 using namespace testing;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <precision_utils.h>
 #include "common_test_utils/common_layers_params.hpp"
 #include "pool_ref.hpp"

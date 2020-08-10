@@ -11,7 +11,7 @@
 #include <vector>
 #include <memory>
 #include <map>
-#include "ie_ishape_infer_extension.hpp"
+#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace MKLDNNPlugin {
 

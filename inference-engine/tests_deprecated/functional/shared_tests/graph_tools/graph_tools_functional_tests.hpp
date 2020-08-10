@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <cpp/ie_cnn_network.h>
 #include <memory>
 #include <test_model_path.hpp>

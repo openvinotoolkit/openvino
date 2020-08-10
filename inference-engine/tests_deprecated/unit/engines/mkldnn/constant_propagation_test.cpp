@@ -5,7 +5,7 @@
 #include <ie_iextension.h>
 #include <ie_core.hpp>
 #include <ie_common.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include "graph/test_graph.hpp"
 #include <tests_common.hpp>
 
