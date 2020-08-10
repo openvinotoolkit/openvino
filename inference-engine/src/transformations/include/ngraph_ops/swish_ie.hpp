@@ -23,6 +23,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
 
+    void set_alpha(float alpha);
+    float get_alpha() const;
+protected:
     float m_alpha;
 };
 }  // namespace op

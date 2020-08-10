@@ -33,3 +33,12 @@ bool op::SwishIE::visit_attributes(AttributeVisitor& visitor) {
 void op::SwishIE::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
+
+void op::SwishIE::set_alpha(float alpha)  {
+    m_alpha = alpha;
+}
+
+float op::SwishIE::get_alpha() const {
+    return m_alpha;
+}
+
