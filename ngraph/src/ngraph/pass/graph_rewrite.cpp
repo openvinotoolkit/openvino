@@ -24,6 +24,7 @@
 
 #include "graph_rewrite.hpp"
 #include "ngraph/env_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 
 using namespace std;
@@ -63,6 +64,8 @@ using namespace ngraph;
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");
+
     bool rewritten = false;
 
     // Initialize execution queue with nodes in topological order
@@ -245,9 +248,11 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
 void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
                                      const graph_rewrite_callback& callback)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     // TODO: before deprecate this function, by default expect the
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(

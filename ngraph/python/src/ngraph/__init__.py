@@ -24,6 +24,7 @@ except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
 from ngraph.impl import Node
+from ngraph.helpers import function_from_cnn
 
 from ngraph.opset4 import absolute
 from ngraph.opset4 import absolute as abs
@@ -124,7 +125,6 @@ from ngraph.opset4 import reorg_yolo
 from ngraph.opset4 import relu
 from ngraph.opset4 import reshape
 from ngraph.opset4 import result
-from ngraph.opset4 import reverse
 from ngraph.opset4 import reverse_sequence
 from ngraph.opset4 import rnn_cell
 from ngraph.opset4 import roi_align

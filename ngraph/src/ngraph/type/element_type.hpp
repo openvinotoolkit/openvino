@@ -128,6 +128,8 @@ namespace ngraph
             Type_t m_type{Type_t::undefined};
         };
 
+        typedef std::vector<Type> TypeVector;
+
         extern NGRAPH_API const Type undefined;
         extern NGRAPH_API const Type dynamic;
         extern NGRAPH_API const Type boolean;

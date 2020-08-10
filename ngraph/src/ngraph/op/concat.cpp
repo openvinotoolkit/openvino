@@ -162,7 +162,7 @@ namespace
     }
 }
 
-bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);

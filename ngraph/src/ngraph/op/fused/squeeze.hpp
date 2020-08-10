@@ -41,7 +41,7 @@ namespace ngraph
                 virtual OutputVector decompose_op() const override;
                 virtual void pre_validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

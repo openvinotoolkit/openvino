@@ -6,6 +6,9 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_itt.h"
+
+#include <net_pass.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -17,8 +20,10 @@
 #include <nodes/list.hpp>
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>
+#include <ie_ngraph_utils.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
+#include <transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/low_precision/transformer.hpp>
@@ -26,6 +31,7 @@
 #include <transformations/low_precision/group_convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -59,6 +65,8 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
+    OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
+
     const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
         // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
@@ -74,21 +82,40 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             return fc_op->input_value(0).get_shape().size() == 3ul;
         }
 
-        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+        return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-    // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.set_callback(transformations_callback);
-    manager.run_passes(nGraphFunc);
+    const std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
+            {ngraph::element::i64, ngraph::element::i32},
+            {ngraph::element::u64, ngraph::element::i32},
+            {ngraph::element::u16, ngraph::element::i32},
+            {ngraph::element::u32, ngraph::element::i32},
+            {ngraph::element::f16, ngraph::element::f32},
+    };
+
+    {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+
+        for (auto & precision : convert_precision_list) {
+            manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+        }
+
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
+
+        // Apply all transformations to TensorIterator body
+        ngraph::pass::Manager ti_manager;
+        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        ti_manager.run_passes(nGraphFunc);
+    }
 
     using namespace ngraph::pass::low_precision;
     if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
@@ -109,16 +136,38 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
     }
 
-    manager = ngraph::pass::Manager();
-    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.set_callback(transformations_callback);
-    manager.run_passes(nGraphFunc);
+    {
+        ngraph::pass::Manager manager;
+
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
+
+        // Apply all transformations to TensorIterator body
+        ngraph::pass::Manager ti_manager;
+        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        ti_manager.run_passes(nGraphFunc);
+    }
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+
+    // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
+    // so we temporary have to call CNNNetwork ConvertPrecision transformation
+    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
+
+    // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
+    // so we need to apply additional precision conversion but only for inputs and outputs
+    for (auto & precision : convert_precision_list) {
+        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+    }
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
+
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);
@@ -147,14 +196,24 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork, conf);
+        is_transformed = true;
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
+        if (!is_transformed) {
+            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+        }
     }
 
     return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);

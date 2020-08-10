@@ -693,7 +693,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         if (op == nullptr) {
             // TODO: handle error
         }
-        op->set_overriden_output_type(newOperation->get_input_element_type(0));
+        op->set_overridden_output_type(newOperation->get_input_element_type(0));
         std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
 
         // NetworkHelper::setOutDataPrecision(op, newOperation->get_input_element_type(0));

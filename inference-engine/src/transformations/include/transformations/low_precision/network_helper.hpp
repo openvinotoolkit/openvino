@@ -176,7 +176,7 @@ template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
-        relaxed_layer->set_overriden_output_type(precision);
+        relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
@@ -188,7 +188,7 @@ template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
-        relaxed_layer->set_overriden_output_type(precision);
+        relaxed_layer->set_overridden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {

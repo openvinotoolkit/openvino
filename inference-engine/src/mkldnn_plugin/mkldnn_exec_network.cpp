@@ -10,6 +10,7 @@
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
+#include "mkldnn_itt.h"
 #include "bf16transformer.h"
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
@@ -45,20 +46,12 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
+
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 
-    // CPU Plugin doesn't natively support some precision like int64/fp16/bool
-    // so will convert all layer/tensors fp16->fp32 , bool->u8.
-    // Default int64->int32 conversion is already applied in IE common module.
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U32, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
-
-    if ((_cfg.lpTransformsMode == Config::LPTransformsMode::On) && (_cfg.lptVersion == Config::LptVersion::cnnNetwork)) {
+    if ((cfg.lptVersion == Config::LptVersion::cnnNetwork) && (_cfg.lpTransformsMode == Config::LPTransformsMode::On)) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
                                                     true,  // weightsToConst
@@ -103,8 +96,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     }
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
-
-    // _clonedNetwork->serialize("after_old_LPT.xml", "after_old_LPT.bin", 0);
 
     if (_cfg.enableDynamicBatch) {
         // check topology for applicability

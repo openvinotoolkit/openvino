@@ -83,7 +83,8 @@ namespace
     }
 }
 
-bool op::v0::Multiply::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
     return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
@@ -122,7 +123,8 @@ std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original) {
 	return tensor;
 }
 
-bool op::v1::Multiply::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
 	// TODO: workaround to replace low precision tensor to fp32
 	std::shared_ptr<HostTensor> input0;

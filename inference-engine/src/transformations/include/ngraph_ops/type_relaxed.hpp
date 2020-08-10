@@ -17,14 +17,14 @@
 namespace ngraph {
 namespace op {
 
-/// A base class for templated TypeRelaxed that maintains overriden input types and outtypes for an operations.
+/// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
 class TRANSFORMATIONS_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase() {}
 
-    TypeRelaxedBase(
-            const std::vector<element::Type>& _input_data_types = {},
-            const std::vector<element::Type>& _output_data_types = {}) :
+    explicit TypeRelaxedBase(
+            const element::TypeVector& _input_data_types = {},
+            const element::TypeVector& _output_data_types = {}) :
             m_input_data_types(_input_data_types),
             m_output_data_types(_output_data_types) {
     }
@@ -33,7 +33,14 @@ public:
     /// If output with a specified index outputIndex hasn't been set before, element::undefined will returned.
     /// Undefined means no type override happens for a given outputIndex and it will deduced as original
     /// operation defineds in its infer function.
-    const element::Type& get_overriden_output_type(size_t outputIndex = 0) const {
+    ///
+    /// This method may look similar to Node::get_output_element_type, but it is not the same thing, because
+    /// get_output_element_type returns the result of type inference, so it is completely deduced from
+    /// an operation inputs and attributes, and get_overridden_output_type returns value of the attribute that
+    /// is used to deduce output type. In some cases they don't match: get_overridden_output_type may return
+    /// element::undefined for some index i, and get_output_element_type will return some real type for
+    /// the same index i.
+    const element::Type& get_overridden_output_type(size_t outputIndex = 0) const {
         if (outputIndex >= m_output_data_types.size()) {
             return element::undefined;
         }
@@ -42,9 +49,9 @@ public:
 
     /// Set data type that overrides the original data type for output port with outputIndex index
     /// In case if outputIndex is out of range of known outputs (and this class cannot detect
-    /// the real number of outputs for original operation), the number of overriden outputs
+    /// the real number of outputs for original operation), the number of overridden outputs
     /// is changed according to a given outputIndex value.
-    void set_overriden_output_type(const element::Type& element_type, size_t outputIndex = 0) {
+    void set_overridden_output_type(const element::Type& element_type, size_t outputIndex = 0) {
         if (outputIndex >= m_output_data_types.size()) {
             m_output_data_types.resize(outputIndex + 1, element::undefined);
         }
@@ -63,9 +70,9 @@ public:
 
     /// Set data type that overrides the original data type for input port with inputIndex index.
     /// In case if inputIndex is out of range of known inputs (and this class cannot detect
-    /// the real number of inputs for original operation), the number of overriden inputs
+    /// the real number of inputs for original operation), the number of overridden inputs
     /// is changed according to a given inputIndex value. All new entries except one added
-    /// at inputIndex positoin are undefined.
+    /// at inputIndex position are undefined.
     void set_origin_input_type(const element::Type& element_type, size_t inputIndex = 0) {
         if (inputIndex >= m_input_data_types.size()) {
             m_input_data_types.resize(inputIndex + 1, element::undefined);
@@ -76,32 +83,46 @@ public:
 protected:
     // Data types that are used for parent shape/type infer function input ports
     // to infer output data types
-    std::vector<element::Type> m_input_data_types;
-    std::vector<element::Type> m_output_data_types;
+    element::TypeVector m_input_data_types;
+    element::TypeVector m_output_data_types;
 };
 
+/// Set another type for a specified output for the period of time when an instance of the class exists.
+/// When the execution leaves the scope where an onject of TemporaryReplaceOutputType is defined,
+/// the type of the output is set to its original value. Used when initialized TypeRelaxed<BaseOp> operation
+/// in case when inputs have types that are not compatible with BaseOp infer function. In this case
+/// before TypeRelaxed is constructed the BaseOp contructor requires modified data types.
+/// So it should be
 class TemporaryReplaceOutputType {
-    std::shared_ptr<Node> m_node;
+    Output<Node> m_output;
     element::Type orig_type;
+
 public:
-    TemporaryReplaceOutputType(std::shared_ptr<Node> node, element::Type tmp_type) : m_node(node) {
-        orig_type = node->get_output_element_type(0);
-        m_node->set_output_type(0, tmp_type, m_node->get_output_partial_shape(0));
+    /// Replace element type for a given output port by tmp_type
+    TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
+        // save original element type in order to restore it in the destructor
+        orig_type = m_output.get_element_type();
+        m_output.get_tensor().set_element_type(tmp_type);
     }
 
-    operator std::shared_ptr<Node>() const {
-        return m_node;
+    /// Return the output port that was used in the constructor
+    Output<Node> get() const {
+        return m_output;
     }
 
-    std::shared_ptr<Node> get() const {
-        return m_node;
-    }
-
+    /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
-        m_node->set_output_type(0, orig_type, m_node->get_output_partial_shape(0));
+        m_output.get_tensor().set_element_type(orig_type);
     }
 };
 
+/// Relaxes tensor element type requirements for BaseOp inputs and outputs
+/// This class template should be used with Node descendant class. Defines a new operation by extending the
+/// original BaseOp operation with ability to accept inputs and provide outputs with element type that is
+/// unusual for BaseOp. For example, TypeRelaxed<opset1::Add> can accept mixed-precision inputs and provide
+/// another type of output. New types are provided as inputs attributes for TypeRelaxed template and fixed.
+/// There is no any deduction logic for types are provided as a part of this class and it should be
+/// implemented outside if required.
 template <typename BaseOp>
 class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
@@ -113,16 +134,16 @@ public:
 
     TypeRelaxed(
             const BaseOp& base_op,
-            element::Type overriden_type) :
+            element::Type overridden_type) :
             TypeRelaxed(base_op,
-                    std::vector<element::Type>(base_op.get_input_size(), overriden_type),
-                    std::vector<element::Type>(base_op.get_output_size(), overriden_type)) {
+                    element::TypeVector(base_op.get_input_size(), overridden_type),
+                    element::TypeVector(base_op.get_output_size(), overridden_type)) {
     }
 
     explicit TypeRelaxed(
             const BaseOp& base_op,
-            const std::vector<element::Type>& _input_data_types = {},
-            const std::vector<element::Type>& _output_data_types = {}) :
+            const element::TypeVector& _input_data_types = {},
+            const element::TypeVector& _output_data_types = {}) :
             BaseOp(base_op), TypeRelaxedBase(_input_data_types, _output_data_types) {
         init();
     }
@@ -130,8 +151,8 @@ public:
     /// Creating a new TypeRelaxed operation by calling one of the original op ctors forwarding arguments directly.
     template <typename ... Args>
     TypeRelaxed(
-            const std::vector<element::Type>& _input_data_types,
-            const std::vector<element::Type>& _output_data_types,
+            const element::TypeVector& _input_data_types,
+            const element::TypeVector& _output_data_types,
             Args&& ... args) :
             BaseOp(std::forward<Args>(args)...), TypeRelaxedBase(_input_data_types, _output_data_types) {
         init();
@@ -143,10 +164,6 @@ public:
 
 private:
     void init() {
-        // reset all output ports as they contain references to original base_op instance
-        // number of output ports will be restored in validate_and_infer_types
-        BaseOp::set_output_size(0);
-        BaseOp::update_inputs_after_copy_tmp();
         validate_and_infer_types();
     }
 };
@@ -154,7 +171,7 @@ private:
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
     // Remember all input data types and reset them to m_output_data_type.
-    std::vector<element::Type> old_input_types;
+    element::TypeVector old_input_types;
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         old_input_types.push_back(BaseOp::get_input_element_type(i));
         auto origin_input_type = get_origin_input_type(i);
@@ -183,13 +200,12 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
     // Override (some) output types
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        auto overriden_output_type = get_overriden_output_type(i);
-        if (overriden_output_type != element::undefined) {
-            BaseOp::set_output_type(0, overriden_output_type, BaseOp::get_output_partial_shape(i));
+        auto overridden_output_type = get_overridden_output_type(i);
+        if (overridden_output_type != element::undefined) {
+            BaseOp::set_output_type(0, overridden_output_type, BaseOp::get_output_partial_shape(i));
         }
     }
 }
-
 
 
 template <typename BaseOp>
@@ -214,7 +230,7 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     static const std::string name = baseOpTypeInfoPtr->name;
 
     static const ::ngraph::Node::type_info_t type_info_static{
-            name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
+        name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
     return type_info_static;
 }
 

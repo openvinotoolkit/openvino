@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// avoiding clash of the "max" macro with std::max
-#define NOMINMAX
-
 #include "config.h"
 
 #include <string>
@@ -23,6 +20,22 @@
 namespace MKLDNNPlugin {
 
 using namespace InferenceEngine;
+
+Config::Config() {
+#if (defined(__APPLE__) || defined(_WIN32))
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 11100)
+    // If we sure that TBB has NUMA aware API part.
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+#else
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+#endif
+#else
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
+#endif
+
+    updateProperties();
+}
+
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
     auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();

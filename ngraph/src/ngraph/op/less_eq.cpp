@@ -85,7 +85,8 @@ namespace
     }
 }
 
-bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
@@ -108,7 +109,7 @@ shared_ptr<Node> op::v0::LessEq::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v0::LessEq>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v0::LessEq::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::LessEq::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
