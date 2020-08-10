@@ -40,7 +40,6 @@ void regclass_pyngraph_Node(py::module m)
     py_map.doc() =
         "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
         "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
-    // py_map.def("custom", [](const PyRTMap& self) { return std::string("test_text"); });
 
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";

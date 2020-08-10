@@ -20,9 +20,11 @@ import pytest
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape
+from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, VariantString
+from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+<<<<<<< HEAD
 from tests import (xfail_issue_34323,
                    xfail_issue_35929,
                    xfail_issue_35926,
@@ -33,7 +35,10 @@ from tests import (xfail_issue_34323,
 
 from ngraph.impl import Type, VariantString
 from ngraph.impl.op import Parameter
+=======
+>>>>>>> a5ee0095... Re-work of monkey patch and clean-up
 from openvino.inference_engine import IECore, IENetwork
+
 
 def test_ngraph_function_api():
     shape = [2, 2]
@@ -393,19 +398,31 @@ def test_node_target_inputs_soruce_output():
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
 
 
-def test_runtime_info():
-    test_string = "testAffinity"
+def test_variants():
+    variant_int = VariantInt(32)
+    variant_str = VariantString("test_text")
 
+    assert variant_int.get() == 32
+    assert variant_str.get() == "test_text"
+
+    variant_int.set(777)
+    variant_str.set("another_text")
+
+    assert variant_int.get() == 777
+    assert variant_str.get() == "another_text"
+
+
+def test_runtime_info():
     test_shape = PartialShape([1, 3, 22, 22])
     test_type = Type.f32
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
-    rtInfo = relu_node.get_rt_info()
-    rtInfo["affinity"] = VariantString("testAffinity")
+    runtime_info = relu_node.get_rt_info()
+    runtime_info["affinity"] = "test_affinity"
     relu_node.set_friendly_name("testReLU")
-    rtInfo_after = relu_node.get_rt_info()
+    runtime_info_after = relu_node.get_rt_info()
 
-    assert rtInfo == rtInfo_after
+    assert runtime_info == runtime_info_after
 
     params = [test_param]
     results = [relu_node]
@@ -416,4 +433,4 @@ def test_runtime_info():
     cnn_network = IENetwork(capsule)
     cnn_layer = cnn_network.layers["testReLU"]
     assert None != cnn_layer
-    assert cnn_layer.affinity == test_string
+    assert cnn_layer.affinity == "test_affinity"

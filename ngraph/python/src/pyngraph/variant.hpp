@@ -19,13 +19,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <iterator>
-#include <sstream>
 #include <string>
-
-#include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/type.hpp"
 
 #include "ngraph/variant.hpp" // ngraph::Variant
 
@@ -41,20 +35,16 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
                std::shared_ptr<ngraph::VariantWrapper<VT>>,
                ngraph::Variant>
         variant_wrapper(m, pyclass_name);
-    variant_wrapper.doc() = "ngraph.impl.Variant[typestring] wraps ngraph::VariantWrapper<typestring>";
+    variant_wrapper.doc() =
+        "ngraph.impl.Variant[typestring] wraps ngraph::VariantWrapper<typestring>";
 
     variant_wrapper.def(py::init<const VT&>());
-    // variant_wrapper.def("get_type_info", &ngraph::VariantWrapper<VT>::get_type_info);
-    variant_wrapper.def("get",
-                        (const VT& (ngraph::VariantWrapper<VT>::*)() const) &
-                            ngraph::VariantWrapper<VT>::get);
     variant_wrapper.def("get",
                         (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get);
     variant_wrapper.def("set", &ngraph::VariantWrapper<VT>::set);
 
-    variant_wrapper.def_property("m_value",
-                                 (const VT& (ngraph::VariantWrapper<VT>::*)() const) &
+    variant_wrapper.def_property("value",
+                                 (VT & (ngraph::VariantWrapper<VT>::*)()) &
                                      ngraph::VariantWrapper<VT>::get,
                                  &ngraph::VariantWrapper<VT>::set);
-    // variant_wrapper.def_property_readonly("type_info", &ngraph::VariantWrapper<VT>::get_type_info);
 }

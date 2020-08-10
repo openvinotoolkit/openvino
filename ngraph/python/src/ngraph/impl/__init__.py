@@ -47,6 +47,5 @@ from _pyngraph import AxisVector
 from _pyngraph import Coordinate
 from _pyngraph import VariantString
 from _pyngraph import VariantInt
-from _pyngraph import PyRTMap
 
 from _pyngraph import util
