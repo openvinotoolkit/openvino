@@ -30,7 +30,9 @@ public:
         const PartialShape& pshape) override;
 
     float scale, power, shift;
-    element::Type output_type;
+
+private:
+    element::Type m_output_type;
 };
 
 }  // namespace op
