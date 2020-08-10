@@ -75,6 +75,7 @@ def find_pybind_headers_dir():
 
 
 NGRAPH_CPP_DIST_DIR = find_ngraph_dist_dir()
+OPENVINO_CPP_INCLUDE_DIR = "/Users/mkarzyns/Projects/OpenVINO/openvino/inference-engine/include"
 PYBIND11_INCLUDE_DIR = find_pybind_headers_dir() + "/include"
 NGRAPH_CPP_INCLUDE_DIR = NGRAPH_CPP_DIST_DIR + "/include"
 if os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib")):
@@ -222,6 +223,14 @@ sources = [
     "pyngraph/variant.cpp",
     "pyngraph/rt_map.cpp",
 ]
+sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
+
+pyopenvino_sources = [
+    "pyopenvino/pyopenvino.cpp",
+    "pyopenvino/inference_engine/ie_core.cpp",
+    "pyopenvino/inference_engine/ie_network.cpp",
+]
+pyopenvino_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in pyopenvino_sources]
 
 packages = [
     "ngraph",
@@ -237,13 +246,10 @@ packages = [
     "ngraph.impl.passes",
 ]
 
-sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
+include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, OPENVINO_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
-include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
+library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/Users/mkarzyns/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
 
-library_dirs = [NGRAPH_CPP_LIBRARY_DIR]
-
-libraries = [NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME]
 
 extra_compile_args = []
 extra_link_args = []
@@ -259,6 +265,8 @@ data_files = [
     ),
 ]
 
+print("NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME", NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME)
+
 ext_modules = [
     Extension(
         "ngraph.pyngraph",
@@ -266,7 +274,17 @@ ext_modules = [
         include_dirs=include_dirs,
         define_macros=[("VERSION_INFO", __version__)],
         library_dirs=library_dirs,
-        libraries=libraries,
+        libraries=[NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME],
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args,
+        language="c++",
+    ),
+    Extension(
+        "openvino.pyopenvino",
+        sources=pyopenvino_sources,
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        libraries=["inference_engine"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args,
         language="c++",
