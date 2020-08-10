@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/greater_eq.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/greater_eq.hpp"
 
@@ -88,6 +89,7 @@ namespace
 bool op::v0::GreaterEq::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::GreaterEq::evaluate");
     return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -112,5 +114,6 @@ shared_ptr<Node> op::v1::GreaterEqual::clone_with_new_inputs(const OutputVector&
 bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::GreaterEqual::evaluate");
     return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
