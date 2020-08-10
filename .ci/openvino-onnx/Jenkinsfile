@@ -65,7 +65,6 @@ def runDockerContainer(String imageID) {
     script: """
             docker run -id --privileged \
                     --name ${DOCKER_CONTAINER_NAME} \
-                    --volume ${WORKDIR}:${DOCKER_HOME} \
                     --volume ${HOME}/ONNX_CI/onnx_models/.onnx:${DOCKER_HOME}/.onnx \
                     ${imageID} tail -f /dev/null
             """,
@@ -127,7 +126,7 @@ pipeline {
         stage("Prepare Docker environment") {
             steps{
                 dir("${WORKDIR}") {
-                    buildDockerImage()
+                    buildDockegit rImage()
                     runDockerContainer("${IMAGE_ID}")
                 }
             }
@@ -143,6 +142,15 @@ pipeline {
             script {
                 gitPrInfo = getGitPrInfo(PROJECT_NAME)
                 notifyByEmail(gitPrInfo)
+            }
+             cleanup {
+                dir("${WORKDIR}") {
+                    deleteDir()
+                    sh """
+                        docker image prune -f
+                    """
+                    dockerRemove("${CONTAINER_ID}")
+                }
             }
         }
 
