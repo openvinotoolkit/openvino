@@ -288,18 +288,19 @@ namespace
     static constexpr std::size_t max_num_of_ports = 4;
 
     using size_t_vector = std::vector<std::size_t>;
+    using int64_vector = std::vector<int64_t>;
 
-    size_t_vector get_axes_vector(const HostTensorVector& args)
+    int64_vector get_axes_vector(const HostTensorVector& args)
     {
         Shape input_shape{args[data_port]->get_shape()};
         std::size_t input_rank = input_shape.size();
         std::size_t num_of_inputs = args.size();
 
-        size_t_vector axes;
+        int64_vector axes;
 
         if (num_of_inputs == max_num_of_ports)
         {
-            std::size_t* axes_data_ptr = args[axes_port]->get_data_ptr<std::size_t>();
+            int64_t* axes_data_ptr = args[axes_port]->get_data_ptr<int64_t>();
             std::size_t num_of_axes = args[axes_port]->get_shape()[0];
             axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
         }
@@ -314,11 +315,11 @@ namespace
         return axes;
     }
 
-    size_t_vector get_target_shape_vector(const HostTensorVector& args, std::size_t num_of_axes)
+    int64_vector get_target_shape_vector(const HostTensorVector& args, std::size_t num_of_axes)
     {
-        size_t_vector target_shape;
+        int64_vector target_shape;
 
-        std::size_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<std::size_t>();
+        int64_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<int64_t>();
         target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
 
         return target_shape;
@@ -327,7 +328,7 @@ namespace
     std::vector<float> get_scales_vector(const HostTensorVector& args,
                                          const Shape& input_shape,
                                          const op::v4::Interpolate::InterpolateAttrs& attrs,
-                                         size_t_vector axes)
+                                         int64_vector axes)
     {
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
@@ -367,14 +368,14 @@ namespace
     }
 
     size_t_vector shape_infer_with_scales(const size_t_vector& padded_shape,
-                                          const size_t_vector& axes,
+                                          const int64_vector& axes,
                                           const std::vector<float>& scales)
     {
         auto out_shape = padded_shape;
         std::size_t num_of_axes = axes.size();
         for (std::size_t i = 0; i < num_of_axes; ++i)
         {
-            std::size_t axis = axes[i];
+            int64_t axis = axes[i];
             float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i];
             out_shape[axis] = static_cast<std::size_t>(scaled_len);
         }
@@ -382,7 +383,7 @@ namespace
     }
 
     size_t_vector shape_infer_with_target_shape(const size_t_vector& padded_shape,
-                                                const size_t_vector& axes,
+                                                const int64_vector& axes,
                                                 const size_t_vector& target_shape)
     {
         auto out_shape = padded_shape;
@@ -426,7 +427,7 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
-        std::cout << "Started evaluation of Interpolate-4\n";
+        std::cout << "Started evaluation of Interpolate-4 (template function evaluate).\n";
 
         Shape input_shape{args[data_port]->get_shape()};
         std::cout << "Input shape: " << input_shape << "\n";
@@ -531,7 +532,7 @@ namespace
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     {
         bool rc = true;
-        std::cout << "Satrted the function evaluate_interpolate_v4\n";
+        std::cout << "Started the function evaluate_interpolate_v4\n";
         std::cout << "Type of args[0] is " << args[0]->get_element_type() << "\n";
         switch (args[0]->get_element_type())
         {

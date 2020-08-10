@@ -60,8 +60,6 @@ TEST(op_eval, interpolate_v4_cubic)
     std::vector<float> input_data = {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
 
-    std::vector<int64_t> interp_axes = {2, 3};
-
     std::vector<std::vector<float>> expected_results = {{1.47119141f,
                                                          2.78125f,
                                                          4.08251953f,
@@ -79,7 +77,7 @@ TEST(op_eval, interpolate_v4_cubic)
         auto target_spatial_shape =
             op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
         auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, interp_axes);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::cubic;
@@ -131,8 +129,6 @@ TEST(op_eval, interpolate_v4_nearest)
     std::vector<std::vector<float>> input_data_list = {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}};
 
-    std::vector<int64_t> interp_axes = {2, 3};
-
     std::vector<std::vector<float>> expected_results = {{1.0f, 3.0f}};
 
     std::size_t i = 0;
@@ -142,7 +138,7 @@ TEST(op_eval, interpolate_v4_nearest)
         auto target_spatial_shape =
             op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
         auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, interp_axes);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::nearest;
@@ -192,8 +188,6 @@ TEST(op_eval, interpolate_v4_linear_onnx)
     std::vector<std::vector<float>> input_data_list = {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}};
 
-    std::vector<int64_t> interp_axes = {2, 3};
-
     std::vector<std::vector<float>> expected_results = {{2.6666665f, 4.3333331f}};
 
     std::size_t i = 0;
@@ -203,7 +197,7 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         auto target_spatial_shape =
             op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
         auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, interp_axes);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::linear_onnx;
