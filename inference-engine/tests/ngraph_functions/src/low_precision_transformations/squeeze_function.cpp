@@ -19,8 +19,6 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getOriginal(
     const ActualValues& values) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
-
-    // TODO: pass as test case argument
     if (values.lowPrecision != originalFunctionPrecision) {
         const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
         parent = convert;
