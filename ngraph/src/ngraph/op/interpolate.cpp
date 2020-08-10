@@ -384,7 +384,7 @@ namespace
 
     size_t_vector shape_infer_with_target_shape(const size_t_vector& padded_shape,
                                                 const int64_vector& axes,
-                                                const size_t_vector& target_shape)
+                                                const int64_vector& target_shape)
     {
         auto out_shape = padded_shape;
         std::size_t num_of_axes = axes.size();

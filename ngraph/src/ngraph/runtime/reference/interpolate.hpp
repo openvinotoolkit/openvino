@@ -185,7 +185,7 @@ namespace ngraph
                 void operator()(const T* input_data,
                                 const Shape& input_data_shape,
                                 const std::vector<float>& scales,
-                                const std::vector<std::size_t>& axes,
+                                const std::vector<int64_t>& axes,
                                 T* out,
                                 const Shape& out_shape)
                 {
@@ -215,7 +215,7 @@ namespace ngraph
                 bool m_antialias;
 
                 Shape m_input_data_shape;
-                std::vector<std::size_t> m_axes;
+                std::vector<int64_t> m_axes;
                 Shape m_out_shape;
 
                 std::vector<float> m_scales;
@@ -300,7 +300,7 @@ namespace ngraph
 
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
-                        std::size_t axis = m_axes[i];
+                        int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
                         float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
@@ -320,13 +320,13 @@ namespace ngraph
                         runtime::NDimIndex inner_coords{coordinates};
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
-                            std::size_t axis = m_axes[i];
+                            int64_t axis = m_axes[i];
                             inner_coords[axis] = index[i] + icoords_r[axis];
                             inner_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
                         }
 
                         bool condition = true;
-                        for (std::size_t axis : m_axes)
+                        for (int64_t axis : m_axes)
                         {
                             condition = condition && (inner_coords[axis] >= 0) &&
                                         (inner_coords[axis] < m_input_data_shape[axis]);
@@ -340,7 +340,7 @@ namespace ngraph
                         std::vector<float> dz(num_of_axes);
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
-                            std::size_t axis = m_axes[i];
+                            int64_t axis = m_axes[i];
                             dz[i] = icoords[axis] - inner_coords[axis];
                         }
 
@@ -494,7 +494,7 @@ namespace ngraph
                     std::vector<std::array<float, 4>> cubic_coeffs(input_rank);
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
-                        std::size_t axis = m_axes[i];
+                        int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
                         float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
@@ -515,7 +515,7 @@ namespace ngraph
                         float coeffs_prod = 1.0;
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
-                            std::size_t axis = m_axes[i];
+                            int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
                                 clip_coord(input_coords[axis] + index[i] - 1, axis);
                             coeffs_prod *= cubic_coeffs[axis][index[i]];
@@ -546,7 +546,7 @@ namespace ngraph
                     runtime::NDimIndex input_coords{coordinates};
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
-                        std::size_t axis = m_axes[i];
+                        int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
                         float scale = m_scales[i];
                         float length_resized = static_cast<float>(m_out_shape[axis]);
@@ -565,7 +565,7 @@ namespace ngraph
             void interpolate(const T* input_data,
                              const Shape& input_data_shape,
                              const std::vector<float>& scales,
-                             const std::vector<std::size_t>& axes,
+                             const std::vector<int64_t>& axes,
                              T* out,
                              const Shape& out_shape,
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
