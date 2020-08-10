@@ -53,12 +53,14 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
                           args_et,
                           ").");
 
-	// TODO: workaround
-	if (m_multi_type) {
-		element::Type element_type1 = get_input_element_type(0);
-		element::Type element_type2 = get_input_element_type(1);
-		args_et = element_type1.bitwidth() > element_type2.bitwidth() ? element_type1 : element_type2;
-	}
+    // TODO: workaround
+    if (m_multi_type)
+    {
+        element::Type element_type1 = get_input_element_type(0);
+        element::Type element_type2 = get_input_element_type(1);
+        args_et =
+            element_type1.bitwidth() > element_type2.bitwidth() ? element_type1 : element_type2;
+    }
     set_output_type(0, args_et, args_pshape);
 }
 

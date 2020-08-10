@@ -90,7 +90,8 @@ namespace ngraph
                 ///
                 Add(const Output<Node>& arg0,
                     const Output<Node>& arg1,
-                    const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY),
+                    const AutoBroadcastSpec& auto_broadcast =
+                        AutoBroadcastSpec(AutoBroadcastType::NUMPY),
                     const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
 
                 std::shared_ptr<Node>
