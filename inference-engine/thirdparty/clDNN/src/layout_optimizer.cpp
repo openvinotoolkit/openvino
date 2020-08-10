@@ -459,7 +459,8 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (weights_layout.size.batch[0] % 16 == 0 || (weights_layout.size.batch[0] == 8 && conv->groups > 1)) &&
         conv->dilation == tensor(1))
         return true;
-    if ((input_layout.format == format::b_fs_zyx_fsv16) && (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8))
+    if ((input_layout.format == format::bfzyx || input_layout.format == format::b_fs_zyx_fsv16) &&
+        (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8))
         return true;
     return false;
 }
