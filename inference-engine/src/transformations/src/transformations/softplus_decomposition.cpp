@@ -25,7 +25,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
         log->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(pattern_to_output.at(softplus).get_node_shared_ptr(), {log, add, exp});
+        ngraph::copy_runtime_info(pattern_to_output.at(softplus).get_node_shared_ptr(), { exp, add, log });
         ngraph::replace_node(m.get_match_root(), log);
         return true;
     };

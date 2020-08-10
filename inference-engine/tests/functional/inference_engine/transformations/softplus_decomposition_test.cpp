@@ -22,10 +22,10 @@ using namespace testing;
 TEST(TransformationTests, SoftPlusDecomposition) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 1, 2 });
-        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
+        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 1, 2 });
+        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ softplus }, ngraph::ParameterVector{ input });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ softplus }, ngraph::ParameterVector{ data });
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
