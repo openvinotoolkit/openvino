@@ -12,8 +12,10 @@
 #include <ie_ishape_infer_extension.hpp>
 #include <ie_parameter.hpp>
 #include <ie_precision.hpp>
-#include "ngraph/op/op.hpp"
-#include <ngraph/ngraph.hpp>
+
+#include <ngraph/op/op.hpp>
+#include <ngraph/op/tensor_iterator.hpp>
+#include <ngraph/graph_util.hpp>
 
 namespace ngraph {
 namespace op {

@@ -107,6 +107,7 @@ extensions/front/caffe/reshape.py
 extensions/front/caffe/shufflechannel_ext.py
 extensions/front/caffe/sigmoid.py
 extensions/front/caffe/simplernms_ext.py
+extensions/front/caffe/slice_ext.py
 extensions/front/caffe/slice_to_split.py
 extensions/front/caffe/softmax_ext.py
 extensions/front/caffe/spatial_transformer_ext.py
@@ -231,6 +232,7 @@ extensions/front/onnx/activation_ext.py
 extensions/front/onnx/affine_ext.py
 extensions/front/onnx/argmax_ext.py
 extensions/front/onnx/aten_ext.py
+extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
 extensions/front/onnx/clip_ext.py
 extensions/front/onnx/const_ext.py
@@ -447,6 +449,7 @@ extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
 extensions/front/tf/topk_ext.py
 extensions/front/tf/transpose_ext.py
@@ -624,7 +627,6 @@ extensions/ops/merge.py
 extensions/ops/mvn.py
 extensions/ops/mxrepeat.py
 extensions/ops/mxreshape.py
-extensions/ops/mxslice.py
 extensions/ops/NextIteration.py
 extensions/ops/non_max_suppression.py
 extensions/ops/non_zero.py
@@ -723,7 +725,6 @@ mo/front/caffe/extractors/crop.py
 mo/front/caffe/extractors/native_caffe.py
 mo/front/caffe/extractors/roipooling.py
 mo/front/caffe/extractors/scale.py
-mo/front/caffe/extractors/slice.py
 mo/front/caffe/extractors/tile.py
 mo/front/caffe/extractors/utils.py
 mo/front/caffe/loader.py

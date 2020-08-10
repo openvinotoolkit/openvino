@@ -17,7 +17,8 @@
 import numpy as np
 import onnx
 
-from tests.test_onnx.utils import run_node, xfail_issue_35893
+from tests.test_onnx.utils import run_node
+from tests import xfail_issue_35893
 
 
 def make_batch_norm_node(**node_attributes):
