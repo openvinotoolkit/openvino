@@ -20,9 +20,9 @@ void ClampTransformation::registerMatcherIn(GraphRewrite& pass, TransformationCo
                make_op_pattern<opset1::Clamp>({ make_op_label<opset1::Multiply>() }));
 }
 
-void ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
     if (!canBeTransformed(context, m.get_match_root())) {
-        return;
+        return false;
     }
 
     const std::shared_ptr<Node> clamp = separateInStandaloneBranch(m.get_match_root());
@@ -54,6 +54,7 @@ void ClampTransformation::transform(TransformationContext& context, ngraph::patt
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
+    return true;
 }
 
 bool ClampTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {

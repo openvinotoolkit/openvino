@@ -42,13 +42,14 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
     return true;
 }
 
-void MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     if (!canBeTransformed(context, m.get_match_root())) {
-        return;
+        return false;
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+    return true;
 }
 
 bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

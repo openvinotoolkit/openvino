@@ -15,10 +15,10 @@ void FuseSubtractToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &p
     addSingleNodePattern<opset1::Subtract>(pass, context);
 }
 
-void FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
-        return;
+        return false;
     }
 
     const auto parent = subtract->get_input_node_shared_ptr(0);
@@ -52,6 +52,7 @@ void FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
     updateOutput(context, newFakeQuantize, subtract);
+    return true;
 }
 
 bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {

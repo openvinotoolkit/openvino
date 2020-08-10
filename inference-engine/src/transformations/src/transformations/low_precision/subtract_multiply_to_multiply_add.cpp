@@ -44,17 +44,17 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
 }
 
-void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
-        return;
+        return false;
     }
 
     FakeQuantizeDequantization dequantization = get(multiply);
 
     // multiply operation is mandatory: subtract without multiply is part of new LPT operation set
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
-        return;
+        return false;
     }
 
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?
@@ -70,7 +70,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     multiply = separateInStandaloneBranch(multiply);
     dequantization = get(multiply);
     if (dequantization.empty()) {
-        return;
+        return false;
     }
 
     std::shared_ptr<Node> lastNew = dequantization.data;
@@ -153,6 +153,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     replace_node(lastOriginal, lastNew);
 
     updateOutput(context, lastNew, lastPrevious);
+    return true;
 }
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {

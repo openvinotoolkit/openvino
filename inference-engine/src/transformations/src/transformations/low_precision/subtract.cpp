@@ -30,7 +30,7 @@ void SubtractTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
         make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
 }
 
-void SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
@@ -75,6 +75,7 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
             newSubtract->get_input_node_shared_ptr(0),
             newSubtract->get_input_node_shared_ptr(1)));
     }
+    return true;
 }
 
 } // namespace low_precision

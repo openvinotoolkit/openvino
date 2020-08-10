@@ -74,16 +74,17 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     }
 }
 
-void TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(context, transpose)) {
         fuseConvertIfPossible(transpose);
-        return;
+        return false;
     }
 
     transpose = separateInStandaloneBranch(transpose);
     transposeDequantizationConstant(transpose);
     moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, 0), false);
+    return true;
 }
 
 bool TransposeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {

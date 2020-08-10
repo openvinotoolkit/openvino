@@ -26,31 +26,31 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
     addSingleNodePattern<opset1::FakeQuantize>(pass, context);
 }
 
-void FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
 
     const ngraph::element::Type precision = layer->get_output_element_type(0);
     if ((precision == ngraph::element::i8) || (precision == ngraph::element::u8)) {
-        return;
+        return false;
     }
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
     if (NetworkHelper::onWeights(layer)) {
-        return;
+        return false;
     }
 
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
-        return;
+        return false;
     }
 
     if (!QuantizationDetails::isSupportedLevel(layer->get_levels())) {
-        return;
+        return false;
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
     const DataPrecision dataPrecision = getDataPrecision(layer, quantizationDetails, false, supportAsymmetricQuantization);
     if (dataPrecision.precision == element::undefined) {
-        return;
+        return false;
     }
 
     // Split FakeQuantize to two parts: Quantize and Dequantize
@@ -83,6 +83,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
     updateOutput(context, dequantize, layer);
+    return true;
 }
 
 bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {

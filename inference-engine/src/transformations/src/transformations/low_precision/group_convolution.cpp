@@ -27,13 +27,14 @@ void GroupConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Trans
     addSingleNodePattern<opset1::GroupConvolution>(pass, context);
 }
 
-void GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
     if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
-        return;
+        return false;
     }
 
     ConvolutionTransformation::transform(context, m);
+    return true;
 }
 
 } // namespace low_precision

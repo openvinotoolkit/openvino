@@ -24,9 +24,9 @@ void UnsqueezeTransformation::registerMatcherIn(GraphRewrite &pass, Transformati
         make_op_pattern<opset1::Unsqueeze>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
-void UnsqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     if (!canBeTransformed(context, m.get_match_root())) {
-        return;
+        return false;
     }
 
     auto unsqueezeOnConstant = [](const std::shared_ptr<ngraph::Node>& unsqueeze,
@@ -53,6 +53,7 @@ void UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
     }
 
     moveDequantizationAfter(context, unsqueeze, dequantization, false);
+    return true;
 }
 
 bool UnsqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

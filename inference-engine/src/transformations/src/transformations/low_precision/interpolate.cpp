@@ -22,14 +22,15 @@ void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, Transforma
         make_op_pattern<opset1::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
-void InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         fuseConvertIfPossible(interpolate);
-        return;
+        return false;
     }
     interpolate = separateInStandaloneBranch(interpolate);
     moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate), true);
+    return true;
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

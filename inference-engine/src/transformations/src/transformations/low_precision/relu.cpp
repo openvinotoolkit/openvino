@@ -22,10 +22,10 @@ void ReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCon
         make_op_pattern<opset1::Relu>({ make_op_label<opset1::Multiply>()}));
 }
 
-void ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> relu = m.get_match_root();
     if (!canBeTransformed(context, relu)) {
-        return;
+        return false;
     }
 
     relu = separateInStandaloneBranch(relu);
@@ -35,6 +35,7 @@ void ReluTransformation::transform(TransformationContext& context, ngraph::patte
     } else {
         moveMultiplyAfter(context, relu, dequantization, true);
     }
+    return true;
 }
 
 bool ReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {

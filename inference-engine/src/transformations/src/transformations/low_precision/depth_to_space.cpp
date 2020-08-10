@@ -22,12 +22,13 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
         make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() }));
 }
 
-void DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
     if (!canBeTransformed(context, depthToSpace)) {
         return;
     }
     moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
+    return true;
 }
 
 bool DepthToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

@@ -84,10 +84,10 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
             }));
 }
 
-void NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
-        return;
+        return false;
     }
 
     auto normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(operation));
@@ -131,6 +131,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     replace_node(normalize, newMultiply);
 
     updateOutput(context, newMultiply, normalize);
+    return true;
 }
 
 bool NormalizeL2Transformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

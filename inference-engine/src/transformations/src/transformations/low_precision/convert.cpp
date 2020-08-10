@@ -22,7 +22,7 @@ void ConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
     addSingleNodePattern<opset1::Convert>(pass, context);
 }
 
-void ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(m.get_match_root());
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
@@ -36,6 +36,7 @@ void ConvertTransformation::transform(TransformationContext& context, ngraph::pa
     replace_node(convert, subtract);
 
     subtract->set_friendly_name(convert->get_friendly_name());
+    return true;
 }
 
 bool ConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

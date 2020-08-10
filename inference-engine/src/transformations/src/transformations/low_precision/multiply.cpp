@@ -23,7 +23,7 @@ void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
     addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
-void MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto multiply = m.get_match_root();
 
     multiply = separateInStandaloneBranch(multiply);
@@ -35,7 +35,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
         if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
-            return;
+            return false;
 
         auto multiplyParent = multiply->get_input_node_shared_ptr(multiplyBranch.first);
         auto constParent = multiply->get_input_node_shared_ptr(multiplyBranch.first == 0 ? 1 : 0);
@@ -51,7 +51,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, emptyPathIndex);
         if (dequantizationEmptyPath.multiply == nullptr && dequantizationEmptyPath.subtract == nullptr) {
-            return;
+            return false;
         }
 
         std::shared_ptr<Node> subtractValuesEmptyPath;
@@ -60,7 +60,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         // check if empty path shifts are not zero
         if (!NetworkHelper::isZeroConst(subtractValuesEmptyPath)) {
-            return;
+            return false;
         }
 
         FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(multiply, fullPathIndex);
@@ -87,6 +87,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
     replace_node(multiply, newMultiply);
     updateOutput(context, newMultiply, multiply);
+    return true;
 }
 
 } // namespace low_precision

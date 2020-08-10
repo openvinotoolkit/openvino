@@ -16,7 +16,7 @@ public:
     AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
     ~AddTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-    void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
 
 } // namespace low_precision

@@ -16,11 +16,12 @@ void FuseFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, Trans
     addSingleNodePattern<opset1::FakeQuantize>(pass, context);
 }
 
-void FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
     do {
         fakeQuantize = handle(context, fakeQuantize);
     } while (fakeQuantize != nullptr);
+    return true;
 }
 
 std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetShape) {

@@ -73,22 +73,22 @@ void ConcatMultiChannelsTransformation::registerMatcherIn(GraphRewrite& pass, Tr
     addSingleNodePattern<opset1::Concat>(pass, context);
 }
 
-void ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(m.get_match_root());
 
     ngraph::pass::low_precision::Subgraph subgraph(layerTransformationsManager);
     std::unordered_set<std::string> handledLayers;
     if (!subgraph.fillSubgraphForConcat(*concat, handledLayers)) {
-        return;
+        return false;
     }
 
     if (subgraph.quantizationLayers.empty() || isHandled(context, subgraph.quantizationLayers)) {
-        return;
+        return false;
     }
 
     if (!isMultiChannel(subgraph.concatLayers)) {
         ConcatTransformation::transform(context, m);
-        return;
+        return false;
     }
 
     element::Type precision;
@@ -104,7 +104,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
             }
 
             if (tmp.precision != dataPrecision.precision) {
-                return;
+                return false;
             }
         }
         precision = dataPrecision.precision;
@@ -116,12 +116,12 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         ngraph::Node* fakeQuantizeLayer = subgraph.quantizationLayers[i];
         const ngraph::Shape shape = fakeQuantizeLayer->get_output_shape(0);
         if (shape.size() < 4ul) {
-            return;
+            return false;
         }
 
         std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(fakeQuantizeLayer->shared_from_this());
         if (fq == nullptr) {
-            return;
+            return false;
         }
 
         const DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false, false);
@@ -185,6 +185,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     for (const ngraph::Node* quantizationLayer : subgraph.quantizationLayers) {
         context.quantizedFakeQuantizeNames.insert(quantizationLayer->get_friendly_name());
     }
+    return true;
 }
 
 bool ConcatMultiChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {

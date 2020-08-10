@@ -50,10 +50,10 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     return newSubtract;
 }
 
-void FuseConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto op = m.get_match_root();
     if (!canBeTransformed(context, op)) {
-        return;
+        return false;
     }
 
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
@@ -81,6 +81,7 @@ void FuseConvertTransformation::transform(TransformationContext& context, ngraph
     if (newOp != nullptr) {
         NetworkHelper::copyInfo(op, newOp);
     }
+    return true;
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {

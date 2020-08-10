@@ -26,11 +26,11 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
 }
 
-void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
     if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
-        return;
+        return false;
     }
 
     convolution = separateInStandaloneBranch(convolution);
@@ -217,6 +217,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         auto& rt = onWeights->get_rt_info();
         rt["DISABLED_CONSTANT_FOLDING"];
     }
+    return true;
 }
 
 } // namespace low_precision

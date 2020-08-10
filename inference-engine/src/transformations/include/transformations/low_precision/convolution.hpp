@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTran
 public:
     ConvolutionTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-    void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     void transform2(TransformationContext& context, ngraph::pattern::Matcher &m) const;
 };
 

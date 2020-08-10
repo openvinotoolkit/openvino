@@ -55,16 +55,17 @@ void reshapeDequantizationConstant(std::shared_ptr<Node>& reshape) {
     }
 }
 
-void ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> reshape = m.get_match_root();
     if (!canBeTransformed(context, reshape)) {
         fuseConvertIfPossible(reshape);
-        return;
+        return false;
     }
 
     reshape = separateInStandaloneBranch(reshape);
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+    return true;
 }
 
 bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {

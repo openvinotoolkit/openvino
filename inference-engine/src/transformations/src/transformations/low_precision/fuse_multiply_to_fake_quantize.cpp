@@ -15,10 +15,10 @@ void FuseMultiplyToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &p
     addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
-void FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
-        return;
+        return false;
     }
 
     const auto parent = multiply->get_input_node_shared_ptr(0);
@@ -53,6 +53,7 @@ void FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
     updateOutput(context, newFakeQuantize, multiply);
+    return true;
 }
 
 bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
