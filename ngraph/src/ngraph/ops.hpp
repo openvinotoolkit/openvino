@@ -157,6 +157,7 @@
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/swish.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/tensor_iterator.hpp"

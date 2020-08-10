@@ -444,7 +444,7 @@ extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
 extensions/front/tf/SSDToolboxDetectionOutput.py
 extensions/front/tf/swap_deconv_inputs.py
-extensions/front/tf/swish.py
+extensions/front/tf/swish_ext.py
 extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
