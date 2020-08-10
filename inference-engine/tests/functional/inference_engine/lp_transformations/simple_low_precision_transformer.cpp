@@ -39,6 +39,16 @@ bool SimpleLowPrecisionTransformer::isQuantized(const std::shared_ptr<ngraph::No
 bool SimpleLowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
     const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
 
+    // workaround: TypeRelaxed doesn't support Split
+    if (std::string(layer->get_type_name()) == "Split") {
+        const auto splitIt = transformations.find("class ngraph::op::TypeRelaxed<" + operantionType + ">");
+        if (splitIt == transformations.end()) {
+            return false;
+        }
+        const ngraph::pass::low_precision::LayerTransformationPtr transformation = splitIt->second;
+        return transformation->isPrecisionPreserved(layer);
+    }
+
     const auto it = transformations.find(operantionType);
     if (it == transformations.end()) {
         return false;

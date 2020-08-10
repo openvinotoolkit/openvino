@@ -42,6 +42,7 @@
 #include "transformations/low_precision/subtract.hpp"
 #include "transformations/low_precision/transpose.hpp"
 #include "transformations/low_precision/unsqueeze.hpp"
+#include "transformations/low_precision/split.hpp"
 
 // cleanup transformations
 #include "transformations/low_precision/convert.hpp"
@@ -206,6 +207,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<SqueezeTransformation, opset1::Squeeze>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
+        add<SplitTransformation, opset1::Split>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
@@ -341,6 +343,16 @@ bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) co
 
 bool LowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
+
+    // workaround: TypeRelaxed doesn't support Split
+    if (std::string(layer->get_type_name()) == "Split") {
+        const LayerTransformationPtr transformation = transformations.find("class ngraph::op::TypeRelaxed<" + operantionType + ">");
+        if (transformation == nullptr) {
+            return false;
+        }
+        return transformation->isPrecisionPreserved(layer);
+    }
+
     const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return false;

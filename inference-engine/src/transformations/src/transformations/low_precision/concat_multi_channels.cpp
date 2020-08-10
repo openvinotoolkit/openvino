@@ -160,7 +160,13 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     if (updatePrecisions) {
         for (const auto it : subgraph.layers) {
             ngraph::Node* node = it.second;
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(node->shared_from_this(), dataPrecision.precision);
+            if (node->get_output_size() <= 1) {
+                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(node->shared_from_this(), dataPrecision.precision);
+            } else {
+                for (size_t i = 0; i < node->get_output_size(); ++i) {
+                    node->set_output_type(i, dataPrecision.precision, node->get_output_partial_shape(i));
+                }
+            }
         }
     }
 
