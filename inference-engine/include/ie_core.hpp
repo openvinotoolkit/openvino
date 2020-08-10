@@ -173,7 +173,7 @@ public:
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     QueryNetworkResult QueryNetwork(
-        const ICNNNetwork& network, const std::string& deviceName,
+        const CNNNetwork& network, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {}) const;
 
     /**
