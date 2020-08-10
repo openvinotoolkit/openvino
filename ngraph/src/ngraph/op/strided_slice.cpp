@@ -16,6 +16,7 @@
 
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/gather.hpp"
@@ -291,6 +292,7 @@ namespace
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::StridedSlice::evaluate");
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],
                                   input_values[2],

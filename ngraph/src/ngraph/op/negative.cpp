@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/negative.hpp"
-
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
 
@@ -80,6 +80,7 @@ namespace
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Negative::evaluate");
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 

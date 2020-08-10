@@ -16,6 +16,7 @@
 
 #include "broadcast_base.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/sum.hpp"
@@ -299,6 +300,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
                                      (out->get_data_ptr<ET>()),
@@ -462,6 +464,8 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
+
     Shape target_shape = get_target_shape(inputs[1]);
 
     PartialShape result_shape;

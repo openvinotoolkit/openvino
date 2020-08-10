@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_logical_and.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/eval_helpers.hpp"
@@ -67,6 +68,8 @@ namespace
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceLogicalAnd::evaluate");
+
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
     const auto& out = outputs[0];

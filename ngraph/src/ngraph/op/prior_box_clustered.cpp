@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/prior_box_clustered.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/prior_box_clustered.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/prior_box_clustered.hpp"
@@ -166,5 +168,6 @@ namespace
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBoxClustered::evaluate");
     return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

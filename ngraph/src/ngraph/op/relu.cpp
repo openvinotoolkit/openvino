@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/relu.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/relu.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
@@ -76,5 +78,6 @@ namespace
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Relu::evaluate");
     return evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

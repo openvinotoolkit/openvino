@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/gather.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
@@ -286,11 +287,13 @@ namespace
 
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
     return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Gather::evaluate");
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {

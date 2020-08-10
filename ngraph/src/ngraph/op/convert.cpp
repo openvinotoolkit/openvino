@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/runtime/reference/convert.hpp"
 
@@ -127,5 +128,6 @@ namespace
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Convert::evaluate");
     return evaluate_convert(input_values[0], output_values[0]);
 }

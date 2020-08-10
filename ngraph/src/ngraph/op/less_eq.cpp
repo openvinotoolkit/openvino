@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/less_eq.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/less_eq.hpp"
 
@@ -88,6 +89,7 @@ namespace
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LessEqual::evaluate");
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -111,5 +113,6 @@ shared_ptr<Node> op::v0::LessEq::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v0::LessEq::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::LessEq::evaluate");
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }

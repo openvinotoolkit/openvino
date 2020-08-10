@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -631,6 +632,7 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Constant::evaluate");
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;

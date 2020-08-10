@@ -16,6 +16,7 @@
 
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -212,6 +213,8 @@ namespace
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::MaxPool::evaluate");
+
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();

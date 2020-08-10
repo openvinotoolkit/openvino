@@ -29,7 +29,8 @@ namespace ngraph
     {
         namespace domains
         {
-            OV_ITT_DOMAIN(Ngraph);
+            OV_ITT_DOMAIN(nGraph);
+            OV_ITT_DOMAIN(nGraphOp, "nGraph::Op");
         }
     }
 }

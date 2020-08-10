@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/scatter_elements_update.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/scatter_elements_update.hpp"
@@ -271,6 +272,8 @@ namespace
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ScatterElementsUpdate::evaluate");
+
     int64_t axis = 0;
     switch (inputs[3]->get_element_type())
     {

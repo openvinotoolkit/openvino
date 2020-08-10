@@ -22,6 +22,7 @@
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/get_output_element.hpp"
@@ -947,6 +948,8 @@ bool Node::evaluate(const HostTensorVector& output_values,
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
+
     // If all the inputs are constants, try to evaluate the outputs
     HostTensorVector input_tensors;
     for (auto input : input_values)

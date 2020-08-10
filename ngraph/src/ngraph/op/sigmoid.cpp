@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/sigmoid.hpp"
+
+#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/util.hpp"
 
@@ -77,5 +79,6 @@ namespace
 
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sigmoid::evaluate");
     return evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

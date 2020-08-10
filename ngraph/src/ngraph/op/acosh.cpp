@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/acosh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/acosh.hpp"
@@ -75,5 +76,6 @@ namespace
 
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Acosh::evaluate");
     return evaluate_acosh(inputs[0], outputs[0]);
 }

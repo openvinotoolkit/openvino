@@ -68,7 +68,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
 
@@ -357,6 +357,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
     m_new_nodes.clear();
     return m_handler(node);
 }

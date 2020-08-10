@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/subtract.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/subtract.hpp"
@@ -92,6 +93,7 @@ namespace
 bool op::v0::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Subtract::evaluate");
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -116,5 +118,6 @@ shared_ptr<Node> op::v1::Subtract::clone_with_new_inputs(const OutputVector& new
 bool op::v1::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Subtract::evaluate");
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }

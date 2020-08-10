@@ -16,6 +16,7 @@
 
 #include <iostream>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -145,5 +146,6 @@ namespace
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
     return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

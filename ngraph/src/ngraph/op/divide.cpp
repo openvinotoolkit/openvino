@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/divide.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -113,6 +114,7 @@ namespace
 
 bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Divide::evaluate");
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
 
@@ -154,5 +156,6 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Divide::evaluate");
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }

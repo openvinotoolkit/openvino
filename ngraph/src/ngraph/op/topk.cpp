@@ -18,6 +18,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -379,6 +380,8 @@ Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
 
 bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::TopK::evaluate");
+
     // check data types for arg, k and output element type
     Shape arg_shape = inputs[0]->get_shape();
 
@@ -660,6 +663,8 @@ void op::v1::TopK::set_k(size_t k)
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::TopK::evaluate");
+
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
@@ -786,5 +791,6 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::TopK::evaluate");
     return op::v1::TopK::evaluate(outputs, inputs);
 }

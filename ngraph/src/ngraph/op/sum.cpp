@@ -16,6 +16,7 @@
 
 #include "ngraph/op/sum.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
@@ -85,5 +86,6 @@ namespace
 
 bool op::v0::Sum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Sum::evaluate");
     return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());
 }

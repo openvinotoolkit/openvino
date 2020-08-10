@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/sin.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/sin.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
@@ -82,5 +84,6 @@ namespace
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sin::evaluate");
     return evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

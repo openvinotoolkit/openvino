@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/broadcast.hpp"
+#include "ngraph/itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/sum.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -189,6 +191,7 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
         auto arg_shape = inputs[0]->get_shape();
@@ -268,6 +271,7 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
@@ -411,6 +415,7 @@ namespace
 bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Broadcast::evaluate");
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }
 

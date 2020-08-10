@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/and.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 
@@ -92,5 +93,6 @@ namespace
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalAnd::evaluate");
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
