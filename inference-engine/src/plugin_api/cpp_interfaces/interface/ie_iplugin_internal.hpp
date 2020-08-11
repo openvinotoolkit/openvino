@@ -274,4 +274,24 @@ inline IInferencePlugin* make_ie_plugin(const Version& reported, Args... args) {
     return impl;
 }
 
+
 }  // namespace InferenceEngine
+
+/**
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
+ * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
+    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
+            InferenceEngine::IInferencePlugin *&plugin,                                  \
+            InferenceEngine::ResponseDesc *resp) noexcept {                              \
+        try {                                                                            \
+            plugin = new PluginType(__VA_ARGS__);                                        \
+            plugin->SetVersion(version);                                                 \
+            return OK;                                                                   \
+        }                                                                                \
+        catch (std::exception &ex) {                                                     \
+            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
+        }                                                                                \
+    }
