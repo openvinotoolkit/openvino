@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_patches_to_reorg_yolo() {
+void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {
     auto image = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1},
             ngraph::op::PadType::VALID);
