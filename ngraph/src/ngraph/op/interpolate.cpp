@@ -451,6 +451,10 @@ namespace
         }
         std::cout << "\n";
 
+        std::cout << "Cordinate transformation mode: " << attrs.coordinate_transformation_mode << "\n";
+        std::cout << "Nearest mode:                  " << attrs.nearest_mode << "\n";
+        std::cout << "Shape calculation mode:        " << attrs.shape_calculation_mode << "\n";
+
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
         std::cout << "pads_begin: ";

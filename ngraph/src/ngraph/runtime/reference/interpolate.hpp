@@ -504,7 +504,7 @@ namespace ngraph
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         input_coords[axis] = in_coord_int;
                         cubic_coeffs[axis] = get_cubic_coeff(in_coord - in_coord_int, m_cube_coeff);
-                        input_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
+                        input_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
                     }
 
                     float summa = 0.0f;
@@ -555,7 +555,7 @@ namespace ngraph
                             coordinate, scale, length_resized, length_original);
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
                         input_coords[axis] = clip_coord(nearest_pixel, length_original);
-                        input_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
+                        input_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
                     }
                     result[coordinates] = input_view[input_coords];
                 }
