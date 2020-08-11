@@ -17,8 +17,8 @@
 #include <ngraph/variant.hpp>
 #include <transformations/utils/utils.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cnn_network_impl.hpp>  // deprecated API
-#include <ie_layers.h>  // deprecated API
+#include <legacy/cnn_network_impl.hpp>  // deprecated API
+#include <legacy/ie_layers.h>  // deprecated API
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
