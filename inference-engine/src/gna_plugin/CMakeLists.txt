@@ -31,7 +31,7 @@ endif()
 #saving rpath to GNA shared library be used by CI
 log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations Threads::Threads libGNA)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
