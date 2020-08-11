@@ -6,9 +6,9 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <ie_version.hpp>
+#include <ie_plugin_cpp.hpp>
 
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
@@ -155,4 +155,41 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
     ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
     ASSERT_EQ(mockExeNetworkInternal->exportString, mock_plugin_impl->importedString);
     mock_plugin_impl->importedString = {};
+}
+
+
+TEST(InferencePluginTests, throwsOnNullptrCreation) {
+    InferenceEnginePluginPtr nulptr;
+    InferencePlugin plugin;
+    ASSERT_THROW(plugin = InferencePlugin(nulptr), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.GetVersion(), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, throwsOnUninitializedImportNetwork) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.ImportNetwork({}, {}), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.SetConfig({{}}), details::InferenceEngineException);
+}
+
+TEST(InferencePluginTests, nothrowsUninitializedCast) {
+    InferencePlugin plg;
+    ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }
