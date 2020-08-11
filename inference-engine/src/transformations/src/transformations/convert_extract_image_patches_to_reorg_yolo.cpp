@@ -17,8 +17,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePat
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-
-        auto extract_image_patches = pattern_to_output.at(eip);
+        auto extract_image_patches = pattern_to_output.at(eip).get_node_shared_ptr();
 
         if (!extract_image_patches) {
             return false;
@@ -51,9 +50,9 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePat
         auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
                                                                       Strides{extract_image_patches->get_strides()});
 
-        reorg_yolo->set_friendly_name(extract_image_patches->get_friendly_name());
-        ngraph::copy_runtime_info(extract_image_patches, reorg_yolo);
-        ngraph::replace_node(extract_image_patches, reorg_yolo);
+        reorg_yolo->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ngraph::copy_runtime_info(pattern_to_output.at(eip).get_node_shared_ptr(), reorg_yolo);
+        ngraph::replace_node(m.get_match_root(), reorg_yolo);
         return true;
     };
 
