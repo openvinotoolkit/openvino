@@ -20,7 +20,8 @@ import pytest
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape
+from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, VariantString
+from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import (xfail_issue_34323,
@@ -30,6 +31,8 @@ from tests import (xfail_issue_34323,
                    xfail_issue_36478,
                    xfail_issue_36479,
                    xfail_issue_36480)
+
+from openvino.inference_engine import IENetwork
 
 
 def test_ngraph_function_api():
@@ -388,3 +391,41 @@ def test_node_target_inputs_soruce_output():
     assert in_model1.get_node().name == parameter_b.name
     assert np.equal([in_model0.get_shape()], [model.get_output_shape(0)]).all()
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
+
+
+def test_variants():
+    variant_int = VariantInt(32)
+    variant_str = VariantString("test_text")
+
+    assert variant_int.get() == 32
+    assert variant_str.get() == "test_text"
+
+    variant_int.set(777)
+    variant_str.set("another_text")
+
+    assert variant_int.get() == 777
+    assert variant_str.get() == "another_text"
+
+
+def test_runtime_info():
+    test_shape = PartialShape([1, 3, 22, 22])
+    test_type = Type.f32
+    test_param = Parameter(test_type, test_shape)
+    relu_node = ng.relu(test_param)
+    runtime_info = relu_node.get_rt_info()
+    runtime_info["affinity"] = "test_affinity"
+    relu_node.set_friendly_name("testReLU")
+    runtime_info_after = relu_node.get_rt_info()
+
+    assert runtime_info == runtime_info_after
+
+    params = [test_param]
+    results = [relu_node]
+
+    ng_function = Function(results, params, "testFunc")
+
+    capsule = Function.to_capsule(ng_function)
+    cnn_network = IENetwork(capsule)
+    cnn_layer = cnn_network.layers["testReLU"]
+    assert cnn_layer is not None
+    assert cnn_layer.affinity == "test_affinity"
