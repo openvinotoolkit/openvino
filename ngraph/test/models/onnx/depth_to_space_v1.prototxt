@@ -10,11 +10,6 @@ graph {
       i: 2
       type: INT
     }
-    attribute {
-      name: "mode"
-      s: "blocks_first"
-      type: STRING
-    }
   }
   name: "compute_graph"
   input {
@@ -24,7 +19,10 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 4
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
           }
           dim {
             dim_value: 2
@@ -44,6 +42,9 @@ graph {
         shape {
           dim {
             dim_value: 1
+          }
+          dim {
+            dim_value: 2
           }
           dim {
             dim_value: 4

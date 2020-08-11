@@ -28,11 +28,17 @@ namespace ngraph
                 OutputVector depth_to_space(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
+                    NGRAPH_CHECK(data.get_shape().size() == 4, "Input must be 4-dimensional");
+
                     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
-                    const auto ngraph_mode =
-                        (mode == "DCR")
-                            ? default_opset::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST
-                            : default_opset::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
+                    default_opset::DepthToSpace::DepthToSpaceMode ngraph_mode;
+                    if (mode == "DCR")
+                        ngraph_mode = default_opset::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+                    else if (mode == "CRD")
+                        ngraph_mode = default_opset::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
+                    else
+                        NGRAPH_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
+
                     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
                     return OutputVector{std::make_shared<default_opset::DepthToSpace>(
                         data, ngraph_mode, block_size)};
