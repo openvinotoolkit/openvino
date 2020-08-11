@@ -50,6 +50,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::MishFusion>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->set_name("CommonDecompositions");
 
     decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
@@ -70,7 +71,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    manager.register_pass<ngraph::pass::ConvMultiplyFusion>();
+    // TODO: here should be Convolution + Multiply fusion
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);

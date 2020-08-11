@@ -75,6 +75,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
+    fusion->add_matcher<ngraph::pass::ConvMultiplyFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
     fusion->set_name("ngraph::pass::Fusions");
