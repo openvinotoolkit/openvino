@@ -389,7 +389,9 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
                  weights_layout.size.batch[0] >= 16 &&
-                ((input_layout.size.feature[0] / conv->groups) % 4 == 0) &&
+                // Need to add support to imad fsv4 kernel to handle e.g. 3 features per group,
+                // as currently such cases are handled by fsv16 imad kernel
+                //((input_layout.size.feature[0] / conv->groups) % 4 == 0) &&
                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) < 16 &&
                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
             return true;
