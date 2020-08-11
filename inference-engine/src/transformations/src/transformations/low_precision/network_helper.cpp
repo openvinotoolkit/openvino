@@ -688,15 +688,13 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     replace_node(operation, parent);
 
     if (updatePrecision) {
-        // TODO: refactor
+        // NetworkHelper::setOutDataPrecision(op, newOperation->get_input_element_type(0));
         auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
         if (op == nullptr) {
-            // TODO: handle error
+            THROW_IE_LPT_EXCEPTION(*newOperation) << "not possible to update precision for not type relaxed operation";
         }
         op->set_overridden_output_type(newOperation->get_input_element_type(0));
         std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
-
-        // NetworkHelper::setOutDataPrecision(op, newOperation->get_input_element_type(0));
     }
 
     return InsertDequantizationResult(newOperation, parent);
