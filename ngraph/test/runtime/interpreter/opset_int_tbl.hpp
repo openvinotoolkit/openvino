@@ -22,7 +22,6 @@
 NGRAPH_OP(CumSum, ngraph::op::v0)
 NGRAPH_OP(MVN, ngraph::op::v0)
 NGRAPH_OP(LRN, ngraph::op::v0)
-NGRAPH_OP(ShuffleChannels, ngraph::op::v0)
 NGRAPH_OP(DetectionOutput, op::v0)
 
 NGRAPH_OP(Convolution, ngraph::op::v1)

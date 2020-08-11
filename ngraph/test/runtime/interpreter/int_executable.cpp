@@ -22,7 +22,6 @@
 #include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
@@ -318,6 +317,10 @@ runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node> &
     if (it != map.end())
     {
         res = it->second(node, outputs, inputs);
+        if (!res) {
+            throw ngraph_error(std::string("Interpreter backend doesn't implement evaluate method for OP ") +
+                               node->get_type_info().name);
+        }
     }
     else
     {

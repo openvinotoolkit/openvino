@@ -39,12 +39,6 @@ set (SRC
     pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
-    pass/opset0_downgrade.cpp
-    pass/opset0_downgrade.hpp
-    pass/opset1_downgrade.cpp
-    pass/opset1_downgrade.hpp
-    pass/opset1_upgrade.cpp
-    pass/opset1_upgrade.hpp
     pass/shape_relevance.cpp
     pass/shape_relevance.hpp
     )

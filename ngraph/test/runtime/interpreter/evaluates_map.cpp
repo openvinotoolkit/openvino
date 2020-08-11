@@ -22,7 +22,6 @@
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
-#include "ngraph/runtime/reference/shuffle_channels.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
 
 using namespace ngraph;
@@ -241,17 +240,6 @@ namespace {
                                    op->get_normalize_variance(),
                                    op->get_reduction_axes(),
                                    op->get_eps());
-        return true;
-    }
-
-    template<element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::ShuffleChannels> &op, const HostTensorVector &outputs,
-                  const HostTensorVector &inputs) {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::shuffle_channels(inputs[0]->get_data_ptr<T>(),
-                                             outputs[0]->get_data_ptr<T>(),
-                                             inputs[0]->get_shape(), op->get_axis(),
-                                             op->get_group());
         return true;
     }
 
