@@ -18,7 +18,6 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/batch_norm.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;

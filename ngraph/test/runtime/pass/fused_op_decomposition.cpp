@@ -15,7 +15,6 @@
 //*****************************************************************************
 #include "fused_op_decomposition.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/provenance.hpp"
 
@@ -74,25 +73,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
                 std::set<Input<Node>> fop_users = node->outputs().at(i).get_target_inputs();
                 for (auto fop_user : fop_users)
                 {
-                    if (auto goe = as_type<op::GetOutputElement>(fop_user.get_node()))
-                    {
-                        Output<Node> goe_output = goe->get_as_output();
-                        if (goe_output.get_index() == i &&
-                            !goe->output(0).get_target_inputs().empty())
-                        {
-                            // Replace GOE users
-                            std::set<Input<Node>> goe_users =
-                                goe->outputs().at(0).get_target_inputs();
-                            for (auto goe_user : goe_users)
-                            {
-                                goe_user.replace_source_output(output_node->output(j));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        fop_user.replace_source_output(output_node->output(j));
-                    }
+                    fop_user.replace_source_output(output_node->output(j));
                 }
             }
         }

@@ -98,7 +98,6 @@ namespace ngraph
 #include "ngraph/opsets/opset.hpp"
 
 // nGraph passes
-#include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"

@@ -86,7 +86,6 @@
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/greater_eq.hpp"
 #include "ngraph/op/group_conv.hpp"

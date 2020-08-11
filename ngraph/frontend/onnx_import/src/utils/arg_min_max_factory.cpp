@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "onnx_import/utils/arg_min_max_factory.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
 

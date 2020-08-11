@@ -17,7 +17,6 @@
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
@@ -664,13 +663,6 @@ std::shared_ptr<Node>
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
     op->m_body =
         std::make_shared<BodyLambda>(spec_func->get_results(), spec_func->get_parameters());
-
-    // TODO: remove this code after the fix on the nGraph side (GetOutputElements)
-    ::ngraph::pass::GetOutputElementElimination goe_elimination;
-    for (const auto& n : spec_func->get_ops())
-    {
-        goe_elimination.run_on_node(n);
-    }
 
     for (auto& input_description : m_input_descriptions)
     {
