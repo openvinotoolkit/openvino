@@ -487,7 +487,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
     if (num_columns_in > 8) {
-        THROW_GNA_EXCEPTION << "Columns_in should be not greater than 8 and now columns_in = " << num_columns_in;
+        THROW_GNA_EXCEPTION << "The power layer doesn't support the first dimension greater than 8 (for 2D operation)" \
+                               " or the second dimension greater than 8 (for 3D operation).";
     }
 
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
@@ -988,7 +989,6 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_columns_in = in_4b_batch;
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
