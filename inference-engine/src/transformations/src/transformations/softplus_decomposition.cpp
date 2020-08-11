@@ -21,7 +21,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
 
         auto exp = std::make_shared<ngraph::opset4::Exp>(input);
         auto add = std::make_shared<ngraph::opset4::Add>(exp,
-            opset4::Constant::create(ngraph::element::f64, ngraph::Shape{ 1 }, { -1 }));
+            opset4::Constant::create(ngraph::element::f64, ngraph::Shape{ 1 }, { 1 }));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
         log->set_friendly_name(m.get_match_root()->get_friendly_name());
