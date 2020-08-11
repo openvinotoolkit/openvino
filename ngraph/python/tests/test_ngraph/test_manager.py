@@ -42,6 +42,9 @@ def test_constant_folding():
 
     new_const = func.get_results()[0].input(0).get_source_output().get_node()
 
+    print(new_const.get_data())
+    print(new_const.get_vector())
+
     values_out = new_const.cast_vector_float()
     values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
 
