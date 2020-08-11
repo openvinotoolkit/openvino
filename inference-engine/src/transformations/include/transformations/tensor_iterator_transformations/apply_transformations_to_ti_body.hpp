@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ApplyTransformationsToTIBody;
+class TRANSFORMATIONS_API ApplyTransformationsToTIBody;
 
 }  // namespace pass
 }  // namespace ngraph

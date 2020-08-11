@@ -13,7 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
+ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
     auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
@@ -29,6 +29,8 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
             return false;
         }
 
+        // Create copies of the TensorIterator body, the number of copies is equal to the number of iterations.
+        // Assign names to the created layers.
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (uint64_t idx = 0; idx < num_iter; ++idx) {
             body_functions[idx] = clone_function(*function);
@@ -40,13 +42,17 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
 
         // Port map : inputs and back edges
         for (const auto& desc : ti->get_input_descriptions()) {
-            std::string type_name = desc->get_type_info().name;
+            const std::string& type_name = desc->get_type_info().name;
 
             if (type_name == "SliceInputDescription") {
                 auto input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(desc);
                 if (!input_desc) {
                     return false;
                 }
+
+                // Connect the sliced input (layer before the input) to the Split layer and connect
+                // the corresponding Split output to the corresponding copy of the body.
+                // If the number of iterations is 1, then the Split is not needed.
 
                 auto in_data = ti->input_values()[input_desc->m_input_index];
                 const auto const_axis = opset4::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
@@ -76,13 +82,14 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     return false;
                 }
 
-                // connect to the body
+                // Connect the input to the corresponding copy of the body.
                 auto in_data = ti->input_values()[input_desc->m_input_index].get_node_shared_ptr();
                 auto param = body_functions[0]->get_parameters()[input_desc->m_body_parameter_index];
                 for (auto &output : param->outputs()) {
                     output.replace(in_data);
                 }
 
+                // Back-edge processing. Connect the copies of the body to each other.
                 for (uint64_t j = 1; j < num_iter; j++) {
                     auto cur_param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                     auto prev_val = body_functions[j - 1]->get_results()[input_desc->m_body_value_index];
@@ -97,7 +104,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     return false;
                 }
 
-                // connect to the body
+                // Connect the input to the corresponding copy of the body.
                 auto in_data = ti->input_values()[input_desc->m_input_index].get_node_shared_ptr();
                 for (uint64_t j = 0; j < num_iter; j++) {
                     auto param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
@@ -120,9 +127,15 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     return false;
                 }
 
+                // Connect corresponding outputs (layers before Result op) of each copy of the body to Concat layer.
+                // Connect the Concat to corresponding output of TensorIterator.
+                // If the number of iterations is 1, then the Concat is not needed.
+
                 if (num_iter > 1) {
                     ngraph::OutputVector to_concat(num_iter);
                     auto stride = output_desc->m_stride;
+
+                    // Connect outputs of the bodies to the Concat layer
                     for (uint64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
                         std::shared_ptr<opset4::Result> result = body_functions[idx]->get_results()[output_desc->m_body_value_index];
@@ -131,12 +144,15 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     }
                     auto concat = std::make_shared<ngraph::opset4::Concat>(to_concat, output_desc->m_axis);
                     copy_runtime_info(ti, concat);
+
+                    // connect the Concat layer to the corresponding TI outputs
                     concat->output(0).get_tensor().set_name(
                             op::util::create_ie_output_name(ti->output(output_desc->m_output_index)));
                     for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(concat);
                     }
                 } else {
+                    // Connect outputs of the bodies to the corresponding TI outputs
                     std::shared_ptr<opset4::Result> result = body_functions[0]->get_results()[output_desc->m_body_value_index];
                     auto input_to_res = result->get_input_source_output(0);
                     for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
@@ -148,6 +164,8 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 if (!output_desc) {
                     return false;
                 }
+
+                // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0? iter: num_iter - 1;
                 std::shared_ptr<opset4::Result> result = body_functions[iter]->get_results()[output_desc->m_body_value_index];

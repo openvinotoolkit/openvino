@@ -107,7 +107,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
 
-        // Apply all transformations to TensorIterator body
         ngraph::pass::Manager ti_manager;
         // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);

@@ -27,13 +27,7 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  * are added to the network.
  */
 
-
 class ngraph::pass::UnrollTensorIterator: public ngraph::pass::MatcherPass {
 public:
-    UnrollTensorIterator() : MatcherPass() {
-        unroll_tensor_iterator();
-    }
-
-private:
-    void unroll_tensor_iterator();
+    UnrollTensorIterator();
 };
