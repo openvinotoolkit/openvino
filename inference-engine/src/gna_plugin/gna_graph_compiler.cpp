@@ -280,6 +280,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
             << calculated_out_width << " != " << out_width * in_height;
     }
 
+    if (dnn->new_num_conv_columns) {
+        dnn->new_num_conv_columns = 0;
+    }
+
     uint32_t total_conv_kernel_size = convolution._kernel_x * convolution._kernel_y * convolution._out_depth;
     uint32_t single_conv_kernel_size = convolution._kernel_x * convolution._kernel_y;
     if (convolution._kernel_y != in_channels) { // work around the strange special case where 1D kernel gets rewritten as 2D kernel
@@ -326,6 +330,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         num_input_padding += 8;
         num_columns_in = num_inputs + num_input_padding;
         num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+        dnn->new_num_conv_columns = num_columns_out / convolution._out_depth;
     }
 
     if (num_input_padding == 0) {
@@ -1473,6 +1478,11 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     } else {
         num_columns = FROM_IR_DIM(inputs, 2);
         num_rows = FROM_IR_DIM(inputs, 1);
+    }
+
+    if (dnn->new_num_conv_columns) {
+        num_rows = dnn->new_num_conv_columns;
+        dnn->new_num_conv_columns = 0;
     }
 
     // TODO: solve this by layer level transformations

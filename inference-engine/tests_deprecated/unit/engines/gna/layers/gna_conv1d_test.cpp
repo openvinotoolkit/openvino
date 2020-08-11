@@ -100,13 +100,12 @@ TEST_P(GNAConv1DTest, SplitToConcatWith2Inputs) {
     }
 }
 
-//TODO: Issue 36867
 INSTANTIATE_TEST_CASE_P(
         GNALayerTests,
         GNAConv1DTest,
         testing::Combine(
                 testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
-                testing::Values(/*1, 3, 9,*/ 16, 24, 32, /*42,*/ 64),
+                testing::Values(1, 3, 9, 16, 24, 32, 42, 64),
                 testing::Values(0, 1),
                 testing::Values(0),
                 testing::Values(32, 128, 512)),
