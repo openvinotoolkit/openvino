@@ -104,6 +104,23 @@ TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
+TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
+
+#if GNA_LIB_VER == 1
+    GTEST_SKIP();
+#endif
+
+    const std::string X = registerFileForRemove("unit_tests.bin");
+
+    // running export to a file
+    export_network(maxpoolAfterRelu())
+            .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).as().gna().model().to(X);
+
+    // running infer using imported model instead of IR
+    assert_that().onInferModel().importedFrom(X)
+            .inNotCompactMode().gna().propagate_forward().called().once();
+}
+
 TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
 
 #if GNA_LIB_VER == 2

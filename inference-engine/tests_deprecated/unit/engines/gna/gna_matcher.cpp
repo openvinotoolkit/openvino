@@ -436,7 +436,7 @@ void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
     
-    size_t weightsSize = 440*3;
+    size_t weightsSize = 656384;
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
     fillWeights(weights);
