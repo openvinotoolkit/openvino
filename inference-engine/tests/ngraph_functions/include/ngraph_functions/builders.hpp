@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -271,8 +272,8 @@ std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
                                  bool transpose_a = false,
                                  bool transpose_b = false);
 
-std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
-                                         const std::vector<int> &reductionAxes,
+std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
+                                         const ngraph::Output<Node>& axes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
 
@@ -313,6 +314,17 @@ std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::LogicalTypes logicalType);
+
+std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
+                                                  const ngraph::op::DetectionOutputAttrs& attrs);
+
+std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
+                                                 const element::Type& type,
+                                                 const size_t outputSize,
+                                                 bool addBias = true,
+                                                 const ngraph::Shape& weightsShape = {},
+                                                 const std::vector<float>& weights = {},
+                                                 const std::vector<float>& biasWeights = {});
 
 }  // namespace builder
 }  // namespace ngraph

@@ -11,7 +11,7 @@
 #include <map>
 #include <functional>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <pugixml.hpp>
 
 #include <vpu/utils/enums.hpp>

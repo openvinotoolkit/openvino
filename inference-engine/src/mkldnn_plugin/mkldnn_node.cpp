@@ -5,7 +5,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
@@ -75,6 +75,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Activation", Activation },
         { "Clamp", Activation },
         { "Swish", Activation },
+        { "Mish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
         { "Norm", Lrn },

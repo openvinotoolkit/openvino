@@ -62,6 +62,7 @@
                             </tab>
                             <tab type="usergroup" title="Converting a MXNet* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet">
                                 <tab type="user" title="Converting a Style Transfer Model from MXNet" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet"/>
+                                <tab type="user" title="Converting GluonCV* Models" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models"/>
                             </tab>
                             <tab type="usergroup" title="Converting Your Kaldi* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi">
                                 <tab type="user" title="Convert Kaldi* ASpIRE Chain Time Delay Neural Network (TDNN) Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model"/>

@@ -27,8 +27,8 @@
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
-#include "details/caseless.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "caseless.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include "precision_utils.h"
 #include "blob_factory.hpp"

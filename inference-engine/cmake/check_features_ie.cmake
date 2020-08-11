@@ -25,11 +25,6 @@ endif()
 
 if (ENABLE_GNA)
     add_definitions(-DENABLE_GNA)
-
-    if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
-        set(GNA_LIBRARY_VERSION GNA1)
-    endif()
 endif()
 
 if (ENABLE_SPEECH_DEMO)
