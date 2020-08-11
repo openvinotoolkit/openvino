@@ -155,7 +155,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     {
         CNNNetwork body_net(tensor_iterator->get_body()->to_function());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
-
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);

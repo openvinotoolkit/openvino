@@ -21,6 +21,7 @@
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
 #include <legacy/ie_ngraph_utils.hpp>
+
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -105,6 +106,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);
 
