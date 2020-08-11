@@ -30,7 +30,7 @@ V_ENV=0
 
 for ((i=1;i <= $#;i++)) {
     case "${!i}" in
-        caffe|tf|mxnet|kaldi|onnx)
+        caffe|tf|tf2|mxnet|kaldi|onnx)
             postfix="_"$1""
             ;;
         "venv")
@@ -39,7 +39,7 @@ for ((i=1;i <= $#;i++)) {
         *)
             if [[ "$1" != "" ]]; then
                 echo "\""${!i}"\" is unsupported parameter"
-                echo $"Usage: $0 {caffe|tf|mxnet|kaldi|onnx} {venv}"
+                echo $"Usage: $0 {caffe|tf|tf2|mxnet|kaldi|onnx} {venv}"
                 exit 1
             fi
             ;;
@@ -93,5 +93,5 @@ else
     fi
     echo [WARNING] All Model Optimizer dependencies are installed globally.
     echo [WARNING] If you want to keep Model Optimizer in separate sandbox
-    echo [WARNING] run install_prerequisites.sh venv "{caffe|tf|mxnet|kaldi|onnx}"
+    echo [WARNING] run install_prerequisites.sh venv "{caffe|tf|tf2|mxnet|kaldi|onnx}"
 fi
