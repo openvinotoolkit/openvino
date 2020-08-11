@@ -13,14 +13,16 @@
 #include <climits>
 #include <cassert>
 #include <utility>
+
 #include "threading/ie_thread_local.hpp"
-#include "ie_profiling.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 #include "threading/ie_thread_affinity.hpp"
 #include "details/ie_exception.hpp"
-#include "ie_util_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
+#include <openvino/itt.hpp>
+
+using namespace openvino;
 
 namespace InferenceEngine {
 struct CPUStreamsExecutor::Impl {
@@ -70,7 +72,11 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+#if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
                 _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
+#else
+                _taskArena.reset(new tbb::task_arena{concurrency});
+#endif
             } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new tbb::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
@@ -151,7 +157,7 @@ struct CPUStreamsExecutor::Impl {
                     std::back_inserter(_usedNumaNodes));
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
-                annotateSetThreadName((_config._name + "_" + std::to_string(streamId)).c_str());
+                itt::threadName(_config._name + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
                     Task task;
                     {

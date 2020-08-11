@@ -4,15 +4,16 @@
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include "mkldnn_exec_network.h"
 
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
+#include "mkldnn_itt.h"
 #include "bf16transformer.h"
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -44,18 +45,10 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
+
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
-
-    // CPU Plugin doesn't natively support some precision like int64/fp16/bool
-    // so will convert all layer/tensors fp16->fp32 , bool->u8.
-    // Default int64->int32 conversion is already applied in IE common module.
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U32, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions

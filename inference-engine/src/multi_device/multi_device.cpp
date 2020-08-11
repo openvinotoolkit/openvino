@@ -13,7 +13,7 @@
 #include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 #include <multi-device/multi_device_config.hpp>

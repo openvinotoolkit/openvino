@@ -6,7 +6,7 @@
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
 #include "ie_common.h"
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <unordered_map>
 
 using namespace InferenceEngine;
@@ -71,7 +71,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 key.erase(0, 1);
                 try {
                     input_index = std::stoi(key);
-                    if (input_index < 0 | input_index > 99) {
+                    if (input_index > 99) {
                         throw std::out_of_range("");
                     }
                 } catch (std::invalid_argument&) {

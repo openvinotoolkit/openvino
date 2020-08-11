@@ -24,7 +24,7 @@ using EqualTestParam = typename std::tuple<
         LayerTestsUtils::TargetDevice>;            // Config
 
 class EqualLayerTest : public testing::WithParamInterface<EqualTestParam>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EqualTestParam>& obj);
 

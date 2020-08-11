@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include <map>
 #include <memory>
 #include <string>
@@ -16,7 +15,7 @@
 
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_profiling.hpp"
+#include "ie_itt.hpp"
 #include "file_utils.h"
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
@@ -245,18 +244,18 @@ public:
     }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE);
         return details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork");
         return details::ReadNetwork(model, weights, extensions);
     }
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
-        IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
     }
@@ -356,9 +355,7 @@ public:
                     cppPlugin.SetConfig(desc.defaultConfig);
 
                     for (auto&& extensionLocation : desc.listOfExtentions) {
-                        // TODO: fix once InferenceEngine::Extension can accept FileUtils::FilePath
-                        // currently, extensions cannot be loaded using wide path
-                        cppPlugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
+                        cppPlugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
                     }
                 }
 
@@ -552,6 +549,15 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
     return versions;
 }
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
+    return ReadNetwork(FileUtils::wStringtoMBCSstringChar(modelPath),
+                       FileUtils::wStringtoMBCSstringChar(binPath));
+}
+
+#endif
+
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     return _impl->ReadNetwork(modelPath, binPath);
 }
@@ -571,7 +577,7 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::LoadNetwork");
     std::map<std::string, std::string> config_ = config;
 
     if (context == nullptr) {
@@ -647,7 +653,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::str
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(Core::ImportNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
         THROW_IE_EXCEPTION << "Remote context is null";
@@ -661,7 +667,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
 }
 
-QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
     return _impl->QueryNetwork(network, deviceName, config);
 }

@@ -19,7 +19,7 @@ using BroadcastExplicitTestParams = std::tuple<
         TensorType, TensorShape, LayerTestsUtils::TargetDevice>;
 
 class NonZero_Broadcast : public testing::WithParamInterface<BroadcastExplicitTestParams>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);

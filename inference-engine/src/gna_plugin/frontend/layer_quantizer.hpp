@@ -12,13 +12,12 @@
 #include "gna_plugin_log.hpp"
 #include "quantized_layer_params.hpp"
 #include "quantization.h"
-#include "details/caseless.hpp"
 #include "gna_graph_tools.hpp"
 #include "blob_factory.hpp"
 #include "precision_ex.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "weights_converter.hpp"
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -179,6 +178,17 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
         THROW_GNA_EXCEPTION << "FP32 to " << precision << " not supported";
     }
     return result_ptr;
+}
+
+template <class T, class... Args>
+InferenceEngine::Blob::Ptr make_custom_blob(Args&&... args) {
+    return InferenceEngine::make_shared_blob<T>(InferenceEngine::Precision::fromType<T>(), std::forward<Args>(args)...);
+}
+
+template <class T>
+InferenceEngine::Blob::Ptr make_custom_blob(InferenceEngine::Layout layout, InferenceEngine::SizeVector size) {
+    return InferenceEngine::make_shared_blob<T>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::fromType<T>(), size, layout));
 }
 
 template<class QuantDesc, class QuantFunc>

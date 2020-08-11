@@ -5,7 +5,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
@@ -52,6 +52,7 @@
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace openvino;
 
 using namespace InferenceEngine::details;
 namespace MKLDNNPlugin {
@@ -74,6 +75,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Activation", Activation },
         { "Clamp", Activation },
         { "Swish", Activation },
+        { "Mish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
         { "Norm", Lrn },
@@ -145,7 +147,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(name) {
+          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());

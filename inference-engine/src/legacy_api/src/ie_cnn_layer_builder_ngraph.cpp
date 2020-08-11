@@ -2,22 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_cnn_layer_builder_ngraph.h>
-#include <cnn_network_ngraph_impl.hpp>
-#include <precision_utils.h>
-#include <cpp/ie_cnn_network.h>
-#include <cnn_network_impl.hpp>
-
 #include <limits>
 #include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/variant.hpp>
 #include <set>
 #include <sstream>
 #include <utility>
 
-#include "graph_tools.hpp"
-#include "net_pass.h"
 #include "ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -44,8 +34,20 @@
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
+#include "exec_graph_info.hpp"
 
-#include "graph_transformer.h"
+#include <cnn_network_ngraph_impl.hpp>
+#include <precision_utils.h>
+#include <cpp/ie_cnn_network.h>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/variant.hpp>
+
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include "legacy/graph_transformer.h"
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include <legacy/cnn_network_impl.hpp>
+#include <ie_cnn_layer_builder_ngraph.h>
 
 namespace InferenceEngine {
 namespace Builder {
@@ -151,9 +153,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     // This map will save information about data nodes
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
-        auto tiBody = std::make_shared<details::TINGraphBody>(std::make_shared<ngraph::Function>(results, parameters));
-        CNNNetwork ngraphNet(tiBody);
-        CNNNetwork net(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNet));
+        CNNNetwork body_net(tensor_iterator->get_body()->to_function());
+        CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
@@ -263,12 +264,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     for (const auto& desc : tensor_iterator->get_output_descriptions()) {
         auto result = results[desc->m_body_value_index]->input(0).get_source_output();
 
-        // GetOutputElement layer can be inserted by ngraph deep copy functions
-        // (e.g. specialize_function, clone_function)
-        // Take the previous layer.
-        if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
-            result = result.get_node()->input(0).get_source_output();
-        }
         std::string name = result.get_node()->get_friendly_name();
         if (result.get_node()->get_output_size() > 1) {
             name += "." + std::to_string(result.get_index());
@@ -328,12 +323,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
 
                 auto result = results[input_desc->m_body_value_index]->inputs()[0].get_source_output();
 
-                // GetOutputElement layer can be inserted by ngraph deep copy functions
-                // (e.g. specialize_function, clone_function)
-                // Take the previous layer.
-                if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
-                    result = result.get_node()->input(0).get_source_output();
-                }
                 // Create correct name for output.
                 std::string output_name = result.get_node()->get_friendly_name();
                 if (result.get_node()->get_output_size() > 1) {
@@ -1721,6 +1710,40 @@ CNNLayer::Ptr NodeConverter<ngraph::op::MatMul>::createLayer(const std::shared_p
     auto res = std::make_shared<InferenceEngine::GemmLayer>(params);
     res->params["transpose_a"] = castedLayer->get_transpose_a() ? "True" : "False";
     res->params["transpose_b"] = castedLayer->get_transpose_b() ? "True" : "False";
+
+    return res;
+}
+
+template <>
+CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto castedLayer = ngraph::as_type_ptr<ExecGraphInfoSerialization::ExecutionNode>(layer);
+    if (castedLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot convert " << layer->get_friendly_name() << " layer ";
+
+    auto & rtInfo = castedLayer->get_rt_info();
+    if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
+        THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
+            << " attribute is set in " << layer->get_friendly_name() << " node";
+    }
+
+    auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
+        IE_ASSERT(castedVariant != nullptr);
+        return castedVariant->get();
+    };
+
+    LayerParams params = { layer->get_friendly_name(),
+                           getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
+                           details::convertPrecision(layer->get_output_element_type(0)) };
+    rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
+
+    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+    for (const auto & kvp : rtInfo) {
+        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
+        // skip RT info which holds fusedNames, etc
+        if (castedVariant)
+            res->params[kvp.first] = getStringValue(castedVariant);
+    }
 
     return res;
 }
