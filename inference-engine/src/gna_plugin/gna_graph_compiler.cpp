@@ -199,37 +199,151 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
 }
 
 
+/**
+ * Create AMIntelDNN Convolutional1DComponent from ConvolutionLayer
+ *
+ * GNA Convolution input is NHCW and output is transposed to NHWC
+ *
+ * OpenVINO default layout is NCHW
+ * TensorFlow default layout is NHWC
+ *
+ * There is option in ModelOptimizer
+ * --disable_nhwc_to_nchw
+ *                      Disables default translation from NHWC to NCHW
+ * By default MO converts TensorFlow default NHWC to OpenVino default NCHW
+ * So when MR was created with this option layout will be NHWC
+ *
+ * @param layer Pointer to ConvolutionLayer
+ */
 void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& convolution = dynamic_cast<ConvolutionLayer&>(*layer.get());
-    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
     IE_ASSERT(!layer->insData.empty());
     IE_ASSERT(!layer->outData.empty());
+    printConvolutionLayer(convolution);
+
     auto inputs = layer->insData.begin()->lock();
-    auto outputs = *layer->outData.begin();
-
-    uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
-    uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
-    uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
-    uint32_t w_dim_out = FROM_IR_DIM(outputs, 1);
-    uint32_t h_dim_out = FROM_IR_DIM(outputs, 2);
-
-    if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
-        swap(h_dim_in, w_dim_in);
-        swap(h_dim_out, w_dim_out);
-        swap(convolution._kernel_x, convolution._kernel_y);
-        swap(convolution._stride_x, convolution._stride_y);
+    auto outputs = layer->outData.front();
+    if (inputs->getLayout() != Layout::NHWC &&
+        inputs->getLayout() != Layout::NCHW &&
+        inputs->getLayout() != Layout::NC) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with layout " << inputs->getLayout() << " isn't currently supported on GNA";
+    }
+    if (inputs->getLayout() != outputs->getLayout()) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "I/O layout mismatch: " << inputs->getLayout() << " vs " << outputs->getLayout();
     }
 
-    uint32_t num_feature_map_rows = w_dim_in / convolution._stride_x;
-    uint32_t num_feature_map_columns = c_dim_in * convolution._stride_x;
+    auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
+    auto in_batch = FROM_IR_DIM(inputs, in_order[0]);
+    auto in_channels = FROM_IR_DIM(inputs, in_order[1]);
+    auto in_height = FROM_IR_DIM(inputs, in_order[2]);
+    auto in_width = FROM_IR_DIM(inputs, in_order[3]);
 
-    uint32_t num_columns_in = c_dim_in;
-    uint32_t num_rows_out = w_dim_out;
+    auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
+    auto out_batch = FROM_IR_DIM(outputs, out_order[0]);
+    auto out_channels = FROM_IR_DIM(outputs, out_order[1]);
+    auto out_height = FROM_IR_DIM(outputs, out_order[2]);
+    auto out_width = FROM_IR_DIM(outputs, out_order[3]);
+
+    if (in_batch != 1 || out_batch != 1) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
+    }
+    if (convolution._kernel_x != 1 && convolution._kernel_y != 1 && convolution._kernel_y != in_channels) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with 2D kernel is not supported on GNA";
+    }
+    if ((in_channels > 1) && (in_height > 1) && (in_width > 1)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with 3D input is not supported on GNA";
+    }
+    if (convolution._dilation_x != 1 || convolution._dilation_y != 1) {
+        // TODO: Issue 24839
+        THROW_GNA_LAYER_EXCEPTION(layer) << "with dilation is not supported on GNA";
+    }
+    if (inputs->getLayout() != Layout::NHWC && in_height != 1) {
+        // TensorFlow default layout is NHWC
+        // OpenVino Default layout is   NCHW
+        // GNA Convolution input is     NHCW
+        // When layer layout is in NHWC it means that is was created by PassManager
+        THROW_GNA_LAYER_EXCEPTION(layer) << "in_height != 1 This case requires additional Permute and it is not implemented yet";
+    }
+    if (convolution._kernel_x > in_width * in_height) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions are bigger than input dimensions. "
+            << convolution._kernel_x << " vs " << in_width * in_height;
+    }
+
+    if (out_channels != convolution._out_depth) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Output channels do not equal output depth. "
+            << out_channels << " vs " << convolution._out_depth;
+    }
+    std::size_t calculated_out_width = (in_width * in_height - convolution._kernel_x + 2 * convolution._padding_x) / convolution._stride_x + 1;
+    if (out_width * in_height != calculated_out_width) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid output configuration. "
+            << calculated_out_width << " != " << out_width * in_height;
+    }
+
+    if (dnn->new_num_conv_columns) {
+        dnn->new_num_conv_columns = 0;
+    }
+
+    uint32_t total_conv_kernel_size = convolution._kernel_x * convolution._kernel_y * convolution._out_depth;
+    uint32_t single_conv_kernel_size = convolution._kernel_x * convolution._kernel_y;
+    if (convolution._kernel_y != in_channels) { // work around the strange special case where 1D kernel gets rewritten as 2D kernel
+        total_conv_kernel_size *= in_channels;
+        single_conv_kernel_size *= in_channels;
+    }
+    auto actual_kernel_size = details::product(convolution._weights->getTensorDesc().getDims());
+    if (total_conv_kernel_size != actual_kernel_size) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Weights size does not equal kernel size "
+            << actual_kernel_size << " vs " << total_conv_kernel_size;
+    }
 
     // padding of convolution kernel to be multiply of 8
-    uint32_t num_conv_kernel_padding = ALIGN(convolution._kernel_x * num_feature_map_columns, 8)
-        - convolution._kernel_x * num_feature_map_columns;
+    uint32_t num_conv_kernel_padding = ALIGN(single_conv_kernel_size, 8) - single_conv_kernel_size;
+    if (num_conv_kernel_padding == 0) {
+        gnalog() << LAYER_NAME(layer) << "Kernel is aligned \n";
+    } else {
+        gnalog() << LAYER_NAME(layer) << "Kernel padding is " << num_conv_kernel_padding << "\n";
+    }
+
+    // have to pad input to let last kernel meets it's corresponding input
+    uint32_t num_inputs = in_width * in_height * in_channels;
+    uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
+
+    //  convert to 2D and set GNA input feature map size
+    uint32_t num_feature_map_columns = in_channels * convolution._stride_x * convolution._stride_y;
+    if (in_height == 1 && convolution._stride_y != 1) {
+        num_feature_map_columns = in_channels * convolution._stride_x;
+    } else if (in_width == 1 && convolution._stride_x != 1) {
+        num_feature_map_columns = in_channels * convolution._stride_y;
+    }
+    uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
+
+    uint32_t num_filters = convolution._out_depth;
+    uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
+    uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
+    uint32_t num_columns_in = num_inputs + num_input_padding;
+
+    uint32_t num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+    uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
+
+    // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
+    while (num_columns_out < out_batch * out_channels * out_height * out_width) {
+        num_input_padding += 8;
+        num_columns_in = num_inputs + num_input_padding;
+        num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+        dnn->new_num_conv_columns = num_columns_out / convolution._out_depth;
+    }
+
+    if (num_input_padding == 0) {
+        gnalog() << LAYER_NAME(layer) << "Inputs are aligned \n";
+    } else {
+        gnalog() << LAYER_NAME(layer) << "Inputs padding is " << num_input_padding << "\n";
+    }
+
+    if (num_columns_out_unpadded != out_batch * out_channels * out_height * out_width) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Number of output columns does not equal output tensor size "
+            << num_columns_out_unpadded << " vs " << out_batch * out_channels * out_height * out_width;
+    }
+
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
     void* ptr_weights = nullptr;
@@ -238,29 +352,37 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     // TODO: questionable why for biases that are not in IR we inventing precision
     auto biasPrecision = convolution._biases ? convolution._biases->getTensorDesc().getPrecision() : outputs->getPrecision();
 
-    auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
+    uint32_t num_bytes_per_input = inputs->getPrecision().size();
+    uint32_t num_bytes_per_output = outputs->getPrecision().size();
+    uint32_t num_bytes_per_weight = convolution._weights->getTensorDesc().getPrecision().size();
+    uint32_t num_bytes_per_bias = biasPrecision.size();
 
-    // have to pad input to let last kernel meets it's corresponding input
-    auto num_inputs = num_feature_map_columns * num_feature_map_rows + num_conv_kernel_padding;
-    auto num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
-    auto num_filter_rows = convolution._kernel_x / convolution._stride_x;
+    float weight_scale_factor = 1.0f;
+    float output_scale_factor = 1.0f;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    if (quantized != nullptr) {
+        weight_scale_factor = quantized->_weights_quant.scale;
+        output_scale_factor = quantized->_dst_quant.scale;
+    }
+
+    auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
     dnn->InitConvolutional1DComponent(currentComponent,
         1,
-        num_inputs + num_input_padding,
+        num_columns_in,
         1,
-        num_rows_out * convolution._out_depth,
-        inputs->getPrecision().size(),
-        outputs->getPrecision().size(),
-        convolution._weights->getTensorDesc().getPrecision().size(),
-        biasPrecision.size(),
-        convolution._out_depth,
+        num_columns_out,
+        num_bytes_per_input,
+        num_bytes_per_output,
+        num_bytes_per_weight,
+        num_bytes_per_bias,
+        num_filters,
         num_filter_rows,
-        num_feature_map_columns * num_filter_rows + num_conv_kernel_padding,
+        num_filter_coefficients,
         1,
         num_feature_map_rows,
         num_feature_map_columns,
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+        weight_scale_factor,
+        output_scale_factor,
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
@@ -275,53 +397,65 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
-    if (LayerInfo(connectedInputLayer).isInput()) {
-        //  Kaldi features are opposite orientation
-        dnn->num_rotate_rows = num_feature_map_columns;
-        dnn->num_rotate_columns = num_feature_map_rows;
+    if (!dnn->do_rotate_input) {
+        if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
+            //  Kaldi features are opposite orientation
+            dnn->do_rotate_input = true;
+            dnn->num_rotate_rows = num_feature_map_columns;
+            dnn->num_rotate_columns = num_feature_map_rows;
+        } else {
+            dnn->do_rotate_input = false;
+        }
     }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    // rotate
-    auto TransposeMatrix = [](uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols) {
-        std::vector<uint8_t> temp_buffer(num_rows * num_cols * element_size);
-        for (uint32_t i = 0; i < num_rows; i++) {
-            for (uint32_t j = 0; j < num_cols; j++) {
-                ie_memcpy(&temp_buffer.front() + (j * num_rows + i) * element_size,
-                    temp_buffer.size() - (i * num_cols + j) * element_size,
-                    ptr_matrix + (i * num_cols + j) * element_size,
-                    element_size);
-            }
-        }
-        return temp_buffer;
-    };
-
-    std::vector<uint8_t > transposedWeights;
+    std::vector<uint8_t> transposedWeights;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
-        uint8_t* ptr_filt_current
-            = convolution._weights->cbuffer().as<uint8_t*>() + k * num_columns_in * convolution._kernel[X_AXIS] * convolution.precision.size();
-        auto transposedPart = TransposeMatrix(ptr_filt_current, convolution.precision.size(), num_columns_in, convolution._kernel[X_AXIS]);
+        uint8_t * ptr_filt_current
+            = convolution._weights->cbuffer().as<uint8_t*>() +
+            k * in_channels * convolution._kernel[X_AXIS] * convolution.precision.size();
+        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), in_channels, convolution._kernel[X_AXIS]);
         transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
+    }
+    if (transposedWeights.size() != convolution._weights->byteSize()) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "weights was transposed incorrectly. "
+            << transposedWeights.size() << ' '
+            << convolution._weights->byteSize();
     }
 
     if (num_conv_kernel_padding == 0) {
-        gnamem->readonly().push_local_ptr(ptr_weights, transposedWeights.data(), convolution._weights->byteSize(), 64);
+        gnamem->readonly().push_local_ptr(ptr_weights,
+            transposedWeights.data(),
+            convolution._weights->byteSize(),
+            64);
     } else {
-        auto elementsIn = convolution._kernel_x * num_feature_map_columns + num_conv_kernel_padding;
-        auto paddedWeights = elementsIn * convolution._out_depth;
+        auto paddedWeights = (single_conv_kernel_size + num_conv_kernel_padding) * convolution._out_depth;
         auto paddedWeightsSize = paddedWeights * convolution.precision.size();
-        auto elements_in_row = convolution._kernel_x * num_feature_map_columns;
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-            size_t offset = 0;
-            for (int i = 0; i < convolution._out_depth && size >= offset; i++) {
-                ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
-                    transposedWeights.data() + elements_in_row * i * convolution.precision.size(),
-                    elements_in_row* convolution.precision.size());
-
-                offset += elementsIn * convolution.precision.size();
+        auto initializer = [=](void* data, std::size_t size) {
+            if (paddedWeightsSize > size) {
+                THROW_GNA_LAYER_EXCEPTION(layer) << "size is less than paddedWeightsSize";
             }
-            }, 64);
+            std::size_t offset = 0;
+            std::vector<uint8_t> padding_zeros(num_conv_kernel_padding * convolution.precision.size(), 0);
+            uint8_t* dstPtr = reinterpret_cast<uint8_t*>(data);
+            for (int i = 0; i < convolution._out_depth; i++) {
+                ie_memcpy(dstPtr + offset,
+                    size - offset,
+                    transposedWeights.data() + single_conv_kernel_size * i * convolution.precision.size(),
+                    single_conv_kernel_size * convolution.precision.size());
+                offset += single_conv_kernel_size * convolution.precision.size();
+                ie_memcpy(dstPtr + offset,
+                    size - offset,
+                    &padding_zeros[0],
+                    padding_zeros.size());
+                offset += padding_zeros.size();
+            }
+        };
+        gnamem->readonly().push_initializer(ptr_weights,
+            paddedWeightsSize,
+            initializer,
+            64);
     }
 
     if (convolution._biases) {
@@ -330,7 +464,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
             convolution._biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        gnamem->readonly().push_value(ptr_biases, 0.0f, out_channels, 64);
     }
 }
 
@@ -1346,6 +1480,11 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_rows = FROM_IR_DIM(inputs, 1);
     }
 
+    if (dnn->new_num_conv_columns) {
+        num_rows = dnn->new_num_conv_columns;
+        dnn->new_num_conv_columns = 0;
+    }
+
     // TODO: solve this by layer level transformations
     auto concatAlignFilter = CNNNetPrevLayer(layer, 0);
     if (LayerInfo(concatAlignFilter).isConcatAlignFilter()) {
@@ -1932,4 +2071,63 @@ void GNAGraphCompiler::Reset() {
     for (auto && concatLayer : concat_connection) {
         std::memset(concatLayer.second.gna_ptr, 0, concatLayer.second.reserved_size);
     }
+}
+
+void GNAGraphCompiler::printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc) {
+    gnalog() << name << " layout: " << desc.getLayout() << " shape: ";
+    for (auto i = 0; i < desc.getDims().size(); i++) {
+        if (i > 0) {
+            gnalog() << 'x';
+        }
+        gnalog() << desc.getDims()[i];
+    }
+    gnalog() << "\n";
+}
+
+void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionLayer& layer) {
+    const char x = 'x';
+
+    gnalog() << "ConvolutionLayer '"
+        << layer.name
+        << "' Kernel: "
+        << layer._kernel_x << x << layer._kernel_y
+        << " Padding: "
+        << layer._padding_x << x << layer._padding_y
+        << " Stride: "
+        << layer._stride_x << x << layer._stride_y
+        << " Dilation: "
+        << layer._dilation_x << x << layer._dilation_y
+        << " Auto Padding: '"
+        << layer._auto_pad << "'";
+    gnalog() << "\n";
+    printTensorDesc("Input", layer.input()->getTensorDesc());
+    printTensorDesc("Output", layer.outData.front()->getTensorDesc());
+}
+
+std::vector<uint8_t>
+GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols) {
+    std::vector<uint8_t> temp_buffer(num_rows * num_cols * element_size);
+    for (uint32_t i = 0; i < num_rows; i++) {
+        for (uint32_t j = 0; j < num_cols; j++) {
+            ie_memcpy(&temp_buffer.front() + (j * num_rows + i) * element_size,
+                temp_buffer.size() - (i * num_cols + j) * element_size,
+                ptr_matrix + (i * num_cols + j) * element_size,
+                element_size);
+        }
+    }
+    return temp_buffer;
+}
+
+std::vector<std::size_t> GNAGraphCompiler::getFromIRDimsOrderNCHW(InferenceEngine::Layout layout) {
+    std::vector<std::size_t> order;
+    switch (layout) {
+    case Layout::NHWC:
+        order = { 4, 1, 3, 2 };
+        break;
+    case Layout::NCHW:
+    default:
+        order = { 4, 3, 2, 1 };
+        break;
+    }
+    return order;
 }

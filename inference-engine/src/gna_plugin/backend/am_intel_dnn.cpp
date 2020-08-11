@@ -53,7 +53,6 @@ void GNAPluginNS::backend::AMIntelDNN::Init(void *ptr_memory,
     num_active_outputs_ = 0;
     num_left_context = 0;
     num_right_context = 0;
-    do_rotate_input = false;
     softmax_type = kSoftmaxNone;
     ptr_sumgroup_sizes = nullptr;
     num_sumgroup_sizes = 0;
@@ -185,6 +184,15 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         ptr_biases  = &comp.op.conv1D.ptr_biases;
         ptr_inputs  = &comp.ptr_inputs;
         ptr_outputs = &comp.ptr_outputs;
+    }
+
+    if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
+        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent is not multiply by 8";
+    }
+    auto filter_stride_size = comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns;
+    auto max_number_of_out_elements = (comp.num_columns_in - comp.op.conv1D.num_filter_coefficients) / filter_stride_size + 1;
+    if (comp.num_columns_out / max_number_of_out_elements != comp.op.conv1D.num_filters) {
+        THROW_GNA_EXCEPTION << "Number of outputs or feature map config is incorrect in Convolutional1DComponent";
     }
 }
 

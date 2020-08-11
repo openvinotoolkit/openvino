@@ -557,7 +557,7 @@ std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr or
 /**
  * @brief remove given layer from topology, currently only layers with one input data and one output data supported
  */
-inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
+inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     if (!layer) {
         THROW_IE_EXCEPTION << "Cannot remove layer pointed to NULL";
     }
@@ -574,7 +574,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
     }
     // if dimensions of input layer not equal target dimensions - shape infer  or reshape layer required, so skipping those cases
     auto osp = layer->outData.front();
-    if (isp->getDims() != osp->getDims()) {
+    if (checkDims && isp->getDims() != osp->getDims()) {
         THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" its input layer("
                            << isp->getName() << ") and output(" << osp->getName() << ") have incompatible dimensions";
     }

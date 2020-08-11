@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "ie_layers.h"
+#include <ie_data.h>
+#include <ie_common.h>
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
@@ -46,6 +48,11 @@ private:
     ConstConnections const_connections;
 
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
+
+    static void printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc);
+    static void printConvolutionLayer(const InferenceEngine::ConvolutionLayer& layer);
+    std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
+    std::vector<std::size_t> static getFromIRDimsOrderNCHW(InferenceEngine::Layout layout);
 
 public:
     GNAPluginNS::backend::DnnComponents dnnComponents;

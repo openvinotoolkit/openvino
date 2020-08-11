@@ -564,6 +564,56 @@ void ReversePermutationsPass::run() {
     }
 }
 
+void RemovePermutationsNHWCToNCHWPass::run() {
+    std::list<CNNLayerPtr> permutationsToRemove;
+
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConvolution()) {
+            continue;
+        }
+
+        if (getInputTo(l->outData.front()).empty()) {
+            continue;
+        }
+        auto next = getInputTo(l->outData.front()).begin()->second;
+        auto prev = CNNNetPrevLayer(l);
+
+        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+            continue;
+        }
+
+        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutationsToRemove.push_back(prev);
+        }
+        permutationsToRemove.push_back(next);
+    }
+
+    for (auto&& toRemove : permutationsToRemove) {
+        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+
+        auto next = getInputTo(toRemove->outData.front()).begin()->second;
+        if (LayerInfo(next).isConvolution()) {
+            next->input()->setDims(toRemove->input()->getDims());
+            next->input()->setLayout(Layout::NHWC);
+            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+            if (convolution._kernel_y != 1) {
+                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+            }
+            auto in_channels = next->input()->getDims()[3];
+            convolution._kernel_y = in_channels;
+        }
+        auto prev = CNNNetPrevLayer(toRemove);
+        if (LayerInfo(prev).isConvolution()) {
+            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
+            prev->outData[0]->setLayout(Layout::NHWC);
+        }
+        CNNNetworkRemoveLayer(toRemove, false);
+    }
+}
+
 void InsertIdentityLayerPass::run() {
     int numOfIdentityLayers = 0;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());

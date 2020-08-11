@@ -21,9 +21,15 @@ void CNNFilter32(intel_dnn_component_t *component) {
             num_inputs_band_stride = component->op.conv1D.num_feature_maps * component->op.conv1D.num_feature_map_columns;
     uint32_t num_filter_coefficients = component->op.conv1D.num_filter_coefficients;
 
-    if ((component->num_rows_in != 1) || (component->num_rows_out != 1)
-        || (component->num_columns_out != num_filter_outputs * component->op.conv1D.num_filters)) {
-        THROW_GNA_EXCEPTION << "Bad problem dimensions in CNNFilter32!";
+    std::string layer_name;
+#ifdef PLOT
+    layer_name = " In layer '" + std::string(component->original_layer_name) + "'";
+#endif
+    if (component->num_rows_in != 1 || component->num_rows_out != 1) {
+        THROW_GNA_EXCEPTION << "Bad number of rows in CNNFilter32!" << layer_name;
+    }
+    if (component->num_columns_out < num_filter_outputs * component->op.conv1D.num_filters) {
+        THROW_GNA_EXCEPTION << "Bad num_columns_out in CNNFilter32!" << layer_name;
     }
 
     for (uint32_t j = 0; j < num_filter_outputs; j++) {
