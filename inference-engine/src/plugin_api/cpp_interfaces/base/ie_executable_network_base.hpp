@@ -110,6 +110,15 @@ private:
     ~ExecutableNetworkBase() = default;
 };
 
+template <typename T, typename... Args>
+inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(Args&&... args) {
+    auto impl = std::make_shared<T>(std::forward<Args>(args)...);
+    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
+        p->Release();
+    });
+    return net;
+}
+
 template <class T>
 inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
