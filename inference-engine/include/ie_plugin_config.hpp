@@ -194,7 +194,7 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning therads to NUMA nodes, best for real-life, contented cases)
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
  * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
  * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
@@ -207,7 +207,7 @@ DECLARE_CONFIG_VALUE(NUMA);
  * @brief Optimize CPU execution to maximize throughput.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accomodate NUMA and avoid associated penalties
+ * - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accommodate NUMA and avoid associated penalties
  * - KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance,
  *   this is the most portable option if you have no insights into how many cores you target machine will have
  *   (and what is the optimal number of streams)

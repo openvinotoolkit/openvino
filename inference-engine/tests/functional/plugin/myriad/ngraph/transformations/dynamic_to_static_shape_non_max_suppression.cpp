@@ -68,7 +68,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(outputShape.rank()));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticNonMaxSuppression}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

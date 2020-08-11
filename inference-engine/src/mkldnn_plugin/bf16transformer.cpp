@@ -9,8 +9,8 @@
 #include <utility>
 #include <set>
 #include <chrono>
-#include "details/ie_cnn_network_tools.h"
-#include "ie_util_internal.hpp"
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/ie_util_internal.hpp>
 #include "ngraph/type/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;

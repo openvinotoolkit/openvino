@@ -10,15 +10,16 @@
  */
 
 #include "ie_parallel.hpp"
+
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#include <tbb/enumerable_thread_specific.h>
+# include <tbb/enumerable_thread_specific.h>
 #else
-#include <unordered_map>
-#include <memory>
-#include <thread>
-#include <mutex>
-#include <utility>
-#include <functional>
+# include <unordered_map>
+# include <memory>
+# include <thread>
+# include <mutex>
+# include <utility>
+# include <functional>
 #endif
 
 namespace InferenceEngine {

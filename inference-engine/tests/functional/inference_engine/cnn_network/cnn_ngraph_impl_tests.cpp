@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <cnn_network_impl.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -13,10 +13,10 @@
 #include <map>
 
 #include <cpp/ie_cnn_network.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>

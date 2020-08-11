@@ -4,9 +4,9 @@
 
 #include "vpu/frontend/frontend.hpp"
 #include "vpu/compile_env.hpp"
-#include "graph_transformer.h"
+#include <legacy/graph_transformer.h>
 
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 
 namespace vpu {
 

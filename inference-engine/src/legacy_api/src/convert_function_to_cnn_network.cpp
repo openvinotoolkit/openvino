@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_function_to_cnn_network.hpp"
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -37,16 +35,16 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "ie_cnn_layer_builder_ngraph.h"
-#include "details/caseless.hpp"
-
+#include "caseless.hpp"
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
+#include "legacy/convert_function_to_cnn_network.hpp"
 #include "ie_legacy_itt.hpp"
+#include "ie_cnn_layer_builder_ngraph.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -127,7 +125,7 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
         auto shape = static_cast<::ngraph::PartialShape&>(*a);
-        for (size_t i = 0; i < shape.rank().get_length(); i++) {
+        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
             if (!dims.empty()) dims += ",";
             dims += std::to_string(shape[i].get_length());
         }
@@ -496,6 +494,16 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     });
 
+    addSpecificCreator({"SwishIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Swish",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+
+    });
+
     addSpecificCreator({"PriorBox"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
         THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
@@ -644,6 +652,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalAnd>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalOr>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
+                std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };
         CNNLayerPtr result;
 
@@ -706,13 +715,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Checks that node is internal layer for all layers from specific function
     const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node> &node,
-                                     const std::unordered_set<std::string> &names,
                                      bool keep_constant) -> bool {
         if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
             for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
                 const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
-                if (names.find(consumerLayer->get_name()) == names.end())
-                    continue;
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
                     return false;
             }
@@ -736,20 +742,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
-    // Collect all names from current graph
-    // It is necessary in order to differentiate outputs from constant layers when we share constants
-    // (Constant operations contains outputs for converted and original functions)
     const ngraph::NodeVector& nodes = graph->get_ops();
-
-    std::unordered_set<std::string> op_names;
-    for (const auto &layer : nodes)
-        op_names.insert(layer->get_name());
-
     bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     // Create layers and output data
     for (const auto &layer : nodes) {
-        if (isInternalLayer(layer, op_names, keep_constants)) continue;
+        if (isInternalLayer(layer, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs
         auto &rt_info = layer->get_rt_info();
@@ -939,8 +937,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                                              const ICNNNetwork &network,
                                                              bool keep_constant_inputs) {
-    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "details::convertFunctionToICNNNetwork");
-
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);
     return cnnNetworkImpl;

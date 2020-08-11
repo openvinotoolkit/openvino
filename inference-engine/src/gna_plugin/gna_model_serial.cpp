@@ -141,6 +141,7 @@ void GNAModelSerial::Import(void *basePointer,
         readNBits<32>(operation->Type, is);
         readBits(operation->NumberOfOperands, is);
         operation->Operands = static_cast<Gna2Tensor const **>(gnaUserAllocator(sizeof(Gna2Tensor*) * operation->NumberOfOperands));
+        IE_ASSERT(operation->Operands != nullptr);
         for (uint32_t i = 0; i < operation->NumberOfOperands; i++) {
             Gna2Tensor t{};
             readBits(t, is);
@@ -173,6 +174,7 @@ void GNAModelSerial::Import(void *basePointer,
             uint32_t paramSize = 0;
             readBits(paramSize, is);
             if (paramSize == 0) {
+                IE_ASSERT(operation->Parameters != nullptr);
                 operation->Parameters[i] = nullptr;
                 continue;
             }

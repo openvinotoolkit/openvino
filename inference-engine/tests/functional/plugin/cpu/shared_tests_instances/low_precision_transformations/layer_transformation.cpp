@@ -12,9 +12,9 @@
 #include <ie_core.hpp>
 #include "generic_ie.hpp"
 
-#include <net_pass.h>
-#include "graph_transformer.h"
-#include "convert_function_to_cnn_network.hpp"
+#include <legacy/net_pass.h>
+#include <legacy/graph_transformer.h>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -27,7 +27,7 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"

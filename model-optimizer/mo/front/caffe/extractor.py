@@ -19,7 +19,6 @@ from mo.front.caffe.extractors.concat import concat_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.caffe.extractors.roipooling import roipooling_ext
 from mo.front.caffe.extractors.scale import scale_ext
-from mo.front.caffe.extractors.slice import slice_ext
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
 from mo.front.extractor import CaffePythonFrontExtractorOp
@@ -49,7 +48,6 @@ caffe_type_extractors = {
 
     # Utility Layers
     'concat': node_pb_arg(concat_ext),
-    'slice': node_pb_arg(slice_ext),
 
     # Custom, implemented in IE, Fast-RCNN-specific
     'roipooling': node_pb_arg(roipooling_ext),

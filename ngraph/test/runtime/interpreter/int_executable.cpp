@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
@@ -35,28 +37,10 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     : m_is_compiled{true}
     , m_performance_counters_enabled{enable_performance_collection}
 {
-#ifdef INTERPRETER_FORCE_SERIALIZE
-    // To verify that the serializer works correctly let's just run this graph round-trip
-    string ser = serialize(function);
-    m_function = deserialize(ser);
-#else
     m_function = clone_function(*function);
-#endif
     for (const auto& node : m_function->get_ordered_ops()) {
         const auto a = node->get_type_info();
     }
-    for (auto node : m_function->get_ordered_ops())
-    {
-        m_nodes.push_back(node);
-    }
-    set_parameters_and_results(*m_function);
-}
-
-runtime::interpreter::INTExecutable::INTExecutable(const std::string& model_string)
-    : m_is_compiled{true}
-    , m_performance_counters_enabled{false}
-{
-    m_function = deserialize(model_string);
     for (auto node : m_function->get_ordered_ops())
     {
         m_nodes.push_back(node);
@@ -252,15 +236,6 @@ void runtime::interpreter::INTExecutable::perform_nan_check(
         }
         arg_number++;
     }
-}
-
-void runtime::interpreter::INTExecutable::save(ostream& out)
-{
-    cpio::Writer writer(out);
-    string si = "INTERPRETER Save File 1.0";
-    writer.write("save_info", si.data(), si.size());
-    string model = serialize(m_function, 0);
-    writer.write("model", model.data(), model.size());
 }
 
 shared_ptr<ngraph::op::Parameter>
