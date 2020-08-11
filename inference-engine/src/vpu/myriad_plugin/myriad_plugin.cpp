@@ -50,10 +50,12 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<vpu::DynamicToStaticShape>();
         manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         ngraph::pass::Manager ti_manager;
+        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        // Unroll should be called after all conversions
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(function);
 
         manager.run_passes(function);

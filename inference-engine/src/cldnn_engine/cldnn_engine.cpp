@@ -103,11 +103,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
-        // Apply all transformations to TensorIterator body
         ngraph::pass::Manager ti_manager;
+        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        // Unroll will be called after all conversions
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         manager.set_callback(transformations_callback);
