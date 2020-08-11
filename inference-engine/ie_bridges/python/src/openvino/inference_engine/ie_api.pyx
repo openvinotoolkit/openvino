@@ -247,6 +247,7 @@ cdef class IECore:
     ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
     #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or a 'bytes' object which contains a model.
     #  @param weights: A `.bin` file of the IR. Can be a string path or bytes with file content.
+    #  @param init_from_buffer: does nothing. Kept for backward compatibility.
     #  @return An `IENetwork` object
     #
     #  Usage example:\n
@@ -254,9 +255,14 @@ cdef class IECore:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
-    cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ""):
+    cpdef IENetwork read_network(self, model : [str, bytes, Path],
+                                 weights : [str, bytes, Path] = "",
+                                 init_from_buffer: bool = None):
         cdef IENetwork net = IENetwork()
         cdef uint8_t*bin_buffer
+        if init_from_buffer is not None:
+            warnings.warn("This flag isn't need anymore",
+              DeprecationWarning)
         if isinstance(model, Path):
             if not model.is_file():
                 raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
