@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_icnn_network.hpp>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <string>
 #include <vector>

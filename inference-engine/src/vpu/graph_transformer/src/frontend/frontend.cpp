@@ -7,7 +7,7 @@
 #include "vpu/compile_env.hpp"
 #include "vpu/model/data_contents/ie_blob_content.hpp"
 
-#include "net_pass.h"
+#include <legacy/net_pass.h>
 
 #include <atomic>
 #include <memory>
@@ -19,7 +19,7 @@
 #include <utility>
 #include <string>
 
-#include <convert_function_to_cnn_network.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <transformations/apply_transformations_to_ti_body.hpp>
@@ -425,8 +425,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U32, ie::Precision::I32);
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
-
-        moveConstInputsToBlobs(*originalOrConvertNetwork);
 
         removeConstLayers(*originalOrConvertNetwork);
 

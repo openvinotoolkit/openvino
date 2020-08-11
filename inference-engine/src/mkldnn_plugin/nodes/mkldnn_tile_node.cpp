@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_tile_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
