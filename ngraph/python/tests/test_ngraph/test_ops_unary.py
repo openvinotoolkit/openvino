@@ -18,7 +18,7 @@ import pytest
 
 import ngraph as ng
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_35929, xfail_issue_34323
+from tests import xfail_issue_35929, xfail_issue_34323, xfail_issue_36483
 
 
 @xfail_issue_35929
@@ -89,29 +89,28 @@ def test_unary_op_array_using_constants(ng_api_fn, numpy_fn, range_start, range_
     assert np.allclose(result, expected, rtol=0.001)
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
-        (ng.absolute, np.abs, np.float32(-3)),
-        (ng.abs, np.abs, np.float32(-3)),
-        (ng.acos, np.arccos, np.float32(-0.5)),
-        (ng.asin, np.arcsin, np.float32(-0.5)),
-        (ng.atan, np.arctan, np.float32(-0.5)),
-        (ng.ceiling, np.ceil, np.float32(1.5)),
-        (ng.ceil, np.ceil, np.float32(1.5)),
-        (ng.cos, np.cos, np.float32(np.pi / 4.0)),
-        (ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
-        (ng.exp, np.exp, np.float32(1.5)),
-        (ng.floor, np.floor, np.float32(1.5)),
-        (ng.log, np.log, np.float32(1.5)),
-        (ng.relu, lambda x: np.maximum(0, x), np.float32(-0.125)),
-        (ng.sign, np.sign, np.float32(0.0)),
-        (ng.sin, np.sin, np.float32(np.pi / 4.0)),
-        (ng.sinh, np.sinh, np.float32(0.0)),
-        (ng.sqrt, np.sqrt, np.float32(3.5)),
-        (ng.tan, np.tan, np.float32(np.pi / 4.0)),
-        (ng.tanh, np.tanh, np.float32(0.1234)),
+        pytest.param(ng.absolute, np.abs, np.float32(-3)),
+        pytest.param(ng.abs, np.abs, np.float32(-3)),
+        pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
+        pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
+        pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
+        pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
+        pytest.param(ng.exp, np.exp, np.float32(1.5)),
+        pytest.param(ng.floor, np.floor, np.float32(1.5)),
+        pytest.param(ng.log, np.log, np.float32(1.5)),
+        pytest.param(ng.relu, lambda x: np.maximum(0, x), np.float32(-0.125)),
+        pytest.param(ng.sign, np.sign, np.float32(0.0)),
+        pytest.param(ng.sin, np.sin, np.float32(np.pi / 4.0)),
+        pytest.param(ng.sinh, np.sinh, np.float32(0.0)),
+        pytest.param(ng.sqrt, np.sqrt, np.float32(3.5)),
+        pytest.param(ng.tan, np.tan, np.float32(np.pi / 4.0)),
+        pytest.param(ng.tanh, np.tanh, np.float32(0.1234)),
     ],
 )
 def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
@@ -149,7 +148,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 def test_unary_op_scalar_using_constants(ng_api_fn, numpy_fn, input_data):
     expected = numpy_fn(input_data)
 
-    result = run_op_node([input_data], ng_api_fn)
+    result =run_op_numeric_data(input_data, ng_api_fn)
     assert np.allclose(result, expected)
 
 
