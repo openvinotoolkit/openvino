@@ -400,6 +400,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
             manager.set_callback(transformationsPredicate);
+            manager.run_passes(nGraphFunc);
 
             ngraph::pass::Manager ti_manager;
             // Apply all transformations to TensorIterator body
@@ -407,8 +408,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             // Unroll should be called after all conversions
             ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             ti_manager.run_passes(nGraphFunc);
-
-            manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 

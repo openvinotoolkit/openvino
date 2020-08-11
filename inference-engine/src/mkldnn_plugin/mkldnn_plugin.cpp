@@ -105,14 +105,13 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    manager.set_callback(transformations_callback);
+    manager.run_passes(nGraphFunc);
 
     // Apply all transformations to TensorIterator body
     ngraph::pass::Manager ti_manager;
     ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
     ti_manager.run_passes(nGraphFunc);
-
-    manager.set_callback(transformations_callback);
-    manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
