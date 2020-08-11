@@ -156,15 +156,8 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
 
     if (normalized_axis < 0)
     {
-        if (input_rank.is_static())
-        {
-            normalized_axis = ngraph::normalize_axis(this, axis_val, input_rank);
-        }
-        else
-        {
-            normalized_axis = ngraph::normalize_axis(
-                this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-        }
+        normalized_axis =
+            ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
 
     return evaluate_scatter_update(data, indices, updates, out, normalized_axis);

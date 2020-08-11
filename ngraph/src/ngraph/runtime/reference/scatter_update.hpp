@@ -48,9 +48,11 @@ namespace ngraph
 
                 //
                 // for i_coord in indices[m, n, ..., p]:
+                //     # get linear index
                 //     i_idx = index(i_coord)
-                //     for d_coord in slice data[..., i_idx, ...] &&
-                //     for u_coord in slice updates[..., i_coord, ...]:
+                //     # simultaneously iterate over two slices of data with same elements count
+                //     for d_coord in slice data[..., i_idx, ...],
+                //         u_coord in slice updates[..., i_coord, ...]
                 //          data[index(d_coord)] = updates[index(u_coord)]
 
                 CoordinateTransform indices_transform{indices_shape};
@@ -60,7 +62,7 @@ namespace ngraph
                 size_t updates_ndim = updates_shape.size();
 
                 // Create an outer CoordinateTransform for "update", which would allow to
-                // iterate only over "indicies" dimensions:
+                // iterate only over "indices" dimensions:
                 // set to "1" all non-indices dimensions
                 // updates[1, ..., 1, m, n, ..., p, 1, 1,..., 1]
                 Coordinate updates_indices_start_corner(updates_ndim, 0);
@@ -96,6 +98,8 @@ namespace ngraph
                         updates_update_end_corner[axis + i] =
                             updates_update_start_corner[axis + i] + 1;
                     }
+                    // The m, n, .., p symbols stand for values at those axes.
+                    // The m+1 means value at axis m plus 1.
                     // udpates_shape (start): [ 0, ...,  0, m  , n  , ... p  ,  0, ...,  0]
                     // updates_shape (end):   [-1, ..., -1, m+1, n+1, ... p+1, -1, ..., -1]
                     CoordinateTransform updates_update_transform(
