@@ -40,9 +40,14 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
-        std::shared_ptr<opset1::Subtract> subtract = dequantization.subtract == nullptr ?
-            nullptr :
-            as_type_ptr<opset1::Subtract>(NetworkHelper::optimizeSubtract(dequantization.subtract));
+        std::shared_ptr<opset1::Subtract> subtract;
+        if (dequantization.subtract != nullptr) {
+            auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+            if (optimizedSubtract == nullptr) {
+                optimizedSubtract = dequantization.subtract;
+            }
+            subtract = as_type_ptr<opset1::Subtract>(optimizedSubtract);
+        }
 
         // workaround normalizes shape of Subtract to match CPU plugin expectations
         if (subtract && subtract->get_output_partial_shape(0) != subtract->get_input_partial_shape(1)) {
