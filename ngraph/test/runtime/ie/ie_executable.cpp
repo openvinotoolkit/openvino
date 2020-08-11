@@ -21,7 +21,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "opset1_upgrade.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -4,20 +4,21 @@
 
 #pragma once
 
-#include <ie_api.h>
-#include <ie_blob.h>
-#include <ie_layers.h>
-
 #include <map>
 #include <memory>
-#include <ngraph/node.hpp>
-#include <ngraph/op/constant.hpp>
 #include <string>
 #include <vector>
 #include <utility>
 
+#include <ngraph/node.hpp>
+#include <ngraph/op/constant.hpp>
+
+#include <ie_api.h>
+#include <ie_blob.h>
 #include "blob_factory.hpp"
-#include "ie_ngraph_utils.hpp"
+
+#include <legacy/ie_layers.h>
+#include <legacy/ie_ngraph_utils.hpp>
 
 namespace InferenceEngine {
 

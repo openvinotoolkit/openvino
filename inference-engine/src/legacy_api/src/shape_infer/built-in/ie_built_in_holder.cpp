@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
-
 #include <algorithm>
 #include <memory>
 #include <string>
 
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
 #include "ie_argmax_shape_infer.hpp"
 #include "ie_bin_conv_shape_infer.hpp"
 #include "ie_broadcast_shape_infer.hpp"

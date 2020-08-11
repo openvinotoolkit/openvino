@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "inference_engine.hpp"
+#include "ie_layers.h"
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "gna-api.h"

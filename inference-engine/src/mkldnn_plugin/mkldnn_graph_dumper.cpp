@@ -3,9 +3,9 @@
 //
 
 #include "mkldnn_graph_dumper.h"
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
 #include "generic_ie.hpp"
