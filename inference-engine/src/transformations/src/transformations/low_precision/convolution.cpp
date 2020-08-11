@@ -30,6 +30,7 @@ bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const n
     return WeightableLayerTransformation::isQuantized(layer, false);
 }
 
+
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
