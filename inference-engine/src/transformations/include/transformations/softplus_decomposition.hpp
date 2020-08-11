@@ -10,7 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -21,6 +20,11 @@ class TRANSFORMATIONS_API SoftPlusDecomposition;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SoftPlusDecomposition transformation replaces SoftPlus op to
+ * group of operations: log(exp(x) + 1).
+ */
 class ngraph::pass::SoftPlusDecomposition : public ngraph::pass::MatcherPass {
 public:
     SoftPlusDecomposition();

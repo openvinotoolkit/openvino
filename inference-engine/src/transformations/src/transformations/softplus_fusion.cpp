@@ -24,9 +24,9 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(exp_input);
 
         softplus->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(log).get_node_shared_ptr(),
+        ngraph::copy_runtime_info({pattern_to_output.at(log).get_node_shared_ptr(),
                                    pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr() }, softplus);
+                                   pattern_to_output.at(exp).get_node_shared_ptr()}, softplus);
         ngraph::replace_node(m.get_match_root(), softplus);
         return true;
     };
