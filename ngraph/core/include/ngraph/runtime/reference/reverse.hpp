@@ -26,33 +26,13 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void reverse(const T* arg,
-                         T* out,
+            NGRAPH_API
+            void reverse(const char* arg,
+                         char* out,
                          const Shape& arg_shape,
                          const Shape& out_shape,
-                         const AxisSet& reversed_axes)
-            {
-                // In fact arg_shape == out_shape, but we'll use both for stylistic consistency with
-                // other kernels.
-                CoordinateTransform arg_transform(arg_shape);
-                CoordinateTransform output_transform(out_shape);
-
-                for (Coordinate out_coord : output_transform)
-                {
-                    Coordinate arg_coord = out_coord;
-
-                    for (size_t i = 0; i < arg_coord.size(); i++)
-                    {
-                        if (reversed_axes.count(i) != 0)
-                        {
-                            arg_coord[i] = arg_shape[i] - arg_coord[i] - 1;
-                        }
-                    }
-
-                    out[output_transform.index(out_coord)] = arg[arg_transform.index(arg_coord)];
-                }
-            }
+                         const AxisSet& reversed_axes,
+                         size_t elem_size);
         }
     }
 }

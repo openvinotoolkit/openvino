@@ -22,6 +22,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reverse.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/reverse.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -182,6 +183,48 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
     NODE_VALIDATION_CHECK(this, allowed_values.count(mode) > 0, "Invalid 'mode' value passed in.");
 
     return allowed_values.at(mode);
+}
+bool op::v0::Reverse::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                outputs[0]->get_data_ptr<char>(),
+                                inputs[0]->get_shape(),
+                                outputs[0]->get_shape(),
+                                get_reversed_axes(),
+                                inputs[0]->get_element_type().size());
+    return true;
+}
+bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    AxisSet axes{};
+    if (get_mode() == op::v1::Reverse::Mode::INDEX)
+    {
+        auto axes_mask = inputs[1]->get_data_ptr<int64_t>();
+        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+        {
+            axes.emplace(i);
+        }
+    }
+    else // Mode::MASK
+    {
+        auto axes_mask = inputs[1]->get_data_ptr<bool>();
+        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+        {
+            if (axes_mask[i])
+            {
+                axes.emplace(i);
+            }
+        }
+    }
+    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                outputs[0]->get_data_ptr<char>(),
+                                inputs[0]->get_shape(),
+                                outputs[0]->get_shape(),
+                                axes,
+                                inputs[0]->get_element_type().size());
+    return true;
 }
 
 namespace ngraph
