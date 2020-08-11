@@ -97,9 +97,6 @@ protected:
         auto argmaxNode = std::make_shared<opset1::TopK>(convNode, k, axis, mode, sort);
         argmaxNode->set_friendly_name("TopK_1");
 
-        auto goe0 = make_shared<op::GetOutputElement>(argmaxNode, 0);
-        auto goe1 = make_shared<op::GetOutputElement>(argmaxNode, 1);
-
         // convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode2 = nullptr;
         ngraph::Shape convFilterShape2 = { 1, 1, 3, 3 };  // out channel, /input channels, kernel h, kernel w
@@ -116,7 +113,7 @@ protected:
         }
 
         std::shared_ptr<ngraph::Node> convNode2 = std::make_shared<ngraph::opset1::Convolution>(
-            goe0, weightsNode2,
+            argmaxNode->output(0), weightsNode2->output(0),
             ngraph::Strides({ 1, 1 }),   // strides
             ngraph::CoordinateDiff({ 0, 0 }),  // pad begin
             ngraph::CoordinateDiff({ 0, 0 }),   // pad end
@@ -124,7 +121,7 @@ protected:
             ngraph::op::PadType::EXPLICIT);   // pad type
         convNode2->set_friendly_name("Convolution_2");
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{convNode2, goe1}, ngraph::ParameterVector{input1});
+        return std::make_shared<ngraph::Function>(ngraph::OutputVector{convNode2->output(0), argmaxNode->output(1)}, ngraph::ParameterVector{input1});
     }
     void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
