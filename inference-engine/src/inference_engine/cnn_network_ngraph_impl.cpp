@@ -17,7 +17,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
 
@@ -47,12 +46,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     if (constFolding) {
         ngraph::pass::ConstantFolding().run_on_function(specialized_function);
     }
-    // TODO: remove this code after the fix on the nGraph side
-    ::ngraph::pass::GetOutputElementElimination goe_elimination;
-    for (auto n : specialized_function->get_ops()) {
-        goe_elimination.run_on_node(n);
-    }
-    specialized_function->set_friendly_name(func->get_friendly_name());
     return specialized_function;
 }
 

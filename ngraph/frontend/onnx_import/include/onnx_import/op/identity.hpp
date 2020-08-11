@@ -19,8 +19,8 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "onnx_import/core/node.hpp"
+#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {

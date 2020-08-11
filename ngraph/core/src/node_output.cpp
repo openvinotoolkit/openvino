@@ -17,7 +17,6 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/get_output_element.hpp"
 
 namespace ngraph
 {
@@ -25,18 +24,12 @@ namespace ngraph
         : m_node(node->shared_from_this())
         , m_index(index)
     {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        eliminate_goe();
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index)
         : m_node(node)
         , m_index(index)
     {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        eliminate_goe();
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     void Output<Node>::reset()
@@ -51,11 +44,6 @@ namespace ngraph
     }
     Node* Output<Node>::get_node() const { return m_node.get(); }
     std::shared_ptr<Node> Output<Node>::get_node_shared_ptr() const { return m_node; }
-    std::shared_ptr<Node> Output<Node>::as_single_output_node() const
-    {
-        return m_node->get_output_as_single_output_node(m_index);
-    }
-
     size_t Output<Node>::get_index() const { return m_index; }
     descriptor::Tensor& Output<Node>::get_tensor() const
     {
@@ -97,11 +85,7 @@ namespace ngraph
     {
         for (auto& input : get_target_inputs())
         {
-            // GOEs are used as handles in passes
-            if (!is_type<op::GetOutputElement>(input.get_node()))
-            {
-                input.replace_source_output(replacement);
-            }
+            input.replace_source_output(replacement);
         }
     }
 
@@ -120,26 +104,16 @@ namespace ngraph
     }
     bool Output<Node>::operator<=(const Output& other) const { return !(*this > other); }
     bool Output<Node>::operator>=(const Output& other) const { return !(*this < other); }
-    void Output<Node>::eliminate_goe()
-    {
-        while (is_type<op::GetOutputElement>(m_node))
-        {
-            *this = m_node->input_value(0);
-        }
-    }
-
     Output<const Node>::Output(const Node* node, size_t index)
         : m_node(node->shared_from_this())
         , m_index(index)
     {
-        eliminate_goe();
     }
 
     Output<const Node>::Output(const std::shared_ptr<const Node>& node, size_t index)
         : m_node(node)
         , m_index(index)
     {
-        eliminate_goe();
     }
 
     void Output<const Node>::reset()
@@ -201,16 +175,6 @@ namespace ngraph
     }
     bool Output<const Node>::operator<=(const Output& other) const { return !(*this > other); }
     bool Output<const Node>::operator>=(const Output& other) const { return !(*this < other); }
-    void Output<const Node>::eliminate_goe()
-    {
-        while (is_type<const op::GetOutputElement>(m_node))
-        {
-            auto value = m_node->input_value(0);
-            m_node = value.get_node_shared_ptr();
-            m_index = value.get_index();
-        }
-    }
-
     std::ostream& operator<<(std::ostream& out, const Output<Node>& output)
     {
         return output.get_node()->write_description(out, 0) << "[" << output.get_index()
