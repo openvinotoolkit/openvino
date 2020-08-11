@@ -16,6 +16,12 @@
 #include <ngraph_ops/deconvolution_ie.hpp>
 
 template <class Conv>
+bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
+    const ngraph::element::Type inputType = conv->get_input_element_type(1);
+    return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
+}
+
+template <class Conv>
 ngraph::graph_rewrite_callback get_callback() {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         auto eltwise = m.get_match_root();
@@ -63,7 +69,8 @@ ngraph::graph_rewrite_callback get_callback() {
                 new_bias = std::make_shared<ngraph::opset1::Add>(constant, m_conv->input_value(2));
             }
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
-        } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise)) {
+        } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
+                !IsConvInLowPrecision(m_conv)) {
             // Fuse: ConvolutionIE->Mul
             auto weights_shape = m_conv->input(1).get_shape();
 
