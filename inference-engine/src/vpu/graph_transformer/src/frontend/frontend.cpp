@@ -429,8 +429,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
 
-        moveConstInputsToBlobs(*originalOrConvertNetwork);
-
         removeConstLayers(*originalOrConvertNetwork);
 
         unrollLoops(*originalOrConvertNetwork);
