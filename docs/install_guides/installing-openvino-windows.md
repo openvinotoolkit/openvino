@@ -18,10 +18,10 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
-   - [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
+   - [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-   - [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
+   - [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
    > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
@@ -90,10 +90,10 @@ The following components are installed by default:
 - Microsoft Windows\* 10 64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
+- [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-- [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
+- [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps
 
@@ -301,7 +301,7 @@ In this section, you saw a preview of the Intel® Distribution of OpenVINO™ to
 
 Congratulations. You have completed all the required installation, configuration, and build steps to work with your trained models using CPU. 
 
-If you want to use Intel® Processor graphics (GPU), Intel® Neural Compute Stick 2 or Intel® Vision Accelerator Design with Intel® Movidius™ (VPU), or add CMake* and Python* to your Windows* environment variables, read through the next section for additional steps.
+If you want to use Intel® Processor graphics (GPU), Intel® Neural Compute Stick 2 or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, or add CMake* and Python* to your Windows* environment variables, read through the next section for additional steps.
 
 If you want to continue and run the Image Classification Sample Application on one of the supported hardware device, see the [Run the Image Classification Sample Application](#run-the-image-classification-sample-application) section.
 
@@ -345,7 +345,7 @@ To perform inference on Intel® Vision Accelerator Design with Intel® Movidius�
       1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
       2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
 
-  2. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2015</a>
+  2. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
