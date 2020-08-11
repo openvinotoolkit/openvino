@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 #include <gna-api-types-xnn.h>
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"

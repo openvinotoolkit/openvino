@@ -26,7 +26,7 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 

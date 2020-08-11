@@ -5,7 +5,7 @@
 #include "classification_matcher.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
-#include "details/ie_cnn_network_iterator.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 using namespace Regression ;
 using namespace Regression :: Matchers ;
