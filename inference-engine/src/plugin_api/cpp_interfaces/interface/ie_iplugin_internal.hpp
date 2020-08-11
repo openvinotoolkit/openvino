@@ -121,7 +121,7 @@ public:
     }
 
     void Release() noexcept override {
-        // delete this;
+        delete this;
     }
 
     /**
