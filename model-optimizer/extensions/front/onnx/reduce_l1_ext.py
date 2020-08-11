@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.ReduceOps import ReduceLp
+from extensions.ops.ReduceOps import AttributedReduceLp
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
@@ -29,5 +29,5 @@ class ReduceL2FrontExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type=lambda x: int64_array(x))
         keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
-        ReduceLp.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims, 'p': 1})
+        AttributedReduceLp.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims, 'p': 1})
         return cls.enabled

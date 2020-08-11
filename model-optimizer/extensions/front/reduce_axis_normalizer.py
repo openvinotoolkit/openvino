@@ -70,10 +70,3 @@ class ReduceAxisNormalizer(FrontReplacementSubgraph):
                 node.add_input_port(1, skip_if_exist=True)
                 axes.out_port(0).connect(node.in_port(1))
                 node.in_port(0).get_connection().get_source().connect(end_of_range.in_port(0))
-
-            # We need to add normalization order value for ReduceLp operation as 3rd input
-            if node.has('p'):
-                const = Const(graph, {'name': node_name + '/p', 'value': node.p}).create_node()
-                node.add_input_port(2, skip_if_exist=True)
-                const.out_port(0).connect(node.in_port(2))
-                del graph.node[node.id]['p']

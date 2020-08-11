@@ -62,6 +62,7 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedReduceLpToReduceLp.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
