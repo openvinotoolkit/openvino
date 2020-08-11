@@ -53,7 +53,7 @@ message(STATUS "NGRAPH_WHEEL_VERSION ${NGRAPH_WHEEL_VERSION}")
 message(STATUS "NGRAPH_API_VERSION ${NGRAPH_API_VERSION}")
 
 set(NGRAPH_INCLUDE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
 if (APPLE)
@@ -483,7 +483,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     endif()
 endif()
 
-add_subdirectory(src)
+add_subdirectory(core)
 
 add_subdirectory(frontend)
 

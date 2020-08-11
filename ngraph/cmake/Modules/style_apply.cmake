@@ -21,7 +21,7 @@ endfunction()
 
 set(DIRECTORIES_OF_INTEREST
     frontend
-    src
+    core
     doc
     test
     python/pyngraph
