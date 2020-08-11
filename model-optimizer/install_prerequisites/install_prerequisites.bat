@@ -55,6 +55,9 @@ IF /I "%1%" EQU "" (
     IF /I "%1%" EQU "tf" (
         set postfix=_tf
     ) ELSE (
+    IF /I "%1%" EQU "tf2" (
+        set postfix=_tf2
+    ) ELSE (
     IF /I "%1%" EQU "mxnet" (
         set postfix=_mxnet
     ) ELSE (

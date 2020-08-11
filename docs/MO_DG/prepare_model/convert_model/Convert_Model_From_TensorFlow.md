@@ -295,6 +295,7 @@ python3 mo_tf.py --input_model custom_model.pb --tensorflow_custom_layer_librari
 
 ## Convert TensorFlow* 2 Models <a name="Convert_From_TF2X"></a>
 
+In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf2.txt` is required.
 TensorFlow* 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).    
 Below are the instructions on how to convert each of them.
 
@@ -328,6 +329,15 @@ SavedModel format. Here is an example of how to do it:
 ```python
 import tensorflow as tf
 model = tf.keras.models.load_model('model.h5')
+tf.saved_model.save(model,'model')
+```
+
+The Keras H5 model with a custom layer has specifics to be converted into SavedModel format.
+For example, the model with a custom layer `CustomLayer` from `custom_layer.py` is converted as follows:
+```python
+import tensorflow as tf
+from custom_layer import CustomLayer
+model = tf.keras.models.load_model('model.h5', custom_objects={'CustomLayer': CustomLayer})
 tf.saved_model.save(model,'model')
 ```
 

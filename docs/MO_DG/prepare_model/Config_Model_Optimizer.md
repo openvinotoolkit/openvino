@@ -48,13 +48,21 @@ install_prerequisites_caffe.sh
 ```
 install_prerequisites_caffe.bat
 ```
-*   For TensorFlow\* on Linux:
+*   For TensorFlow\* 1.x on Linux:
 ```
 install_prerequisites_tf.sh
 ```
-*   For TensorFlow on Windows:
+*   For TensorFlow 1.x on Windows:
 ```
 install_prerequisites_tf.bat
+```
+*   For TensorFlow\* 2.x on Linux:
+```
+install_prerequisites_tf2.sh
+```
+*   For TensorFlow 2.x on Windows:
+```
+install_prerequisites_tf2.bat
 ```
 *   For MXNet\* on Linux:
 ```
@@ -114,7 +122,7 @@ virtualenv -p /usr/bin/python3.6 .env3 --system-site-packages
 virtualenv -p /usr/bin/python3.6 .env3/bin/activate
 ```
 3.  Install all dependencies or only the dependencies for a specific framework:
-    *   To install dependencies for all frameworks:
+    *   To install dependencies for all frameworks except TensorFlow* 2.x:
 ```shell
 pip3 install -r requirements.txt
 ```
@@ -122,9 +130,13 @@ pip3 install -r requirements.txt
 ```shell
 pip3 install -r requirements_caffe.txt
 ```
-    *   To install dependencies only for TensorFlow:
+    *   To install dependencies only for TensorFlow 1.x:
 ```shell
 pip3 install -r requirements_tf.txt
+```
+    *   To install dependencies only for TensorFlow 2.x:
+```shell
+pip3 install -r requirements_tf2.txt
 ```
     *   To install dependencies only for MXNet:
 ```shell
