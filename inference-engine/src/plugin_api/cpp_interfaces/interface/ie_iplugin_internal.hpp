@@ -267,5 +267,11 @@ public:
  */
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
 
+template <typename T, typename... Args>
+inline IInferencePlugin* make_ie_plugin(const Version& reported, Args... args) {
+    auto impl = new T(std::forward<Args>(args)...);
+    impl->SetVersion(reported);
+    return impl;
+}
 
 }  // namespace InferenceEngine
