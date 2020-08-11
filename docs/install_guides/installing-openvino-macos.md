@@ -48,8 +48,8 @@ The development and target platforms have the same requirements, but you can sel
 
 **Software Requirements**
 
-- CMake 3.4 or higher
-- Python 3.5 or higher
+- CMake 3.9 or higher
+- Python 3.5 - 3.7
 - Apple Xcode\* Command Line Tools
 - (Optional) Apple Xcode\* IDE (not required for OpenVINO, but useful for development)
 
