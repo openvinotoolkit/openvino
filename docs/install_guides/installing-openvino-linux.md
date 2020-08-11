@@ -468,6 +468,6 @@ trusted-host = mirrors.aliyun.com
 To learn more about converting models, go to:
 
 - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-- [Convert Your TensorFlow* 1.x and 2.x Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+- [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)

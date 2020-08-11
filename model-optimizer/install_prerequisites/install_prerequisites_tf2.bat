@@ -15,3 +15,4 @@
 
 :: Check if Python is installed
 CALL install_prerequisites.bat tf2
+

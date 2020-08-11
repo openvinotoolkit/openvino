@@ -307,7 +307,7 @@ Visit the Intel Distribution of OpenVINO Toolkit [Inference Tutorials for Face D
 
 - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
 
-- [Convert Your TensorFlow* 1.x and 2.x Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+- [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 
