@@ -171,20 +171,20 @@ KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
 #if PRELOAD_WEIGHTS_LINE
             FILTER_TYPE wei[FILTER_SIZE_X] = { };
             FUNC_CALL(preload_weights)(weights,
-                                       filter_offset + (FILTER_SIZE_Z - k_z - 1) * FILTER_Z_PITCH * FEATURE_SLICE_SIZE
-                                                     + (FILTER_SIZE_Y - k_y - 1) * FILTER_Y_PITCH * FEATURE_SLICE_SIZE,
+                                       filter_offset + (FILTER_SIZE_Z - k_z - 1) * FILTER_Z_PITCH
+                                                     + (FILTER_SIZE_Y - k_y - 1) * FILTER_Y_PITCH,
                                        FILTER_SIZE_X,
                                        wei);
 #endif
 
                 unroll_for (uint k_x = 0; k_x < FILTER_SIZE_X; k_x++) {
 #   if PRELOAD_WEIGHTS
-                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * FILTER_Z_PITCH + (FILTER_SIZE_Y - k_y - 1) * FILTER_Y_PITCH + (FILTER_SIZE_X - k_x - 1);
+                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * (FILTER_SIZE_Y * FILTER_SIZE_X) + (FILTER_SIZE_Y - k_y - 1) * FILTER_SIZE_X + (FILTER_SIZE_X - k_x - 1);
                     FILTER_TYPE wei_val = wei[in_idx];
 #   elif PRELOAD_WEIGHTS_LINE
                     FILTER_TYPE wei_val = wei[(FILTER_SIZE_X - k_x - 1)];
 #   else
-                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * FILTER_Z_PITCH + (FILTER_SIZE_Y - k_y - 1) * FILTER_Y_PITCH + (FILTER_SIZE_X - k_x - 1);
+                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * (FILTER_SIZE_Y * FILTER_SIZE_X) + (FILTER_SIZE_Y - k_y - 1) * FILTER_SIZE_X + (FILTER_SIZE_X - k_x - 1);
                     FILTER_TYPE wei_val = DT_FILTER_BLOCK_READ(weights, filter_offset + in_idx * FEATURE_SLICE_SIZE);
 #   endif
                     unroll_for (uint x_block = 0; x_block < X_BLOCK_SIZE; x_block++) {
@@ -210,7 +210,7 @@ KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
                 unroll_for (uint k_x = 0; k_x < FILTER_SIZE_X; k_x++) {
                     const int input_offset_x = input_x + k_x + x_block;
                     const bool zero_x = (input_offset_x >= INPUT0_SIZE_X * STRIDE_SIZE_X) || (input_offset_x < 0) || ((input_offset_x % STRIDE_SIZE_X) != 0);
-                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * FILTER_Z_PITCH + (FILTER_SIZE_Y - k_y - 1) * FILTER_Y_PITCH + (FILTER_SIZE_X - k_x - 1);
+                    const uint in_idx = (FILTER_SIZE_Z - k_z - 1) * (FILTER_SIZE_Y * FILTER_SIZE_X) + (FILTER_SIZE_Y - k_y - 1) * FILTER_SIZE_X + (FILTER_SIZE_X - k_x - 1);
                     if (!zero_z && !zero_y && !zero_x) {
                         uint fixed_input_offset_x = (uint)input_offset_x / STRIDE_SIZE_X;
                         uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;

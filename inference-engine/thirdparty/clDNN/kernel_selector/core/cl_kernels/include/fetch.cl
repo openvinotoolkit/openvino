@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -228,13 +228,11 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
 #define GET_FILTER_OS_IS_YX_ISV16_OSV16_INDEX(prefix, o, i, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                                        \
     ((o) % (sub_group_size)) +                                                    \
-    (sub_group_size)*(                                                            \
-        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                              \
-        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                              \
-        ((i) % (sub_group_size)) +                                                \
-        ((i) / (sub_group_size))*(sub_group_size)*CAT(prefix, _IFM_PITCH) +       \
-        ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                          \
-    )
+    ((i) % (sub_group_size)) * (sub_group_size) +                                 \
+    (x) * CAT(prefix, _X_PITCH) +                                                 \
+    (y) * CAT(prefix, _Y_PITCH) +                                                 \
+    ((i) / (sub_group_size)) * CAT(prefix, _IFM_PITCH) +                          \
+    ((o) / (sub_group_size)) * CAT(prefix, _OFM_PITCH)
 
 #define GET_FILTER_OS_IS_ZYX_ISV16_OSV16_INDEX(prefix, o, i, z, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                                            \
@@ -1399,26 +1397,22 @@ inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, u
 
 #define GET_FILTER_GS_OIYX_GSV16(prefix, g, o, i, y, x, sub_group_size)  \
     CAT(prefix, _OFFSET) +                                               \
-    ((g) % (sub_group_size)) +                                           \
-    (sub_group_size)*(                                                   \
-        (x)*CAT(prefix, _X_PITCH) +                                      \
-        (y)*CAT(prefix, _Y_PITCH) +                                      \
-        (i)*CAT(prefix, _IFM_PITCH) +                                    \
-        (o)*CAT(prefix, _OFM_PITCH) +                                    \
-        ((g) / (sub_group_size))*CAT(prefix, _GROUPS_PITCH)              \
-    )
+    (g) % (sub_group_size) +                                             \
+    (x)*CAT(prefix, _X_PITCH) +                                          \
+    (y)*CAT(prefix, _Y_PITCH) +                                          \
+    (i)*CAT(prefix, _IFM_PITCH) +                                        \
+    (o)*CAT(prefix, _OFM_PITCH) +                                        \
+    ((g) / (sub_group_size))*CAT(prefix, _GROUPS_PITCH)
 
 #define GET_FILTER_GS_OIZYX_GSV16(prefix, g, o, i, z, y, x, sub_group_size)  \
     CAT(prefix, _OFFSET) +                                                   \
     ((g) % (sub_group_size)) +                                               \
-    (sub_group_size)*(                                                       \
-        (x)*CAT(prefix, _X_PITCH) +                                          \
-        (y)*CAT(prefix, _Y_PITCH) +                                          \
-        (z)*CAT(prefix, _Z_PITCH) +                                          \
-        (i)*CAT(prefix, _IFM_PITCH) +                                        \
-        (o)*CAT(prefix, _OFM_PITCH) +                                        \
-        ((g) / (sub_group_size))*CAT(prefix, _GROUPS_PITCH)                  \
-    )
+    (x)*CAT(prefix, _X_PITCH) +                                              \
+    (y)*CAT(prefix, _Y_PITCH) +                                              \
+    (z)*CAT(prefix, _Z_PITCH) +                                              \
+    (i)*CAT(prefix, _IFM_PITCH) +                                            \
+    (o)*CAT(prefix, _OFM_PITCH) +                                            \
+    ((g) / (sub_group_size))*CAT(prefix, _GROUPS_PITCH)
 
 #define GET_FILTER_G_OS_IYX_OSV16_ROTATE_180(prefix, g, o, i, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                                          \
@@ -1540,13 +1534,11 @@ inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, 
     CAT(prefix, _OFFSET) +                                                             \
     (g * CAT(prefix, _GROUPS_PITCH)) +                                                 \
     ((o) % (sub_group_size)) +                                                         \
-    (sub_group_size)*(                                                                 \
-        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                                   \
-        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                                   \
-        ((i) % (sub_group_size)) +                                                     \
-        ((i) / (sub_group_size))*(sub_group_size)*CAT(prefix, _IFM_PITCH) +            \
-        ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                               \
-    )
+    ((i) % (sub_group_size)) * (sub_group_size) +                                      \
+    (x) * CAT(prefix, _X_PITCH) +                                                      \
+    (y) * CAT(prefix, _Y_PITCH) +                                                      \
+    ((i) / (sub_group_size)) * CAT(prefix, _IFM_PITCH) +                               \
+    ((o) / (sub_group_size)) * CAT(prefix, _OFM_PITCH)
 
 inline uint FUNC(get_g_os_zyx_is_osv_isv_index)(uint g, uint o, uint i, uint z, uint y, uint x,
                                                 uint g_size, uint o_size, uint i_size, uint z_size, uint y_size, uint x_size,

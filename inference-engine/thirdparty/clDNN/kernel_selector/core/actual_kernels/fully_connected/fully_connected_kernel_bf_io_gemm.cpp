@@ -73,7 +73,7 @@ JitConstants FullyConnected_bf_io_GEMM::GetJitConstants(const fully_connected_pa
     const uint32_t localWorkSizeX = 64;
     const uint32_t globalWorkSizeX = localWorkSizeX;
     const uint32_t vecSize = 4;
-    size_t matrixLineSize = params.inputs[0].Batch().pitch;
+    size_t matrixLineSize = params.inputs[0].Batch().Pitch();
 
     jit.AddConstants({
         MakeJitConstant("LAST_INPUT_SIZE_REMAINDER", matrixLineSize % (globalWorkSizeX * vecSize)),

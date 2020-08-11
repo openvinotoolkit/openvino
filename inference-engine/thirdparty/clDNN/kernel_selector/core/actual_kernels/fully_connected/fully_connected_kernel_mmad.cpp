@@ -122,9 +122,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     jit.AddConstant(MakeJitConstant("MMAD_FILTER_SPATIAL_PITCH", filter_spatial_pitch));
     jit.AddConstant(MakeJitConstant("MMAD_FILTER_FBLOCK_PITCH", filter_spatial_size * filter_spatial_pitch));
 
-    size_t input_x_pitch = input.X().pitch;
-    size_t input_y_pitch = input.Y().pitch;
-    size_t input_z_pitch = input.Z().pitch;
+    size_t input_x_pitch = input.X().Pitch();
+    size_t input_y_pitch = input.Y().Pitch();
+    size_t input_z_pitch = input.Z().Pitch();
 
     if (input.GetLayout() == DataLayout::byxf_af32 || input.GetLayout() == DataLayout::bfyx) {
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", 32));
@@ -132,7 +132,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
         input_x_pitch = 32;
         input_y_pitch *= 32;
         input_z_pitch *= 32;
-        jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().pitch * 32));
+        jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().Pitch() * 32));
     }
 
     if (input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0) {

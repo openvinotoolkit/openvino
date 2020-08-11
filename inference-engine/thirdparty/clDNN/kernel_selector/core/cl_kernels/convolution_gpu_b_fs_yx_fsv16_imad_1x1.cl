@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -153,7 +153,11 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         filter_idx += WEIGHTS_IS_PITCH;
         __attribute__((opencl_unroll_hint))
         for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+#if INPUT0_LAYOUT_B_FS_YX_FSV16
+            input_idx[os] += INPUT0_FEATURE_PITCH;
+#else
             input_idx[os] += INPUT0_FEATURE_PITCH * FSV;
+#endif
         }
     }
 
@@ -351,7 +355,11 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                     output_idx += 1 * SIMD;
                 }
             }
+#if OUTPUT_LAYOUT_B_FS_YX_FSV16
+            output_idx += OUTPUT_FEATURE_PITCH - OUT_BLOCK_SPATIAL * SIMD;
+#else
             output_idx += OUTPUT_FEATURE_PITCH * FSV - OUT_BLOCK_SPATIAL * SIMD;
+#endif
         }
     } else {
         uint output_idx_shuffle[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
@@ -383,7 +391,11 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
             __attribute__((opencl_unroll_hint))
             for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+#if OUTPUT_LAYOUT_B_FS_YX_FSV16
+                output_idx_shuffle[os] += OUTPUT_FEATURE_PITCH;
+#elif
                 output_idx_shuffle[os] += OUTPUT_FEATURE_PITCH * FSV;
+#endif
             }
         }
     }

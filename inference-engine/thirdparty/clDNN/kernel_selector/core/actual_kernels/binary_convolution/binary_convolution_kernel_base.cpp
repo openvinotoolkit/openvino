@@ -219,7 +219,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
     for (size_t i = 0; i < dims.size(); i++) {
         dims[i].pad = pad[i];
         dims[i].v = orgDims[i].v;
-        dims[i].pitch = pitch;
+        dims[i].SetLinearPitch(pitch);
         pitch *= dims[i].LogicalDimPadded();
     }
 

@@ -135,7 +135,7 @@ KernelsData ConvolutionKernel_bfyx_3x3_dw_opt::GetTunedKernelsDataByIndex(const 
     DispatchData runInfo = SetDefault(convParams, autoTuneIndex);
 
     if (static_cast<int>(static_cast<int>(runInfo.gws0 - 1) / simdSize) * runInfo.cldnnStyle.blockWidth + simdSize >
-        convParams.inputs[0].Y().pitch) {
+        convParams.inputs[0].Y().Pitch()) {
         // Internal Error - requested tile size is not supported for y pitch
         return {};
     }

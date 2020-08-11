@@ -535,7 +535,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
         auto& elm = vec[i];
         elm.v = static_cast<size_t>(d - add_offsets[tensor_index]);
-        elm.pitch = pitch;
+        elm.SetLinearPitch(pitch);
         elm.pad.before = lp;
         elm.pad.after = up;
 
@@ -543,12 +543,12 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     }
 
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
-        vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].v;
+        vec[2].SetLinearPitch((vec[0].v * vec[1].v) * 16);
+        vec[3].SetLinearPitch(vec[2].Pitch() * vec[2].v);
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
-        vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].v;
+        vec[3].SetLinearPitch((vec[0].v * vec[1].v * vec[2].v) * 16);
+        vec[4].SetLinearPitch(vec[3].Pitch() * vec[3].v);
     }
 
     const int feature_index =

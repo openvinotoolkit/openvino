@@ -69,8 +69,8 @@ JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params
     const auto& input = dp.inputs[0];
 
     int64_t input_offset_with_padding = (int64_t)input.GetFirstElementOffset() -
-                                        (dp.filterSize.x - 1 + padding.x) * input.X().pitch -
-                                        (dp.filterSize.y - 1 + padding.y) * input.Y().pitch;
+                                        (dp.filterSize.x - 1 + padding.x) * input.X().Pitch() -
+                                        (dp.filterSize.y - 1 + padding.y) * input.Y().Pitch();
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
     jit.AddConstants({ MakeJitConstant("STRIDE", dp.stride),

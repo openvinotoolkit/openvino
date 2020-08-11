@@ -153,7 +153,7 @@ JitConstants fused_conv_eltwise_kernel_yxfb_yxio_b16::GetJitConstants(const fuse
         }
     } else {
         const auto batch_pad_before = params.output.Batch().pad.before;
-        const auto feature_pitch = params.output.Feature().pitch;
+        const auto feature_pitch = params.output.Feature().Pitch();
 
         if (batch_size >= 64 && (feature_pitch % 2 == 0) && (batch_pad_before % 2 == 0)) {
             jit.AddConstant(MakeJitConstant("USE_BLOCK_READ_2", ""));

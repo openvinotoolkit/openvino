@@ -53,7 +53,7 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     const auto& input = params.inputs[0];
 
     int64_t input_offset_with_padding =
-        (int64_t)input.GetFirstElementOffset() - padding.x * input.X().pitch - input.Y().pitch * padding.y;
+        (int64_t)input.GetFirstElementOffset() - padding.x * input.X().Pitch() - input.Y().Pitch() * padding.y;
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
     mem_consts.AddConstants({
@@ -134,7 +134,7 @@ bool CheckTensorForSplit(const DataTensor& t, uint32_t split) {
         auto feature = t.Feature();
         auto featureIndex = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::FEATURE);
         if (featureIndex >= 0 && featureIndex + 1 < static_cast<int>(DataTensor::ChannelsCount(t.GetLayout()))) {
-            if (feature.v * split <= t.GetDims()[featureIndex + 1].pitch) {
+            if (feature.v * split <= t.GetDims()[featureIndex + 1].Pitch()) {
                 Tensor::NDims newDims = t.GetDims();
                 newDims[featureIndex].v = feature.v * split;
 
@@ -327,7 +327,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     for (size_t i = 0; i < dims.size(); i++) {
         dims[i].pad = pad[i];
         dims[i].v = orgDims[i].v;
-        dims[i].pitch = pitch;
+        dims[i].SetLinearPitch(pitch);
         pitch *= dims[i].LogicalDimPadded();
     }
 

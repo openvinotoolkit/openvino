@@ -82,7 +82,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad)(
             for (uint iyb = 0; iyb < IN_BLOCK_HEIGHT; ++iyb) {
                 __attribute__((opencl_unroll_hint))
                 for (uint ixb = 0; ixb < CEIL_DIV(IN_BLOCK_WIDTH, SIMD); ++ixb) {
-                    uint input_idx = input_start_idx + iyb * INPUT0_Y_PITCH * FSV + ixb * SIMD * FSV;
+                    uint input_idx = input_start_idx + iyb * INPUT0_Y_PITCH + ixb * INPUT0_X_PITCH * SIMD;
                     if (ixb != CEIL_DIV(IN_BLOCK_WIDTH, SIMD) - 1) {
                         input_val[iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * 16));
                     } else {
@@ -128,9 +128,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad)(
                     filter_idx += FSV * FSV;
                 }
             }
-            input_start_idx += DILATION_SIZE_Y * INPUT0_Y_PITCH * FSV;
+            input_start_idx += DILATION_SIZE_Y * INPUT0_Y_PITCH;
         }
-        input_start_idx += INPUT0_FEATURE_PITCH * FSV * FEATURE_SLM_SPLIT - (FILTER_SIZE_Y / FILTER_SIZE_Y_UNROLL) * DILATION_SIZE_Y * INPUT0_Y_PITCH * FSV;
+        input_start_idx += INPUT0_FEATURE_PITCH * FEATURE_SLM_SPLIT - (FILTER_SIZE_Y / FILTER_SIZE_Y_UNROLL) * DILATION_SIZE_Y * INPUT0_Y_PITCH;
 
         filter_idx += FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * (FEATURE_SLM_SPLIT - 1);
     }
@@ -341,10 +341,10 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad)(
                             dst_index += 1 * SIMD;
                         }
                     }  // if (good_y)
-                    dst_index += OUTPUT_Y_PITCH * FSV - OUT_BLOCK_WIDTH * FSV;
+                    dst_index += OUTPUT_Y_PITCH - OUT_BLOCK_WIDTH * OUTPUT_X_PITCH;
                 }  // for (OUT_BLOCK_HEIGHT)
             }  // if (good_of_block)
-            dst_index += OUTPUT_FEATURE_PITCH * FSV - OUTPUT_Y_PITCH * FSV * OUT_BLOCK_HEIGHT;
+            dst_index += OUTPUT_FEATURE_PITCH - OUTPUT_Y_PITCH * OUT_BLOCK_HEIGHT;
         }  // for (OFM_VALUES_PER_WI)
     } else {
         __attribute__((opencl_unroll_hint(OFM_VALUES_PER_WI)))
@@ -368,7 +368,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad)(
                             if (out_fg + (ofb + 1) * SIMD >= OUTPUT_FEATURE_NUM && get_sub_group_local_id() >= OUTPUT_FEATURE_NUM % SIMD)
                                 result[ofb][oh][ow] = (OUTPUT_TYPE)0;
 #endif
-                            output[dst_index + ow * FSV + oh * OUTPUT_Y_PITCH * FSV] = result[ofb][oh][ow];
+                            output[dst_index + ow * OUTPUT_X_PITCH + oh * OUTPUT_Y_PITCH] = result[ofb][oh][ow];
                         }
                     }
                 }

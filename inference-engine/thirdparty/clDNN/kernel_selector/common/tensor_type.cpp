@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,122 +22,129 @@
 namespace kernel_selector {
 namespace Tensor {
 
+using DLayout = DataLayout;
+using DChannel = DataChannelName;
 DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     // explanation:
     // 0, 1, 2, 3, 4, 5, 6 means the ordering starts from X, then Y, then Z, then W, then F, then B
     // -1 means it's not used
-    //                                      X,  Y,  Z,  W,  F,  B
-    { DataLayout::f,                     { -1, -1, -1, -1,  0, -1 } },
-    { DataLayout::bf,                    { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::fb,                    { -1, -1, -1, -1,  1,  0 } },
-    { DataLayout::bfyx,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::yxfb,                  {  2,  3, -1, -1,  1,  0 } },
-    { DataLayout::byxf,                  {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::fyxb,                  {  1,  2, -1, -1,  3,  0 } },
-    { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv16, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::bf8_xy16,              {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
-    { DataLayout::byxf_af32,             {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::byx8_f4,               {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::fs_bs_yx_bsv4_fsv32,   {  0,  1, -1, -1,  3,  2 } },
-    { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
-    { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bfwzyx,                {  0,  1,  2,  3,  4,  5 } },
-    { DataLayout::nv12,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::image_2d_rgba,         {  0,  1, -1, -1,  2,  3 } },
+    // after used channels, block sizes should be specified in order from often to rare
+    //                                    X,  Y,  Z,  W,  F,  B,   BS
+    { DLayout::f,                     {{ -1, -1, -1, -1,  0, -1 }, {}} },
+    { DLayout::bf,                    {{ -1, -1, -1, -1,  0,  1 }, {}} },
+    { DLayout::fb,                    {{ -1, -1, -1, -1,  1,  0 }, {}} },
+    { DLayout::bfyx,                  {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::yxfb,                  {{  2,  3, -1, -1,  1,  0 }, {}} },
+    { DLayout::byxf,                  {{  1,  2, -1, -1,  0,  3 }, {}} },
+    { DLayout::fyxb,                  {{  1,  2, -1, -1,  3,  0 }, {}} },
+    { DLayout::b_fs_yx_fsv16,         {{  0,  1, -1, -1,  2,  3 }, {{DChannel::FEATURE, 16}}} },
+    { DLayout::b_fs_yx_fsv32,         {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::b_fs_zyx_fsv16,        {{  0,  1,  2, -1,  3,  4 }, {{DChannel::FEATURE, 16}}} },
+    { DLayout::b_fs_zyx_fsv32,        {{  0,  1,  2, -1,  3,  4 }, {}} },
+    { DLayout::bs_fs_zyx_bsv16_fsv16, {{  0,  1,  2, -1,  3,  4 }, {}} },
+    { DLayout::bs_fs_yx_bsv16_fsv16,  {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::bs_f_bsv8__af8,        {{ -1, -1, -1, -1,  0,  1 }, {}} },
+    { DLayout::bs_f_bsv16__af8,       {{ -1, -1, -1, -1,  0,  1 }, {}} },
+    { DLayout::bf8_xy16,              {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::winograd_2x3_s1_data,  {{  2,  1, -1, -1,  0,  3 }, {}} },
+    { DLayout::byxf_af32,             {{  1,  2, -1, -1,  0,  3 }, {}} },
+    { DLayout::byx8_f4,               {{  1,  2, -1, -1,  0,  3 }, {}} },
+    { DLayout::fs_bs_yx_bsv4_fsv32,   {{  0,  1, -1, -1,  3,  2 }, {}} },
+    { DLayout::b_fs_yx_fsv4,          {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::bfzyx,                 {{  0,  1,  2, -1,  3,  4 }, {}} },
+    { DLayout::fs_b_yx_fsv32,         {{  0,  1, -1, -1,  3,  2 }, {}} },
+    { DLayout::b_fs_yx_32fp,          {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::bfwzyx,                {{  0,  1,  2,  3,  4,  5 }, {}} },
+    { DLayout::nv12,                  {{  0,  1, -1, -1,  2,  3 }, {}} },
+    { DLayout::image_2d_rgba,         {{  0,  1, -1, -1,  2,  3 }, {}} },
 }};
 
-WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
-    //                                                               X,  Y,  Z, IFM, OFM, LX, LY, G
-    { WeightsLayout::oi,                                          { -1, -1, -1,   0,   1, -1, -1, -1 } },
-    { WeightsLayout::io,                                          { -1, -1, -1,   1,   0, -1, -1, -1 } },
-    { WeightsLayout::oiyx,                                        {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1, -1, -1 } },
-    { WeightsLayout::iyxo,                                        {  1,  2, -1,   3,   0, -1, -1, -1 } },
-    { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1, -1, -1 } },
-    { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_i_osv8__ai8,                              { -1, -1, -1,   0,   1, -1, -1, -1 } },
-    { WeightsLayout::os_i_osv16__ai8,                             { -1, -1, -1,   0,   1, -1, -1, -1 } },
-    { WeightsLayout::os_i_osv16,                                  { -1, -1, -1,   0,   1, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osv16_isv16,                        {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_osv32_isv16,                       {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_osv64_isv16,                       {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::i_yxs_os_yxsv2_osv16,                        {  1,  2, -1,   3,   0, -1, -1, -1 } },
-    { WeightsLayout::iy_xs_os_xsv2_osv16__ao32,                   {  1,  2, -1,   3,   0, -1, -1, -1 } },
-    { WeightsLayout::iy_xs_os_xsv2_osv8__ao32,                    {  1,  2, -1,   3,   0, -1, -1, -1 } },
-    { WeightsLayout::image_2d_weights_c4_fyx_b,                   {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::image_2d_weights_c1_b_fyx,                   {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::winograd_2x3_s1_weights,                     {  3,  2, -1,   1,   0, -1, -1, -1 } },
-    { WeightsLayout::winograd_2x3_s1_fused_weights,               {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::winograd_6x3_s1_fused_weights,               {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb,      {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::dlstm_dir_io,                                {  1,  0, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_isa8_osv8_isv4,                     {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4,       {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_isa8_osv8_isv4,                    {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::is_o_yx_isv32,                               {  1,  2, -1,   0,   3, -1, -1, -1 } },
-    { WeightsLayout::is_o32_yx_isv32_swizzled_by_4,               {  1,  2, -1,   0,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_y_x8_osv8_isv4,                        {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4,          {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osv16_isv4,                         {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2,           {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osv32_isv4,                         {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::oizyx,                                       {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_osv32_isv32p,                       {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_isv16_osv16,                       {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_isv16_osv16,                        {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_zyx_osv16_isv16,                       {  0,  1,  2,   4,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_yx_osv16_isv16,                        {  0,  1, -1,   3,   2, -1, -1, -1 } },
-    { WeightsLayout::os_is_osv32_isv32_swizzled_by_4,             { -1, -1, -1,   0,   1, -1, -1, -1 } },
-    { WeightsLayout::os_is_zyx_isv8_osv16_isv2,                   {  0,  1,  2,   3,   4, -1, -1, -1 } },
-    { WeightsLayout::os_is_yx_isv8_osv16_isv2,                    {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::os_zyxi_osv16,                               {  1,  2,  3,   0,   4, -1, -1, -1 } },
-    { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_yx_osv16_isv16,                        {  0,  1, -1,   3,   2, -1, -1, -1 } },
-    { WeightsLayout::goiyx,                                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::goizyx,                                      {  0,  1,  2,   3,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::g_os_iyx_osv32,                              {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gs_oiyx_gsv16,                               {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gs_oizyx_gsv16,                              {  0,  1,  2,   3,   4, -1, -1,  5 } },
-    { WeightsLayout::gs_oiyx_gsv32,                               {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gyxio,                                       {  2,  3, -1,   1,   0, -1, -1,  4 } },
-    { WeightsLayout::gi_yxs_os_yxsv2_osv16,                       {  1,  2, -1,   3,   0, -1, -1,  4 } },
-    { WeightsLayout::g_is_os_zyx_osv16_isv16,                     {  0,  1,  2,   4,   3, -1, -1,  5 } },
-    { WeightsLayout::g_is_os_yx_osv16_isv16,                      {  0,  1, -1,   3,   2, -1, -1,  4 } },
-    { WeightsLayout::g_os_is_zyx_isv8_osv16_isv2,                 {  0,  1,  2,   3,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_is_yx_isv8_osv16_isv2,                  {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::g_os_is_zyx_isv16_osv16,                     {  0,  1,  2,   3,   4, -1, -1,  5 } },
-    { WeightsLayout::giy_xs_os_xsv2_osv16__ao32,                  {  1,  2, -1,   3,   0, -1, -1,  4 } },
-    { WeightsLayout::giy_xs_os_xsv2_osv8__ao32,                   {  1,  2, -1,   3,   0, -1, -1,  4 } },
-    { WeightsLayout::g_os_is_yx_isv16_osv16,                      {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gs_oi_yxs_gsv4_yxsv4,                        {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gs_oi_yxs_gsv16_yxsv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::gs_oi_yxs_gsv32_yxsv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::g_os_is_yx_osv16_isv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
-    { WeightsLayout::g_os_zyx_is_osv16_isv4,                      {  1,  2,  3,   0,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_zyx_is_osv16_isv16,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_zyx_is_osv16_isv32,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_zyx_is_osv32_isv4,                      {  1,  2,  3,   0,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_zyx_is_osv32_isv16,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
-    { WeightsLayout::g_os_zyx_is_osv32_isv32,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
-}};
+using WLayout = WeightsLayout;
+using WChannel = WeightsChannelName;
+WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {
+    //                                                          X,  Y,  Z, IFM, OFM, LX, LY,  G,   BS
+    { WLayout::oi,                                          {{ -1, -1, -1,   0,   1, -1, -1, -1 }, {}} },
+    { WLayout::io,                                          {{ -1, -1, -1,   1,   0, -1, -1, -1 }, {}} },
+    { WLayout::oiyx,                                        {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::oyxi,                                        {{  1,  2, -1,   0,   3, -1, -1, -1 }, {}} },
+    { WLayout::iyxo,                                        {{  1,  2, -1,   3,   0, -1, -1, -1 }, {}} },
+    { WLayout::yxio,                                        {{  2,  3, -1,   1,   0, -1, -1, -1 }, {}} },
+    { WLayout::os_iyx_osv16,                                {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_iyx_osv32,                                {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_iyx_osv32__ai32,                          {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_iyx_osv64,                                {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_iyx_osv16_rotate_180,                     {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_i_osv8__ai8,                              {{ -1, -1, -1,   0,   1, -1, -1, -1 }, {}} },
+    { WLayout::os_i_osv16__ai8,                             {{ -1, -1, -1,   0,   1, -1, -1, -1 }, {}} },
+    { WLayout::os_i_osv16,                                  {{ -1, -1, -1,   0,   1, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osv16_isv16,                        {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_osv32_isv16,                       {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_osv64_isv16,                       {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::i_yxs_os_yxsv2_osv16,                        {{  1,  2, -1,   3,   0, -1, -1, -1 }, {}} },
+    { WLayout::iy_xs_os_xsv2_osv16__ao32,                   {{  1,  2, -1,   3,   0, -1, -1, -1 }, {}} },
+    { WLayout::iy_xs_os_xsv2_osv8__ao32,                    {{  1,  2, -1,   3,   0, -1, -1, -1 }, {}} },
+    { WLayout::image_2d_weights_c4_fyx_b,                   {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::image_2d_weights_c1_b_fyx,                   {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::winograd_2x3_s1_weights,                     {{  3,  2, -1,   1,   0, -1, -1, -1 }, {}} },
+    { WLayout::winograd_2x3_s1_fused_weights,               {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::winograd_6x3_s1_fused_weights,               {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::image_2d_weights_winograd_6x3_s1_fbxyb,      {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::dlstm_dir_io,                                {{  1,  0, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_isa8_osv8_isv4,                     {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4,       {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_isa8_osv8_isv4,                    {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::is_o_yx_isv32,                               {{  1,  2, -1,   0,   3, -1, -1, -1 }, {}} },
+    { WLayout::is_o32_yx_isv32_swizzled_by_4,               {{  1,  2, -1,   0,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_y_x8_osv8_isv4,                        {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_y_x8_osv8_isv4_swizzled_by_4,          {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osv16_isv4,                         {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osv32_isv4_swizzled_by_2,           {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osv32_isv4,                         {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::oizyx,                                       {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_osv32_isv32p,                       {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_isv16_osv16,                       {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_isv16_osv16,                        {{  0,  1, -1,   2,   3, -1, -1, -1 }, {{WChannel::OFM, 16},
+                                                                                                    {WChannel::IFM, 16}}} },
+    { WLayout::is_os_zyx_osv16_isv16,                       {{  0,  1,  2,   4,   3, -1, -1, -1 }, {}} },
+    { WLayout::is_os_yx_osv16_isv16,                        {{  0,  1, -1,   3,   2, -1, -1, -1 }, {}} },
+    { WLayout::os_is_osv32_isv32_swizzled_by_4,             {{ -1, -1, -1,   0,   1, -1, -1, -1 }, {}} },
+    { WLayout::os_is_zyx_isv8_osv16_isv2,                   {{  0,  1,  2,   3,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_is_yx_isv8_osv16_isv2,                    {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::os_zyxi_osv16,                               {{  1,  2,  3,   0,   4, -1, -1, -1 }, {}} },
+    { WLayout::os_i_yxs_osv4_yxsv4,                         {{  0,  1, -1,   2,   3, -1, -1, -1 }, {}} },
+    { WLayout::is_os_yx_osv16_isv16,                        {{  0,  1, -1,   3,   2, -1, -1, -1 }, {}} },
+    { WLayout::goiyx,                                       {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::goizyx,                                      {{  0,  1,  2,   3,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_iyx_osv16,                              {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::g_os_iyx_osv32,                              {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::gs_oiyx_gsv16,                               {{  0,  1, -1,   2,   3, -1, -1,  4 }, {{WChannel::G, 16}}} },
+    { WLayout::gs_oizyx_gsv16,                              {{  0,  1,  2,   3,   4, -1, -1,  5 }, {{WChannel::G, 16}}} },
+    { WLayout::gs_oiyx_gsv32,                               {{  0,  1, -1,   2,   3, -1, -1,  4 }, {{WChannel::G, 32}}} },
+    { WLayout::gyxio,                                       {{  2,  3, -1,   1,   0, -1, -1,  4 }, {}} },
+    { WLayout::gi_yxs_os_yxsv2_osv16,                       {{  1,  2, -1,   3,   0, -1, -1,  4 }, {}} },
+    { WLayout::g_is_os_zyx_osv16_isv16,                     {{  0,  1,  2,   4,   3, -1, -1,  5 }, {}} },
+    { WLayout::g_is_os_yx_osv16_isv16,                      {{  0,  1, -1,   3,   2, -1, -1,  4 }, {}} },
+    { WLayout::g_os_is_zyx_isv8_osv16_isv2,                 {{  0,  1,  2,   3,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_is_yx_isv8_osv16_isv2,                  {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::g_os_is_zyx_isv16_osv16,                     {{  0,  1,  2,   3,   4, -1, -1,  5 }, {}} },
+    { WLayout::giy_xs_os_xsv2_osv16__ao32,                  {{  1,  2, -1,   3,   0, -1, -1,  4 }, {}} },
+    { WLayout::giy_xs_os_xsv2_osv8__ao32,                   {{  1,  2, -1,   3,   0, -1, -1,  4 }, {}} },
+    { WLayout::g_os_is_yx_isv16_osv16,                      {{  0,  1, -1,   2,   3, -1, -1,  4 }, {{WChannel::OFM, 16},
+                                                                                                    {WChannel::IFM, 16}}} },
+    { WLayout::gs_oi_yxs_gsv4_yxsv4,                        {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::gs_oi_yxs_gsv16_yxsv4,                       {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::gs_oi_yxs_gsv32_yxsv4,                       {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::g_os_is_yx_osv16_isv4,                       {{  0,  1, -1,   2,   3, -1, -1,  4 }, {}} },
+    { WLayout::g_os_zyx_is_osv16_isv4,                      {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_zyx_is_osv16_isv16,                     {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_zyx_is_osv16_isv32,                     {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_zyx_is_osv32_isv4,                      {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_zyx_is_osv32_isv16,                     {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} },
+    { WLayout::g_os_zyx_is_osv32_isv32,                     {{  1,  2,  3,   0,   4, -1, -1,  5 }, {}} }
+};
 
 NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
     std::vector<size_t> newDims = d;
@@ -222,11 +229,11 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
     }
 
     if (l == byxf_af32 || l == fs_bs_yx_bsv4_fsv32 || l == byx8_f4) {
-        ret[0].pitch = 1;
-        ret[1].pitch = ret[0].pitch * newDims[0];
-        ret[2].pitch = ret[1].pitch * newDims[1];
-        ret[3].pitch = ret[2].pitch * newDims[2];
-        ret[4].pitch = ret[3].pitch * newDims[3];
+        ret[0].SetLinearPitch(1);
+        ret[1].SetLinearPitch(ret[0].Pitch() * newDims[0]);
+        ret[2].SetLinearPitch(ret[1].Pitch() * newDims[1]);
+        ret[3].SetLinearPitch(ret[2].Pitch() * newDims[2]);
+        ret[4].SetLinearPitch(ret[3].Pitch() * newDims[3]);
     }
 
     return ret;
@@ -325,7 +332,6 @@ DataTensor DataTensor::TransformIgnorePadding(DataLayout l) const {
     } else if (src_channels == 6 && dst_channels == 1) {
         const size_t dst = Feature().v * Batch().v * src_x * src_y * src_z * src_w;
         vec[Channelndex(l, DataChannelName::FEATURE)] = dst;
-
     } else {
         assert(0);
     }
@@ -353,27 +359,27 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
             targetLayout = Tensor::fb;
 
             // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
-            if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
+            if (f.Pitch() == y.v * x.v * x.Pitch()) {  // no padding in X/Y axis
                 l = targetLayout;
                 break;
             }
             throw std::runtime_error("Unsupported - cannot flatten with padding");
 
         case Tensor::bfyx:
-            if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
+            if (f.Pitch() == y.v * x.v * x.Pitch()) {  // no padding in X/Y axis
                 l = targetLayout;
                 break;
             }
             throw std::runtime_error("Unsupported - cannot flatten with padding");
 
         case Tensor::bfzyx:
-            if (f.pitch == z.v * y.v * x.v * x.pitch) {  // no padding in X/Y/Z axis
+            if (f.Pitch() == z.v * y.v * x.v * x.Pitch()) {  // no padding in X/Y/Z axis
                 l = targetLayout;
                 break;
             }
             throw std::runtime_error("Unsupported - cannot flatten with padding");
         case Tensor::bfwzyx:
-            if (f.pitch == w.v * z.v * x.v * y.v * x.pitch) {
+            if (f.Pitch() == w.v * z.v * x.v * y.v * x.Pitch()) {
                 l = targetLayout;
                 break;
             }
@@ -382,18 +388,18 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
             targetLayout = Tensor::fb;
 
             // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
-            if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                                // YX - no Features (val/pitch)
-                (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||              // Feature only
-                (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) {  // Feature only
+            if ((x.Pitch() == f.Pitch() && y.Pitch() == x.v * x.Pitch()) ||                                // YX - no Features (val/Pitch())
+                (y.v == 1 && x.v == 1 && x.Pitch() == f.Pitch() && y.Pitch() == f.Pitch()) ||              // Feature only
+                (f.v * f.Pitch() == x.Pitch() && f.v * f.Pitch() == y.Pitch() && y.v == 1 && x.v == 1)) {  // Feature only
                 l = targetLayout;
                 break;
             }
             throw std::runtime_error("Unsupported - cannot flatten yxf to f if f/yx != 1");
 
         case Tensor::byxf:
-            if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                               // YX - no Features (val/pitch)
-                (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||             // Feature only
-                (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) {  // Feature only
+            if ((x.Pitch() == f.Pitch() && y.Pitch() == x.v * x.Pitch()) ||                               // YX - no Features (val/Pitch())
+                (y.v == 1 && x.v == 1 && x.Pitch() == f.Pitch() && y.Pitch() == f.Pitch()) ||             // Feature only
+                (f.v * f.Pitch() == x.Pitch() && f.v * f.Pitch() == y.Pitch() && y.v == 1 && x.v == 1)) { // Feature only
                 l = targetLayout;
                 break;
             }
@@ -406,10 +412,10 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
     DataTensor res = TransformIgnorePadding(l);
 
     if (l == DataLayout::bf) {
-        res.dims[Channelndex(l, DataChannelName::BATCH)].pitch = b.pitch;
+        res.dims[Channelndex(l, DataChannelName::BATCH)].SetLinearPitch(b.Pitch());
         res.dims[Channelndex(l, DataChannelName::BATCH)].pad = b.pad;
     } else {
-        res.dims[Channelndex(l, DataChannelName::FEATURE)].pitch = dims[Channelndex(l, DataChannelName::BATCH) + 1].pitch;
+        res.dims[Channelndex(l, DataChannelName::FEATURE)].SetLinearPitch(dims[Channelndex(l, DataChannelName::BATCH) + 1].Pitch());
         res.dims[Channelndex(l, DataChannelName::FEATURE)].pad = dims[Channelndex(l, DataChannelName::BATCH) + 1].pad;
     }
 
@@ -692,42 +698,42 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
     }
 
     if (l == i_yxs_os_yxsv2_osv16) {
-        ret[3].pitch = RoundUp(ret[1].v * ret[2].v, 2) * ret[1].pitch;
+        ret[3].SetLinearPitch(RoundUp(ret[1].v * ret[2].v, 2) * ret[1].Pitch());
         ret[2].pad.after = newDims[2] - ret[2].v;
     } else if (l == iy_xs_os_xsv2_osv16__ao32 ||
                l == iy_xs_os_xsv2_osv8__ao32) {
-        ret[2].pitch = RoundUp(ret[1].v, 2) * ret[1].pitch;
+        ret[2].SetLinearPitch(RoundUp(ret[1].v, 2) * ret[1].Pitch());
         ret[1].pad.after = newDims[1] - ret[1].v;
 
-        ret[3].pitch = ret[2].v * ret[2].pitch;
+        ret[3].SetLinearPitch(ret[2].v * ret[2].Pitch());
         ret[2].pad.after = newDims[2] - ret[2].v;
     } else if (l == os_is_yx_isa8_osv8_isv4 || l == os_is_yx_isa8_osv8_isv4_swizzled_by_4) {
-        ret[0].pitch = 256;
-        ret[1].pitch = ret[0].pitch * ret[0].v;
+        ret[0].SetLinearPitch(256);
+        ret[1].SetLinearPitch(ret[0].Pitch() * ret[0].v);
     } else if (l == os_i_yxs_osv4_yxsv4) {
-        ret[2].pitch = RoundUp(ret[0].v * ret[1].v, 4) * 4;
-        ret[3].pitch = ret[2].v * RoundUp(ret[0].v * ret[1].v, 4);
+        ret[2].SetLinearPitch(RoundUp(ret[0].v * ret[1].v, 4) * 4);
+        ret[3].SetLinearPitch(ret[2].v * RoundUp(ret[0].v * ret[1].v, 4));
     } else if (l == gi_yxs_os_yxsv2_osv16) {
-        ret[3].pitch = RoundUp(ret[1].v * ret[2].v, 2) * ret[1].pitch;
+        ret[3].SetLinearPitch(RoundUp(ret[1].v * ret[2].v, 2) * ret[1].Pitch());
         ret[2].pad.after = newDims[2] - ret[2].v;
-        ret[4].pitch = ret[3].pitch * ret[3].v;
+        ret[4].SetLinearPitch(ret[3].Pitch() * ret[3].v);
     } else if (l == giy_xs_os_xsv2_osv16__ao32 ||
                l == giy_xs_os_xsv2_osv8__ao32) {
-        ret[2].pitch = RoundUp(ret[1].v, 2) * ret[1].pitch;
+        ret[2].SetLinearPitch(RoundUp(ret[1].v, 2) * ret[1].Pitch());
         ret[1].pad.after = newDims[1] - ret[1].v;
 
-        ret[3].pitch = ret[2].v * ret[2].pitch;
+        ret[3].SetLinearPitch(ret[2].v * ret[2].Pitch());
         ret[2].pad.after = newDims[2] - ret[2].v;
-        ret[4].pitch = ret[3].pitch * ret[3].v;
+        ret[4].SetLinearPitch(ret[3].Pitch() * ret[3].v);
     } else if (l == gs_oi_yxs_gsv4_yxsv4) {
-        ret[2].pitch = RoundUp(ret[0].v * ret[1].v, 4) * 4;
-        ret[4].pitch = ret[3].v * RoundUp(ret[0].v * ret[1].v, 4);
+        ret[2].SetLinearPitch(RoundUp(ret[0].v * ret[1].v, 4) * 4);
+        ret[4].SetLinearPitch(ret[3].v * RoundUp(ret[0].v * ret[1].v, 4));
     } else if (l == gs_oi_yxs_gsv16_yxsv4) {
-        ret[2].pitch = RoundUp(ret[0].v * ret[1].v, 4) * 16;
-        ret[4].pitch = ret[3].v * RoundUp(ret[0].v * ret[1].v, 4);
+        ret[2].SetLinearPitch(RoundUp(ret[0].v * ret[1].v, 4) * 16);
+        ret[4].SetLinearPitch(ret[3].v * RoundUp(ret[0].v * ret[1].v, 4));
     } else if (l == gs_oi_yxs_gsv32_yxsv4) {
-        ret[2].pitch = RoundUp(ret[0].v * ret[1].v, 4) * 32;
-        ret[4].pitch = ret[3].v * RoundUp(ret[0].v * ret[1].v, 4);
+        ret[2].SetLinearPitch(RoundUp(ret[0].v * ret[1].v, 4) * 32);
+        ret[4].SetLinearPitch(ret[3].v * RoundUp(ret[0].v * ret[1].v, 4));
     }
     return ret;
 }

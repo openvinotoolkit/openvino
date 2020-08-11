@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
     const lrn_params& params = static_cast<const lrn_params&>(p);
     const auto& out = params.output;
 
-    const bool bSupportedPitch = params.inputs[0].Batch().pitch == 1 && out.Batch().pitch == 1;
+    const bool bSupportedPitch = params.inputs[0].Batch().Pitch() == 1 && out.Batch().Pitch() == 1;
     const bool bSupportedBatch = (out.Batch().v % 8) == 0 && ((out.Batch().v * out.Feature().v) % 64) == 0;
 
     if (!bSupportedPitch || !bSupportedBatch) {

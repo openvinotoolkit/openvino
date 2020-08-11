@@ -68,15 +68,15 @@ KERNEL(convolution_depthwise)(
 
 #if ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1) && (DILATION_SIZE_X == 1) && (DILATION_SIZE_Y == 1))
 
-    UNIT_TYPE wei_00 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_01 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_02 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_10 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_11 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_12 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_20 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_21 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    UNIT_TYPE wei_22 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    UNIT_TYPE wei_00 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH + 0 * FILTER_X_PITCH);
+    UNIT_TYPE wei_01 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH + 1 * FILTER_X_PITCH);
+    UNIT_TYPE wei_02 = UNIT_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH + 2 * FILTER_X_PITCH);
+    UNIT_TYPE wei_10 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH + 0 * FILTER_X_PITCH);
+    UNIT_TYPE wei_11 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH + 1 * FILTER_X_PITCH);
+    UNIT_TYPE wei_12 = UNIT_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH + 2 * FILTER_X_PITCH);
+    UNIT_TYPE wei_20 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH + 0 * FILTER_X_PITCH);
+    UNIT_TYPE wei_21 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH + 1 * FILTER_X_PITCH);
+    UNIT_TYPE wei_22 = UNIT_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH + 2 * FILTER_X_PITCH);
 
     UNIT_TYPE8 src_block_0 = UNIT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
     UNIT_TYPE8 src_block_1 = UNIT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
@@ -136,14 +136,14 @@ KERNEL(convolution_depthwise)(
 
     unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
         unroll_for (uint j = 0; j < FILTER_SIZE_X_DIV_2; j++) {
-            wei_temp = UNIT_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + j * 2 * FEATURE_SLICE_SIZE);
+            wei_temp = UNIT_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH + j * 2 * FILTER_X_PITCH);
             wei[i * FILTER_SIZE_X + j * 2] = wei_temp.s0;
             wei[i * FILTER_SIZE_X + j * 2 + 1] = wei_temp.s1;
         }
 #if (FILTER_SIZE_X % 2)
         wei[i * FILTER_SIZE_X + FILTER_SIZE_X - 1] = UNIT_BLOCK_READ(weights, filter_offset +
-                                                                              i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE +
-                                                                              (FILTER_SIZE_X - 1) * FEATURE_SLICE_SIZE);
+                                                                              i * FILTER_Y_PITCH +
+                                                                              (FILTER_SIZE_X - 1) * FILTER_X_PITCH);
 #endif // (FILTER_SIZE_X % 2)
     }
 

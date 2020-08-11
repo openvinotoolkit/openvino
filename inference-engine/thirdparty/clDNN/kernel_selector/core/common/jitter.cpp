@@ -236,7 +236,7 @@ public:
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
         definitions.push_back(
             {_name + "_PITCHES",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
+             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.Pitch(); })});
         definitions.push_back(
             {_name + "_PAD_BEFORE",
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.before; })});
@@ -270,12 +270,18 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         {_name + "_SIZE_W", toCodeString(_tensor.W().v)},
         {_name + "_FEATURE_NUM", toCodeString(_tensor.Feature().v)},
         {_name + "_BATCH_NUM", toCodeString(_tensor.Batch().v)},
-        {_name + "_X_PITCH", toCodeString(_tensor.X().pitch)},
-        {_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)},
-        {_name + "_Z_PITCH", toCodeString(_tensor.Z().pitch)},
-        {_name + "_W_PITCH", toCodeString(_tensor.W().pitch)},
-        {_name + "_FEATURE_PITCH", toCodeString(_tensor.Feature().pitch)},
-        {_name + "_BATCH_PITCH", toCodeString(_tensor.Batch().pitch)},
+        {_name + "_X_PITCH", toCodeString(_tensor.X().Pitch())},
+        {_name + "_Y_PITCH", toCodeString(_tensor.Y().Pitch())},
+        {_name + "_Z_PITCH", toCodeString(_tensor.Z().Pitch())},
+        {_name + "_W_PITCH", toCodeString(_tensor.W().Pitch())},
+        {_name + "_FEATURE_PITCH", toCodeString(_tensor.Feature().Pitch())},
+        {_name + "_BATCH_PITCH", toCodeString(_tensor.Batch().Pitch())},
+        {_name + "_X_BLOCK", toCodeString(_tensor.X().BlockSize())},
+        {_name + "_Y_BLOCK", toCodeString(_tensor.Y().BlockSize())},
+        {_name + "_Z_BLOCK", toCodeString(_tensor.Z().BlockSize())},
+        {_name + "_W_BLOCK", toCodeString(_tensor.W().BlockSize())},
+        {_name + "_FEATURE_BLOCK", toCodeString(_tensor.Feature().BlockSize())},
+        {_name + "_BATCH_BLOCK", toCodeString(_tensor.Batch().BlockSize())},
         {_name + "_PAD_BEFORE_SIZE_X", toCodeString(_tensor.X().pad.before)},
         {_name + "_PAD_BEFORE_SIZE_Y", toCodeString(_tensor.Y().pad.before)},
         {_name + "_PAD_BEFORE_SIZE_Z", toCodeString(_tensor.Z().pad.before)},
@@ -437,7 +443,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.
         if (_tensor.PitchesDifferFromLogicalDims() && _tensor.SimpleLayout()) {
-            std::string f_pitch = std::to_string(_tensor.Feature().pitch);
+            std::string f_pitch = std::to_string(_tensor.Feature().Pitch());
             definitions.push_back({ safe_index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
         } else if (_tensor.PitchesDifferFromLogicalDims()) {
@@ -485,12 +491,18 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
         {_name + "_IFM_NUM", toCodeString(_tensor.IFM().v)},
         {_name + "_OFM_NUM", toCodeString(_tensor.OFM().v)},
         {_name + "_GROUPS_NUM", toCodeString(_tensor.G().v)},
-        {_name + "_X_PITCH", toCodeString(_tensor.X().pitch)},
-        {_name + "_Y_PITCH", toCodeString(_tensor.Y().pitch)},
-        {_name + "_Z_PITCH", toCodeString(_tensor.Z().pitch)},
-        {_name + "_IFM_PITCH", toCodeString(_tensor.IFM().pitch)},
-        {_name + "_OFM_PITCH", toCodeString(_tensor.OFM().pitch)},
-        {_name + "_GROUPS_PITCH", toCodeString(_tensor.G().pitch)},
+        {_name + "_X_PITCH", toCodeString(_tensor.X().Pitch())},
+        {_name + "_Y_PITCH", toCodeString(_tensor.Y().Pitch())},
+        {_name + "_Z_PITCH", toCodeString(_tensor.Z().Pitch())},
+        {_name + "_IFM_PITCH", toCodeString(_tensor.IFM().Pitch())},
+        {_name + "_OFM_PITCH", toCodeString(_tensor.OFM().Pitch())},
+        {_name + "_GROUPS_PITCH", toCodeString(_tensor.G().Pitch())},
+        {_name + "_X_BLOCK", toCodeString(_tensor.X().BlockSize())},
+        {_name + "_Y_BLOCK", toCodeString(_tensor.Y().BlockSize())},
+        {_name + "_Z_BLOCK", toCodeString(_tensor.Z().BlockSize())},
+        {_name + "_IFM_BLOCK", toCodeString(_tensor.IFM().BlockSize())},
+        {_name + "_OFM_BLOCK", toCodeString(_tensor.OFM().BlockSize())},
+        {_name + "_GROUPS_BLOCK", toCodeString(_tensor.G().BlockSize())},
     };
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
