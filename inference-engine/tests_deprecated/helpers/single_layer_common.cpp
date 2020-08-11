@@ -4,7 +4,7 @@
 
 #include <cmath>
 #include <ie_blob.h>
-#include <ie_layers_property.hpp>
+#include <legacy/ie_layers_property.hpp>
 #include <ie_precision.hpp>
 #include <precision_utils.h>
 #include <gtest/gtest.h>

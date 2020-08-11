@@ -6,8 +6,8 @@
 
 #include <ie_blob.h>
 #include <ie_core.hpp>
-#include <cnn_network_impl.hpp>
-#include <ie_layers_property.hpp>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_layers_property.hpp>
 #include <precision_utils.h>
 #include <common_test_utils/xml_net_builder/xml_net_builder.hpp>
 #include <tests_common.hpp>
