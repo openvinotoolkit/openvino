@@ -391,10 +391,6 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetD
     const auto& weights = params.weights;
     auto block_params = GetBlockParams(params);
 
-    EstimateRegPressure(params, block_params);//, true);
-    EstimateSLMUsage(params, block_params);//, true);
-    EstimateOccupancy(params, block_params);//, true);
-
     kd.gws0 = CeilDiv(output.X().v, block_params.output_block_width);
     kd.gws1 = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
     kd.gws2 = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
