@@ -18,7 +18,6 @@ import pytest
 
 import ngraph as ng
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323
 
 
 @pytest.mark.parametrize(

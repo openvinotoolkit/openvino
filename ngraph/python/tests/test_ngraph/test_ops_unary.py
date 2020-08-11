@@ -148,7 +148,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 def test_unary_op_scalar_using_constants(ng_api_fn, numpy_fn, input_data):
     expected = numpy_fn(input_data)
 
-    result =run_op_numeric_data(input_data, ng_api_fn)
+    result = run_op_numeric_data(input_data, ng_api_fn)
     assert np.allclose(result, expected)
 
 
@@ -160,6 +160,7 @@ def test_logical_not(input_data):
 
     result = run_op_node([input_data], ng.logical_not)
     assert np.allclose(result, expected)
+
 
 @xfail_issue_34323
 @pytest.mark.parametrize(

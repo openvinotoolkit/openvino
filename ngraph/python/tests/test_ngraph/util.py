@@ -46,22 +46,19 @@ def run_op_node(input_data, op_fun, *args):
     comp_args = []
     op_fun_args = []
     comp_inputs = []
+
     for idx, data in enumerate(input_data):
+        node = None
         if np.isscalar(data):
             node = ng.parameter([1], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
-            op_fun_args.append(node)
-            comp_args.append(node)
-            comp_inputs.append(data)
         elif isinstance(data, (list)):
             node = ng.parameter(np.shape(data), name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
-            op_fun_args.append(node)
-            comp_args.append(node)
-            comp_inputs.append(data)
         else:
             node = ng.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
-            op_fun_args.append(node)
-            comp_args.append(node)
-            comp_inputs.append(data)
+        op_fun_args.append(node)
+        comp_args.append(node)
+        comp_inputs.append(data)
+
     op_fun_args.extend(args)
     node = op_fun(*op_fun_args)
     computation = runtime.computation(node, *comp_args)
