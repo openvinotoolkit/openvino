@@ -49,5 +49,9 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # install
 
 install(TARGETS compile_tool
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
+        RUNTIME DESTINATION deployment_tools/tools/compile_tool
+        COMPONENT core)
+
+install(FILES README.md
+        DESTINATION deployment_tools/tools/compile_tool
         COMPONENT core)
