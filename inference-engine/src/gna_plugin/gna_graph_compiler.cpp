@@ -1484,6 +1484,9 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
     auto layerOrder = layer->GetParamAsInts("order");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    if (layer->insData.empty()) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer pointer is unexpectedly absent";
+    }
     auto inputs = layer->insData.begin()->lock();
     auto inputsOrder = inputs->getTensorDesc().getDims();
     auto outputs = layer->outData.front();

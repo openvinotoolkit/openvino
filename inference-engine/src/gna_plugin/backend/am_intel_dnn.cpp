@@ -1533,6 +1533,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
                         const auto poolMode = reinterpret_cast<Gna2PoolingMode*>(gnaUserAllocator(sizeof(Gna2PoolingMode)));
+                        IE_ASSERT(poolMode != nullptr);
                         *poolMode = (comp.op.maxpool.do_sum_not_max) ? Gna2PoolingModeSum : Gna2PoolingModeMax;
                         const auto poolWindow = create_shape1D_parameter(comp.op.maxpool.num_inputs);
                         const auto poolStride = create_shape1D_parameter(comp.op.maxpool.num_inputs_step);
