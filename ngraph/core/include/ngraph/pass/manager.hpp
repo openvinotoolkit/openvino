@@ -52,7 +52,7 @@ public:
         return rc;
     }
 
-    void run_passes(std::shared_ptr<Function>, bool transitive = true);
+    void run_passes(std::shared_ptr<Function>);
 
     ManagerState& get_state();
     PassConfig& get_pass_config() { return m_pass_config; }

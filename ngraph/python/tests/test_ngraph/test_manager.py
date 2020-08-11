@@ -23,19 +23,6 @@ import ngraph as ng
 from ngraph.impl import Function, PartialShape, Shape
 from ngraph.impl.passes import Manager
 from tests.test_ngraph.util import count_ops_of_type
-from ngraph.utils.types import (
-    NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
-    TensorShape,
-    as_node,
-    as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
-    make_constant_node,
-)
 
 
 def test_constant_folding():
@@ -48,7 +35,7 @@ def test_constant_folding():
 
     pass_manager = Manager()
     pass_manager.register_pass("ConstantFolding")
-    pass_manager.run_passes(func, None)
+    pass_manager.run_passes(func)
 
     assert count_ops_of_type(func, node_ceil) == 0 
     assert count_ops_of_type(func, node_constant) == 1
