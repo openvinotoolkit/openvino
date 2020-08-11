@@ -37,7 +37,6 @@
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/broadcast_distributed.hpp"
 #include "ngraph/runtime/reference/ceiling.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/constant.hpp"
@@ -51,7 +50,6 @@
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-#include "ngraph/runtime/reference/embedding_lookup.hpp"
 #include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
@@ -71,7 +69,6 @@
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/recv.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
@@ -80,12 +77,10 @@
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/select.hpp"
-#include "ngraph/runtime/reference/send.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
 #include "ngraph/runtime/reference/sinh.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
@@ -93,9 +88,13 @@
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/state/bernoulli_rng_state.hpp"
-#include "ngraph/state/uniform_rng_state.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
+
+#include "reference/detection_output.hpp"
+#include "reference/scatter_nd_update.hpp"
+#include "reference/scatter_update.hpp"
 
 namespace ngraph
 {
@@ -133,8 +132,6 @@ public:
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
 
-    virtual void save(std::ostream& output_stream) override;
-
     void set_nan_check(bool enable);
 
     std::vector<PerformanceCounter> get_performance_data() const override;
@@ -150,8 +147,6 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    INTExecutable(const std::string& model_string);
-
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
@@ -161,7 +156,6 @@ protected:
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::unordered_map<const Node*, std::shared_ptr<State>> m_states;
     std::set<std::string> m_unsupported_op_name_list;
 
     static OP_TYPEID get_typeid(const Node& node);
@@ -253,13 +247,6 @@ protected:
                                    avg_pool->get_include_padding_in_avg_computation());
             break;
         }
-        case OP_TYPEID::GetOutputElement:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t num_bytes = element_count * node.get_output_element_type(0).size();
-            std::memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), num_bytes);
-            break;
-        }
         case OP_TYPEID::BatchNormInference:
         {
             const ngraph::op::BatchNormInference* bn =
@@ -272,33 +259,6 @@ protected:
                                                args[4]->get_data_ptr<const T>(),
                                                out[0]->get_data_ptr<T>(),
                                                node.get_input_shape(2));
-            break;
-        }
-        case OP_TYPEID::BroadcastDistributed:
-        {
-            const ngraph::op::BroadcastDistributed* broadcast =
-                static_cast<const ngraph::op::BroadcastDistributed*>(&node);
-            int rank_ID;
-            rank_ID = get_distributed_interface()->get_rank();
-            int root_id = broadcast->get_root_id();
-            if (rank_ID == root_id)
-            {
-                reference::broadcastdistributed<T>(
-                    args[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-                auto memSize = static_cast<int>(shape_size(node.get_input_shape(0))) * sizeof(T);
-                memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            }
-            else
-            {
-                reference::broadcastdistributed<T>(
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-            }
             break;
         }
         case OP_TYPEID::BroadcastLike: break;
@@ -382,7 +342,7 @@ protected:
         }
         case OP_TYPEID::Convolution:
         {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
+            const op::v0::Convolution* c = static_cast<const op::v0::Convolution*>(&node);
             reference::convolution<T>(args[0]->get_data_ptr<const T>(),
                                       args[1]->get_data_ptr<const T>(),
                                       out[0]->get_data_ptr<T>(),
@@ -400,8 +360,8 @@ protected:
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
+            const op::v0::ConvolutionBackpropData* c =
+                static_cast<const op::v0::ConvolutionBackpropData*>(&node);
             reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
                                                   args[0]->get_data_ptr<const T>(),
                                                   out[0]->get_data_ptr<T>(),
@@ -498,51 +458,6 @@ protected:
                            node.get_input_shape(1),
                            node.get_output_shape(0),
                            dot->get_reduction_axes_count());
-            break;
-        }
-        case OP_TYPEID::EmbeddingLookup:
-        {
-            const op::EmbeddingLookup* embed = static_cast<const op::EmbeddingLookup*>(&node);
-            auto type = embed->input(0).get_element_type();
-            size_t element_count = shape_size(embed->get_input_shape(0));
-
-            if (type == element::f32)
-            {
-                reference::embedding<T, float>(args[0]->get_data_ptr<const float>(),
-                                               args[1]->get_data_ptr<const T>(),
-                                               out[0]->get_data_ptr<T>(),
-                                               element_count,
-                                               embed->get_shape());
-            }
-            else if (type == element::f64)
-            {
-                reference::embedding<T, double>(args[0]->get_data_ptr<const double>(),
-                                                args[1]->get_data_ptr<const T>(),
-                                                out[0]->get_data_ptr<T>(),
-                                                element_count,
-                                                embed->get_shape());
-            }
-            else if (type == element::i32)
-            {
-                reference::embedding<T, int32_t>(args[0]->get_data_ptr<const int>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else if (type == element::i64)
-            {
-                reference::embedding<T, int64_t>(args[0]->get_data_ptr<const int64_t>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else
-            {
-                throw ngraph_error(std::string("Unsupported index type ") + type.c_type_string() +
-                                   std::string(" in EmbeddingLookup"));
-            }
             break;
         }
         case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
@@ -1046,19 +961,6 @@ protected:
 
             break;
         }
-        case OP_TYPEID::Recv:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Recv*>(&node);
-            int src_id = op->get_src_id();
-
-            reference::recv<T>(
-                args[0]->get_data_ptr<T>(), node.get_input_element_type(0), element_count, src_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Relu:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1125,21 +1027,6 @@ protected:
                                  element_count);
             break;
         }
-        case OP_TYPEID::Send:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Send*>(&node);
-            int dest_id = op->get_dest_id();
-
-            reference::send<T>(args[0]->get_data_ptr<const T>(),
-                               node.get_input_element_type(0),
-                               element_count,
-                               dest_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Sigmoid:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1166,18 +1053,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::sinh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::Slice:
-        {
-            const op::Slice* slice = static_cast<const op::Slice*>(&node);
-            reference::slice<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                node.get_input_shape(0),
-                                slice->get_lower_bounds(),
-                                slice->get_upper_bounds(),
-                                slice->get_strides(),
-                                node.get_output_shape(0));
             break;
         }
         case OP_TYPEID::Sqrt:
@@ -1234,9 +1109,113 @@ protected:
             }
             break;
         }
+        case OP_TYPEID::DetectionOutput_v0:
+        {
+            const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
+            reference::referenceDetectionOutput<T> refDetOut(
+                detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
+            if (node.get_input_size() == 3)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              nullptr,
+                              nullptr,
+                              out[0]->get_data_ptr<T>());
+            }
+            else if (node.get_input_size() == 5)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              args[3]->get_data_ptr<const T>(),
+                              args[4]->get_data_ptr<const T>(),
+                              out[0]->get_data_ptr<T>());
+            }
+            else
+            {
+                throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterNDUpdate_v3:
+        {
+            const op::ScatterNDUpdate* scatterNDUpd =
+                static_cast<const op::v3::ScatterNDUpdate*>(&node);
+            auto idxType = scatterNDUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterNdUpdate<T, int32_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int32_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterNdUpdate<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int64_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterUpdate_v3:
+        {
+            const op::v3::ScatterUpdate* scatterUpd =
+                static_cast<const op::v3::ScatterUpdate*>(&node);
+
+            if (scatterUpd->get_input_element_type(3) != element::i64)
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
+
+            auto idxType = scatterUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterUpdate<T, int32_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int32_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterUpdate<T, int64_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int64_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
-        case OP_TYPEID::CropAndResize:
         case OP_TYPEID::DepthToSpace:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
@@ -1301,6 +1280,7 @@ protected:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
+        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

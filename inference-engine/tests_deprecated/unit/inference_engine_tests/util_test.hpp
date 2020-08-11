@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_algorithm.hpp>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <unordered_set>
 #include <unordered_map>

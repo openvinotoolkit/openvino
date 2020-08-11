@@ -5,16 +5,18 @@
 #include <vector>
 
 #include <ie_core.hpp>
+#include <exec_graph_info.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
-#include "network_serializer.h"
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
 namespace LayerTestsDefinitions {
 
@@ -55,9 +57,15 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
     if (auto function = execGraphInfo.getFunction()) {
+        // try to convert to old representation and check that conversion passed well
+        std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedExecGraph;
+        ASSERT_NO_THROW(convertedExecGraph = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(execGraphInfo));
+        // serialization for IR-v7 like execution graph is still supported for compatibility
+        ASSERT_NO_THROW(convertedExecGraph->serialize("exeNetwork.xml", "exeNetwork.bin", nullptr));
+        ASSERT_EQ(0, std::remove("exeNetwork.xml"));
+
         for (const auto & op : function->get_ops()) {
             const auto & rtInfo = op->get_rt_info();
-
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
                 IE_ASSERT(rtInfo.end() != it);
@@ -74,11 +82,29 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
                 ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
                 ASSERT_EQ(op->get_input_size(), 1);
             }
+
+            // IR v7 does not have output nodes
+            if (ngraph::op::is_output(op))
+                continue;
+
+            IE_SUPPRESS_DEPRECATED_START
+            InferenceEngine::CNNLayerPtr cnnLayer;
+            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(convertedExecGraph.get(), op->get_friendly_name()));
+            ASSERT_EQ(cnnLayer->name, op->get_friendly_name());
+            auto variantType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(
+                op->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE]);;
+            ASSERT_EQ(cnnLayer->type, variantType->get());
+
+            for (const auto & kvp : cnnLayer->params) {
+                auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(op->get_rt_info()[kvp.first]);
+                ASSERT_EQ(variant->get(), kvp.second);
+            }
+            IE_SUPPRESS_DEPRECATED_END
         }
     } else {
         IE_SUPPRESS_DEPRECATED_START
         std::vector<InferenceEngine::CNNLayerPtr> nodes;
-        ASSERT_NO_THROW(nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo));
+        ASSERT_NO_THROW(nodes = TopologicalSort(execGraphInfo));
         for (auto &node : nodes) {
             if (node->type == "BinaryConvolution") {
                 std::string originalLayersNames = node->params["originalLayersNames"];

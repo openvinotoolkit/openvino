@@ -9,28 +9,35 @@
 #include "transformations/optimize_strided_slice.hpp"
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/remove_filtering_boxes_by_size.hpp"
-#include "transformations/convert_nms_4_to_nms_dynamic.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/itt.hpp"
+#include "transformations/mish_fusion.hpp"
+#include "transformations/swish_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>
 #include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager CommonOptimizations;
-    std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");
 
-#define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(CommonOptimizations.register_pass<NAMESPACE::NAME>());
-#include <transformations/common_optimizations/common_optimizations_tbl.hpp>
-#undef NGRAPH_PASS
+    ngraph::pass::Manager manager;
 
-    for (auto & t : transforms) {
-        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
-            t_param->setCallback(transformation_callback);
-        }
-    }
-    CommonOptimizations.run_passes(f);
+    // This pass must be called first in pipeline
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
+    manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+    manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
+    manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+    manager.register_pass<ngraph::pass::MishFusion>();
+    manager.register_pass<ngraph::pass::SwishFusion>();
+
+    manager.set_callback(m_transformation_callback);
+    manager.run_passes(f);
     return true;
 }

@@ -53,7 +53,7 @@ typedef std::tuple<
 
 class ProposalLayerTest
         : public testing::WithParamInterface<proposalLayerTestParamsSet>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;

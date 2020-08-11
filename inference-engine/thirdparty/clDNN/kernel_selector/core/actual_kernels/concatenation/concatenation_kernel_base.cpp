@@ -115,7 +115,8 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         newParams.inputs.resize(1);
         newParams.inputs[0] = input;
         size_t ifm = input.Feature().v;
-        newParams.isAligned = ifm_offset % 16 == 0 && ifm % 16 == 0;
+        newParams.isAligned = ifm_offset % GetAlignment(newParams) == 0;
+        newParams.misalignment = ifm_offset % GetAlignment(newParams);
         ifm_offset += ifm;
 
         auto& kernel = kd.kernels[i];
@@ -127,7 +128,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
         kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
         kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i });
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         ScalarDescriptor s;

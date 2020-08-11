@@ -10,6 +10,8 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
+#include <legacy/ie_util_internal.hpp>
+#include <common_test_utils/ngraph_test_utils.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <fstream>
@@ -21,32 +23,6 @@
 
 namespace BehaviorTestsDefinitions {
 using BehaviorTests = BehaviorTestsUtils::BehaviorTestsBasic;
-
-bool static compare_two_files_lexicographically(const std::string &name_a, const std::string &name_b) {
-    std::ifstream a(name_a), b(name_b);
-
-    std::string line_a, line_b;
-    while (std::getline(a, line_a)) {
-        std::string str_a, str_b;
-        std::istringstream(line_a) >> str_a;
-
-        if (!std::getline(b, line_b))
-            throw std::logic_error("Second file is shorter than first");
-        else
-            std::istringstream(line_b) >> str_b;
-
-        if (line_a != line_b) {
-            std::cout << "Line A: " << line_a << std::endl;
-            std::cout << "Line B: " << line_b << std::endl;
-            throw std::logic_error("Files are different");
-        }
-    }
-
-    if (std::getline(b, line_b))
-        throw std::logic_error("First file is shorter than second");
-    else
-        return true;
-}
 
 void setInputNetworkPrecision(InferenceEngine::CNNNetwork &network, InferenceEngine::InputsDataMap &inputs_info,
                               InferenceEngine::Precision input_precision) {
@@ -83,20 +59,14 @@ TEST_P(BehaviorTests, canNotLoadNetworkWithoutWeights) {
 TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    const std::string name_a = "a.xml";
-    const std::string name_b = "b.xml";
     auto param = GetParam();
 
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::CNNNetwork execGraph;
-    cnnNet.serialize(name_a);
-
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
-    cnnNet.serialize(name_b);
 
-    compare_two_files_lexicographically(name_a, name_b);
-    EXPECT_EQ(0, std::remove(name_a.c_str()));
-    EXPECT_EQ(0, std::remove(name_b.c_str()));
+    // compare 2 networks
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(referenceNetwork, cnnNet.getFunction());
 }
 
 using BehaviorTestInput = BehaviorTestsUtils::BehaviorTestsBasic;

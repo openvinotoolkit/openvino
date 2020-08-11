@@ -6,16 +6,12 @@
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file 
+ * @file hddl_plugin_config.hpp
  */
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "ie_plugin_config.hpp"
-#include "ie_api.h"
 
 //
 // Options

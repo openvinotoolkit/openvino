@@ -17,12 +17,11 @@
 #include "simple_math.h"
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <graph_tools.hpp>
-#include <ie_layers_internal.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
-#include "details/caseless.hpp"
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
@@ -186,7 +185,8 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 { "reduce_l1", "ReduceL1" },
                 { "reduce_l2", "ReduceL2" },
                 { "reduce_log_sum", "ReduceLogSum" },
-                { "reduce_log_sum_exp", "ReduceLogSumExp" }
+                { "reduce_log_sum_exp", "ReduceLogSumExp" },
+                { "space_to_depth", "SpaceToDepth" },
         };
 
         if (type_n2l.find(cldnn_name) != type_n2l.end())

@@ -22,7 +22,7 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;

@@ -21,8 +21,7 @@ import numpy as np
 from extensions.ops.topk import TopK
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, \
-    connect, FakeAttr
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
 
 
 class TestTopKInfer(unittest.TestCase):
@@ -46,9 +45,7 @@ class TestTopKInfer(unittest.TestCase):
             ('topk_d2', 'output_2'),
         ], nodes_with_edges_only=True)
 
-    def test_topk_infer_v10_opset1(self):
-        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
-
+    def test_topk_infer_opset1(self):
         topk_node = Node(self.graph, 'topk')
         topk_node['version'] = 'opset1'
         TopK.infer(topk_node)
@@ -59,9 +56,7 @@ class TestTopKInfer(unittest.TestCase):
         self.assertTrue(topk_node.out_port(0).get_data_type() == np.float32)
         self.assertTrue(topk_node.out_port(1).get_data_type() == np.int32)
 
-    def test_topk_infer_v10_i64_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
-
+    def test_topk_infer_i64_opset3(self):
         topk_node = Node(self.graph, 'topk')
         topk_node['version'] = 'opset3'
         topk_node['index_element_type'] = np.int64
@@ -73,9 +68,7 @@ class TestTopKInfer(unittest.TestCase):
         self.assertTrue(topk_node.out_port(0).get_data_type() == np.float32)
         self.assertTrue(topk_node.out_port(1).get_data_type() == np.int64)
 
-    def test_topk_infer_v10_i32_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
-
+    def test_topk_infer_i32_opset3(self):
         topk_node = Node(self.graph, 'topk')
         topk_node['version'] = 'opset3'
         topk_node['index_element_type'] = np.int32

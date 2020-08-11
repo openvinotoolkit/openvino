@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include <ie_core.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 
 #include "common/low_precision_tests_utils.hpp"

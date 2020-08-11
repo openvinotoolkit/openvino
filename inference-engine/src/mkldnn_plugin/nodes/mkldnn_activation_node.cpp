@@ -4,11 +4,10 @@
 
 #include "mkldnn_activation_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <algorithm>
 #include <string>
 #include <mkldnn_extension_utils.h>
-#include "details/caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -96,6 +95,11 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
             alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
             beta = 0.0f;
             algorithm = eltwise_swish;
+        }},
+        {"mish", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            algorithm = eltwise_mish;
         }},
 };
 

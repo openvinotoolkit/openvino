@@ -19,7 +19,6 @@ from copy import deepcopy
 import networkx as nx
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import extract_port_from_string
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
 from mo.ops.const import Const
@@ -126,8 +125,10 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
 
     for node_id in graph.nodes():
         node = Node(graph, node_id)
-        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)], True)
-        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)], False)
+        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)],
+                               True)
+        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)],
+                               False)
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
@@ -287,6 +288,37 @@ valued_const_with_data = lambda name, value: {**const(name, value), **valued_dat
 const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
 
 
+def extract_port_from_string(node_name: str):
+    """
+    Extracts port and node name from string
+
+    Raises if node name was not provided in the expected format:
+    NODE:OUT_PORT
+        or
+    IN_PORT:NODE
+
+    :param node_name: string value provided by user
+    :return: node name, input port and output port
+    """
+    parts = node_name.split(':')
+    if len(parts) > 2:
+        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
+                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
+    if len(parts) == 1:
+        return node_name, None, None
+    else:
+        in_port, out_port, name = None, None, None
+        try:
+            in_port, name = int(parts[0]), parts[1]
+        except ValueError:
+            try:
+                out_port, name = int(parts[1]), parts[0]
+            except ValueError:
+                raise Error("Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
+                            "IN_PORT and OUTPUT_PORT are integers".format(node_name))
+        return name, in_port, out_port
+
+
 def get_name_and_port(tensor_name):
     node_name, in_port, out_port = extract_port_from_string(tensor_name)
 
@@ -300,16 +332,20 @@ def get_name_and_port(tensor_name):
         return node_name, 0
 
 
-def connect(first_tensor_name, second_tensor_name, skip_data=False):
+def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=False):
     # ports could be skipped -- then zero in/out ports would be used
     # first_tensor_name = first_op_name:out_port
     # second_tensor_name = in_port:second_op_name
+    # if skip_data is True connect directly from data node with postfix '_d' to second
+    # if front_phase is True connect nodes directly without postfixes and data nodes
 
     first_op_name, out_port = get_name_and_port(first_tensor_name)
     second_op_name, in_port = get_name_and_port(second_tensor_name)
 
     if skip_data:
         return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+    if front_phase:
+        return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
     return [
         (first_op_name, first_op_name + '_d', {'out': out_port}),
         (first_op_name + '_d', second_op_name, {'in': in_port}),
@@ -318,3 +354,7 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False):
 
 def connect_data(first_tensor_name, second_tensor_name):
     return connect(first_tensor_name, second_tensor_name, skip_data=True)
+
+
+def connect_front(first_tensor_name, second_tensor_name):
+    return connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=True)

@@ -20,6 +20,7 @@ import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
+from tests import xfail_issue_36483, xfail_issue_34323
 
 
 def binary_op(op_str, a, b):
@@ -244,8 +245,6 @@ def unary_op(op_str, a):
         return ng.exp(a)
     elif op_str == "negative":
         return ng.negative(a)
-    elif op_str == "Reverse":
-        return ng.reverse(a, np.array([1]), "index")
     elif op_str == "Sign":
         return ng.sign(a)
     elif op_str == "Sin":
@@ -341,6 +340,7 @@ def test_atan():
     unary_op_exec(op_str, input_list)
 
 
+@xfail_issue_36483
 def test_ceiling():
     input_list = [0.5, 0, 0.4, 0.5]
     op_str = "Ceiling"
@@ -419,12 +419,6 @@ def test_tanh():
     unary_op_exec(op_str, input_list)
 
 
-def test_reverse():
-    input_list = [[-1, 0], [0.5, 1]]
-    op_str = "Reverse"
-    unary_op_exec(op_str, input_list)
-
-
 def test_reshape():
 
     element_type = Type.f32
@@ -458,6 +452,7 @@ def test_broadcast():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_constant():
     element_type = Type.f32
     parameter_list = []

@@ -108,14 +108,3 @@ def get_mo_root_dir():
     """
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
                                          os.pardir))
-
-
-def convert_param_type(node, attr_name: str, type_v1x, type_v7):
-    if attr_name in node.attrs() and node[attr_name] is not None:
-        if node.graph.graph['ir_version'] < 10:
-            node[attr_name] = type_v7(node[attr_name])
-        else:
-            node[attr_name] = type_v1x(node[attr_name])
-        return node[attr_name]
-    else:
-        return None

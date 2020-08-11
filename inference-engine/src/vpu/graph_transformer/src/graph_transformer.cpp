@@ -27,11 +27,10 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
@@ -145,14 +144,15 @@ void CompileEnv::free() {
 
 namespace {
 
-CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network) {
+CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network,
+                               const ie::ICore* core) {
     const auto& env = CompileEnv::get();
 
     env.log->debug("Compile network [%s]", network.getName());
     VPU_LOGGER_SECTION(env.log);
 
     auto stageBuilder = std::make_shared<StageBuilder>();
-    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
+    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
     auto backEnd = std::make_shared<BackEnd>();
     auto passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
 
@@ -197,7 +197,8 @@ CompiledGraph::Ptr compileNetwork(
         ie::ICNNNetwork& network,
         Platform platform,
         const CompilationConfig& config,
-        const Logger::Ptr& log) {
+        const Logger::Ptr& log,
+        const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -205,7 +206,7 @@ CompiledGraph::Ptr compileNetwork(
 
     VPU_PROFILE(compileNetwork);
 
-    return compileImpl(network);
+    return compileImpl(network, core);
 }
 
 CompiledGraph::Ptr compileModel(
@@ -225,7 +226,8 @@ CompiledGraph::Ptr compileModel(
 
 CompiledGraph::Ptr compileSubNetwork(
         ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig) {
+        const CompilationConfig& subConfig,
+        const ie::ICore* core) {
     VPU_PROFILE(compileSubNetwork);
 
     const auto& env = CompileEnv::get();
@@ -237,7 +239,7 @@ CompiledGraph::Ptr compileSubNetwork(
 
     CompileEnv::updateConfig(subConfig);
 
-    return compileImpl(network);
+    return compileImpl(network, core);
 }
 
 //
@@ -248,7 +250,8 @@ std::set<std::string> getSupportedLayers(
         const ie::ICNNNetwork& network,
         Platform platform,
         const CompilationConfig& config,
-        const Logger::Ptr& log) {
+        const Logger::Ptr& log,
+        const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -257,7 +260,7 @@ std::set<std::string> getSupportedLayers(
     VPU_PROFILE(getSupportedLayers);
 
     auto stageBuilder = std::make_shared<StageBuilder>();
-    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
+    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
 
     auto clonedNetworkImpl = ie::cloneNet(network);
 

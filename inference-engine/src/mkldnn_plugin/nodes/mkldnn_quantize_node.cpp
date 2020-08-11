@@ -4,7 +4,7 @@
 
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
@@ -12,7 +12,7 @@
 #include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
-#include "details/caseless.hpp"
+#include <cmath>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

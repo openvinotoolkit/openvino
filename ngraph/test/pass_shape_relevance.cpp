@@ -23,7 +23,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/shape_relevance.hpp"
+#include "pass/shape_relevance.hpp"
 
 using namespace ngraph;
 using namespace std;

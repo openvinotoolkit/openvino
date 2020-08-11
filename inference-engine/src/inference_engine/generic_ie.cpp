@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "ngraph/util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -57,11 +57,6 @@ std::vector<InferenceEngine::IShapeInferExtensionPtr> ngraph::op::GenericIE::get
     return extensions;
 }
 
-ngraph::op::GenericIE::GenericIE(const ngraph::NodeVector& inputs,
-                                 const std::map<std::string, InferenceEngine::Parameter>& params,
-                                 const std::string type, const std::vector<PortIE>& outputs)
-    : GenericIE(as_output_vector(inputs), params, type, outputs) {}
-
 ngraph::op::GenericIE::GenericIE(const ngraph::OutputVector& inputs,
                                  const std::map<std::string, InferenceEngine::Parameter>& params_,
                                  const std::string type_, const std::vector<PortIE>& outputs_)
@@ -69,7 +64,7 @@ ngraph::op::GenericIE::GenericIE(const ngraph::OutputVector& inputs,
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ngraph::op::GenericIE::copy_with_new_args(const ngraph::NodeVector& new_args) const {
+std::shared_ptr<ngraph::Node> ngraph::op::GenericIE::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     auto genNode = std::make_shared<GenericIE>(new_args, params, type, outputs);
     genNode->extensions = extensions;
     genNode->reshape = reshape;

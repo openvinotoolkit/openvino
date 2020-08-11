@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -130,6 +131,11 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         size_t numSplits,
                                         size_t axis);
 
+std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
+                                                const element::Type &type,
+                                                const std::vector<size_t> numSplits,
+                                                size_t axis);
+
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType,
@@ -175,6 +181,10 @@ std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &i
                                                    const element::Type &type,
                                                    const std::vector<int> &squeeze_indices,
                                                    ngraph::helpers::SqueezeOpType opType);
+
+std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
+                                         const ngraph::Output<Node> &in2,
+                                         ngraph::helpers::MinMaxOpType opType);
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,
@@ -258,10 +268,12 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int group);
 
 std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
-                                 const Output<Node> &B);
+                                 const Output<Node> &B,
+                                 bool transpose_a = false,
+                                 bool transpose_b = false);
 
-std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
-                                         const std::vector<int> &reductionAxes,
+std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
+                                         const ngraph::Output<Node>& axes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
 
@@ -302,6 +314,17 @@ std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::LogicalTypes logicalType);
+
+std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
+                                                  const ngraph::op::DetectionOutputAttrs& attrs);
+
+std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
+                                                 const element::Type& type,
+                                                 const size_t outputSize,
+                                                 bool addBias = true,
+                                                 const ngraph::Shape& weightsShape = {},
+                                                 const std::vector<float>& weights = {},
+                                                 const std::vector<float>& biasWeights = {});
 
 }  // namespace builder
 }  // namespace ngraph

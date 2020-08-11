@@ -12,13 +12,12 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <tests_common.hpp>
-#include <graph_transformer.h>
+#include <legacy/graph_transformer.h>
 #include "blob_factory.hpp"
 #include "debug.h"
 #include "util_test.hpp"
-#include <details/ie_cnn_network_tools.h>
 
 namespace IE = InferenceEngine;
 
