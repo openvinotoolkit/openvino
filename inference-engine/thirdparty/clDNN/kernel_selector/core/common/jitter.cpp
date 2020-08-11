@@ -448,8 +448,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            definitions.push_back({ safe_index_func_name, "(f)" });
-            definitions.push_back({ index_func_name, "(f)" });
+            definitions.push_back({ safe_index_func_name, "(" + std::to_string(_tensor.Feature().pad.before) + " + (f))" });
+            definitions.push_back({ index_func_name, "(" + std::to_string(_tensor.Feature().pad.before) + " + (f))" });
         }
     } else {
         definitions.push_back({ safe_index_func_name, safe_index_func_val });
