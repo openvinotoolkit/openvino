@@ -127,41 +127,6 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
 }
 
 /**
- * @brief Create blob with custom precision
- * @ingroup ie_dev_api_memory
- * @tparam T - type off underlined elements
- * @tparam Args Variadic template type arguments
- * @param args Arguments
- * @return A Blob::Ptr pointer
- */
-template <class T, class... Args>
-InferenceEngine::Blob::Ptr make_custom_blob(Args&&... args) {
-    return InferenceEngine::make_shared_blob<T>(InferenceEngine::Precision::fromType<T>(), std::forward<Args>(args)...);
-}
-
-/**
- * @brief Create blob with custom precision
- * @ingroup ie_dev_api_memory
- * @tparam T A type off underlined elements
- * @param layout A blob layout
- * @param size A blob size
- * @return A Blob::Ptr pointer
- */
-template <class T>
-InferenceEngine::Blob::Ptr make_custom_blob(InferenceEngine::Layout layout, InferenceEngine::SizeVector size) {
-    return InferenceEngine::make_shared_blob<T>(
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::fromType<T>(), size, layout));
-}
-
-/**
- * @brief Creates a TBlob<> object from a Data node
- * @ingroup ie_dev_api_memory
- * @param data A reference to a smart pointer of the Data node
- * @return Smart pointer to TBlob<> with the relevant C type to the precision of the data node
- */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) CreateBlobFromData(const InferenceEngine::DataPtr& data);
-
-/**
  * @brief Copy data from std::vector to Blob
  * @ingroup ie_dev_api_memory
  * @tparam T type of data in std::vector
