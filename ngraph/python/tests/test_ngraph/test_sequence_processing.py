@@ -33,7 +33,6 @@ def test_onehot():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_one_hot():
     data = np.array([0, 1, 2], dtype=np.int32)
     depth = 2

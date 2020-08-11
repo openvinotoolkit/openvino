@@ -151,7 +151,6 @@ def test_unary_op_scalar_using_constants(ng_api_fn, numpy_fn, input_data):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
 )
@@ -161,7 +160,7 @@ def test_logical_not(input_data):
     result = run_op_node([input_data], ng.logical_not)
     assert np.allclose(result, expected)
 
-
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
 )
@@ -172,7 +171,6 @@ def test_logical_not_using_constants(input_data):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_sigmoid():
     input_data = np.array([-3.14, -1.0, 0.0, 2.71001, 1000.0], dtype=np.float32)
     result = run_op_node([input_data], ng.sigmoid)
@@ -197,7 +195,6 @@ def test_softmax():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_erf():
     input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
     expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]
@@ -206,6 +203,7 @@ def test_erf():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_erf_using_constants():
     input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
     expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]
