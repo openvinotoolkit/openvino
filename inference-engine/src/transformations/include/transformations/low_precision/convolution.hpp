@@ -17,6 +17,7 @@ public:
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     void transform2(TransformationContext& context, ngraph::pattern::Matcher &m) const;
+    bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
 };
 
 } // namespace low_precision
