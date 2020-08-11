@@ -42,7 +42,7 @@ protected:
         pluginId = "TEST";
         mock_plugin_impl.reset(new MockInferencePluginInternal());
         mock_plugin_impl->SetName(pluginId);
-        plugin = details::shared_from_irelease(mock_plugin_impl));
+        plugin = std::static_pointer_cast<IInferencePlugin>(mock_plugin_impl);
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
         mockExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
     }
@@ -156,4 +156,3 @@ TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImp
     ASSERT_EQ(mockExeNetworkInternal->exportString, mock_plugin_impl->importedString);
     mock_plugin_impl->importedString = {};
 }
-

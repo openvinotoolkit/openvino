@@ -18,68 +18,64 @@ using namespace InferenceEngine::details;
 class PluginBaseTests: public ::testing::Test {
 protected:
     std::shared_ptr<MockPluginImpl> mock_impl;
-    shared_ptr<IInferencePlugin> plugin;
-    ResponseDesc dsc;
+    std::shared_ptr<IInferencePlugin> plugin;
     virtual void TearDown() {
     }
     virtual void SetUp() {
         mock_impl.reset(new MockPluginImpl());
-        plugin = details::shared_from_irelease(mock_impl);
+        mock_impl->SetVersion({{2, 1}, "test", "version"});
+        plugin = std::static_pointer_cast<IInferencePlugin>(mock_impl);
     }
 };
 
 TEST_F(PluginBaseTests, canReportVersion) {
-    const Version *V;
-    plugin->GetVersion(V);
+    const Version V = plugin->GetVersion();
 
-    EXPECT_STREQ(V->buildNumber, "test");
-    EXPECT_STREQ(V->description, "version");
-    EXPECT_EQ(V->apiVersion.major, 2);
-    EXPECT_EQ(V->apiVersion.minor, 1);
+    EXPECT_STREQ(V.buildNumber, "test");
+    EXPECT_STREQ(V.description, "version");
+    EXPECT_EQ(V.apiVersion.major, 2);
+    EXPECT_EQ(V.apiVersion.minor, 1);
 }
 
 TEST_F(PluginBaseTests, canForwardLoadExeNetwork) {
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).Times(1);
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
-    ASSERT_EQ(OK, plugin->LoadNetwork(exeNetwork, *network, {}, &dsc));
+    ASSERT_NO_THROW(plugin->LoadNetwork(exeNetwork, *network, {}));
 }
-
 
 TEST_F(PluginBaseTests, canReportErrorInLoadExeNetwork) {
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).WillOnce(Throw(std::runtime_error("compare")));
 
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
-    ASSERT_NE(plugin->LoadNetwork(exeNetwork, *network, {}, &dsc), OK);
-    ASSERT_STREQ(dsc.msg, "compare");
+    ASSERT_THROW(plugin->LoadNetwork(exeNetwork, *network, {}), details::InferenceEngineException);
 }
 
 TEST_F(PluginBaseTests, canCatchUnknownErrorInLoadExeNetwork) {
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).WillOnce(Throw(5));
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
-    ASSERT_EQ(UNEXPECTED, plugin->LoadNetwork(exeNetwork, *network, {}, nullptr));
+    ASSERT_THROW(plugin->LoadNetwork(exeNetwork, *network, {}), details::InferenceEngineException);
 }
 
-TEST_F(PluginBaseTests, canForwarSetConfig) {
+TEST_F(PluginBaseTests, canForwardSetConfig) {
     const std::map <std::string, std::string> config;
     EXPECT_CALL(*mock_impl.get(), SetConfig(Ref(config))).Times(1);
-    ASSERT_EQ(OK, plugin->SetConfig(config, &dsc));
+    ASSERT_NO_THROW(plugin->SetConfig(config));
 }
 
 TEST_F(PluginBaseTests, canReportErrorInSetConfig) {
     const std::map <std::string, std::string> config;
     EXPECT_CALL(*mock_impl.get(), SetConfig(_)).WillOnce(Throw(std::runtime_error("error")));
 
-    ASSERT_NE(OK, plugin->SetConfig(config, &dsc));
-    ASSERT_STREQ(dsc.msg, "error");
+    ASSERT_THROW(plugin->SetConfig(config), details::InferenceEngineException);
 }
 
 TEST_F(PluginBaseTests, canCatchUnknownErrorInSetConfig) {
     EXPECT_CALL(*mock_impl.get(), SetConfig(_)).WillOnce(Throw(5));
     const std::map <std::string, std::string> config;
-    ASSERT_EQ(UNEXPECTED, plugin->SetConfig(config, nullptr));
+    ASSERT_THROW(plugin->SetConfig(config), details::InferenceEngineException);
 }
 
 TEST(InferencePluginTests, throwsOnNullptrCreation) {
@@ -95,7 +91,6 @@ TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
 
 TEST(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
     InferencePlugin plg;
-    QueryNetworkResult r;
     ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), details::InferenceEngineException);
 }
 

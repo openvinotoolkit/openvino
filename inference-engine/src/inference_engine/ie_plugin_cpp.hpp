@@ -73,7 +73,7 @@ public:
      * Wraps IInferencePlugin::GetVersion
      * @return A plugin version
      */
-    const Version GetVersion() const noexcept {
+    const Version GetVersion() const {
         CALL_RETURN_FNC(GetVersion);
     }
 

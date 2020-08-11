@@ -16,9 +16,12 @@ class MockPlugin : public InferenceEngine::InferencePluginInternal {
 public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
 
+    void SetConfig(const std::map<std::string, std::string>& config) override;
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &ret, const InferenceEngine::ICNNNetwork &network,
                      const std::map<std::string, std::string> &config) override;
     ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
                        const std::map<std::string, std::string>& config);
+
+    std::map<std::string, std::string> config;
 };

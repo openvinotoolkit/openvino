@@ -18,6 +18,10 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
+    this->config = config;
+}
+
 void MockPlugin::LoadNetwork(IExecutableNetwork::Ptr &ret, const ICNNNetwork &network,
                              const std::map<std::string, std::string> &config) {
     if (_target) {

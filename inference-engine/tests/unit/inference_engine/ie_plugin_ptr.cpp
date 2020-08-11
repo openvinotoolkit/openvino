@@ -7,7 +7,7 @@
 #include "details/ie_so_loader.h"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
-#include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 
 
 using namespace std;
@@ -37,7 +37,7 @@ protected:
         return ptr;
     }
 
-    MockIInferencePlugin engine;
+    MockInferencePluginInternal2 engine;
 };
 
 TEST_F(PluginTest, canCreatePlugin) {
@@ -64,7 +64,7 @@ InferenceEnginePluginPtr PluginTest::getPtr() {
 
 TEST_F(PluginTest, canSetConfiguration) {
     InferenceEnginePluginPtr ptr = getPtr();
-    // TODO: dynamic->reinterpret because of calng/gcc cannot
+    // TODO: dynamic->reinterpret because of clang/gcc cannot
     // dynamically cast this MOCK object
     ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
 

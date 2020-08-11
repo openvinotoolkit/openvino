@@ -49,21 +49,21 @@ static inline void parsePluginName(std::istream& networkModel) {
  * @ingroup ie_dev_api_plugin_api
  */
 class InferencePluginInternal : public IInferencePlugin {
-    class VersionStore : public Version {
-        std::string _dsc;
-        std::string _buildNumber;
+    // class VersionStore : public Version {
+    //     std::string _dsc;
+    //     std::string _buildNumber;
 
-    public:
-        VersionStore() = default;
+    // public:
+    //     VersionStore() = default;
 
-        explicit VersionStore(const Version& v) {
-            _dsc = v.description;
-            _buildNumber = v.buildNumber;
-            description = _dsc.c_str();
-            buildNumber = _buildNumber.c_str();
-            apiVersion = v.apiVersion;
-        }
-    } _version;
+    //     explicit VersionStore(const Version& v) {
+    //         _dsc = v.description;
+    //         _buildNumber = v.buildNumber;
+    //         description = _dsc.c_str();
+    //         buildNumber = _buildNumber.c_str();
+    //         apiVersion = v.apiVersion;
+    //     }
+    // } _version;
 
 protected:
     /**

@@ -10,13 +10,16 @@
 #include <string>
 #include <vector>
 
-#include "ie_iexecutable_network.hpp"
 #include "ie_icore.hpp"
+#include <ie_extension.h>
 #include "cpp/ie_executable_network.hpp"
+#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 
-
-class MockPluginImpl {
+class MockPluginImpl : public InferenceEngine::InferencePluginInternal {
  public:
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
+        const std::map<std::string, std::string>& config) override {}
+
     MOCK_METHOD3(LoadExeNetwork, void(InferenceEngine::IExecutableNetwork::Ptr &,
                                       const InferenceEngine::ICNNNetwork &,
                                       const std::map<std::string, std::string> &));
