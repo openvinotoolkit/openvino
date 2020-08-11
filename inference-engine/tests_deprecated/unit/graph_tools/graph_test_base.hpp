@@ -3,12 +3,12 @@
 //
 
 #include <gtest/gtest.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock-more-actions.h>
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "common_test_utils/common_utils.hpp"

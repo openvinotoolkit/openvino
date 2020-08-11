@@ -9,7 +9,7 @@
 #include <string>
 #include <map>
 
-#include <ie_ishape_infer_extension.hpp>
+#include <legacy/ie_ishape_infer_extension.hpp>
 #include <ie_parameter.hpp>
 #include <ie_precision.hpp>
 

@@ -19,12 +19,12 @@
 #include <limits>
 
 #include <low_precision_transformations/blob_transformation.hpp>
-#include <graph_tools.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/net_pass.h>
 #include <debug.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include "gna_plugin.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "layers/gna_layer_type.hpp"

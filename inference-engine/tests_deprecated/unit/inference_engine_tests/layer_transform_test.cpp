@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 

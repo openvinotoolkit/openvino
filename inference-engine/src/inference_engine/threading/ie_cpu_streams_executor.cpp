@@ -13,12 +13,12 @@
 #include <climits>
 #include <cassert>
 #include <utility>
+
 #include "threading/ie_thread_local.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 #include "threading/ie_thread_affinity.hpp"
 #include "details/ie_exception.hpp"
-#include "ie_util_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include <openvino/itt.hpp>
 

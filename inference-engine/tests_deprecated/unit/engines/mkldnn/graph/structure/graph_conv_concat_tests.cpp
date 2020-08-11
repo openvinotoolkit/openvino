@@ -8,7 +8,7 @@
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <ie_core.hpp>
-#include "details/ie_cnn_network_iterator.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 using namespace ::testing;
 using namespace std;
