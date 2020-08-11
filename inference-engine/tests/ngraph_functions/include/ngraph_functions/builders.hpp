@@ -318,5 +318,13 @@ std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
 std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
                                                   const ngraph::op::DetectionOutputAttrs& attrs);
 
+std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
+                                                 const element::Type& type,
+                                                 const size_t outputSize,
+                                                 bool addBias = true,
+                                                 const ngraph::Shape& weightsShape = {},
+                                                 const std::vector<float>& weights = {},
+                                                 const std::vector<float>& biasWeights = {});
+
 }  // namespace builder
 }  // namespace ngraph
