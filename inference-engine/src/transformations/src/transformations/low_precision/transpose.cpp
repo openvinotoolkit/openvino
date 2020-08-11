@@ -22,7 +22,7 @@ void TransposeTransformation::registerMatcherIn(GraphRewrite &pass, Transformati
 }
 
 void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose);
 
     const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->get_input_node_ptr(1)->get_output_shape(0);
     const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0);
@@ -31,16 +31,45 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     }
 
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
+        auto transposeConstant = [](
+            std::shared_ptr<Node> dequantizationConstant,
+            const Shape& transposeOutputShape,
+            const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
+            const auto dequantizationShape = dequantizationConstant->get_output_shape(0);
+            if (dequantizationShape.empty() || (dequantizationShape.size() == 1ul)) {
+                return nullptr;
+            }
+
+            if (dequantizationShape.size() != transposeOutputShape.size()) {
+                dequantizationConstant = fold<opset1::Unsqueeze>(
+                    dequantizationConstant,
+                    std::make_shared<opset1::Constant>(element::i32, Shape{ 1 }, std::vector<size_t>{0}));
+            }
+            return fold<opset1::Transpose>(dequantizationConstant, transposeConstant);
+        };
+
         if (dequantization.subtract != nullptr) {
-            replace_node(
+            auto constant = transposeConstant(
                 dequantization.subtract->get_input_node_shared_ptr(1),
-                fold<opset1::Transpose>(dequantization.subtract->get_input_node_shared_ptr(1), transpose->get_input_node_shared_ptr(1)));
+                transpose->get_output_shape(0),
+                transpose->get_input_node_shared_ptr(1));
+            if (constant != nullptr) {
+                replace_node(
+                    dequantization.subtract->get_input_node_shared_ptr(1),
+                    constant);
+            }
         }
 
         if (dequantization.multiply != nullptr) {
-            replace_node(
+            auto constant = transposeConstant(
                 dequantization.multiply->get_input_node_shared_ptr(1),
-                fold<opset1::Transpose>(dequantization.multiply->get_input_node_shared_ptr(1), transpose->get_input_node_shared_ptr(1)));
+                transpose->get_output_shape(0),
+                transpose->get_input_node_shared_ptr(1));
+            if (constant != nullptr) {
+                replace_node(
+                    dequantization.multiply->get_input_node_shared_ptr(1),
+                    constant);
+            }
         }
     }
 }
@@ -62,7 +91,34 @@ bool TransposeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) con
 }
 
 bool TransposeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    return true;
+    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+    if (constant == nullptr) {
+        return false;
+    }
+
+    const auto values = constant->cast_vector<float>();
+    if ((values.size() < 2ul) || (values[0] != 0) || (values[1] != 1)) {
+        return false;
+    }
+
+    auto checkConstant = [](const std::shared_ptr<Node>& dequantizationConstant, const Shape& transposeOutputShape) -> bool {
+        const auto dequantizationShape = dequantizationConstant->get_output_shape(0);
+        if (dequantizationShape.empty() || (dequantizationShape.size() == 1ul) || (dequantizationShape.size() == transposeOutputShape.size())) {
+            return true;
+        }
+
+        if (dequantizationShape.size() > transposeOutputShape.size()) {
+            return false;
+        }
+
+        return (transposeOutputShape.size() - dequantizationShape.size()) == 1;
+    };
+
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    return
+        !dequantization.empty() &&
+        ((dequantization.subtract == nullptr) || checkConstant(dequantization.subtract->get_input_node_shared_ptr(1), op->get_output_shape(0))) &&
+        ((dequantization.multiply == nullptr) || checkConstant(dequantization.multiply->get_input_node_shared_ptr(1), op->get_output_shape(0)));
 }
 
 } // namespace low_precision
