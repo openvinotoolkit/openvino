@@ -52,7 +52,6 @@ namespace ngraph
                     const OutputVector inputs{node.get_ng_inputs()};
                     const Output<ngraph::Node> data = inputs.at(0);
                     const element::Type data_type = data.get_element_type();
-                    const Shape data_shape = data.get_shape();
                     Output<ngraph::Node> min;
                     Output<ngraph::Node> max;
 
@@ -65,7 +64,7 @@ namespace ngraph
                     else
                     {
                         min = builder::make_constant(
-                            data_type, data_shape, std::numeric_limits<double>::lowest());
+                            data_type, Shape{}, std::numeric_limits<double>::lowest());
                     }
 
                     // If third input is provided, assign to max input, otherwise set maximum
@@ -77,7 +76,7 @@ namespace ngraph
                     else
                     {
                         max = builder::make_constant(
-                            data_type, data_shape, std::numeric_limits<double>::max());
+                            data_type, Shape{}, std::numeric_limits<double>::max());
                     }
 
                     const auto max_of_min_and_data =
