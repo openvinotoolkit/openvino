@@ -186,7 +186,7 @@ Type commands in the opened window:
 cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer\install_prerequisites
 ```
 
-3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\*, MXNet\*, Kaldi\*, and ONNX\*:<br>
+3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\* 1.x, MXNet\*, Kaldi\*, and ONNX\*:<br>
 ```sh
 install_prerequisites.bat
 ```
@@ -205,9 +205,14 @@ cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer
    install_prerequisites_caffe.bat
    ```
 
-   * For **TensorFlow**:<br>
+   * For **TensorFlow 1.x**:<br>
    ```sh
    install_prerequisites_tf.bat
+   ```
+
+   * For **TensorFlow 2.x**:<br>
+   ```sh
+   install_prerequisites_tf2.bat
    ```
 
    * For **MXNet**:<br>

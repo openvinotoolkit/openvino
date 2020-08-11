@@ -181,7 +181,7 @@ You can choose to either configure the Model Optimizer for all supported framewo
    cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
    ```
 
-2. Run the script to configure the Model Optimizer for Caffe, TensorFlow, MXNet, Kaldi\*, and ONNX:
+2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
    ```sh
    sudo ./install_prerequisites.sh
    ```
@@ -202,9 +202,14 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
    sudo ./install_prerequisites_caffe.sh
    ```
 
-   - For **TensorFlow**:
+   - For **TensorFlow 1.x**:
    ```sh
    sudo ./install_prerequisites_tf.sh
+   ```
+
+   - For **TensorFlow 2.x**:
+   ```sh
+   sudo ./install_prerequisites_tf2.sh
    ```
 
    - For **MXNet**:
