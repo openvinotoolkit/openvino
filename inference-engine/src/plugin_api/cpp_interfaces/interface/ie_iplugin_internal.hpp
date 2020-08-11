@@ -90,8 +90,8 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
 class IInferencePluginInternal : public details::IRelease,
                                  public std::enable_shared_from_this<IInferencePluginInternal> {
     class VersionStore : public Version {
-    std::string _dsc;
-    std::string _buildNumber;
+        std::string _dsc;
+        std::string _buildNumber;
 
     public:
         VersionStore() = default;
@@ -105,16 +105,23 @@ class IInferencePluginInternal : public details::IRelease,
         }
     } _version;
 
+protected:
+
+    /**
+     * @brief      Destroys the object.
+     */
+    ~IInferencePluginInternal() override = default;
+
 public:
     /**
      * @brief A shared pointer to IInferencePluginInternal interface
      */
     using Ptr = std::shared_ptr<IInferencePluginInternal>;
 
-    /**
-     * @brief      Destroys the object.
-     */
-    virtual ~IInferencePluginInternal() = default;
+    // TODO
+    void SetVersion(const Version & version) {
+        _version = VersionStore(version);
+    }
 
     const Version GetVersion() const noexcept {
         return _version;
