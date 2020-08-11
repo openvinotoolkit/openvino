@@ -48,8 +48,7 @@ static inline void parsePluginName(std::istream& networkModel) {
  * @brief Optimal implementation of IInferencePluginInternal interface to avoid duplication in all plugins
  * @ingroup ie_dev_api_plugin_api
  */
-class InferencePluginInternal : public IInferencePluginInternal,
-                                public std::enable_shared_from_this<InferencePluginInternal> {
+class InferencePluginInternal : public IInferencePluginInternal {
 public:
     /**
      * @brief Destroys the object.

@@ -87,7 +87,8 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An internal API of plugin to be implemented by a plugin, which is used in PluginBase forwarding mechanism
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePluginInternal : public details::IRelease {
+class IInferencePluginInternal : public details::IRelease,
+                                 public std::enable_shared_from_this<IInferencePluginInternal> {
     class VersionStore : public Version {
     std::string _dsc;
     std::string _buildNumber;
