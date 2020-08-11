@@ -187,13 +187,4 @@ public:
     ~IInferencePlugin() override;
 };
 
-/**
- * @brief Creates the default instance of the interface (per plugin)
- *
- * @param plugin Pointer to the plugin
- * @param resp Pointer to the response message that holds a description of an error if any occurred
- * @return Status code of the operation. InferenceEngine::OK if succeeded
- */
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
-
 }  // namespace InferenceEngine
