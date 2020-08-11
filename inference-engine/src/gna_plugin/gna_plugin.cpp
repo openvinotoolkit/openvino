@@ -18,7 +18,6 @@
 #include <utility>
 #include <limits>
 
-#include <low_precision_transformations/blob_transformation.hpp>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
 #include <debug.h>
@@ -348,10 +347,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
-
-    // move blobs from Constant layers to Convolution, Deconvolution, FullyConnected layers attributes
-    BlobTransformation blobsTransformation;
-    blobsTransformation.transform(network, true);
 
     //  Check the input network
     std::string error;
