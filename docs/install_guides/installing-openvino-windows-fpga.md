@@ -7,6 +7,24 @@ support, see [Installation Guide for Windows*](installing-openvino-windows.md).
 - An internet connection is required to follow the steps in this guide.
 - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
+## Product Change Notice
+Intel® Distribution of OpenVINO™ toolkit for Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA
+
+<table>
+  <tr>
+    <td><strong>Change Notice Begins</strong></td>
+    <td>July 2020</td>
+  </tr>
+  <tr>
+    <td><strong>Change Date</strong></td>
+    <td>October 2020</td>
+  </tr>
+</table> 
+
+Intel will be transitioning to the next-generation programmable deep-learning solution based on FPGAs in order to increase the level of customization possible in FPGA deep-learning. As part of this transition, future standard releases (i.e., non-LTS releases) of Intel® Distribution of OpenVINO™ toolkit will no longer include the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA.
+
+Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue to support Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. For questions about next-generation programmable deep-learning solutions based on FPGAs, please talk to your sales representative or contact us to get the latest FPGA updates.
+
 ## Introduction
 
 > **IMPORTANT**:
@@ -19,10 +37,10 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
-   - [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
+   - [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-   - [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
+   - [Python **3.5**-**3.7** 64-bit](https://www.python.org/downloads/windows/)
    > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
@@ -77,7 +95,7 @@ The development and target platforms have the same requirements, but you can sel
 * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-* Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA (Mustang-F100-A10) SG2
+* Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA (Mustang-F100-A10) SG2
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
@@ -93,8 +111,8 @@ The development and target platforms have the same requirements, but you can sel
 - Microsoft Windows 10*,  64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
+- [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 - [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
 
@@ -360,7 +378,7 @@ To perform inference on Intel® Vision Accelerator Design with Intel® Movidius�
       1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
       2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
 
-  2. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2015</a>
+  2. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 

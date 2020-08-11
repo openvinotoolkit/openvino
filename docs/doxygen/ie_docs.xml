@@ -297,69 +297,69 @@
                     <tab type="user" title="Optimization Notice" url="@ref openvino_docs_Optimization_notice"/>
                     <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
                 </tab>
+                <!-- Workbench -->
+                <tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
+                	<tab type="user" title="Introduction to DL Workbench" url="@ref workbench_docs_Workbench_DG_Introduction"/>
+                	<tab type="usergroup" title="DL Workbench Installation Guide" url="@ref workbench_docs_Workbench_DG_Install_Workbench">
+                		<tab type="user" title="Install from Docker Hub*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub"/>
+                		<tab type="user" title="Install from the Intel® Distribution of OpenVINO™ Toolkit Package" url="@ref workbench_docs_Workbench_DG_Install_from_Package"/>
+                		<tab type="user" title="Enter DL Workbench" url="@ref workbench_docs_Workbench_DG_Authentication"/>
+                	</tab>
+                	<tab type="usergroup" title="DL Workbench Get Started Guide" url="@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets">
+                		<tab type="usergroup" title="Select Models" url="@ref workbench_docs_Workbench_DG_Select_Model">
+                			<tab type="user" title="Import Models" url="@ref workbench_docs_Workbench_DG_Select_Models"/>
+                			<tab type="user" title="Import Frozen TensorFlow* SSD MobileNet v2 COCO Tutorial" url="@ref workbench_docs_Workbench_DG_Import_TensorFlow"/>
+                			<tab type="user" title="Import MXNet* MobileNet v2 Tutorial" url="@ref workbench_docs_Workbench_DG_Import_MXNet"/>
+                			<tab type="user" title="Import ONNX* MobileNet v2 Tutorial" url="@ref workbench_docs_Workbench_DG_Import_ONNX"/>
+                		</tab>
+                		<tab type="usergroup" title="Select Datasets" url="@ref workbench_docs_Workbench_DG_Select_Datasets">
+                			<tab type="user" title="Import Datasets" url="@ref workbench_docs_Workbench_DG_Import_Datasets"/>
+                			<tab type="user" title="Generate Datasets" url="@ref workbench_docs_Workbench_DG_Generate_Datasets"/>
+                			<tab type="user" title="Dataset Types" url="@ref workbench_docs_Workbench_DG_Dataset_Types"/>
+                			<tab type="user" title="Download and Cut Datasets" url="@ref workbench_docs_Workbench_DG_Download_and_Cut_Datasets"/>
+                		</tab>
+                		<tab type="user" title="Select Environment" url="@ref workbench_docs_Workbench_DG_Select_Environment"/>
+                		<tab type="user" title="Run Baseline Inference" url="@ref workbench_docs_Workbench_DG_Run_Baseline_Inference"/>
+                	</tab>
+                	<tab type="usergroup" title="DL Workbench Developer Guide" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
+                		<tab type="usergroup" title="Measure and Interpret Model Performance" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
+                			<tab type="user" title="Run Single Inference" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference"/>
+                			<tab type="user" title="Run Group Inference" url="@ref workbench_docs_Workbench_DG_Run_Range_of_Inferences"/>
+                			<tab type="usergroup" title="View Inference Results" url="@ref workbench_docs_Workbench_DG_View_Inference_Results">
+                				<tab type="user" title="Visualize Model" url="@ref workbench_docs_Workbench_DG_Visualize_Model"/>
+                			</tab>
+                			<tab type="user" title="Compare Performance between Two Versions of a Model" url="@ref workbench_docs_Workbench_DG_Compare_Performance_between_Two_Versions_of_Models"/>
+                		</tab>
+                		<tab type="usergroup" title="Tune Model for Enhanced Performance" url="@ref workbench_docs_Workbench_DG_Int_8_Quantization">
+                			<tab type="user" title="INT8 Calibration" url="@ref workbench_docs_Workbench_DG_Int_8_Quantization"/>
+                			<tab type="user" title="Winograd Algorithmic Tuning" url="@ref workbench_docs_Workbench_DG_Winograd_Algorithmic_Tuning"/>
+                		</tab>
+                		<tab type="usergroup" title="Accuracy Measurements" url="@ref workbench_docs_Workbench_DG_Measure_Accuracy">
+                			<tab type="user" title="Measure Accuracy" url="@ref workbench_docs_Workbench_DG_Measure_Accuracy"/>
+                			<tab type="user" title="Configure Accuracy Settings" url="@ref workbench_docs_Workbench_DG_Configure_Accuracy_Settings"/>
+                		</tab>
+                		<tab type="usergroup" title="Remote Profiling" url="@ref workbench_docs_Workbench_DG_Remote_Profiling">
+                			<tab type="user" title="Profile on Remote Machine" url="@ref workbench_docs_Workbench_DG_Profile_on_Remote_Machine"/>
+                			<tab type="user" title="Set Up Target for Remote Profiling" url="@ref workbench_docs_Workbench_DG_Setup_Remote_Target"/>
+                			<tab type="user" title="Register Remote Target in DL Workbench" url="@ref workbench_docs_Workbench_DG_Add_Remote_Target"/>
+                			<tab type="user" title="Remote Machines" url="@ref workbench_docs_Workbench_DG_Remote_Machines"/>
+                		</tab>
+                		<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
+                		<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
+                	  <tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
+					          <tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>                	
+                  </tab>
+                	<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
+                		<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
+                		<tab type="user" title="Configure Authentication Token Saving" url="@ref workbench_docs_Workbench_DG_Configure_Token_Saving"/>
+                	</tab>
+                	<tab type="user" title="Troubleshooting" url="@ref workbench_docs_Workbench_DG_Troubleshooting"/>
+                </tab>
                 <!-- Inference Engine Plugin Development Guide-->
                 <tab type="user" title="Inference Engine Plugin Development Guide" url="ie_plugin_api/index.html"/>
                 <!-- Deployment Manager-->
                 <tab type="user" title="Deployment Manager Guide" url="@ref openvino_docs_install_guides_deployment_manager_tool"/>
-			<!-- Workbench -->
-			<tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
-				<tab type="user" title="Introduction to DL Workbench" url="@ref workbench_docs_Workbench_DG_Introduction"/>
-				<tab type="usergroup" title="DL Workbench Installation Guide" url="@ref workbench_docs_Workbench_DG_Install_Workbench">
-					<tab type="user" title="Install from Docker Hub*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub"/>
-					<tab type="user" title="Install from the Intel® Distribution of OpenVINO™ Toolkit Package" url="@ref workbench_docs_Workbench_DG_Install_from_Package"/>
-					<tab type="user" title="Enter DL Workbench" url="@ref workbench_docs_Workbench_DG_Authentication"/>
-				</tab>
-				<tab type="usergroup" title="DL Workbench Get Started Guide" url="@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets">
-					<tab type="usergroup" title="Select Models" url="@ref workbench_docs_Workbench_DG_Select_Model">
-						<tab type="user" title="Import Models" url="@ref workbench_docs_Workbench_DG_Select_Models"/>
-						<tab type="user" title="Import Frozen TensorFlow* SSD MobileNet v2 COCO Tutorial" url="@ref workbench_docs_Workbench_DG_Import_TensorFlow"/>
-						<tab type="user" title="Import MXNet* MobileNet v2 Tutorial" url="@ref workbench_docs_Workbench_DG_Import_MXNet"/>
-						<tab type="user" title="Import ONNX* MobileNet v2 Tutorial" url="@ref workbench_docs_Workbench_DG_Import_ONNX"/>
-					</tab>
-					<tab type="usergroup" title="Select Datasets" url="@ref workbench_docs_Workbench_DG_Select_Datasets">
-						<tab type="user" title="Import Datasets" url="@ref workbench_docs_Workbench_DG_Import_Datasets"/>
-						<tab type="user" title="Generate Datasets" url="@ref workbench_docs_Workbench_DG_Generate_Datasets"/>
-						<tab type="user" title="Dataset Types" url="@ref workbench_docs_Workbench_DG_Dataset_Types"/>
-						<tab type="user" title="Download and Cut Datasets" url="@ref workbench_docs_Workbench_DG_Download_and_Cut_Datasets"/>
-					</tab>
-					<tab type="user" title="Select Environment" url="@ref workbench_docs_Workbench_DG_Select_Environment"/>
-					<tab type="user" title="Run Baseline Inference" url="@ref workbench_docs_Workbench_DG_Run_Baseline_Inference"/>
-				</tab>
-				<tab type="usergroup" title="DL Workbench Developer Guide" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
-					<tab type="usergroup" title="Measure and Interpret Model Performance" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
-						<tab type="user" title="Run Single Inference" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference"/>
-						<tab type="user" title="Run Group Inference" url="@ref workbench_docs_Workbench_DG_Run_Range_of_Inferences"/>
-						<tab type="usergroup" title="View Inference Results" url="@ref workbench_docs_Workbench_DG_View_Inference_Results">
-							<tab type="user" title="Visualize Model" url="@ref workbench_docs_Workbench_DG_Visualize_Model"/>
-						</tab>
-						<tab type="user" title="Compare Performance between Two Versions of a Model" url="@ref workbench_docs_Workbench_DG_Compare_Performance_between_Two_Versions_of_Models"/>
-					</tab>
-					<tab type="usergroup" title="Tune Model for Enhanced Performance" url="@ref workbench_docs_Workbench_DG_Int_8_Quantization">
-						<tab type="user" title="INT8 Calibration" url="@ref workbench_docs_Workbench_DG_Int_8_Quantization"/>
-						<tab type="user" title="Winograd Algorithmic Tuning" url="@ref workbench_docs_Workbench_DG_Winograd_Algorithmic_Tuning"/>
-					</tab>
-					<tab type="usergroup" title="Accuracy Measurements" url="@ref workbench_docs_Workbench_DG_Measure_Accuracy">
-						<tab type="user" title="Measure Accuracy" url="@ref workbench_docs_Workbench_DG_Measure_Accuracy"/>
-						<tab type="user" title="Configure Accuracy Settings" url="@ref workbench_docs_Workbench_DG_Configure_Accuracy_Settings"/>
-					</tab>
-					<tab type="usergroup" title="Remote Profiling" url="@ref workbench_docs_Workbench_DG_Remote_Profiling">
-						<tab type="user" title="Profile on Remote Machine" url="@ref workbench_docs_Workbench_DG_Profile_on_Remote_Machine"/>
-						<tab type="user" title="Set Up Target for Remote Profiling" url="@ref workbench_docs_Workbench_DG_Setup_Remote_Target"/>
-						<tab type="user" title="Register Remote Target in DL Workbench" url="@ref workbench_docs_Workbench_DG_Add_Remote_Target"/>
-						<tab type="user" title="Remote Machines" url="@ref workbench_docs_Workbench_DG_Remote_Machines"/>
-					</tab>
-					<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
-					<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
-					<tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
-					<tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>
-				</tab>
-				<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
-					<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
-					<tab type="user" title="Configure Authentication Token Saving" url="@ref workbench_docs_Workbench_DG_Configure_Token_Saving"/>
-				</tab>
-				<tab type="user" title="Troubleshooting" url="@ref workbench_docs_Workbench_DG_Troubleshooting"/>
-			</tab>
-            <!-- Security -->
+			      <!-- Security -->
             <tab type="usergroup" title="Security" url="@ref openvino_docs_security_guide_introduction">
                 <tab type="user" title="Introduction" url="@ref openvino_docs_security_guide_introduction"/>
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>

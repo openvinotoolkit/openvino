@@ -295,7 +295,7 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 > **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
-To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2015
+To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2017
 Redistributable and Intel® C++ Compiler 2017 Redistributable packages are installed and
 `<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
 application folder or accessible via `%PATH%` environment variable.
