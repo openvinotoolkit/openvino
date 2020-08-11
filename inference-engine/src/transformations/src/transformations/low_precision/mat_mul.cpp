@@ -4,6 +4,7 @@
 
 #include "transformations/low_precision/mat_mul.hpp"
 
+#include <numeric>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,12 +16,12 @@ using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
 void MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    std::shared_ptr<ngraph::Node> matMul = m.get_match_root();
-    if (!canBeTransformed(context, matMul)) {
+    std::shared_ptr<ngraph::opset1::MatMul> matMul = as_type_ptr<ngraph::opset1::MatMul>(m.get_match_root());
+    if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return;
     }
 
-    matMul = separateInStandaloneBranch(matMul);
+    matMul = as_type_ptr<ngraph::opset1::MatMul>(separateInStandaloneBranch(matMul));
 
     FakeQuantizeDequantization dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
     if (dequantization2.empty()) {
@@ -42,14 +43,39 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     const FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
-    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(dequantization1.data, dequantization2.data);
+    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
+        std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, element::f32).get(),
+        matMul->get_transpose_a(),
+        matMul->get_transpose_b());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
+
+
+    auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+        const Shape outputShape = node->get_output_shape(0);
+
+        std::vector<size_t> transposeConstant(outputShape.size());
+        std::iota(transposeConstant.begin(), transposeConstant.end(), 0);
+        std::swap(*(transposeConstant.end() - 1), *(transposeConstant.end() - 2));
+
+        std::shared_ptr<Node> transposedConstant = fold<ngraph::opset1::Transpose>(
+            node,
+            opset1::Constant::create(element::i64, Shape{ transposeConstant.size() }, transposeConstant));
+        return transposedConstant;
+    };
+
+    const std::shared_ptr<Node> const1 = matMul->get_transpose_a() ?
+        transpose(dequantization1.multiply->get_input_node_shared_ptr(1)) :
+        dequantization1.multiply->get_input_node_shared_ptr(1);
+
+    const std::shared_ptr<Node> const2 = matMul->get_transpose_b() ?
+        transpose(dequantization2.multiply->get_input_node_shared_ptr(1)) :
+        dequantization2.multiply->get_input_node_shared_ptr(1);
 
     const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<opset1::Multiply>(
         newMatMul,
-        NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
-            dequantization1.multiply->get_input_node_shared_ptr(1),
-            dequantization2.multiply->get_input_node_shared_ptr(1))));
+        NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(const1, const2)));
     replace_node(matMul, newMultiply);
 
     updateOutput(context, newMultiply, matMul);
