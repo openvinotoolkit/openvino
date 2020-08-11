@@ -396,7 +396,7 @@ jobs:
       powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
   - script: |
-      certutil -urlcache -split -f https://ibstatic.blob.core.windows.net/ibstaticblob/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
+      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
       call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
       net start IncrediBuild_Agent
     displayName: Install IncrediBuild
