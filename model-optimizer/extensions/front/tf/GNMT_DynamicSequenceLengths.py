@@ -31,7 +31,7 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
         Seq_len_data -> Max -> Cast -> Mul -> Round -> Cast.
 
     After matching this pattern:
-        1. This replacer looking for encoder sequence lengths node (using information about encoder condition stucture)
+        1. This replacer looking for encoder sequence lengths node (using information about encoder condition structure)
         2. Create node for multiplying Encoder sequence lengths by 2 (as it works in GNMT).
         3. Connect Encoder sequence lengths value multiplied by 2 with decoder TensorArrays as size.
     """
@@ -141,3 +141,11 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
 
             ta.in_port(0).disconnect()
             ta.in_port(0).get_connection().set_source(mul_op.out_port(0))
+
+        if graph.graph['cmd_params'].keep_shape_ops:
+            log.error(
+                "Model can not be translated in a reshape-able way.\n"
+                "Model Optimizer key keep_shape_ops was turned off to prevent related errors.\n"
+                "There will be no success changing input shapes of the model with the help of "
+                "InferenceEngine reshape method", extra={'is_warning': True})
+            graph.graph['cmd_params'].keep_shape_ops = False
