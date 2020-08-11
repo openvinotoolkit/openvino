@@ -12,7 +12,7 @@ graph {
     }
     attribute {
       name: "mode"
-      s: "blocks_first"
+      s: "DCR"
       type: STRING
     }
   }
@@ -63,5 +63,5 @@ graph {
   }
 }
 opset_import {
-  version: 1
+  version: 11
 }

@@ -6,8 +6,13 @@ graph {
     output: "B"
     op_type: "DepthToSpace"
     attribute {
+      name: "blocksize"
+      i: 2
+      type: INT
+    }
+    attribute {
       name: "mode"
-      s: "DCR"
+      s: "blocks_first"
       type: STRING
     }
   }
@@ -22,7 +27,7 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 4
+            dim_value: 8
           }
           dim {
             dim_value: 2
@@ -44,7 +49,7 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 2
           }
           dim {
             dim_value: 4

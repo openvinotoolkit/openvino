@@ -12,7 +12,7 @@ graph {
     }
     attribute {
       name: "mode"
-      s: "blocks_first"
+      s: "DCR"
       type: STRING
     }
   }
@@ -27,7 +27,7 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 4
+            dim_value: 8
           }
           dim {
             dim_value: 2
@@ -49,7 +49,7 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 2
           }
           dim {
             dim_value: 4
@@ -63,5 +63,5 @@ graph {
   }
 }
 opset_import {
-  version: 1
+  version: 11
 }
