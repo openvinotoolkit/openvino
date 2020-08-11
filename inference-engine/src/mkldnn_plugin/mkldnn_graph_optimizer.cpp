@@ -19,7 +19,7 @@
 #include "nodes/mkldnn_resample_node.h"
 
 #include <blob_factory.hpp>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 // WA for xbyak.h
 #ifdef _WIN32

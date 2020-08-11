@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_eltwise_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <memory>

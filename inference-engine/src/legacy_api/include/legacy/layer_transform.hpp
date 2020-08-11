@@ -8,7 +8,7 @@
 #include <tuple>
 #include <utility>
 
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 

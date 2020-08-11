@@ -14,11 +14,11 @@
 #include <utility>
 
 #include "ie_api.h"
-#include "ie_layers.h"
-#include "ie_icnn_network.hpp"
-#include "cnn_network_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_locked_memory.hpp"
+
+#include <legacy/ie_layers.h>
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 namespace details {

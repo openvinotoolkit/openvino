@@ -8,7 +8,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/unicode_utils.hpp"

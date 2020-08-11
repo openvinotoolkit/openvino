@@ -287,6 +287,8 @@ extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
+extensions/front/onnx/quantize_linear_ext.py
+extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_l2_ext.py
 extensions/front/onnx/reduce_max_ext.py
@@ -646,6 +648,7 @@ extensions/ops/proposal.py
 extensions/ops/proposal_onnx.py
 extensions/ops/proposal_python_example.py
 extensions/ops/psroipooling.py
+extensions/ops/quantize_linear.py
 extensions/ops/range.py
 extensions/ops/rank.py
 extensions/ops/ReduceOps.py
