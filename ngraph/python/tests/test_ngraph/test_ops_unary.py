@@ -55,6 +55,7 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     assert np.allclose(result, expected, rtol=0.001)
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
@@ -120,6 +121,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
