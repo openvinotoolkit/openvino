@@ -47,10 +47,13 @@ find_package_handle_standard_args(ITT
 
 if(ITT_FOUND)
     set(INTEL_ITT_FOUND ${ITT_FOUND})
+
     add_library(ittnotify STATIC IMPORTED GLOBAL)
     set_target_properties(ittnotify PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
                                                INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
                                                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
 
-    set(INTEL_ITT_LIBS ittnotify)
+    if(UNIX)
+        set_target_properties(ittnotify PROPERTIES INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS};Threads::Threads")
+    endif()
 endif()

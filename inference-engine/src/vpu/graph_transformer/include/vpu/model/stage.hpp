@@ -10,7 +10,7 @@
 #include <utility>
 #include <set>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <vpu/model/base.hpp>
 #include <vpu/model/edges.hpp>

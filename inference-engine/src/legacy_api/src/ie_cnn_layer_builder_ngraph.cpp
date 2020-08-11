@@ -2,22 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_cnn_layer_builder_ngraph.h>
-#include <cnn_network_ngraph_impl.hpp>
-#include <precision_utils.h>
-#include <cpp/ie_cnn_network.h>
-#include <cnn_network_impl.hpp>
-
 #include <limits>
 #include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/variant.hpp>
 #include <set>
 #include <sstream>
 #include <utility>
 
-#include "graph_tools.hpp"
-#include "net_pass.h"
 #include "ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -30,7 +20,6 @@
 #include "ngraph_ops/lrn_ie.hpp"
 #include <ngraph_ops/lstm_cell_ie.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
-#include <convert_function_to_cnn_network.hpp>
 #include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph_ops/nms_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
@@ -47,7 +36,18 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "graph_transformer.h"
+#include <cnn_network_ngraph_impl.hpp>
+#include <precision_utils.h>
+#include <cpp/ie_cnn_network.h>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/variant.hpp>
+
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include "legacy/graph_transformer.h"
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include <legacy/cnn_network_impl.hpp>
+#include <ie_cnn_layer_builder_ngraph.h>
 
 namespace InferenceEngine {
 namespace Builder {

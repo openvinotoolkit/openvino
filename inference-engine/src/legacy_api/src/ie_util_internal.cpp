@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_util_internal.hpp"
-#include "details/ie_cnn_network_iterator.hpp"
-
-#include <ie_layers.h>
-
 #include <cassert>
 #include <deque>
 #include <iomanip>
@@ -17,13 +12,16 @@
 #include <utility>
 #include <vector>
 
-#include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "graph_tools.hpp"
-#include "net_pass.h"
+#include "caseless.hpp"
 #include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
 
+#include "legacy/ie_util_internal.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <legacy/ie_layers.h>
 #include "ie_legacy_itt.hpp"
 
 using std::string;

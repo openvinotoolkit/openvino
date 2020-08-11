@@ -141,7 +141,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         BLOCKED
 
 
-cdef extern from "<ie_layers.h>" namespace "InferenceEngine":
+cdef extern from "<legacy/ie_layers.h>" namespace "InferenceEngine":
     cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
     map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
 

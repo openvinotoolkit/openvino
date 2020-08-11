@@ -16,6 +16,7 @@
 #include "ngraph/op/fused/clamp.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/itt.hpp"
 #include "ngraph/op/maximum.hpp"
 #include "ngraph/op/minimum.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
@@ -85,6 +86,7 @@ namespace
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Clamp::evaluate");
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }

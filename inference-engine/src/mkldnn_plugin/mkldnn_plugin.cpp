@@ -8,7 +8,7 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
 
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -18,11 +18,10 @@
 #include <ie_system_conf.h>
 #include <generic_ie.hpp>
 #include <nodes/list.hpp>
-#include <ie_util_internal.hpp>
-#include <graph_transformer.h>
-#include <ie_ngraph_utils.hpp>
-
-#include "convert_function_to_cnn_network.hpp"
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_transformer.h>
+#include <legacy/ie_ngraph_utils.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -30,7 +29,6 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
