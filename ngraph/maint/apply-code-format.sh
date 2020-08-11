@@ -43,7 +43,7 @@ echo "Verified that '${CLANG_FORMAT_PROG}' has version '${REQUIRED_CLANG_FORMAT_
 pushd "${THIS_SCRIPT_DIR}/.."
 
 declare ROOT_SUBDIR
-for ROOT_SUBDIR in src test frontend python/src/pyngraph; do
+for ROOT_SUBDIR in core test frontend python/src/pyngraph; do
     if ! [[ -d "${ROOT_SUBDIR}" ]]; then
         echo "In directory '$(pwd)', no subdirectory named '${ROOT_SUBDIR}' was found."
     else
