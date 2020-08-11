@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/apply_transformations_to_ti_body.hpp"
+#include "transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
-#include <vector>
 
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>

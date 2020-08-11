@@ -50,6 +50,7 @@ namespace ngraph
                    size_t node_output_number);
 
             const std::string& get_name() const;
+            void set_name(const std::string& name);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
