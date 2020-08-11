@@ -45,15 +45,42 @@ static inline void parsePluginName(std::istream& networkModel) {
 }  // namespace
 
 /**
- * @brief Optimal implementation of IInferencePluginInternal interface to avoid duplication in all plugins
+ * @brief Optimal implementation of IInferencePlugin interface to avoid duplication in all plugins
  * @ingroup ie_dev_api_plugin_api
  */
-class InferencePluginInternal : public IInferencePluginInternal {
-public:
+class InferencePluginInternal : public IInferencePlugin {
+    class VersionStore : public Version {
+        std::string _dsc;
+        std::string _buildNumber;
+
+    public:
+        VersionStore() = default;
+
+        explicit VersionStore(const Version& v) {
+            _dsc = v.description;
+            _buildNumber = v.buildNumber;
+            description = _dsc.c_str();
+            buildNumber = _buildNumber.c_str();
+            apiVersion = v.apiVersion;
+        }
+    } _version;
+
+protected:
     /**
      * @brief Destroys the object.
      */
     ~InferencePluginInternal() override = default;
+
+public:
+
+    // TODO
+    // void SetVersion(const Version & version) noexcept override {
+    //     _version = VersionStore(version);
+    // }
+
+    // const Version GetVersion() const noexcept override {
+    //     return _version;
+    // }
 
     void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
                      const std::map<std::string, std::string>& config) override {
@@ -163,7 +190,7 @@ private:
 
         impl->setNetworkInputs(networkInputsCloned);
         impl->setNetworkOutputs(networkOutputsCloned);
-        impl->SetPointerToPluginInternal(shared_from_this());
+        impl->SetPointerToPlugin(shared_from_this());
 
         executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(impl), [](details::IRelease* p) {
             p->Release();
@@ -206,7 +233,7 @@ protected:
     /**
      * @brief Creates an executable network from an previously exported network
      * @note The function is called from
-     * IInferencePluginInternal::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
+     * IInferencePlugin::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
      * performs common steps first and calls this plugin-dependent implementation after.
      * @param networkModel Reference to network model output stream
      * @param config A string -> string map of parameters

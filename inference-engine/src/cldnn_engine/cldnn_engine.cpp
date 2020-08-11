@@ -562,7 +562,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
 };  // namespace CLDNNPlugin
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc* resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {
         // plugin = make_ie_compatible_plugin(
         //     { 2, 1,

@@ -19,7 +19,7 @@ static const Version gnaPluginDescription = {
         "GNAPlugin"
 };
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         // plugin = make_ie_compatible_plugin(gnaPluginDescription, make_shared<GNAPluginInternal>());
         plugin = new GNAPluginInternal();

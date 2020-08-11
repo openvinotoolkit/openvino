@@ -117,8 +117,8 @@ TEST_F(SymbolLoaderTests, instantiateSymbol) {
         std::string("mock_engine") + IE_BUILD_POSTFIX);
     std::shared_ptr<SharedObjectLoader> sharedLoader(new SharedObjectLoader(name.c_str()));
     SymbolLoader<SharedObjectLoader> loader(sharedLoader);
-    IInferencePluginInternal * value = nullptr;
-    ASSERT_NE(nullptr, value = loader.instantiateSymbol<IInferencePluginInternal>(
-        SOCreatorTrait<IInferencePluginInternal>::name));
+    IInferencePlugin * value = nullptr;
+    ASSERT_NE(nullptr, value = loader.instantiateSymbol<IInferencePlugin>(
+        SOCreatorTrait<IInferencePlugin>::name));
     value->Release();
 }

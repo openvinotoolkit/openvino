@@ -290,7 +290,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePluginInternal *&plugin,
+        InferenceEngine::IInferencePlugin *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
     try {
         // plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"},

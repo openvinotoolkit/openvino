@@ -18,7 +18,7 @@ using namespace InferenceEngine::details;
 class PluginBaseTests: public ::testing::Test {
 protected:
     std::shared_ptr<MockPluginImpl> mock_impl;
-    shared_ptr<IInferencePluginInternal> plugin;
+    shared_ptr<IInferencePlugin> plugin;
     ResponseDesc dsc;
     virtual void TearDown() {
     }

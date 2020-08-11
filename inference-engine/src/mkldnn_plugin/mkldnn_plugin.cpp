@@ -332,13 +332,13 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 }
 
 template <class T>
-inline IInferencePluginInternal* make_ie_compatible_plugin(const Version& reported, std::shared_ptr<T> impl) {
+inline IInferencePlugin* make_ie_compatible_plugin(const Version& reported, std::shared_ptr<T> impl) {
     impl->SetVersion(reported);
     std::unique_ptr<T> ptr = impl;
     return ptr.release();
 }
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         // plugin = make_ie_compatible_plugin(
         //         {{2, 1},

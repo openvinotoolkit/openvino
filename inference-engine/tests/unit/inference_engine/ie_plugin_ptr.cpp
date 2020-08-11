@@ -18,7 +18,7 @@ using namespace InferenceEngine::details;
 class PluginTest: public ::testing::Test {
 protected:
     unique_ptr<SharedObjectLoader> sharedObjectLoader;
-    std::function<IInferencePluginInternal*(IInferencePluginInternal*)> createPluginEngineProxy;
+    std::function<IInferencePlugin*(IInferencePlugin*)> createPluginEngineProxy;
     InferenceEnginePluginPtr getPtr();
 
     std::string get_mock_engine_name() {
@@ -29,7 +29,7 @@ protected:
     virtual void SetUp() {
         std::string libraryName = get_mock_engine_name();
         sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
-        createPluginEngineProxy = make_std_function<IInferencePluginInternal*(IInferencePluginInternal*)>("CreatePluginEngineProxy");
+        createPluginEngineProxy = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
     }
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
@@ -41,10 +41,10 @@ protected:
 };
 
 TEST_F(PluginTest, canCreatePlugin) {
-    auto ptr = make_std_function<IInferencePluginInternal*
-        (IInferencePluginInternal*)>("CreatePluginEngineProxy");
+    auto ptr = make_std_function<IInferencePlugin*
+        (IInferencePlugin*)>("CreatePluginEngineProxy");
 
-    unique_ptr<IInferencePluginInternal, std::function<void(IInferencePluginInternal*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
+    unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
         p->Release();
     });
 }

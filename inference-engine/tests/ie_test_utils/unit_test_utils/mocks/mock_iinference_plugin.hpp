@@ -10,7 +10,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include <gmock/gmock.h>
 
-class MockIInferencePlugin : public InferenceEngine::IInferencePluginInternal {
+class MockIInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr));
     MOCK_METHOD3(LoadNetwork, void(IExecutableNetwork::Ptr&,

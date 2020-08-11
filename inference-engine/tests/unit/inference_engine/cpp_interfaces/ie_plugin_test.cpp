@@ -20,7 +20,7 @@ using namespace InferenceEngine::details;
 
 class InferenceEnginePluginInternalTest : public ::testing::Test {
 protected:
-    shared_ptr<IInferencePluginInternal> plugin;
+    shared_ptr<IInferencePlugin> plugin;
     shared_ptr<MockInferencePluginInternal> mock_plugin_impl;
     shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
@@ -44,7 +44,7 @@ protected:
         mock_plugin_impl->SetName(pluginId);
         plugin = details::shared_from_irelease(mock_plugin_impl));
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
-        mockExeNetworkInternal->SetPointerToPluginInternal(mock_plugin_impl);
+        mockExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
     }
 
     void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {

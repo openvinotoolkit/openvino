@@ -11,10 +11,10 @@
 #include <ie_icnn_network.hpp>
 
 class MockPlugin : public InferenceEngine::InferencePluginInternal {
-    InferenceEngine::IInferencePluginInternal * _target = nullptr;
+    InferenceEngine::IInferencePlugin * _target = nullptr;
 
 public:
-    explicit MockPlugin(InferenceEngine::IInferencePluginInternal*target);
+    explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
 
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &ret, const InferenceEngine::ICNNNetwork &network,
                      const std::map<std::string, std::string> &config) override;

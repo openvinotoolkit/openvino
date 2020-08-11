@@ -83,12 +83,12 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
 }
 
 /**
- * @interface IInferencePluginInternal
- * @brief An internal API of plugin to be implemented by a plugin, which is used in PluginBase forwarding mechanism
+ * @interface IInferencePlugin
+ * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePluginInternal : public details::IRelease,
-                                 public std::enable_shared_from_this<IInferencePluginInternal> {
+class IInferencePlugin : public details::IRelease,
+                         public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -110,13 +110,13 @@ protected:
     /**
      * @brief      Destroys the object.
      */
-    ~IInferencePluginInternal() override = default;
+    ~IInferencePlugin() override = default;
 
 public:
     /**
-     * @brief A shared pointer to IInferencePluginInternal interface
+     * @brief A shared pointer to IInferencePlugin interface
      */
-    using Ptr = std::shared_ptr<IInferencePluginInternal>;
+    using Ptr = std::shared_ptr<IInferencePlugin>;
 
     // TODO
     void SetVersion(const Version & version) {
@@ -265,7 +265,7 @@ public:
  * @param resp Pointer to the response message that holds a description of an error if any occurred
  * @return Status code of the operation. InferenceEngine::OK if succeeded
  */
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc* resp) noexcept;
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
 
 
 }  // namespace InferenceEngine

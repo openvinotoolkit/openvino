@@ -14,7 +14,7 @@
 using namespace std;
 using namespace InferenceEngine;
 
-MockPlugin::MockPlugin(InferenceEngine::IInferencePluginInternal *target) {
+MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
@@ -33,11 +33,11 @@ MockPlugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
     return {};
 }
 
-InferenceEngine::IInferencePluginInternal *__target = nullptr;
+InferenceEngine::IInferencePlugin *__target = nullptr;
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
-        IInferencePluginInternal *p = nullptr;
+        IInferencePlugin *p = nullptr;
         std::swap(__target, p);
         plugin = new MockPlugin(p);
         return OK;
@@ -47,11 +47,11 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&p
     }
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::IInferencePluginInternal*)CreatePluginEngineProxy(
-        InferenceEngine::IInferencePluginInternal *target) {
+INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
+        InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 
-INFERENCE_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePluginInternal *target) {
+INFERENCE_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }

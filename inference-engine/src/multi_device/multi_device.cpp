@@ -425,7 +425,7 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
 }
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePluginInternal *&plugin,
+        InferenceEngine::IInferencePlugin *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
     try {
         // plugin = make_ie_compatible_plugin(

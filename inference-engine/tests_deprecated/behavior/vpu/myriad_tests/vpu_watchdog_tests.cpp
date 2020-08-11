@@ -126,7 +126,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 
     auto ctime = Time::now();
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePluginInternal>::name);
+    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
 
     bootOneDevice(0,  p);
 
@@ -155,7 +155,7 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
     auto ctime = Time::now();
 
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePluginInternal>::name);
+    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
 
     bootOneDevice(20000, p);
 

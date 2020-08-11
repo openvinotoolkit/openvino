@@ -11,7 +11,7 @@ using namespace vpu::MyriadPlugin;
 
 IE_SUPPRESS_DEPRECATED_START
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         auto mvnc = std::make_shared<Mvnc>();
         // plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "myriadPlugin"},

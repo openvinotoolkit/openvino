@@ -21,7 +21,7 @@ namespace details {
  * @brief This class defines the name of the fabric for creating an IInferencePlugin object in DLL
  */
 template <>
-class SOCreatorTrait<IInferencePluginInternal> {
+class SOCreatorTrait<IInferencePlugin> {
 public:
     /**
      * @brief A name of the fabric for creating IInferencePlugin object in DLL
@@ -36,6 +36,6 @@ public:
  *
  * Implements different interfaces.
  */
-using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePluginInternal>;
+using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePlugin>;
 
 }  // namespace InferenceEngine
