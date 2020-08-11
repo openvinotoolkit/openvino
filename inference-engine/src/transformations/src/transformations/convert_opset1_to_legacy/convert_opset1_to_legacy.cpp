@@ -6,6 +6,7 @@
 
 #include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
+#include <transformations/convert_divide.hpp>
 #include <transformations/itt.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
@@ -35,6 +36,7 @@
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
+#include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
 #include <transformations/lin_op_sequence_fusoin.hpp>
 
@@ -58,12 +60,14 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // applied simultaneously in a single graph traversal
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
+    decomp->add_matcher<ngraph::pass::ConvertDivide>();
     decomp->add_matcher<ngraph::pass::ConvertConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+    decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     decomp->set_name("ngraph::pass::Decompositions");
 
     // CF is required after all decompositions
