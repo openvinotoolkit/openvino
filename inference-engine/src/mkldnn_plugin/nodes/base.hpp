@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "nodes/list.hpp"
 
 #include <string>

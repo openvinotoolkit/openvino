@@ -75,7 +75,9 @@ set(SRC
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
+    op_eval/split.cpp
     op_eval/strided_slice.cpp
+    op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
     partial_shape.cpp
@@ -90,8 +92,10 @@ set(SRC
     tensor.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
+    type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
+    type_prop/binary_convolution.cpp
     type_prop/binary_elementwise.cpp
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
@@ -101,6 +105,7 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/ctc_loss.cpp
+    type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp
@@ -116,7 +121,6 @@ set(SRC
     type_prop/gather.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
-    type_prop/get_output_element.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -161,6 +165,7 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/sum.cpp
+    type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
     type_prop/tile.cpp
@@ -198,10 +203,6 @@ foreach(HEADER ${NGRAPH_HEADER_LIST})
     configure_file("header_standalone.in.cpp" ${OUT_FILE})
     list(APPEND SRC ${OUT_FILE})
 endforeach()
-
-if(NGRAPH_JSON_ENABLE)
-    list(APPEND SRC core.cpp serialize.cpp)
-endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -397,9 +398,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
-if (NGRAPH_JSON_ENABLE)
-    target_link_libraries(unit-test PRIVATE libjson)
-endif()
 if(NOT WIN32)
     target_link_libraries(unit-test PRIVATE pthread)
 endif()

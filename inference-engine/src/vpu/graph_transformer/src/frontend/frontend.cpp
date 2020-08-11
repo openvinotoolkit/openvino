@@ -7,7 +7,7 @@
 #include "vpu/compile_env.hpp"
 #include "vpu/model/data_contents/ie_blob_content.hpp"
 
-#include "net_pass.h"
+#include <legacy/net_pass.h>
 
 #include <atomic>
 #include <memory>
@@ -19,10 +19,11 @@
 #include <utility>
 #include <string>
 
-#include <convert_function_to_cnn_network.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -123,6 +124,8 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
         {"Mish",                                               LAYER_PARSER(parseMish)},
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
+        {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
+        {"Swish",                                              LAYER_PARSER(parseSwish)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -400,7 +403,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             manager.run_passes(nGraphFunc);
 
             ngraph::pass::Manager ti_manager;
+            // Apply all transformations to TensorIterator body
             ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            // Unroll should be called after all conversions
+            ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             ti_manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
@@ -423,8 +429,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U32, ie::Precision::I32);
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
-
-        moveConstInputsToBlobs(*originalOrConvertNetwork);
 
         removeConstLayers(*originalOrConvertNetwork);
 

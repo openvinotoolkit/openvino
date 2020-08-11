@@ -205,13 +205,13 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
     "pyngraph/tensor_iterator_builder.cpp",
     "pyngraph/types/element_type.cpp",
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
+    "pyngraph/variant.cpp",
 ]
 
 packages = [
