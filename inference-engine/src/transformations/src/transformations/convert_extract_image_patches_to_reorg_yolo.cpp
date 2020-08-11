@@ -12,11 +12,13 @@
 
 void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_patches_to_reorg_yolo() {
     auto image = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto extract_image_patches = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1},
+    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1},
             ngraph::op::PadType::VALID);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        auto extract_image_patches = std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        auto &pattern_to_output = m.get_pattern_value_map();
+
+        auto extract_image_patches = pattern_to_output.at(eip);
 
         if (!extract_image_patches) {
             return false;
@@ -34,6 +36,10 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
         auto strides = extract_image_patches->get_strides();
 
         // Check that ExtractImagePatches input have static shape
+        if (!p_shape_input.rank().is_static()) {
+            return false;
+        }
+
         if (p_shape_input.rank().get_length() != 4 || p_shape_input[2].is_dynamic() || p_shape_input[3].is_dynamic()) {
             return false;
         }
@@ -52,5 +58,5 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(extract_image_patches, "ConvertExtractImagePatchesToReorgYolo");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    register_matcher(m, callback);
 }

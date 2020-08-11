@@ -8,7 +8,6 @@
 #include <memory>
 
 #include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
@@ -19,12 +18,11 @@ class TRANSFORMATIONS_API ConvertExtractImagePatchesToReorgYolo;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::GraphRewrite {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConvertExtractImagePatchesToReorgYolo transformation replaces ExtractImagePatches with a ReorgYolo op.
+ */
+class ngraph::pass::ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::MatcherPass {
 public:
-    ConvertExtractImagePatchesToReorgYolo() : GraphRewrite() {
-        convert_extract_image_patches_to_reorg_yolo();
-    }
-
-private:
-    void convert_extract_image_patches_to_reorg_yolo();
+    ConvertExtractImagePatchesToReorgYolo();
 };
