@@ -14,16 +14,12 @@ public:
         VPU_PROFILE(markFastStages);
 
         for (const auto& stage : model->getStages()) {
-            bool isStageFast = true;
+            const auto& outputs = stage->outputs();
+            const auto& itSlowStage = std::find_if(outputs.begin(), outputs.end(), [](const Data& output) {
+                return output->desc().totalDimSize() > 100;
+            });
 
-            for (const auto& output : stage->outputs()) {
-                if (output->desc().totalDimSize() > 100) {
-                    isStageFast = false;
-                    break;
-                }
-            }
-
-            if (isStageFast) {
+            if (itSlowStage == outputs.end()) {
                 stage->appendNamePostfix("@fast-stage");
             }
         }
