@@ -20,7 +20,6 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
-#include "ngraph/assertion.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
 #include "test_tools.hpp"
