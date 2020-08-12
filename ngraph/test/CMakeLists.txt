@@ -44,7 +44,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    assertion.cpp
     attributes.cpp
     bfloat16.cpp
     build_graph.cpp
@@ -56,7 +55,6 @@ set(SRC
     convert_u1_to_string.cpp
     coordinate.cpp
     copy.cpp
-    cpio.cpp
     element_type.cpp
     eval.cpp
     file_util.cpp
