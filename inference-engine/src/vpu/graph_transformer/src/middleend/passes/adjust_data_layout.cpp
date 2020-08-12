@@ -194,11 +194,13 @@ void PassImpl::run(const Model& model) {
                 }
 
                 if (input->checkStrides(requiredStrides)) {
+                    // printf("!!! checkStrides\n");
                     input->updateRequiredStrides(requiredStrides);
                     continue;
                 }
 
                 auto& convertedData = input->attrs().getOrSet<DataVector>("convertedData", DataVector());
+                // std::cout<<"size : "<<convertedData.size()<<"\n";
 
                 Data newInput = nullptr;
 
@@ -206,12 +208,14 @@ void PassImpl::run(const Model& model) {
                     if (data->desc().dimsOrder() == input->desc().dimsOrder() &&
                         data->checkStrides(requiredStrides)) {
                         newInput = data;
+                        // printf("newInput = data;\n");
                         break;
                     }
                 }
-
                 if (newInput == nullptr) {
                     newInput = addConvertedData(model, input, requiredStrides);
+
+                    // printf("newInput == nullptr\n");
 
                     _stageBuilder->addCopyStage(
                         model,
@@ -285,6 +289,7 @@ void PassImpl::run(const Model& model) {
                         newOutput,
                         output,
                         "adjustDataLayout::output");
+                    // model->replaceStageOutput(outEdge, newOutput);
                 } else {
                     IE_ASSERT(output->usage() == DataUsage::Intermediate);
 
@@ -303,7 +308,6 @@ void PassImpl::run(const Model& model) {
     //
     // Final adjustment and check.
     //
-
     {
         for (const auto& stage : model->getStages()) {
             stage->finalizeDataLayout();
@@ -323,6 +327,13 @@ void PassImpl::run(const Model& model) {
                 }
 
                 if (inEdge->input()->usage() == DataUsage::Const) {
+                    if (!inEdge->input()->checkStrides(StridesRequirement::compact())) {
+                        // std::cout<<"Problematic const : "<<inEdge->input()->name()<<"\n";
+                        // return;
+                        Data newIn = addConvertedData(model, inEdge->input(), StridesRequirement::compact());
+                        // inEdge->input() = newIn;
+                        // model->replaceStageInput(inEdge->input(), newIn);
+                    }
                     IE_ASSERT(inEdge->input()->checkStrides(StridesRequirement::compact()));
                 }
             }
@@ -349,6 +360,8 @@ Data PassImpl::addConvertedData(
     auto newDesc = orig->desc();
     newDesc.reorder(order);
 
+    // std::cout<< "addConvData from " << orig->name() << "\n";
+
     return model->duplicateData(
         orig,
         formatString("@order=%s", order),
@@ -359,13 +372,27 @@ Data PassImpl::addConvertedData(
         const Model& model,
         const Data& orig,
         const StridesRequirement& reqs) {
-    auto data = model->duplicateData(
-        orig,
-        "@adjust-strides");
-    data->resetRequiredStrides();
-    data->updateRequiredStrides(reqs);
 
-    return data;
+    // auto data = nullptr;
+    if (orig->usage() == DataUsage::Const) {
+        auto newData = model->addNewData(orig->name(), orig->desc());
+        auto data = model->duplicateData(newData, "@adjust-strides");
+        data->resetRequiredStrides();
+        data->updateRequiredStrides(reqs);
+        return data;
+        // return orig;
+    } else {
+        auto data = model->duplicateData(orig, "@adjust-strides");
+        data->resetRequiredStrides();
+        data->updateRequiredStrides(reqs);
+        return data;
+    }
+    
+    // std::cout<< "--- addConvData from " << orig->name() << "\n";
+
+    // data->resetRequiredStrides();
+    // data->updateRequiredStrides(reqs);
+    // return data;
 }
 
 }  // namespace
