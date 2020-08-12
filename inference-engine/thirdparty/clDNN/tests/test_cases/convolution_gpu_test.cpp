@@ -5703,8 +5703,8 @@ void blockedFormatZeroCheck(cldnn::memory out_mem) {
     const int f = output_tensor.feature[0];
     const int spatials = std::accumulate(output_tensor.spatial.begin(), output_tensor.spatial.end(), 1, std::multiplies<int>());
     const int f_mod = output_tensor.feature[0] % block_size;
-    const int batch_skip = batch_blocked ? b / block_size : b;
-    const int number_of_zeroes = f_mod == 0 ? 0 : (block_size - f_mod) * spatials * b;
+    const size_t batch_skip = batch_blocked ? b / block_size : b;
+    const size_t number_of_zeroes = f_mod == 0 ? 0 : (block_size - f_mod) * spatials * b;
 
     size_t to_skip = (output_tensor.feature[0] / block_size) * block_size * spatials;
     to_skip *= batch_blocked ? block_size : 1;
