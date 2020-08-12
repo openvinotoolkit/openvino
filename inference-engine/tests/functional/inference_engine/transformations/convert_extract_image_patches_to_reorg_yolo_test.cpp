@@ -4,24 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-
 #include <string>
-#include <sstream>
-#include <fstream>
 #include <memory>
-#include <queue>
-#include <map>
-#include <vector>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-
+#include <ngraph/pass/manager.hpp>
 #include <transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
-#include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
