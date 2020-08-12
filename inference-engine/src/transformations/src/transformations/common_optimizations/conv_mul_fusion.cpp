@@ -13,7 +13,24 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
-bool check_shapes(const ngraph::Shape & ref_shape, const ngraph::Shape & shape_to_check) {
+
+bool check_shapes(const ngraph::Shape & ref_shape, const ngraph::Shape & other_shape) {
+    // Check that other_shape doesn't broadcast ref_shape
+    if (other_shape.size() > ref_shape.size()) {
+        return false;
+    }
+    auto ref_it = ref_shape.rbegin();
+    auto other_it = other_shape.rbegin();
+    // Check that other_shape dims are equal to ref_shape dims
+    // In case if other_shape rank is less than ref_shape rank
+    // we stop comparision and return true
+    while (other_it != other_shape.rend()) {
+        if (*other_it != *ref_it) {
+            return false;
+        }
+        ++other_it;
+        ++ref_it;
+    }
     return true;
 }
 
@@ -37,9 +54,13 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
         const auto & const_shape = m_const.get_shape();
 
+        bool is_scalar_multiplier(shape_size(const_shape) == 1);
+
         // Check that constant has shape [C, 1, 1] where the number of 1 is equal to
-        // the number of spatial dimensions. That means that Constant applied per
-        // channel and can be fused into Convolution weights
+        // the number of spatial dimensions or it's a scalar. That means that Constant
+        // applied per channel and can be fused into Convolution weights.
+        // Also Constant shape rank must be less or equal Convolution output shape
+        // otherwise fusion will break output broadcasting
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[0] = channel_dim;
 
@@ -48,20 +69,25 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         }
 
         // Reshape constant to [C, 1, 1, 1] where the number of 1 is equal to
-        // the number of weights dimensions minus 1 (first dimension).
+        // the number of weights dimensions minus 1 (first dimension). In case
+        // of scalar we skip Reshape.
         // This Reshape aligns Constant shape for multiplication with weights.
-        auto final_const_shape = Shape(weights_rank, 1);
-        final_const_shape[0] = channel_dim;
-        auto reshape = std::make_shared<opset4::Reshape>(m_const,
-                opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()}, final_const_shape), true);
+        Output<Node> final_const = m_const;
+        if (!is_scalar_multiplier) {
+            auto final_const_shape = Shape(weights_rank, 1);
+            final_const_shape[0] = channel_dim;
+            final_const = std::make_shared<opset4::Reshape>(m_const,
+                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
+                                                                                     final_const_shape), true);
+        }
 
         // Multiply convolution weights with aligned Constant values
-        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, reshape);
+        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, reshape, weights_multiply});
+        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };
@@ -91,9 +117,13 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
         const auto & const_shape = m_const.get_shape();
 
+        bool is_scalar_multiplier(shape_size(const_shape) == 1);
+
         // Check that constant has shape [C (G * O), 1, 1] where the number of 1 is equal to
         // the number of spatial dimensions. That means that Constant applied per
-        // channel and can be fused into Convolution weights
+        // channel and can be fused into Convolution weights.
+        // Also Constant shape rank must be less or equal Convolution output shape
+        // otherwise fusion will break output broadcasting
         auto expected_shape = Shape(weights_rank - 2, 1);
         expected_shape[0] = G * O;
 
@@ -104,20 +134,23 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         // Reshape constant to [G, O, 1, 1, 1] where the number of 1 is equal to
         // the number of weights dimensions minus 2 (group and output dimensions).
         // This Reshape aligns Constant shape for multiplication with weights.
-        auto final_const_shape = Shape(weights_rank, 1);
-        final_const_shape[0] = G;
-        final_const_shape[1] = O;
-        auto reshape = std::make_shared<opset4::Reshape>(m_const,
-                                                         opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
-                                                                                  final_const_shape), true);
+        Output<Node> final_const = m_const;
+        if (!is_scalar_multiplier) {
+            auto final_const_shape = Shape(weights_rank, 1);
+            final_const_shape[0] = G;
+            final_const_shape[1] = O;
+            final_const = std::make_shared<opset4::Reshape>(m_const,
+                                                            opset4::Constant::create(ngraph::element::i64, ngraph::Shape{final_const_shape.size()},
+                                                                                     final_const_shape), true);
+        }
 
         // Multiply convolution weights with aligned Constant values
-        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, reshape);
+        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, reshape, weights_multiply});
+        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };

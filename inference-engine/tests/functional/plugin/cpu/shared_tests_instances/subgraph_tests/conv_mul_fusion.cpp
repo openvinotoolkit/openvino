@@ -22,16 +22,6 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvMultiply::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(Convolution_2D, ConvMultiply,
-                            ::testing::Combine(
-                                    ::testing::Values(ngraph::opset4::Convolution::type_info),
-                                    ::testing::Values(ngraph::Shape{1, 3, 64, 64}),
-                                    ::testing::Values(ngraph::Shape{64, 3, 1, 1}),
-                                    ::testing::Values(ngraph::Shape{64, 1, 1}),
-                                    ::testing::ValuesIn(types),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                            ConvMultiply::getTestCaseName);
-
     INSTANTIATE_TEST_CASE_P(GroupConvolution_1D, ConvMultiply,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
@@ -42,12 +32,55 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvMultiply::getTestCaseName);
 
+    const std::vector<ngraph::Shape> const_shapes{
+        {},
+        {1, 1},
+        {1, 1, 1},
+        {20, 1, 1},
+        {1, 1, 1, 1}
+    };
+
+    INSTANTIATE_TEST_CASE_P(Convolution_2D, ConvMultiply,
+                            ::testing::Combine(
+                                    ::testing::Values(ngraph::opset4::Convolution::type_info),
+                                    ::testing::Values(ngraph::Shape{1, 3, 64, 64}),
+                                    ::testing::Values(ngraph::Shape{20, 3, 1, 1}),
+                                    ::testing::ValuesIn(const_shapes),
+                                    ::testing::ValuesIn(types),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ConvMultiply::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(GroupConvolution_2D, ConvMultiply,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
                                     ::testing::Values(ngraph::Shape{1, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 1, 2}),
-                                    ::testing::Values(ngraph::Shape{1, 20, 1, 1}),
+                                    ::testing::ValuesIn(const_shapes),
+                                    ::testing::ValuesIn(types),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ConvMultiply::getTestCaseName);
+
+    const std::vector<ngraph::Shape> neg_const_shapes{
+        {1, 1, 1, 1, 1}, /* Broadcast output */
+        {3}, {3, 1}, {3, 1, 1, 1}
+    };
+
+    INSTANTIATE_TEST_CASE_P(Convolution_2D_Negative, ConvMultiply,
+                            ::testing::Combine(
+                                    ::testing::Values(ngraph::opset4::Convolution::type_info),
+                                    ::testing::Values(ngraph::Shape{1, 3, 3, 3}),
+                                    ::testing::Values(ngraph::Shape{4, 3, 1, 1}),
+                                    ::testing::ValuesIn(neg_const_shapes),
+                                    ::testing::ValuesIn(types),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ConvMultiply::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(GroupConvolution_2D_Negative, ConvMultiply,
+                            ::testing::Combine(
+                                    ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
+                                    ::testing::Values(ngraph::Shape{1, 12, 3, 3}),
+                                    ::testing::Values(ngraph::Shape{4, 5, 3, 1, 1}),
+                                    ::testing::ValuesIn(neg_const_shapes),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvMultiply::getTestCaseName);
