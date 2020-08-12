@@ -22,6 +22,7 @@ from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 reduce_map = {
+    'AttributedReduceLp': None,
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
     'ReduceMax': np.max,
@@ -151,6 +152,8 @@ class AttributedReduceLp(ReduceOp):
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
+        assert 'axis' is not None, '`axis` attribute is not set for AttributedReduceLp during creation'
+        assert 'p' is not None, '`p` attribute is not set for AttributedReduceLp during creation'
         op_attrs = {'version': 'opset4',
                     'infer': None,
                     'p': None}

@@ -46,7 +46,6 @@ class AttributedReduceLpToReduceLp(FrontReplacementSubgraph):
             node.in_port(0).get_connection().set_destination(reduce_node.in_port(0))
             node.in_port(1).get_connection().set_destination(reduce_node.in_port(1))
 
-            for idx, port in node.out_ports().items():
-                port.get_connection().set_source(reduce_node.out_port(idx))
+            node.out_port(0).get_connection().set_source(reduce_node.out_port(0))
 
             graph.remove_node(node.id)
