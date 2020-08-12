@@ -17,7 +17,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePat
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-        auto extract_image_patches = pattern_to_output.at(eip).get_node_shared_ptr();
+        auto extract_image_patches =  std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
 
         if (!extract_image_patches) {
             return false;
