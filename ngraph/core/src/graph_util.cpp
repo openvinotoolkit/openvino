@@ -434,7 +434,8 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     }
 
     NodeVector cloned_leafs;
-    for (const auto& node : func.get_leafs()) {
+    for (const auto& node : func.get_leafs())
+    {
         cloned_leafs.push_back(node_map.at(node.get()));
     }
     // create and return cloned function

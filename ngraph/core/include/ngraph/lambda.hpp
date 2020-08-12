@@ -45,9 +45,7 @@ namespace ngraph
                       const HostTensorVector& input_tensors) const;
 
         NodeVector get_leafs() const { return NodeVector(m_leafs.begin(), m_leafs.end()); }
-        void set_leafs(const NodeVector& leafs) {
-            m_leafs.insert(leafs.begin(), leafs.end());
-        }
+        void set_leafs(const NodeVector& leafs) { m_leafs.insert(leafs.begin(), leafs.end()); }
     protected:
         Lambda() = default;
         Lambda(const ResultVector& results, const ParameterVector& parameters);
