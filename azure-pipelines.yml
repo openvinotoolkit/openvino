@@ -152,10 +152,6 @@ jobs:
       set
     displayName: 'System properties'
   - script: |
-      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
-      powershell -command "Expand-Archive -Force ninja-win.zip"
-    displayName: Install Ninja
-  - script: |
       certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
       call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
       echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
@@ -172,7 +168,8 @@ jobs:
     inputs:
       cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       workingDirectory: $(BUILD_DIR)
-  - script: "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="cmake --build . --config $(BUILD_TYPE)"
+  - script: |
+      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="cmake --build . --config $(BUILD_TYPE)"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir ..\bin\ /s /b
