@@ -115,7 +115,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                             if (!last_in_f_group) {
                                 ch16_data = vload16(0, (input + input_idx));
 #else
-                            int4 int_data = vload4(0, (__global uint*)(input + input_idx));
+                            int4 int_data = vload4(0, (__global int*)(input + input_idx));
                             IN_VEC16 ch16_data = AS_TYPE(IN_VEC16, int_data);
 #endif
 
