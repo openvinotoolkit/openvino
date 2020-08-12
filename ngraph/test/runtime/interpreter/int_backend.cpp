@@ -19,7 +19,6 @@
 #include "backend_manager.hpp"
 #include "int_backend.hpp"
 #include "int_executable.hpp"
-#include "ngraph/cpio.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
