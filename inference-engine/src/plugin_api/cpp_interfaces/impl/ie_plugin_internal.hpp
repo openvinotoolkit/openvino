@@ -49,22 +49,6 @@ static inline void parsePluginName(std::istream& networkModel) {
  * @ingroup ie_dev_api_plugin_api
  */
 class InferencePluginInternal : public IInferencePlugin {
-    // class VersionStore : public Version {
-    //     std::string _dsc;
-    //     std::string _buildNumber;
-
-    // public:
-    //     VersionStore() = default;
-
-    //     explicit VersionStore(const Version& v) {
-    //         _dsc = v.description;
-    //         _buildNumber = v.buildNumber;
-    //         description = _dsc.c_str();
-    //         buildNumber = _buildNumber.c_str();
-    //         apiVersion = v.apiVersion;
-    //     }
-    // } _version;
-
 protected:
     /**
      * @brief Destroys the object.
@@ -72,15 +56,6 @@ protected:
     ~InferencePluginInternal() override = default;
 
 public:
-    // TODO
-    // void SetVersion(const Version & version) noexcept override {
-    //     _version = VersionStore(version);
-    // }
-
-    // const Version GetVersion() const noexcept override {
-    //     return _version;
-    // }
-
     void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
                      const std::map<std::string, std::string>& config) override {
         LoadNetworkImplPrivate(executableNetwork, network, config);

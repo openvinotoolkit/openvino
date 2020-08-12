@@ -117,12 +117,19 @@ public:
      */
     using Ptr = std::shared_ptr<IInferencePlugin>;
 
-    // TODO
+    /**
+     * @brief Sets a plugin version
+     * @param version A version to set
+     */
     void SetVersion(const Version & version) {
         _version = VersionStore(version);
     }
 
-    const Version GetVersion() const noexcept {
+    /**
+     * @brief Gets a plugin version
+     * @return A const InferenceEngine::Version object
+     */
+    Version GetVersion() const {
         return _version;
     }
 
@@ -256,23 +263,6 @@ public:
     virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                               QueryNetworkResult& res) const = 0;
 };
-
-/**
- * @brief Creates the default instance of the interface (per plugin)
- *
- * @param plugin Pointer to the plugin
- * @param resp Pointer to the response message that holds a description of an error if any occurred
- * @return Status code of the operation. InferenceEngine::OK if succeeded
- */
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
-
-template <typename T, typename... Args>
-inline IInferencePlugin* make_ie_plugin(const Version& reported, Args... args) {
-    auto impl = new T(std::forward<Args>(args)...);
-    impl->SetVersion(reported);
-    return impl;
-}
-
 
 }  // namespace InferenceEngine
 
