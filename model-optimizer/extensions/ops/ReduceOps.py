@@ -24,9 +24,6 @@ from mo.ops.op import Op
 reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
-    'AttributedReduceLp': None,
-    'ReduceLp': lambda x, axis, keepdims, p: np.power(np.sum(a=np.abs(np.power(x, p)), axis=axis, keepdims=keepdims),
-                                                      1 / p),
     'ReduceMax': np.max,
     'ReduceMin': np.min,
     'ReduceMean': np.mean,
@@ -35,6 +32,10 @@ reduce_map = {
     'ReduceLogicalOr': np.any,
 }
 
+def reduceLp_value_propagation(node: Node, in_value, axis, keepdims):
+    p = node.in_port(2).data.get_value()
+    out_value = np.power(np.sum(a=np.abs(np.power(in_value, p)), axis=axis, keepdims=keepdims), 1 / p),
+    return out_value
 
 def reduce_infer(node: Node):
     connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
@@ -59,10 +60,12 @@ def reduce_infer(node: Node):
         axis = int64_array([axis.item()])
 
     in_value = in_data.get_value()
-    p = node.in_port(2).data.get_value() if node.op == 'ReduceLp' else None
 
     if in_value is not None:
-        value = reduce_map[node.op](in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims, p=p)
+        if node.op == 'ReduceLp':
+            value = reduceLp_value_propagation(node, in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
+        else:
+            value = reduce_map[node.op](in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
         node.out_port(0).data.set_value(value)
     else:
         used_dims = np.zeros(len(in_shape), dtype=np.bool)
