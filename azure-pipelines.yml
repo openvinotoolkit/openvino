@@ -171,7 +171,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && set MSVC_COMPILER_PATH=%VCToolsInstallDir%bin\Hostx64\x64\cl.exe && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
+      call "$(MSVS_VARS_PATH)" && set MSVC_COMPILER_PATH="%VCToolsInstallDir%bin\Hostx64\x64\cl.exe" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH=%MSVC_COMPILER_PATH% -DCMAKE_CXX_COMPILER:PATH=%MSVC_COMPILER_PATH% $(Build.Repository.LocalPath)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
   - script: |
