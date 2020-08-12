@@ -191,7 +191,7 @@ information must be stored and checked during the import.
 Create Instance of Plugin Class
 ------------------------
 
-Inference Engine plugin library must export only one function creating a plugin instance:
+Inference Engine plugin library must export only one function creating a plugin instance using IE_DEFINE_PLUGIN_CREATE_FUNCTION macro:
 
 @snippet src/template_plugin.cpp plugin:create_plugin_engine
 
