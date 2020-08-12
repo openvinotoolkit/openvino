@@ -193,8 +193,9 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
         weightsConstValues);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
-        lastDequantizationBefore,
-        weightsConst,
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
+        ngraph::op::TemporaryReplaceOutputType(lastDequantizationBefore, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(weightsConst, element::f32).get(),
         false,
         false);
     matMul->set_friendly_name("matMul");
