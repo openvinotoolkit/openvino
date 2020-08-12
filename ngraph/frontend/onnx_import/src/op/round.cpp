@@ -44,22 +44,12 @@ namespace ngraph
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
-
-                    const auto one_const =
-                        default_opset::Constant::create(data.get_element_type(), {}, {1.0f});
                     const auto half_const =
                         default_opset::Constant::create(data.get_element_type(), {}, {0.5f});
 
-                    const auto data_floor = std::make_shared<default_opset::Floor>(data);
-                    const auto data_floor_plus_one =
-                        std::make_shared<default_opset::Add>(data_floor, one_const);
-
-                    const auto diff = std::make_shared<default_opset::Subtract>(data, data_floor);
-                    const auto less_than_half =
-                        std::make_shared<default_opset::Less>(diff, half_const);
-
-                    return {std::make_shared<default_opset::Select>(
-                        less_than_half, data_floor, data_floor_plus_one)};
+                    // Floor(data + 0.5)
+                    return {std::make_shared<default_opset::Floor>(
+                        std::make_shared<default_opset::Add>(data, half_const))};
                 }
             } // namespace set_1
 
