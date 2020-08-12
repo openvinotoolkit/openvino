@@ -12,7 +12,9 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
+#ifdef LPT_SUPPORT
 #include "ngraph/opsets/opset1.hpp"
+#endif
 
 namespace ngraph {
 namespace op {
@@ -20,7 +22,7 @@ namespace op {
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
 class TRANSFORMATIONS_API TypeRelaxedBase {
 public:
-    virtual ~TypeRelaxedBase() {}
+    virtual ~TypeRelaxedBase();
 
     explicit TypeRelaxedBase(
             const element::TypeVector& _input_data_types = {},
@@ -180,7 +182,7 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 
-    // TODO: workaround
+#ifdef LPT_SUPPORT
     if (is_type<ngraph::opset1::Interpolate>(this)) {
         // Restore original input data types
         for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
@@ -196,6 +198,14 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
             BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
         }
     }
+#else
+    BaseOp::validate_and_infer_types();
+
+    // Restore original input data types
+    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+        BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
+    }
+#endif
 
 
     // Override (some) output types

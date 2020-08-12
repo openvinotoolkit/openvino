@@ -29,6 +29,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
+#ifdef LPT_SUPPORT
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
@@ -41,6 +42,18 @@ op::MatMul::MatMul(const Output<Node>& A,
 {
     constructor_validate_and_infer_types();
 }
+#else
+op::MatMul::MatMul(const Output<Node>& A,
+                   const Output<Node>& B,
+                   const bool& transpose_a,
+                   const bool& transpose_b)
+    : FusedOp(OutputVector{A, B})
+    , m_transpose_a{transpose_a}
+    , m_transpose_b{transpose_b}
+{
+    constructor_validate_and_infer_types();
+}
+#endif
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
@@ -51,7 +64,7 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 
 void op::MatMul::pre_validate_and_infer_types()
 {
-    // TODO: workaround to support different precision for MatMul
+#ifdef LPT_SUPPORT
     const element::Type inputElementType0 = get_input_element_type(0);
     const element::Type inputElementType1 = get_input_element_type(1);
     if ((inputElementType0 != element::u8) && (inputElementType1 != element::i8))
@@ -66,6 +79,17 @@ void op::MatMul::pre_validate_and_infer_types()
             get_input_element_type(1),
             ").");
     }
+#else
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        get_input_element_type(0),
+        ", arg1 element type: ",
+        get_input_element_type(1),
+        ").");
+#endif
 
     const Rank& A_rank = get_input_partial_shape(0).rank();
     const Rank& B_rank = get_input_partial_shape(1).rank();
@@ -73,8 +97,11 @@ void op::MatMul::pre_validate_and_infer_types()
     if (A_rank.is_static() && B_rank.is_static())
     {
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
+#ifdef LPT_SUPPORT
         set_output_type(0, element::f32, PartialShape::dynamic(max_rank));
-        // set_output_type(0, result_et, PartialShape::dynamic(max_rank));
+#else
+        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
+#endif
     }
 }
 
@@ -242,6 +269,7 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
+#ifdef LPT_SUPPORT
 void op::MatMul::set_output_type(size_t i,
                                  const element::Type& element_type,
                                  const PartialShape& pshape)
@@ -249,8 +277,4 @@ void op::MatMul::set_output_type(size_t i,
     FusedOp::set_output_type(
         i, m_output_type == element::undefined ? element_type : m_output_type, pshape);
 }
-
-// void op::MatMul::set_output_type(size_t i, const element::Type& element_type, const PartialShape&
-// pshape) {
-//	get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element::f32, pshape);
-// }
+#endif

@@ -95,6 +95,7 @@ bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
 
 NGRAPH_RTTI_DEFINITION(op::v1::Multiply, "Multiply", 1, util::BinaryElementwiseArithmetic);
 
+#ifdef LPT_SUPPORT
 op::v1::Multiply::Multiply(const Output<Node>& arg0,
                            const Output<Node>& arg1,
                            const AutoBroadcastSpec& auto_broadcast,
@@ -103,6 +104,15 @@ op::v1::Multiply::Multiply(const Output<Node>& arg0,
 {
     constructor_validate_and_infer_types();
 }
+#else
+op::v1::Multiply::Multiply(const Output<Node>& arg0,
+                           const Output<Node>& arg1,
+                           const AutoBroadcastSpec& auto_broadcast)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
+{
+    constructor_validate_and_infer_types();
+}
+#endif
 
 shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -110,7 +120,8 @@ shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v1::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-// TODO: workaround to replace low precision tensor to fp32
+#ifdef LPT_SUPPORT
+// replace low precision tensor to fp32
 template <typename T>
 std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original)
 {
@@ -127,11 +138,13 @@ std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original)
 
     return tensor;
 }
+#endif
 
 bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    // TODO: workaround to replace low precision tensor to fp32
+#ifdef LPT_SUPPORT
+	// replace low precision tensor to fp32
     std::shared_ptr<HostTensor> input0;
     if ((inputs[1]->get_element_type() == element::f32) &&
         (inputs[0]->get_element_type() == element::i8))
@@ -150,6 +163,10 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
 
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
     return evaluate_multiply(input0, inputs[1], outputs[0], get_autob());
+#else
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
+    return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
+#endif
 }
 
 // -----------------------------------------------------------------------------

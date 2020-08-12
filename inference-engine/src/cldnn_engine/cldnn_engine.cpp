@@ -129,8 +129,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
             transformer.transform(nGraphFunc);
 
-            // TODO: workaround to turn off validation after LPT
+#ifdef LPT_SUPPORT
             ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
+#endif
         }
 
         {

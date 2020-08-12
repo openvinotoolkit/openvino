@@ -188,8 +188,9 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             if (dynamic_cast<ngraph::op::TypeRelaxedBase*>(node) != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(node->shared_from_this(), dataPrecision.precision);
             } else {
-                // TODO: workaround to have INT8 output for MaxPool if input is INT8
+#ifdef LPT_SUPPORT
                 node->set_output_type(0, dataPrecision.precision, node->get_output_partial_shape(0));
+#endif
             }
         }
     }

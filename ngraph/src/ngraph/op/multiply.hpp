@@ -71,11 +71,18 @@ namespace ngraph
                 /// \param arg0 Node that produces the first input tensor.
                 /// \param arg1 Node that produces the second input tensor.
                 /// \param auto_broadcast Auto broadcast specification
+#ifdef LPT_SUPPORT
                 Multiply(const Output<Node>& arg0,
                          const Output<Node>& arg1,
                          const AutoBroadcastSpec& auto_broadcast =
                              AutoBroadcastSpec(AutoBroadcastType::NUMPY),
                          const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
+#else
+                Multiply(const Output<Node>& arg0,
+                         const Output<Node>& arg1,
+                         const AutoBroadcastSpec& auto_broadcast =
+                             AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+#endif
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

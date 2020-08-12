@@ -45,6 +45,9 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
+// turn it off if you are a real Man
+#define LPT_SUPPORT
+
 namespace ngraph
 {
     template <typename NodeType>

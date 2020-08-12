@@ -115,6 +115,7 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 NGRAPH_RTTI_DEFINITION(op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
 
+#ifdef LPT_SUPPORT
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,
                  const AutoBroadcastSpec& auto_broadcast,
@@ -123,6 +124,15 @@ op::v1::Add::Add(const Output<Node>& arg0,
 {
     constructor_validate_and_infer_types();
 }
+#else
+op::v1::Add::Add(const Output<Node>& arg0,
+                 const Output<Node>& arg1,
+                 const AutoBroadcastSpec& auto_broadcast)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
+{
+    constructor_validate_and_infer_types();
+}
+#endif
 
 bool op::v1::Add::visit_attributes(AttributeVisitor& visitor)
 {
