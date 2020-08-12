@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include <pybind11/buffer_info.h>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/numpy.h>
 
 #include <stdexcept>
 #include <vector>
@@ -114,17 +114,6 @@ void regclass_pyngraph_op_Constant(py::module m)
                           const std::vector<uint64_t>&>());
 
     constant.def("get_value_strings", &ngraph::op::Constant::get_value_strings);
-    constant.def("cast_vector_char", &ngraph::op::Constant::cast_vector<char>);
-    constant.def("cast_vector_float", &ngraph::op::Constant::cast_vector<float>);
-    constant.def("cast_vector_double", &ngraph::op::Constant::cast_vector<double>);
-    constant.def("cast_vector_int8", &ngraph::op::Constant::cast_vector<int8_t>);
-    constant.def("cast_vector_int16", &ngraph::op::Constant::cast_vector<int16_t>);
-    constant.def("cast_vector_int32", &ngraph::op::Constant::cast_vector<int32_t>);
-    constant.def("cast_vector_int64", &ngraph::op::Constant::cast_vector<int64_t>);
-    constant.def("cast_vector_uint8", &ngraph::op::Constant::cast_vector<uint8_t>);
-    constant.def("cast_vector_uint16", &ngraph::op::Constant::cast_vector<uint16_t>);
-    constant.def("cast_vector_uint32", &ngraph::op::Constant::cast_vector<uint32_t>);
-    constant.def("cast_vector_uint64", &ngraph::op::Constant::cast_vector<uint64_t>);
 
     constant.def("get_vector", [](const ngraph::op::Constant& self) {
         auto element_type = self.get_element_type();
