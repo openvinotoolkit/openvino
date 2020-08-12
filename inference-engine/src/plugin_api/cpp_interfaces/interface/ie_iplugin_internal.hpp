@@ -106,7 +106,6 @@ class IInferencePlugin : public details::IRelease,
     } _version;
 
 protected:
-
     /**
      * @brief      Destroys the object.
      */

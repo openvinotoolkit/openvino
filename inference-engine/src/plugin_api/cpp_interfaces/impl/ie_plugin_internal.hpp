@@ -72,7 +72,6 @@ protected:
     ~InferencePluginInternal() override = default;
 
 public:
-
     // TODO
     // void SetVersion(const Version & version) noexcept override {
     //     _version = VersionStore(version);
