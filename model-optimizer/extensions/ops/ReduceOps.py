@@ -34,7 +34,7 @@ reduce_map = {
 
 def reduceLp_value_propagation(node: Node, in_value, axis, keepdims):
     p = node.in_port(2).data.get_value()
-    out_value = np.power(np.sum(a=np.abs(np.power(in_value, p)), axis=axis, keepdims=keepdims), 1 / p),
+    out_value = np.power(np.sum(a=np.abs(np.power(in_value, p)), axis=axis, keepdims=keepdims), 1 / p)
     return out_value
 
 def reduce_infer(node: Node):
