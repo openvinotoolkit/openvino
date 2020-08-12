@@ -40,8 +40,11 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests1) {
         auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{eip}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertExtractImagePatchesToReorgYolo().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -71,8 +74,10 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
         auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{eip}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertExtractImagePatchesToReorgYolo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -107,8 +112,11 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative2) {
         auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{eip}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertExtractImagePatchesToReorgYolo().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -142,8 +150,11 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative3) {
         auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{eip}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertExtractImagePatchesToReorgYolo().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
