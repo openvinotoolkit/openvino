@@ -397,8 +397,8 @@ jobs:
     displayName: Install Ninja
   - script: |
       certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
-      echo "call" && call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF && echo %errorlevel%
-      echo "start" && net start IncrediBuild_Agent && echo %errorlevel%
+      call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+      net start IncrediBuild_Agent
     displayName: Install IncrediBuild
   - script: |
       rd /Q /S $(BUILD_DIR)
