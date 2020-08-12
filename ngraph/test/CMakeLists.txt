@@ -126,6 +126,7 @@ set(SRC
     type_prop/group_convolution_backprop_data.cpp
     type_prop/gru_cell.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hswish.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
