@@ -18,7 +18,6 @@
 #include <utility>
 #include <limits>
 
-#include <low_precision_transformations/blob_transformation.hpp>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
 #include <debug.h>
@@ -349,10 +348,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
 
-    // move blobs from Constant layers to Convolution, Deconvolution, FullyConnected layers attributes
-    BlobTransformation blobsTransformation;
-    blobsTransformation.transform(network, true);
-
     //  Check the input network
     std::string error;
     if (!AreLayersSupported(network, error)) {
@@ -378,6 +373,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
             passes->registerPass<ReversePermutationsPass>();
+        }
+        if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
+            passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<InsertCopyLayerPass>();
@@ -741,6 +739,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
 
+    do_rotate_input = dnn->do_rotate_input;
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
@@ -922,7 +921,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
+        if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
             != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
             && !isOneChannel) {
             RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
@@ -1022,9 +1021,6 @@ void GNAPlugin::Wait(uint32_t request_idx) {
                          exportOutputDims[exportOutputDims.size() - 1],
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
-        } else if (outputBlob->getTensorDesc().getLayout() != Layout::CN) {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC or Layout::CN. But was "
-                << outputBlob->getTensorDesc().getLayout();
         }
 
         if (gnadevice) {
@@ -1182,6 +1178,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
     outputsDesc[0].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
 #endif
 
+    do_rotate_input = header.doRotateInput;
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
 
@@ -1235,7 +1232,7 @@ void GNAPlugin::Export(const std::string &fileName) {
                                  outputsDesc,
                                  inputsDataMap,
                                  outputsDataMap)
-                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns);
+                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
