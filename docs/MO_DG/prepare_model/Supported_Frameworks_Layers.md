@@ -145,6 +145,7 @@ Standard TensorFlow\* operations:
 | DepthwiseConv2dNative| No |
 | Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal | No |
+| EuclideanNorm | No |
 | Exit | Supported only when it is fused to the TensorIterator layer |
 | Exp | No |
 | ExpandDims | No |
