@@ -382,10 +382,22 @@ void ngraph::pass::ConvertTensorIteratorToGRUSequence::convert_ti_to_gru_sequenc
 
         NodeVector new_nodes = {in_1, in_3, in_4, in_5, sequence};
         copy_runtime_info(ti, new_nodes);
+
+        auto axis_out = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto out_0 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(0), axis_out);
+        auto out_1 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(1), axis_out);
+
+        std::shared_ptr<Node> out = out_0;
+        if (slice_axis == 0) {
+            auto order = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
+            out = std::make_shared<ngraph::opset4::Transpose>(out_0, order);
+        }
+
+        ngraph::NodeVector outputs = {out, out_1};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
             if (ordered_out_descs[i]) {
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
-                    input.replace_source_output(sequence->output(i));
+                    input.replace_source_output(outputs[i]->output(0));
                 }
             }
         }

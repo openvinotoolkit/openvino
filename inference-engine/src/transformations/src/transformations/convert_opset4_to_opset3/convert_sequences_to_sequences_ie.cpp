@@ -81,13 +81,24 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             return false;
         }
 
+        // todo: add exception?
+        if (gru_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
+        // for forward/reverse cases we can squeeze num_direction dimension
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input(1).get_source_output(), axis_1);
         auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input(5).get_source_output(), axis_2);
+
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
-                gru_sequence->input(0).get_source_output(),  // X
-                gru_sequence->input(1).get_source_output(),  // initial_hidden_state
-                gru_sequence->input(2).get_source_output(),  // sequence_lengths
-                concat->output(0),                          // WR
-                gru_sequence->input(5).get_source_output(),  // B
+                gru_sequence->input(0).get_source_output(), // X
+                in_1,  // initial_hidden_state
+                //gru_sequence->input(2).get_source_output(),  // sequence_lengths
+                in_3,  // WR
+                in_4,  // B
                 gru_sequence->get_hidden_size(),
                 gru_sequence->get_direction(),
                 gru_sequence->get_activations(),
@@ -96,9 +107,18 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
                 gru_sequence->get_clip(),
                 gru_sequence->get_linear_before_reset());
 
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(1), unsqueeze_axis);
+        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2};
+
+        for (int out_id = 0; out_id < gru_sequence->outputs().size(); ++out_id) {
+            for (const auto& target_input : gru_sequence->output(out_id).get_target_inputs()) {
+                target_input.replace_source_output(unsqueezes[out_id]);
+            }
+        }
         gru_sequence_ie->set_friendly_name(gru_sequence->get_friendly_name());
-        ngraph::copy_runtime_info(gru_sequence, {concat, gru_sequence_ie});
-        ngraph::replace_node(m.get_match_root(), gru_sequence_ie);
+        ngraph::copy_runtime_info(gru_sequence, {concat, gru_sequence_ie, unsqueeze_1, unsqueeze_2, in_1, in_3, in_4});
         return true;
     };
 

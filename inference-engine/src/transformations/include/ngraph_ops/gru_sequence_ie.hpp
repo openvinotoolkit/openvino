@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API GRUSequenceIE : public Op, public ngraph::op::util::RN
 public:
     GRUSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
-                  const Output <Node> &sequence_lengths,
+                  // const Output <Node> &sequence_lengths,
                   const Output <Node> &WR,
                   const Output <Node> &B,
                   size_t hidden_size,

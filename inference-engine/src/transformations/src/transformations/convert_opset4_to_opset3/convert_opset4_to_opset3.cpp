@@ -22,6 +22,7 @@ bool ngraph::pass::ConvertOpSet4ToOpSet3::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertGRUSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceMatcher>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
