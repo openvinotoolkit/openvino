@@ -174,6 +174,7 @@ namespace
         int64_t axis;
         switch (axis_tensor->get_element_type())
         {
+        case element::Type_t::i16: axis = read_vector<int16_t>(axis_tensor)[0]; break;
         case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0]; break;
         case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
         case element::Type_t::u64:
@@ -226,15 +227,8 @@ namespace
         const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
         if (neg_one != std::end(split_lengths)) // negative length set
         {
-            int64_t sum_of_known_splits = 0;
-            std::for_each(std::begin(split_lengths),
-                          std::end(split_lengths),
-                          [&sum_of_known_splits](int64_t split) {
-                              if (split != -1)
-                              {
-                                  sum_of_known_splits += split;
-                              }
-                          });
+            const auto sum_of_known_splits =
+                std::accumulate(std::begin(split_lengths), std::end(split_lengths), 0) + 1;
             split_lengths[std::distance(std::begin(split_lengths), neg_one)] =
                 data_shape[axis] - sum_of_known_splits;
         }
