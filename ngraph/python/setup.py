@@ -211,6 +211,7 @@ sources = [
     "pyngraph/types/element_type.cpp",
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
+    "pyngraph/variant.cpp",
 ]
 
 packages = [
