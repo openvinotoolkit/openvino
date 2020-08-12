@@ -152,6 +152,7 @@ jobs:
       wmic logicaldisk get description,name
       wmic VOLUME list
       set
+      dir "C:\Program Files (x86)\Microsoft Visual Studio\2019\" /s /b
     displayName: 'System properties'
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
