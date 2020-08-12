@@ -14,24 +14,18 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
+#include <pybind11/pybind11.h>
 
-#include "ngraph/pass/pass.hpp"
+#include "ngraph/variant.hpp" // ngraph::Variant
+#include "pyngraph/variant.hpp"
 
-namespace ngraph
+namespace py = pybind11;
+
+void regclass_pyngraph_Variant(py::module m)
 {
-    namespace pass
-    {
-        class GetOutputElementElimination;
-    }
+    py::class_<ngraph::Variant, std::shared_ptr<ngraph::Variant>> variant_base(m, "Variant");
+    variant_base.doc() = "ngraph.impl.Variant wraps ngraph::Variant";
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-class NGRAPH_API ngraph::pass::GetOutputElementElimination : public NodePass
-{
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    bool run_on_node(std::shared_ptr<Node> node) override;
-};
-NGRAPH_SUPPRESS_DEPRECATED_END
+template void regclass_pyngraph_VariantWrapper<std::string>(py::module m, std::string typestring);
+template void regclass_pyngraph_VariantWrapper<int64_t>(py::module m, std::string typestring);

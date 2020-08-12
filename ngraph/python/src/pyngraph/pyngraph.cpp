@@ -38,6 +38,7 @@
 #include "pyngraph/strides.hpp"
 #include "pyngraph/types/regmodule_pyngraph_types.hpp"
 #include "pyngraph/util.hpp"
+#include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -68,4 +69,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regmodule_pyngraph_op_util(m_op);
     regmodule_pyngraph_passes(m);
     regmodule_pyngraph_util(m);
+    regclass_pyngraph_Variant(m);
+    regclass_pyngraph_VariantWrapper<std::string>(m, std::string("String"));
+    regclass_pyngraph_VariantWrapper<int64_t>(m, std::string("Int"));
 }

@@ -55,6 +55,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
 #if GNA_LIB_VER == 2
     uint32_t activeLayerIndex = 0xffffffff;
 #endif
+    bool do_rotate_input = false;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
     uint32_t *ptr_active_indices = nullptr;

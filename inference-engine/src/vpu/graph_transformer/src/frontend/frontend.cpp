@@ -22,7 +22,8 @@
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -402,7 +403,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             manager.run_passes(nGraphFunc);
 
             ngraph::pass::Manager ti_manager;
+            // Apply all transformations to TensorIterator body
             ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            // Unroll should be called after all conversions
+            ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             ti_manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
