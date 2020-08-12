@@ -352,12 +352,14 @@ namespace {
     bool evaluate(const shared_ptr<op::v1::Select> &op, const HostTensorVector &outputs,
                   const HostTensorVector &input) {
         using T = typename element_type_traits<ET>::value_type;
-        size_t element_count = shape_size(op->get_output_shape(0));
         runtime::reference::select<T>(input[0]->get_data_ptr<const char>(),
                                       input[1]->get_data_ptr<const T>(),
                                       input[2]->get_data_ptr<const T>(),
                                       outputs[0]->get_data_ptr<T>(),
-                                      element_count);
+                                      op->get_input_shape(0),
+                                      op->get_input_shape(1),
+                                      op->get_input_shape(2),
+                                      op->get_auto_broadcast());
         return true;
     }
 
