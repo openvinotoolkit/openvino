@@ -231,8 +231,9 @@ jobs:
 
 - job: Win
   # About 150% of total time
-  timeoutInMinutes: 75
+  timeoutInMinutes: 120
   pool:
+    #vmImage: 'vs2017-win2016'
     name: WIN_VMSS_VENV_F8S_WU2
   variables:
     system.debug: true
@@ -264,13 +265,6 @@ jobs:
       powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
   - script: |
-      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
-      call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
-      echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
-      reg add HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder /f /v LastEnabled /d 0
-      echo Start IncrediBuild_Agent && net start IncrediBuild_Agent
-    displayName: Install IncrediBuild
-  - script: |
       rd /Q /S $(BUILD_DIR)
       mkdir $(BUILD_DIR)\bin
       rd /Q /S dldt-build
@@ -283,7 +277,7 @@ jobs:
     displayName: 'CMake'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+      call "$(MSVS_VARS_PATH)" && ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir ..\bin\ /s /b
