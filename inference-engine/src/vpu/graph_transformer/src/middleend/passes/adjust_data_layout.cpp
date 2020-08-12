@@ -194,13 +194,11 @@ void PassImpl::run(const Model& model) {
                 }
 
                 if (input->checkStrides(requiredStrides)) {
-                    // printf("!!! checkStrides\n");
                     input->updateRequiredStrides(requiredStrides);
                     continue;
                 }
 
                 auto& convertedData = input->attrs().getOrSet<DataVector>("convertedData", DataVector());
-                // std::cout<<"size : "<<convertedData.size()<<"\n";
 
                 Data newInput = nullptr;
 
@@ -208,14 +206,11 @@ void PassImpl::run(const Model& model) {
                     if (data->desc().dimsOrder() == input->desc().dimsOrder() &&
                         data->checkStrides(requiredStrides)) {
                         newInput = data;
-                        // printf("newInput = data;\n");
                         break;
                     }
                 }
                 if (newInput == nullptr) {
                     newInput = addConvertedData(model, input, requiredStrides);
-
-                    // printf("newInput == nullptr\n");
 
                     _stageBuilder->addCopyStage(
                         model,
@@ -327,13 +322,6 @@ void PassImpl::run(const Model& model) {
                 }
 
                 if (inEdge->input()->usage() == DataUsage::Const) {
-                    if (!inEdge->input()->checkStrides(StridesRequirement::compact())) {
-                        // std::cout<<"Problematic const : "<<inEdge->input()->name()<<"\n";
-                        // return;
-                        Data newIn = addConvertedData(model, inEdge->input(), StridesRequirement::compact());
-                        // inEdge->input() = newIn;
-                        // model->replaceStageInput(inEdge->input(), newIn);
-                    }
                     IE_ASSERT(inEdge->input()->checkStrides(StridesRequirement::compact()));
                 }
             }
@@ -360,8 +348,6 @@ Data PassImpl::addConvertedData(
     auto newDesc = orig->desc();
     newDesc.reorder(order);
 
-    // std::cout<< "addConvData from " << orig->name() << "\n";
-
     return model->duplicateData(
         orig,
         formatString("@order=%s", order),
@@ -380,7 +366,6 @@ Data PassImpl::addConvertedData(
         data->resetRequiredStrides();
         data->updateRequiredStrides(reqs);
         return data;
-        // return orig;
     } else {
         auto data = model->duplicateData(orig, "@adjust-strides");
         data->resetRequiredStrides();
@@ -388,8 +373,6 @@ Data PassImpl::addConvertedData(
         return data;
     }
     
-    // std::cout<< "--- addConvData from " << orig->name() << "\n";
-
     // data->resetRequiredStrides();
     // data->updateRequiredStrides(reqs);
     // return data;
