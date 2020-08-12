@@ -40,17 +40,23 @@ protected:
                  FusedOpType::ACTIVATION };
     }
 
-    bool NeedPaddedInput() const override { return true; }
+    bool NeedPaddedInput() const override { return false; }
+    bool HasPaddedInput(const convolution_params& params) const;
+    bool ParamsHavePadding(const convolution_params& params) const;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 
     struct AutoTuneParams {
         size_t simd;
         size_t tile_x;
+        size_t lws0;
+        size_t lws1;
+        bool preload_input_slm;
         std::string exeMode;
     };
     std::vector<AutoTuneParams> all_tune_params;
 
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
+    bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tparams) const;
 };
 }  // namespace kernel_selector
