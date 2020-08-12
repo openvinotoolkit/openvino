@@ -18,8 +18,10 @@ import pytest
 
 import ngraph as ng
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
+from tests import xfail_issue_35929, xfail_issue_34323
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
@@ -56,6 +58,7 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     assert np.allclose(result, expected, rtol=0.001)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
@@ -90,6 +93,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array(True)), (np.array(False))]
 )
@@ -103,6 +107,7 @@ def test_logical_not(input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_sigmoid():
     input_data = np.array([-3.14, -1.0, 0.0, 2.71001, 1000.0], dtype=np.float32)
     result = run_op_node([input_data], ng.sigmoid)
@@ -115,6 +120,7 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
@@ -126,6 +132,7 @@ def test_softmax():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_erf():
     input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
     expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]
