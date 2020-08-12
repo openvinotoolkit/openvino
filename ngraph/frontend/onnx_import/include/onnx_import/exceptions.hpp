@@ -18,7 +18,6 @@
 
 #include <string>
 
-#include "ngraph/assertion.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_import/core/node.hpp"

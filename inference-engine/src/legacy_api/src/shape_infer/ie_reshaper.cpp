@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/ie_reshaper.hpp"
-
-#include <debug.h>
-#include <ie_layers.h>
-
-#include <blob_factory.hpp>
 #include <functional>
-#include <graph_tools.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -17,9 +10,14 @@
 #include <tuple>
 #include <vector>
 
-#include "details/ie_cnn_network_tools.h"
-#include "ie_reshaper.hpp"
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
+#include <debug.h>
+#include <blob_factory.hpp>
+
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers.h>
+#include "legacy/details/ie_cnn_network_tools.h"
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
+#include "shape_infer/ie_reshaper.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

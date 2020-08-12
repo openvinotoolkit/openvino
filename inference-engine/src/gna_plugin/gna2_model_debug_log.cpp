@@ -9,6 +9,7 @@
 #if GNA_LIB_VER == 2
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
+#include <details/ie_exception.hpp>
 
 #include <cstdint>
 #include <fstream>
@@ -52,6 +53,7 @@ template <class T>
 bool NextElement(T & elementIndex, const Gna2Shape& total) {
     if (total.NumberOfDimensions == 0) return false;
     auto idx = total.NumberOfDimensions - 1;
+    IE_ASSERT(idx < GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
     while (elementIndex[idx] + 1 >= total.Dimensions[idx] && idx > 0) {
         idx--;
     }

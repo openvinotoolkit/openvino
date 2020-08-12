@@ -21,6 +21,7 @@ addIeTargetTest(
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
         DEPENDENCIES
+            template_extension
             mock_engine
         LABELS
             IE

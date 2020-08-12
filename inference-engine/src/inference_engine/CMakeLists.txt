@@ -98,6 +98,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
+    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy" # for compatibility
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 

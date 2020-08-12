@@ -11,22 +11,24 @@
 
 #include <algorithm>
 #include <functional>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/node.hpp>
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
+#include <ngraph/attribute_visitor.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/node.hpp>
+
+#include <ie_icnn_network.hpp>
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
