@@ -146,8 +146,50 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef LPT_SUPPORT
+// replace low precision tensor to fp32
+template <typename T>
+std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original)
+{
+    T* data = static_cast<T*>(original->get_data_ptr());
+    const size_t shapeVolume = shape_size(original->get_shape());
+    std::shared_ptr<HostTensor> tensor =
+        std::make_shared<HostTensor>(element::f32, original->get_shape());
+
+    float* memory = static_cast<float*>(tensor->get_data_ptr());
+    for (auto i = 0; i < shapeVolume; ++i)
+    {
+        memory[i] = static_cast<float>(data[i]);
+    }
+
+    return tensor;
+}
+#endif
+
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#ifdef LPT_SUPPORT
+	// replace low precision tensor to fp32
+    std::shared_ptr<HostTensor> input0;
+    if ((inputs[1]->get_element_type() == element::f32) &&
+        (inputs[0]->get_element_type() == element::i8))
+    {
+        input0 = to_float<int8_t>(inputs[0]);
+    }
+    else if ((inputs[1]->get_element_type() == element::f32) &&
+             (inputs[0]->get_element_type() == element::u8))
+    {
+        input0 = to_float<uint8_t>(inputs[0]);
+    }
+    else
+    {
+        input0 = inputs[0];
+    }
+
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
+    return evaluate_add(input0, inputs[1], outputs[0], get_autob());
+#else
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+#endif
 }
