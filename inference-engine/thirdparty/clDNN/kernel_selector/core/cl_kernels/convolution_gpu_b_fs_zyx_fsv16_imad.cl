@@ -106,8 +106,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             if (ixb != CEIL_DIV(IN_BLOCK_WIDTH, SIMD) - 1) {
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                #endif
                                     input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                #else
+                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
@@ -124,8 +126,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             } else {
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                #endif
                                     input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + tmp * FSV));
+                                #else
+                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint*)(conv_input + input_idx + tmp * FSV));
+                                #endif
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
