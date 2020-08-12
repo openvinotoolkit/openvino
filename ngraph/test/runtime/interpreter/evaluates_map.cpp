@@ -23,6 +23,11 @@
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
+#include "ngraph/runtime/reference/avg_pool.hpp"
+#include "reference/detection_output.hpp"
+#include "reference/scatter_nd_update.hpp"
+#include "reference/scatter_update.hpp"
+#include "ngraph/runtime/reference/select.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -253,6 +258,125 @@ namespace {
         return true;
     }
 
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::DetectionOutput> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::referenceDetectionOutput<T> refDetOut(
+                op->get_attrs(), op->get_input_shape(0), op->get_input_shape(2));
+        if (op->get_input_size() == 3) {
+            refDetOut.run(input[0]->get_data_ptr<const T>(),
+                          input[1]->get_data_ptr<const T>(),
+                          input[2]->get_data_ptr<const T>(),
+                          nullptr,
+                          nullptr,
+                          outputs[0]->get_data_ptr<T>());
+        } else if (op->get_input_size() == 5) {
+            refDetOut.run(input[0]->get_data_ptr<const T>(),
+                          input[1]->get_data_ptr<const T>(),
+                          input[2]->get_data_ptr<const T>(),
+                          input[3]->get_data_ptr<const T>(),
+                          input[4]->get_data_ptr<const T>(),
+                          outputs[0]->get_data_ptr<T>());
+        } else {
+            throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+        }
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        auto idxType = op->get_input_element_type(1);
+        if (idxType == element::i32) {
+            runtime::reference::scatterNdUpdate<T, int32_t>(input[0]->get_data_ptr<const T>(),
+                                                            input[1]->get_data_ptr<const int32_t>(),
+                                                            input[2]->get_data_ptr<const T>(),
+                                                            outputs[0]->get_data_ptr<T>(),
+                                                            op->get_input_shape(0),
+                                                            op->get_input_shape(1),
+                                                            op->get_input_shape(2));
+        } else if (idxType == element::i64) {
+            runtime::reference::scatterNdUpdate<T, int64_t>(input[0]->get_data_ptr<const T>(),
+                                                            input[1]->get_data_ptr<const int64_t>(),
+                                                            input[2]->get_data_ptr<const T>(),
+                                                            outputs[0]->get_data_ptr<T>(),
+                                                            op->get_input_shape(0),
+                                                            op->get_input_shape(1),
+                                                            op->get_input_shape(2));
+        } else {
+            throw ngraph_error(
+                    "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+        }
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::ScatterUpdate> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        if (op->get_input_element_type(3) != element::i64)
+            throw ngraph_error(
+                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
+
+        auto idxType = op->get_input_element_type(1);
+        if (idxType == element::i32) {
+            runtime::reference::scatterUpdate<T, int32_t, int64_t>(
+                    input[0]->get_data_ptr<const T>(),
+                    input[1]->get_data_ptr<const int32_t>(),
+                    input[2]->get_data_ptr<const T>(),
+                    input[3]->get_data_ptr<const int64_t>(),
+                    outputs[0]->get_data_ptr<T>(),
+                    op->get_input_shape(0),
+                    op->get_input_shape(1),
+                    op->get_input_shape(2));
+        } else if (idxType == element::i64) {
+            runtime::reference::scatterUpdate<T, int64_t, int64_t>(
+                    input[0]->get_data_ptr<const T>(),
+                    input[1]->get_data_ptr<const int64_t>(),
+                    input[2]->get_data_ptr<const T>(),
+                    input[3]->get_data_ptr<const int64_t>(),
+                    outputs[0]->get_data_ptr<T>(),
+                    op->get_input_shape(0),
+                    op->get_input_shape(1),
+                    op->get_input_shape(2));
+        } else {
+            throw ngraph_error(
+                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
+        }
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::Select> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        size_t element_count = shape_size(op->get_output_shape(0));
+        runtime::reference::select<T>(input[0]->get_data_ptr<const char>(),
+                                      input[1]->get_data_ptr<const T>(),
+                                      input[2]->get_data_ptr<const T>(),
+                                      outputs[0]->get_data_ptr<T>(),
+                                      element_count);
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::AvgPool> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::avg_pool<T>(input[0]->get_data_ptr<T>(),
+                                        outputs[0]->get_data_ptr<T>(),
+                                        input[0]->get_shape(),
+                                        op->get_output_shape(0),
+                                        op->get_kernel(),
+                                        op->get_strides(),
+                                        op->get_pads_begin(),
+                                        op->get_pads_end(),
+                                        !op->get_exclude_pad());
+        return true;
+    }
+
     template<typename T>
     bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector &outputs, const HostTensorVector &inputs) {
         switch (node->get_element_type()) {
@@ -280,7 +404,7 @@ namespace {
                 return evaluate<element::Type_t::u32>(as_type_ptr<T>(node), outputs, inputs);
             default:
                 throw ngraph_error(std::string("Unhandled data type ")
-                                   + node->get_element_type().get_type_name() + std::string("i n evaluate_node()"));
+                                   + node->get_element_type().get_type_name() + std::string("in evaluate_node()"));
         }
 
     }

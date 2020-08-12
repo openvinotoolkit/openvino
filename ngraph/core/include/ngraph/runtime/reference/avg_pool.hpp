@@ -224,7 +224,7 @@ namespace ngraph
                         if (in_bounds || include_padding_in_avg_computation)
                         {
                             T v =
-                                in_bounds ? arg[input_batch_transform.index(input_batch_coord)] : 0;
+                                in_bounds ? arg[input_batch_transform.index(input_batch_coord)] : static_cast<T>(0);
                             result += v;
                             n_elements++;
                         }
