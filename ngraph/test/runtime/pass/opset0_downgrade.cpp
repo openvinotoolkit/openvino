@@ -192,7 +192,8 @@ namespace
                         output_shape.push_back(axis);
                     }
                 }
-                return make_shared<op::Reshape>(value, get_default_order(value.get_shape().size()), output_shape)
+                return make_shared<op::Reshape>(
+                           value, get_default_order(value.get_shape().size()), output_shape)
                     ->add_provenance_group_members_above({value});
 
             };

@@ -16,8 +16,8 @@
 
 #include <cstddef>
 #include <iterator>
-#include <numeric>
 #include <memory>
+#include <numeric>
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/make_constant.hpp"
@@ -71,8 +71,7 @@ Output<Node> builder::MatmulFactory::get_right()
 
 OutputVector builder::MatmulFactory::make_matmul_op()
 {
-    auto collapse = [](const Output<Node>& value, const size_t start_axis, const size_t end_axis)
-    {
+    auto collapse = [](const Output<Node>& value, const size_t start_axis, const size_t end_axis) {
         auto shape = value.get_shape();
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),
@@ -81,7 +80,8 @@ OutputVector builder::MatmulFactory::make_matmul_op()
 
         Shape output_shape{collapsed_axis_size};
         output_shape.insert(end(output_shape), next(begin(shape), end_axis + 1), end(shape));
-        return make_shared<op::Reshape>(value, get_default_order(value.get_shape().size()), output_shape)
+        return make_shared<op::Reshape>(
+                   value, get_default_order(value.get_shape().size()), output_shape)
             ->add_provenance_group_members_above({value});
     };
     auto left = get_left();
