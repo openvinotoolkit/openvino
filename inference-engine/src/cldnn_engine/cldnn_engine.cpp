@@ -566,16 +566,5 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
 };  // namespace CLDNNPlugin
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-            { 2, 1,
-             CI_BUILD_NUMBER,
-             "clDNNPlugin" }, std::make_shared<CLDNNPlugin::clDNNEngine>());
-        return OK;
-    }
-    catch (std::exception & ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
-
+static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(CLDNNPlugin::clDNNEngine, version)

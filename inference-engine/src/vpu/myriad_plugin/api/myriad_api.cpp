@@ -10,15 +10,5 @@
 using namespace InferenceEngine;
 using namespace vpu::MyriadPlugin;
 
-IE_SUPPRESS_DEPRECATED_START
-
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        auto mvnc = std::make_shared<Mvnc>();
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "myriadPlugin"}, std::make_shared<Engine>(mvnc));
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "myriadPlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version, std::make_shared<Mvnc>())
