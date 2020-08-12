@@ -75,34 +75,3 @@ shared_ptr<runtime::Tensor> make_reduce_result_false(
 
     return result;
 }
-
-TEST(builder, l2_norm)
-{
-    auto result = make_reduce_result(builder::l2_norm);
-    ASSERT_TRUE(test::all_close((vector<float>{5.9160797831f, 7.48331477355f}),
-                                read_vector<float>(result)));
-}
-
-TEST(builder, mean)
-{
-    auto result = make_reduce_result(builder::mean);
-    ASSERT_TRUE(test::all_close((vector<float>{3, 4}), read_vector<float>(result)));
-}
-
-TEST(builder, std_dev)
-{
-    auto result = make_reduce_result_false(builder::std_dev);
-    ASSERT_TRUE(test::all_close((vector<float>{1.63299316186f, 1.63299316186f}),
-                                read_vector<float>(result)));
-    result = make_reduce_result_true(builder::std_dev);
-    ASSERT_TRUE(test::all_close((vector<float>{2, 2}), read_vector<float>(result)));
-}
-
-TEST(builder, variance)
-{
-    auto result = make_reduce_result_false(builder::variance);
-    ASSERT_TRUE(test::all_close((vector<float>{2.66666666666f, 2.66666666666f}),
-                                read_vector<float>(result)));
-    result = make_reduce_result_true(builder::variance);
-    ASSERT_TRUE(test::all_close((vector<float>{4, 4}), read_vector<float>(result)));
-}
