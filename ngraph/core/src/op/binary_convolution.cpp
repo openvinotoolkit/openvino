@@ -19,7 +19,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/reverse.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
