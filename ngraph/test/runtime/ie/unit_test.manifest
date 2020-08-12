@@ -59,7 +59,6 @@ onnx_model_lstm_bdir_short_input_seq
 onnx_model_lstm_mixed_seq_reverse
 
 # Result mismatch
-onnx_model_space_to_depth_chw
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
 onnx_model_softmax
