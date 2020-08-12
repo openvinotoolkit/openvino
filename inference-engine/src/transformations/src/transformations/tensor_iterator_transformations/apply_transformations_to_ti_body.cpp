@@ -19,7 +19,9 @@ ngraph::pass::ApplyTransformationsToTIBody::ApplyTransformationsToTIBody(ngraph:
             return false;
         }
 
-        manager.run_passes(ti->get_body()->to_function());
+        auto func = ti->get_body()->to_function();
+        manager.run_passes(func);
+        ti->get_body()->set_leafs(func->get_leafs());
         return true;
     };
 

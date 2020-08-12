@@ -63,7 +63,9 @@ namespace ngraph
                     virtual bool visit_attributes(AttributeVisitor& visitor);
                     std::shared_ptr<Function> to_function()
                     {
-                        return std::make_shared<Function>(get_results(), get_parameters());
+                        auto func = std::make_shared<Function>(get_results(), get_parameters());
+                        func->set_leafs(get_leafs());
+                        return func;
                     }
                 };
 

@@ -30,6 +30,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
 #include <ngraph/op/util/op_types.hpp>
@@ -42,6 +43,7 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+#include <transformations/tensor_iterator_transformations/low_latency.hpp>
 
 #endif
 #endif
@@ -86,6 +88,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::LSTMLowLatency>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -108,6 +111,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     // Apply all transformations to TensorIterator body
     ngraph::pass::Manager ti_manager;
     ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
     ti_manager.run_passes(nGraphFunc);
 
     manager.set_callback(transformations_callback);

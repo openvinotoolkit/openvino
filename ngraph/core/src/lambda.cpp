@@ -33,6 +33,7 @@ Lambda::Lambda(const ResultVector& results, const ParameterVector& parameters)
     : m_results(results)
     , m_parameters(parameters)
 {
+    m_leafs.insert(results.begin(), results.end());
 }
 
 int64_t Lambda::get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const

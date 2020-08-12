@@ -97,7 +97,7 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
 
     vector<shared_ptr<Node>> nodes;
-    for (auto& r : get_results())
+    for (auto& r : get_leafs())
     {
         nodes.push_back(r);
     }
@@ -113,7 +113,7 @@ void Function::map_unordered_ops(std::function<void(Node*)> f) const
 {
     std::unordered_set<Node*> unordered_ops;
     std::stack<Node*, std::vector<Node*>> remaining_ops;
-    for (auto& r : get_results())
+    for (auto& r : get_leafs())
     {
         remaining_ops.push(r.get());
     }
@@ -121,7 +121,7 @@ void Function::map_unordered_ops(std::function<void(Node*)> f) const
     {
         remaining_ops.push(param.get());
     }
-    while (remaining_ops.size() > 0)
+    while (!remaining_ops.empty())
     {
         Node* op = remaining_ops.top();
         remaining_ops.pop();

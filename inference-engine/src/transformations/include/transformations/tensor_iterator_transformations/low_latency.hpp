@@ -24,19 +24,21 @@ namespace pass {
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Applies transformations from given pass::Manager for each TensorIterator body
+ * @brief
+ * todo: fill
  */
 
-class ngraph::pass::LSTMLowLatency: public ngraph::pass::MatcherPass {
+class ngraph::pass::LSTMLowLatency: public ngraph::pass::FunctionPass {
 public:
-    explicit LSTMLowLatency();
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
-class ngraph::pass::GRULowLatency: public ngraph::pass::MatcherPass {
+class ngraph::pass::GRULowLatency: public ngraph::pass::FunctionPass {
 public:
-    explicit GRULowLatency();
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
-class ngraph::pass::RNNLowLatency: public ngraph::pass::MatcherPass {
+
+class ngraph::pass::RNNLowLatency: public ngraph::pass::FunctionPass {
 public:
-    explicit RNNLowLatency();
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

@@ -44,6 +44,10 @@ namespace ngraph
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors) const;
 
+        NodeVector get_leafs() const { return NodeVector(m_leafs.begin(), m_leafs.end()); }
+        void set_leafs(const NodeVector& leafs) {
+            m_leafs.insert(leafs.begin(), leafs.end());
+        }
     protected:
         Lambda() = default;
         Lambda(const ResultVector& results, const ParameterVector& parameters);
@@ -51,6 +55,8 @@ namespace ngraph
 
         ResultVector m_results;
         ParameterVector m_parameters;
+
+        std::set<std::shared_ptr<ngraph::Node>> m_leafs;
     };
 
     template <>

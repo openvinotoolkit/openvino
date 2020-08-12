@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  * are added to the network.
  */
 
-class ngraph::pass::UnrollTensorIterator: public ngraph::pass::MatcherPass {
+class ngraph::pass::UnrollTensorIterator: public ngraph::pass::FunctionPass {
 public:
-    UnrollTensorIterator();
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

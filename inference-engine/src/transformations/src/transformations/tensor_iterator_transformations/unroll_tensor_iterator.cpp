@@ -13,12 +13,12 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
-    auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
+bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    const auto &ops = f->get_ops();
+    for (const auto& node : ops) {
+        auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(node);
         if (!ti) {
-            return false;
+            continue;
         }
 
         const auto function = ti->get_body()->to_function();
@@ -26,7 +26,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
 
         // negative value means inconsistent TI
         if (num_iter <= -1) {
-            return false;
+            continue;
         }
 
         // Create copies of the TensorIterator body, the number of copies is equal to the number of iterations.
@@ -34,6 +34,13 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (uint64_t idx = 0; idx < num_iter; ++idx) {
             body_functions[idx] = clone_function(*function);
+            NodeVector leafs;
+            for (const auto& node : body_functions[idx]->get_leafs()) {
+                if (!std::dynamic_pointer_cast<ngraph::opset4::Result>(node)) {
+                    leafs.push_back(node);
+                }
+            }
+            f->set_leafs(leafs);
             for (auto &node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name(ti->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
                 copy_runtime_info(ti, node);
@@ -47,7 +54,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             if (type_name == "SliceInputDescription") {
                 auto input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(desc);
                 if (!input_desc) {
-                    return false;
+                    continue;
                 }
 
                 // Connect the sliced input (layer before the input) to the Split layer and connect
@@ -79,7 +86,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             } else if (type_name == "MergedInputDescription") {
                 auto input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::MergedInputDescription>(desc);
                 if (!input_desc) {
-                    return false;
+                    continue;
                 }
 
                 // Connect the input to the corresponding copy of the body.
@@ -101,7 +108,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                 auto input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::InvariantInputDescription>(
                         desc);
                 if (!input_desc) {
-                    return false;
+                    continue;
                 }
 
                 // Connect the input to the corresponding copy of the body.
@@ -114,7 +121,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                 }
             } else {
                 // "Incorrect type of the input description.";
-                return false;
+                continue;
             }
         }
 
@@ -124,7 +131,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             if (type_name == "ConcatOutputDescription") {
                 auto output_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::ConcatOutputDescription>(desc);
                 if (!output_desc) {
-                    return false;
+                    continue;
                 }
 
                 // Connect corresponding outputs (layers before Result op) of each copy of the body to Concat layer.
@@ -162,7 +169,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             } else if (type_name == "BodyOutputDescription") {
                 auto output_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::BodyOutputDescription>(desc);
                 if (!output_desc) {
-                    return false;
+                    continue;
                 }
 
                 // Connect outputs of the bodies to the corresponding TI outputs
@@ -177,13 +184,13 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
                 }
             } else {
                 // "Incorrect type of the output description."
-                return false;
+                continue;
             }
         }
 
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
-    register_matcher(m, callback);
+        //return true;
+    }
+    return true;
+//    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
+//    register_matcher(m, callback);
 }

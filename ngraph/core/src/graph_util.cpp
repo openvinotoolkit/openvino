@@ -50,7 +50,7 @@ void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_pt
 {
     NodeVector nodes;
 
-    for (auto r : p->get_results())
+    for (auto r : p->get_leafs())
     {
         nodes.push_back(r);
     }
@@ -433,8 +433,13 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
         cloned_params.push_back(as_type_ptr<op::Parameter>(node_map.at(param.get())));
     }
 
+    NodeVector cloned_leafs;
+    for (const auto& node : func.get_leafs()) {
+        cloned_leafs.push_back(node_map.at(node.get()));
+    }
     // create and return cloned function
     auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
+    result->set_leafs(cloned_leafs);
     result->set_friendly_name(func.get_friendly_name());
     return result;
 }
