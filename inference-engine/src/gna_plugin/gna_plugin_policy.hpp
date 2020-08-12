@@ -40,6 +40,15 @@ class Policy {
         ENABLED,
         FAST
     } ConcatAlignmentPolicy = ConcatAlignment::FAST;
+
+    /**
+    * Policy to support --disable_nhwc_to_nchw option in MO
+    */
+    enum class NHWCToNCHW {
+        DISABLED,
+        REMOVE_LAST,
+        REMOVE_ALL
+    } NHWCToNCHWPolicy = NHWCToNCHW::REMOVE_ALL;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
