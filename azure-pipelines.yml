@@ -135,7 +135,6 @@ jobs:
     BUILD_DIR: D:\dldt-build
     BIN_DIR: ..\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
-    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
   - script: |
       git clean -xdf
@@ -152,7 +151,6 @@ jobs:
       wmic logicaldisk get description,name
       wmic VOLUME list
       set
-      dir "C:\Program Files (x86)\Microsoft Visual Studio\2019\" /s /b
     displayName: 'System properties'
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
@@ -173,7 +171,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
+      call "$(MSVS_VARS_PATH)" && set MSVC_COMPILER_PATH=%VCToolsInstallDir%bin\Hostx64\x64\cl.exe && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
   - script: |
