@@ -56,6 +56,6 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePat
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(extract_image_patches, "ConvertExtractImagePatchesToReorgYolo");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eip, "ConvertExtractImagePatchesToReorgYolo");
     register_matcher(m, callback);
 }
