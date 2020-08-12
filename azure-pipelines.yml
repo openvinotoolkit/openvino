@@ -134,7 +134,6 @@ jobs:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
     BIN_DIR: ..\bin\intel64
-    MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
   steps:
   - script: |
       git clean -xdf
@@ -169,14 +168,11 @@ jobs:
       rd /Q /S dldt-build
       mkdir dldt-build
     displayName: 'Create build directory'
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && set MSVC_COMPILER_PATH="%VCToolsInstallDir%bin\Hostx64\x64\cl.exe" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH=%MSVC_COMPILER_PATH% -DCMAKE_CXX_COMPILER:PATH=%MSVC_COMPILER_PATH% $(Build.Repository.LocalPath)
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'CMake'
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+  - task: CMake@1
+    inputs:
+      cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
+      workingDirectory: $(BUILD_DIR)
+  - script: "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="cmake --build . --config $(BUILD_TYPE)"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir ..\bin\ /s /b
