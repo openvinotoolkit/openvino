@@ -30,7 +30,7 @@ and release your contribution under these terms.
 * [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
 
 ## How to Contribute
-See [CONTRIBUTING](./CONTRIBUTING.md) for contribution to the code.
+See [CONTRIBUTING](./CONTRIBUTING.md) for contribution to the code.  
 See [CONTRIBUTING_DOCS](./CONTRIBUTING_DOCS.md) for contribution to the documentation.
 Thank you!
 

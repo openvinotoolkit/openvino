@@ -173,14 +173,25 @@ All links in content should follow these guidelines:
 * **Start link text with keywords:** Frontload the link text with the most important words to help users scan the text.
 
 Use following examples to write links in your documentation:
-* To add a cross-reference to another documentation page, use file path from [DoxygenLayout.xml](./openvino-documentation/blob/master/docs/doxygen/DoxygenLayout.xml) (don't use direct links to docs.openvinotoolkit.org):
+
+* To add a cross-reference to another documentation page stored in current repository, use the file path relative to the file you are working in
 ```
-[OpenVINO Installation on Linux](./docs/install_guides/installing-openvino-linux.md)
+[Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
 ```
-Currently links to headings in other markdown files are not supported. To refer to a specific section, you may use the following example:  
+
+* To add a cross-reference to another documentation page from different repository, use `url` from the [docs/doxygen/ie_docs.xml](./docs/doxygen/ie_docs.xml) file
+> **NOTE**: If the documentation page isn't presented there, search *ie_docs.xml* in https://github.com/openvinotoolkit/ repositories. Do not use direct links from docs.openvinotoolkit.org.
+
+  ```
+  - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision  
+  - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
+  ```
+
+* Currently links to headings in other markdown files are not supported. To refer to a specific section, you may use the following example:  
 ```
 "Use **Set Environment Variables** section in the [OpenVINO Installation on Linux](./docs/install_guides/installing-openvino-linux.md) document.
 ```
+
 * To add URL link to any software, link to the latest version, for example:
 ```
 For more details, see [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1))
