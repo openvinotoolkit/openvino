@@ -37,7 +37,7 @@ public:
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override {
         bool is_3d_case = params.inputs[0].GetLayout() != DataLayout::bs_fs_yx_bsv16_fsv16;
-        if (params.inputs[0].Feature().v == 3) {
+        if (params.inputs[0].Feature().v == 3 && params.inputs[0].GetLayout() == DataLayout::bfzyx) {
             return WeightsLayout::os_zyxi_osv16;
         } else if (use_data_type == Datatype::F32 && params.inputs[0].Batch().v % 16 == 0) {
             if (is_3d_case)

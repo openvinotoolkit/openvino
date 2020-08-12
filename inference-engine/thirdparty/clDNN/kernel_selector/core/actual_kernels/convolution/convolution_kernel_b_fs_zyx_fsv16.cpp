@@ -106,7 +106,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
     auto b = out.Batch().v;
     auto g = params.groups;
 
-    const bool is_1stconv = input.Feature().v == 3;
+    const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
     const bool ver_16mb16c = !is_1stconv &&
         ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
         (out.GetDType() == Datatype::F32 && b % 16 == 0));
@@ -140,7 +140,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
             kd.gws2 = b * f / ocb;
         }
     } else if (ver_16mb16c) {
-        f = f / g;
+        f = (g > 1) ? f/g : Align(f, 16);
         kd.lws0 = sub_group_size;
         kd.lws1 = 1;
         kd.lws2 = 1;
@@ -152,7 +152,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
         kd.cldnnStyle.blockWidth = 1;
     } else {
         auto oh_block = 1;
-        f = (g > 1) ? Align(f / g, 16) : f;
+        f = Align(f / g, 16);
 
         auto div = 16;
         while (div > 1) {
@@ -201,16 +201,14 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
     if (output.GetDType() != use_data_type)
         return false;
 
-    if (output.Feature().v % feature_block_size != 0)
-        return false;
-
     if (input.GetLayout() == DataLayout::bfzyx) {
-        if (input.Feature().v != 3)
+        if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0)
             return false;
         if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
             return false;
     } else {
-        if ((input.Feature().v / params.groups) % feature_block_size != 0 && (input.Feature().v / params.groups) != 8)
+        if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 &&
+            (input.Feature().v / params.groups) != 8)
             return false;
     }
 
@@ -228,10 +226,9 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     auto output = params.output;
     auto jit = Parent::GetJitConstants(params, runInfo);
 
-    const bool is_1stconv = input.Feature().v == 3;
-    const bool ver_16mb16c = !is_1stconv &&
-        ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
-         (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+    const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
+    const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
+                                             (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
@@ -322,12 +319,19 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
+    if (is_1stconv || params.groups > 1) {
+        jit.AddConstant(MakeJitConstant("OC", output.Feature().v / params.groups));
+        jit.AddConstant(MakeJitConstant("IC", input.Feature().v / params.groups));
+    } else {
+        jit.AddConstant(MakeJitConstant("OC", Align(output.Feature().v, 16)));
+        jit.AddConstant(MakeJitConstant("IC", Align(input.Feature().v, 16)));
+    }
+
     jit.AddConstant(MakeJitConstant("MB", "OUTPUT_BATCH_NUM"));
-    jit.AddConstant(MakeJitConstant("OC", output.Feature().v / params.groups));
     jit.AddConstant(MakeJitConstant("OD", "OUTPUT_SIZE_Z"));
     jit.AddConstant(MakeJitConstant("OH", "OUTPUT_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("OW", "OUTPUT_SIZE_X"));
-    jit.AddConstant(MakeJitConstant("IC", input.Feature().v / params.groups));
+
     jit.AddConstant(MakeJitConstant("ID", "INPUT0_SIZE_Z"));
     jit.AddConstant(MakeJitConstant("IH", "INPUT0_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("IW", "INPUT0_SIZE_X"));
@@ -344,15 +348,25 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("PH_R", "PADDING_SIZE_Y"));
     jit.AddConstant(MakeJitConstant("PW_R", "PADDING_SIZE_X"));
 
-    jit.AddConstant(MakeJitConstant("IC_FULL", params.inputs[0].Feature().LogicalDimPadded()));
+    if (is_1stconv || params.groups > 1) {
+        jit.AddConstant(MakeJitConstant("IC_FULL", params.inputs[0].Feature().LogicalDimPadded()));
+        jit.AddConstant(MakeJitConstant("OC_FULL", params.output.Feature().LogicalDimPadded()));
+    } else {
+        jit.AddConstant(MakeJitConstant("IC_FULL", Align(params.inputs[0].Feature().LogicalDimPadded(), 16)));
+        jit.AddConstant(MakeJitConstant("OC_FULL", Align(params.output.Feature().LogicalDimPadded(), 16)));
+    }
+
     jit.AddConstant(MakeJitConstant("ID_FULL", params.inputs[0].Z().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IH_FULL", params.inputs[0].Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IW_FULL", params.inputs[0].X().LogicalDimPadded()));
-
-    jit.AddConstant(MakeJitConstant("OC_FULL", params.output.Feature().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OD_FULL", params.output.Z().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OH_FULL", params.output.Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OW_FULL", params.output.X().LogicalDimPadded()));
+
+    if (params.output.Feature().v % feature_block_size != 0) {
+        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
+        jit.AddConstant(MakeJitConstant("OC_NOTALLIGNED", output.Feature().v));
+    }
 
     return jit;
 }
