@@ -76,11 +76,11 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         if (!dim) THROW_IE_EXCEPTION << outName << " has zero dimension that is not allowable";
     }
 
+    const auto layout = TensorDesc::getLayoutByDims(dims);
     if (ptr) {
-        ptr->reshape(dims, ptr->getTensorDesc().getLayout());
+        ptr->reshape(dims, layout);
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
-        const auto layout = TensorDesc::getLayoutByDims(dims);
         ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
