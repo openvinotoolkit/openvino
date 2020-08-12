@@ -17,6 +17,7 @@
 
 template <class Conv>
 bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
+#ifdef LPT_SUPPORT
     if (!ngraph::is_type<ngraph::op::ConvolutionIE>(conv)) {
         return false;
     }
@@ -36,6 +37,10 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
     }
 
     return isLowPrecision(subtract);
+#else
+    const ngraph::element::Type inputType = conv->get_input_element_type(1);
+    return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
+#endif
 }
 
 template <class Conv>
@@ -87,7 +92,7 @@ ngraph::graph_rewrite_callback get_callback() {
             }
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
         } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
-            (!IsConvInLowPrecision(m_conv))) {
+                !IsConvInLowPrecision(m_conv)) {
             // Fuse: ConvolutionIE->Mul
             auto weights_shape = m_conv->input(1).get_shape();
 

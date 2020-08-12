@@ -19,6 +19,20 @@
 #include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
+#include <transformations/convert_divide.hpp>
+#include <transformations/convert_mod.hpp>
+#include <transformations/convert_minimum_to_power_and_max.hpp>
+#include <transformations/convert_negative.hpp>
+#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/convert_subtract.hpp>
+#include <transformations/convert_depth_to_space.hpp>
+#include <transformations/convert_space_to_depth.hpp>
+#include <transformations/batch_norm_decomposition.hpp>
+#include <transformations/pull_transpose_through_fq.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+
+
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");
 
@@ -36,6 +50,30 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
+
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->set_name("CommonDecompositions");
+
+    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertMod>();
+    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
+    decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    decomp->add_matcher<ngraph::pass::ConvertNegative>();
+    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
+    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+
+    // LinOpSequenceFusion must be executed after all decompositions
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+
+    // CF is required after all decompositions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // TODO: here should be Convolution + Multiply fusion
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);

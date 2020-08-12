@@ -7,7 +7,6 @@
 #include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_divide.hpp>
-#include <transformations/convert_mod.hpp>
 #include <transformations/itt.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
@@ -15,10 +14,8 @@
 #include <transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
-#include <transformations/convert_minimum_to_power_and_max.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
-#include <transformations/convert_negative.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
@@ -28,16 +25,11 @@
 #include <transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp>
-#include <transformations/convert_reduce_to_pooling.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
-#include <transformations/convert_subtract.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp>
-#include <transformations/convert_depth_to_space.hpp>
-#include <transformations/convert_space_to_depth.hpp>
-#include <transformations/batch_norm_decomposition.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <transformations/mul_add_squence_fusion.hpp>
@@ -69,21 +61,11 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // applied simultaneously in a single graph traversal
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertMod>();
-    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
-    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
-    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
-    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::ConvertConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupConvolution>();
     decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
