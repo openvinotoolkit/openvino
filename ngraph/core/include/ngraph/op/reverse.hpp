@@ -71,6 +71,8 @@ namespace ngraph
                 {
                     m_reversed_axes = reversed_axes;
                 }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 AxisSet m_reversed_axes;
@@ -115,6 +117,9 @@ namespace ngraph
                 Mode get_mode() const { return m_mode; }
                 void set_mode(const Mode mode) { m_mode = mode; }
                 virtual size_t get_version() const override { return 1; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             protected:
                 Mode mode_from_string(const std::string& mode) const;
 

@@ -371,7 +371,12 @@ namespace ngraph
                 {
                     reverse_axes.insert(i);
                 }
-                reverse<FILTER>(filter, &reversed[0], filter_shape, filter_shape, reverse_axes);
+                reverse(reinterpret_cast<const char*>(filter),
+                        reinterpret_cast<char*>(&reversed[0]),
+                        filter_shape,
+                        filter_shape,
+                        reverse_axes,
+                        sizeof(FILTER));
 
                 general_convolution<OUTPUT, FILTER, INPUT, ACCUMULATION>(
                     delta_out,

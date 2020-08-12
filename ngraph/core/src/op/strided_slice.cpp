@@ -230,14 +230,13 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
 
 namespace
 {
-    template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
     {
         auto in_shape = in->get_shape();
         out->set_shape(sp.reshape_out_shape);
-        runtime::reference::strided_slice(in->get_data_ptr<ET>(),
-                                          out->get_data_ptr<ET>(),
+        runtime::reference::strided_slice(in->get_data_ptr<char>(),
+                                          out->get_data_ptr<char>(),
                                           in_shape,
                                           sp,
                                           in->get_element_type().size());
@@ -255,8 +254,6 @@ namespace
                                 const AxisSet& ellipsis_mask,
                                 const HostTensorPtr& out)
     {
-        bool rc = true;
-
         std::vector<int64_t> begin_const = read_vector<int64_t>(begin);
         std::vector<int64_t> end_const = read_vector<int64_t>(end);
         std::vector<int64_t> stride_const = read_vector<int64_t>(stride);
@@ -269,23 +266,7 @@ namespace
                                                new_axis_mask,
                                                shrink_axis_mask,
                                                ellipsis_mask);
-        switch (in->get_element_type())
-        {
-            TYPE_CASE(i32)(in, slice_plan, out);
-            break;
-            TYPE_CASE(i64)(in, slice_plan, out);
-            break;
-            TYPE_CASE(u32)(in, slice_plan, out);
-            break;
-            TYPE_CASE(u64)(in, slice_plan, out);
-            break;
-            TYPE_CASE(f16)(in, slice_plan, out);
-            break;
-            TYPE_CASE(f32)(in, slice_plan, out);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
+        return evaluate(in, slice_plan, out);
     }
 }
 
