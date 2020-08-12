@@ -89,11 +89,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
 
     __attribute__((opencl_unroll_hint(1)))
-    for (uint k = 0; k < CEIL_DIV(FILTER_IFM_NUM, FSV) / FEATURE_SLM_SPLIT; k++) { //4 - change of input block features
+    for (uint k = 0; k < CEIL_DIV(FILTER_IFM_NUM, FSV) / FEATURE_SLM_SPLIT; k++) {
         __attribute__((opencl_unroll_hint(1)))
-        for (uint fzn = 0; fzn < FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL; fzn++) { //3 - change of filter Z
+        for (uint fzn = 0; fzn < FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL; fzn++) {
             __attribute__((opencl_unroll_hint(1)))
-            for (uint fyn = 0; fyn < FILTER_SIZE_Y / FILTER_SIZE_Y_UNROLL; fyn++) { //2 - change of filter Y
+            for (uint fyn = 0; fyn < FILTER_SIZE_Y / FILTER_SIZE_Y_UNROLL; fyn++) {
                 // Load input block IN_BLOCK_DEPTH x IN_BLOCK_HEIGHT x IN_BLOCK_WIDTH, scattering width along sub-group
                 __attribute__((opencl_unroll_hint))
                 for (uint izb = 0; izb < IN_BLOCK_DEPTH; ++izb) {
@@ -153,7 +153,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                     __attribute__((opencl_unroll_hint))
                     for (uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
                         __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
-                        for (uint fx = 0; fx < FILTER_SIZE_X; fx++) { //4 - change of filter X
+                        for (uint fx = 0; fx < FILTER_SIZE_X; fx++) {
                                 
                             uint4 weights_val[OFM_BLOCKS_PER_SIMD];
                             __attribute__((opencl_unroll_hint))
