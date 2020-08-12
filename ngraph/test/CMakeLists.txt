@@ -44,7 +44,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    assertion.cpp
     attributes.cpp
     bfloat16.cpp
     build_graph.cpp
