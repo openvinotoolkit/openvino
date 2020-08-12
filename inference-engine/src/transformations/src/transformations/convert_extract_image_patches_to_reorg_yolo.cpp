@@ -9,10 +9,11 @@
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {
-    auto image = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1},
+ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {
+    auto image = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1});
+    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1},
             ngraph::op::PadType::VALID);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
@@ -48,7 +49,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePat
         }
 
         auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
-                                                                      Strides{extract_image_patches->get_strides()});
+            ngraph::Strides{extract_image_patches->get_strides()});
 
         reorg_yolo->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(pattern_to_output.at(eip).get_node_shared_ptr(), reorg_yolo);
