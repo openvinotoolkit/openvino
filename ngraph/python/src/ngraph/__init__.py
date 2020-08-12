@@ -23,6 +23,7 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
+import ngraph.utils.rt_map
 from ngraph.impl import Node
 from ngraph.helpers import function_from_cnn
 
@@ -150,6 +151,7 @@ from ngraph.opset4 import squared_difference
 from ngraph.opset4 import squeeze
 from ngraph.opset4 import strided_slice
 from ngraph.opset4 import subtract
+from ngraph.opset4 import swish
 from ngraph.opset4 import tan
 from ngraph.opset4 import tanh
 from ngraph.opset4 import tensor_iterator

@@ -45,12 +45,11 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     return false;
 }
 
-inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& input) {
-    const auto& prev_layer = input.get_node_shared_ptr();
-    auto out_idx = input.get_index();
+inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
     if (prev_layer->get_output_size() != 1)
-        out_name += "." + std::to_string(out_idx);
+        out_name += "." + std::to_string(output.get_index());
     return out_name;
 }
 

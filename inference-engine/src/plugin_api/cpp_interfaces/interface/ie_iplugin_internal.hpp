@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <ie_layers.h>
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
@@ -17,6 +16,7 @@
 #include <ie_parameter.hpp>
 #include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
+#include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include <blob_factory.hpp>
 
@@ -68,7 +68,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
             newPtr.reset(new InputInfo());
             copyPreProcess(it.second->getPreProcess(), newPtr->getPreProcess());
             DataPtr newData(new Data(*it.second->getInputData()));
-            getInputTo(newData).clear();
             newPtr->setInputData(newData);
         }
         _networkInputs[it.first] = newPtr;
@@ -77,7 +76,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         DataPtr newData;
         if (it.second) {
             newData.reset(new Data(*it.second));
-            getInputTo(newData).clear();
         }
         _networkOutputs[it.first] = newData;
     }
@@ -230,3 +228,22 @@ public:
 };
 
 }  // namespace InferenceEngine
+
+/**
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
+ * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)    \
+    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine( \
+            InferenceEngine::IInferencePlugin *&plugin, \
+            InferenceEngine::ResponseDesc *resp) noexcept { \
+        try { \
+            InferenceEngine::Version _version = version; \
+            plugin = make_ie_compatible_plugin(_version, std::make_shared<PluginType>(__VA_ARGS__)); \
+            return OK; \
+        } \
+        catch (std::exception &ex) { \
+            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
+        } \
+    }

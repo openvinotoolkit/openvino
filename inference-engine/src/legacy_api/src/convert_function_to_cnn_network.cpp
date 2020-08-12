@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_function_to_cnn_network.hpp"
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -37,16 +35,16 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "ie_cnn_layer_builder_ngraph.h"
-#include "details/caseless.hpp"
-
+#include "caseless.hpp"
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
+#include "legacy/convert_function_to_cnn_network.hpp"
 #include "ie_legacy_itt.hpp"
+#include "ie_cnn_layer_builder_ngraph.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -492,6 +490,16 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr())) {
             res->params["order"] = Builder::asString(transpose_const->cast_vector<int64_t>());
         }
+        return res;
+
+    });
+
+    addSpecificCreator({"SwishIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Swish",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
         return res;
 
     });

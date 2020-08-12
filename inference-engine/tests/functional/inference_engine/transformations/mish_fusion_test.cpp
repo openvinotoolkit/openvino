@@ -6,12 +6,10 @@
 
 #include <string>
 #include <memory>
-#include <queue>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/mish_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>

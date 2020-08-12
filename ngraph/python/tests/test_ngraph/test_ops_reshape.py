@@ -19,6 +19,7 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
+from tests import xfail_issue_34323, xfail_issue_35929
 
 
 def test_concat():
@@ -36,6 +37,7 @@ def test_concat():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize("val_type, value", [(bool, False), (bool, np.empty((2, 2), dtype=bool))])
 def test_constant_from_bool(val_type, value):
     expected = np.array(value, dtype=val_type)
@@ -46,16 +48,16 @@ def test_constant_from_bool(val_type, value):
 @pytest.mark.parametrize(
     "val_type, value",
     [
-        (np.float32, np.float32(0.1234)),
-        (np.float64, np.float64(0.1234)),
-        (np.int8, np.int8(-63)),
-        (np.int16, np.int16(-12345)),
-        (np.int32, np.int32(-123456)),
-        (np.int64, np.int64(-1234567)),
-        (np.uint8, np.uint8(63)),
-        (np.uint16, np.uint16(12345)),
-        (np.uint32, np.uint32(123456)),
-        (np.uint64, np.uint64(1234567)),
+        pytest.param(np.float32, np.float32(0.1234), marks=xfail_issue_34323),
+        pytest.param(np.float64, np.float64(0.1234), marks=xfail_issue_35929),
+        pytest.param(np.int8, np.int8(-63), marks=xfail_issue_34323),
+        pytest.param(np.int16, np.int16(-12345), marks=xfail_issue_34323),
+        pytest.param(np.int32, np.int32(-123456), marks=xfail_issue_34323),
+        pytest.param(np.int64, np.int64(-1234567), marks=xfail_issue_34323),
+        pytest.param(np.uint8, np.uint8(63), marks=xfail_issue_34323),
+        pytest.param(np.uint16, np.uint16(12345), marks=xfail_issue_34323),
+        pytest.param(np.uint32, np.uint32(123456), marks=xfail_issue_34323),
+        pytest.param(np.uint64, np.uint64(1234567), marks=xfail_issue_34323),
     ],
 )
 def test_constant_from_scalar(val_type, value):
@@ -64,7 +66,9 @@ def test_constant_from_scalar(val_type, value):
     assert np.allclose(result, expected)
 
 
-@pytest.mark.parametrize("val_type", [np.float32, np.float64])
+@pytest.mark.parametrize("val_type",
+                         [pytest.param(np.float32, marks=xfail_issue_34323),
+                          pytest.param(np.float64, marks=xfail_issue_35929)])
 def test_constant_from_float_array(val_type):
     np.random.seed(133391)
     input_data = np.array(-1 + np.random.rand(2, 3, 4) * 2, dtype=val_type)
@@ -72,6 +76,7 @@ def test_constant_from_float_array(val_type):
     assert np.allclose(result, input_data)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "val_type, range_start, range_end",
     [
@@ -118,6 +123,7 @@ def test_broadcast_bidirectional():
     assert node.get_output_size() == 1
 
 
+@xfail_issue_34323
 def test_gather():
     input_data = np.array([1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32).reshape((3, 3))
     input_indices = np.array([0, 2], np.int64).reshape(1, 2)
@@ -132,6 +138,7 @@ def test_gather():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_transpose():
     input_tensor = np.arange(3 * 3 * 224 * 224).reshape((3, 3, 224, 224))
     input_order = np.array([0, 2, 3, 1])
@@ -143,6 +150,7 @@ def test_transpose():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_tile():
     input_tensor = np.arange(6).reshape((2, 1, 3))
     repeats = np.array([2, 1])
@@ -154,6 +162,7 @@ def test_tile():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_strided_slice():
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
     begin = np.array([1, 0], dtype=np.int64)
@@ -180,6 +189,7 @@ def test_strided_slice():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_reshape_v1():
     A = np.arange(1200, dtype=np.float32).reshape((2, 5, 5, 24))
     shape = np.array([0, -1, 4])
@@ -192,6 +202,7 @@ def test_reshape_v1():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_shape_of():
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 

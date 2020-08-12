@@ -11,7 +11,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
@@ -53,7 +53,10 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         ngraph::pass::Manager ti_manager;
+        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        // Unroll should be called after all conversions
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(function);
 
         manager.run_passes(function);

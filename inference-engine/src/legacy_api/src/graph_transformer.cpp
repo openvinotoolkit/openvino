@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_transformer.h"
-
-#include <cpp/ie_cnn_network.h>
 
 #include <iterator>
 #include <map>
@@ -15,10 +12,13 @@
 #include <mutex>
 #include <algorithm>
 
+#include <cpp/ie_cnn_network.h>
 #include "blob_factory.hpp"
-#include "cnn_network_impl.hpp"
-#include "graph_tools.hpp"
-#include "net_pass.h"
+
+#include <legacy/cnn_network_impl.hpp>
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include "legacy/graph_transformer.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

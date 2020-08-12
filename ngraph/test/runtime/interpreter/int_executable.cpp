@@ -24,11 +24,11 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/util.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
 #include "pass/fused_op_decomposition.hpp"
 #include "pass/like_replacement.hpp"
 #include "pass/liveness.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
