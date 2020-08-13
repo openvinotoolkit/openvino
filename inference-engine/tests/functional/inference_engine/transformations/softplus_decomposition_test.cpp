@@ -22,10 +22,10 @@ using namespace testing;
 TEST(TransformationTests, SoftPlusDecomposition) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 1, 2 });
+        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ softplus }, ngraph::ParameterVector{ data });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -35,13 +35,13 @@ TEST(TransformationTests, SoftPlusDecomposition) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{ 3, 1, 2 });
+        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input);
         auto add = std::make_shared<ngraph::opset4::Add>(exp,
-            ngraph::opset4::Constant::create(ngraph::element::f64, ngraph::Shape{ 1 }, { 1 }));
+            ngraph::opset4::Constant::create(ngraph::element::f64, ngraph::Shape{1}, {1}));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ log }, ngraph::ParameterVector{ input });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
