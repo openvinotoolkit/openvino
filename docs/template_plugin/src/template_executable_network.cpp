@@ -62,7 +62,6 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
         if (previousOutput.get_node()->get_output_size() > 1) {
             outputName += '.' + std::to_string(previousOutput.get_index());
         }
-        std::cout << result->get_friendly_name() << " " << outputName << " " << previousOutput.get_index() << std::endl;
         _outputIndex.emplace(outputName, _function->get_result_index(result));
     }
     for (auto&& parameter : _function->get_parameters()) {
