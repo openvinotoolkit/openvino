@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstring>
 
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_transform.hpp"
@@ -37,12 +38,20 @@ namespace ngraph
                 // We will copy the inputs to the output one at a time. As we go, we will move out
                 // along the concatenation axis, starting at 0.
                 size_t concatenation_pos = 0;
+                std::cout << "sizeof: " << data_size << "\n";
                 for (size_t i = 0; i < args.size(); i++)
                 {
                     // CoordinateTransform gets confused when the last input has a zero-size dim, so
                     // we will just skip for zero-element tensors.
                     if (shape_size(in_shapes[i]) == 0)
                     {
+                        continue;
+                    }
+
+                    if(in_shapes[i].size() == 1) // 1D case
+                    {
+                        std::memcpy(&out[concatenation_pos], &args[i][0], in_shapes[i][0]*data_size);
+                        concatenation_pos += in_shapes[i][0];
                         continue;
                     }
 
