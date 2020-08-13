@@ -52,10 +52,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     const uint out_x = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;
     const uint out_y = ((uint)get_global_id(1) / ALIGN(OUTPUT_SIZE_Z, OUT_BLOCK_DEPTH)) * OUT_BLOCK_HEIGHT;
+#if INPUT0_DIMS == 4
+    const uint out_z = 0;
+#else
     const uint out_z = ((uint)get_global_id(1) % ALIGN(OUTPUT_SIZE_Z, OUT_BLOCK_DEPTH)) * OUT_BLOCK_DEPTH;
+#endif
     const uint out_b = (uint)(get_group_id(2) / CEIL_DIV(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD)) / FILTER_GROUPS_NUM;
     const uint g = (uint)(get_group_id(2) / CEIL_DIV(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD)) % FILTER_GROUPS_NUM;
-    uint out_f_sg = (uint)(get_group_id(2) * OFM_SIZE_PER_SIMD) % (ALIGN(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD) * FILTER_GROUPS_NUM);   
+    uint out_f_sg = (uint)(get_group_id(2) * OFM_SIZE_PER_SIMD) % (ALIGN(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD) * FILTER_GROUPS_NUM);
     uint out_f = out_f_sg + get_sub_group_local_id();
     uint out_f_g = (out_f % ALIGN(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD));
     if (FILTER_OFM_NUM % SIMD != 0) {
@@ -64,7 +68,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    const int input_z = out_z * STRIDE_SIZE_Z - PADDING_SIZE_Z;    
+    const int input_z = out_z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
 #if FEATURE_SLM_SPLIT == 1
     const uint k_start = 0;
@@ -147,19 +151,19 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                         }
                     }
                 }
-                
+
                 __attribute__((opencl_unroll_hint))
                 for (uint fzu = 0; fzu < FILTER_SIZE_Z_UNROLL; ++fzu) {
                     __attribute__((opencl_unroll_hint))
                     for (uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
                         __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
                         for (uint fx = 0; fx < FILTER_SIZE_X; fx++) {
-                                
+
                             uint4 weights_val[OFM_BLOCKS_PER_SIMD];
                             __attribute__((opencl_unroll_hint))
                             for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                                 weights_val[ofb] = as_uint4(vload16(0, (__global char *)(weights + filter_idx + ofb * filter_idx_diff)));
-                            }                            
+                            }
 
                             __attribute__((opencl_unroll_hint))
                             for (uint ive = 0; ive < 4; ive++) {
@@ -176,7 +180,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 const uint y_block_idx = oh * STRIDE_SIZE_Y + fyu * DILATION_SIZE_Y;
                                                 const uint x_block_idx = ow * STRIDE_SIZE_X + fx * DILATION_SIZE_X;
                                                 const uint shuffle_wi = x_block_idx % SIMD;
-                                                const uint shuffle_idx = x_block_idx / SIMD;                                                
+                                                const uint shuffle_idx = x_block_idx / SIMD;
 
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(
                                                     IMAD(dotProd[ofb][od][oh][ow],
@@ -200,10 +204,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
         filter_idx += FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * (FEATURE_SLM_SPLIT - 1);
     }
-
-    if (out_f_g >= FILTER_OFM_NUM) {
-        return;
-    }    
 
 #if FEATURE_SLM_SPLIT != 1
     // Additional local memory reduction for feature split mode
@@ -386,7 +386,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     uint dst_index = OUTPUT_GET_INDEX(out_b, out_f_sg, out_z, out_y, out_x);
 #endif
 
-#if ((FILTER_OFM_NUM % OFM_BLOCKS_PER_SIMD == 0) && (FILTER_OFM_NUM % SIMD == 0))
+#if ((FILTER_OFM_NUM % OFM_BLOCKS_PER_SIMD == 0) && ((FILTER_GROUPS_NUM == 1) || (FILTER_OFM_NUM % SIMD == 0)))
     if ((OUTPUT_SIZE_X % OUT_BLOCK_WIDTH == 0 || out_x + OUT_BLOCK_WIDTH <= OUTPUT_SIZE_X)) {
         __attribute__((opencl_unroll_hint(OFM_VALUES_PER_WI)))
         for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ofb++) {
@@ -477,7 +477,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                     if (out_x + OUT_BLOCK_WIDTH > OUTPUT_SIZE_X && ow >= OUTPUT_SIZE_X % OUT_BLOCK_WIDTH)
                                         break;
         #endif
-                                    output[dst_index + ow * FSV + oh * OUTPUT_Y_PITCH * FSV + od * OUTPUT_Z_PITCH * FSV] = result[ofb][od][oh][ow];
+
+                                    if (out_f_g < FILTER_OFM_NUM) {
+                                        output[dst_index + ow * FSV + oh * OUTPUT_Y_PITCH * FSV + od * OUTPUT_Z_PITCH * FSV] = result[ofb][od][oh][ow];
+                                    }
                                 }
                             }
                         }
@@ -485,7 +488,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                 }
             }
         }
-#if ((FILTER_OFM_NUM % OFM_BLOCKS_PER_SIMD == 0) && (FILTER_OFM_NUM % SIMD == 0))
+#if ((FILTER_OFM_NUM % OFM_BLOCKS_PER_SIMD == 0) && ((FILTER_GROUPS_NUM == 1) || (FILTER_OFM_NUM % SIMD == 0)))
     }
 #endif
 }
