@@ -28,43 +28,15 @@ Default fallback policy decides which layer goes to which device automatically a
 
 Another way to annotate a network is to set affinity manually using <code>ngraph::Node::get_rt_info</code> with key `"affinity"`:
 
-```cpp
-for (auto && op : function->get_ops())
-    op->get_rt_info()["affinity"] = std::shared_ptr<ngraph::VariantWrapper<std::string>>("CPU");
-```
+@snippet openvino/docs/examples/HETERO0.cpp
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling of automating affinity settings and then fix manually.
-```cpp
-InferenceEngine::Core core
-auto network = core.ReadNetwork("Model.xml");
 
-// This example demonstrates how to perform default affinity initialization and then
-// correct affinity manually for some layers
-const std::string device = "HETERO:FPGA,CPU";
-
-// QueryNetworkResult object contains map layer -> device
-InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { });
-
-// update default affinities
-res.supportedLayersMap["layerName"] = "CPU";
-
-// set affinities to network
-for (auto&& node : function->get_ops()) {
-    auto& affinity = res.supportedLayersMap[node->get_friendly_name()];
-    // Store affinity mapping using node runtime information
-    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
-}
-
-// load network with affinities set before
-auto executable_network = core.LoadNetwork(network, device);
-```
+@snippet openvino/docs/examples/HETERO1.cpp
 
 If you rely on the default affinity distribution, you can avoid calling <code>InferenceEngine::Core::QueryNetwork</code> and just call <code>InferenceEngine::Core::LoadNetwork</code> instead:
-```cpp
-InferenceEngine::Core core
-auto network = core.ReadNetwork("Model.xml");
-auto executable_network = core.LoadNetwork(network, "HETERO:FPGA,CPU");
-```
+
+@snippet openvino/docs/examples/HETERO2.cpp
 
 > **NOTE**: `InferenceEngine::Core::QueryNetwork` does not depend on affinities set by a user, but queries for layer support based on device capabilities.
 
@@ -100,16 +72,7 @@ Heterogeneous plugin can generate two files:
 * `hetero_affinity_<network name>.dot` - annotation of affinities per layer. This file is written to the disk only if default fallback policy was executed
 * `hetero_subgraphs_<network name>.dot` - annotation of affinities per graph. This file is written to the disk during execution of <code>ICNNNetwork::LoadNetwork()</code> for heterogeneous plugin
 
-```cpp
-#include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
-using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::HeteroConfigParams;
-
-...
-InferenceEngine::Core core;
-core.SetConfig({ { KEY_HETERO_DUMP_GRAPH_DOT, YES } }, "HETERO");
-```
+@snippet openvino/docs/examples/HETERO3.cpp
 
 You can use GraphViz* utility or converters to `.png` formats. On Ubuntu* operating system, you can use the following utilities:
 * `sudo apt-get install xdot`
@@ -119,16 +82,8 @@ You can use GraphViz* utility or converters to `.png` formats. On Ubuntu* operat
 You can use performance data (in samples, it is an option `-pc`) to get performance data on each subgraph.
 
 Here is an example of the output: for Googlenet v1 running on FPGA with fallback to CPU:
-```cpp
-subgraph1: 1. input preprocessing (mean data/FPGA):EXECUTED       layerType:                    realTime: 129        cpu: 129            execType:
-subgraph1: 2. input transfer to DDR:EXECUTED       layerType:                    realTime: 201        cpu: 0              execType:
-subgraph1: 3. FPGA execute time:EXECUTED       layerType:                    realTime: 3808       cpu: 0              execType:
-subgraph1: 4. output transfer from DDR:EXECUTED       layerType:                    realTime: 55         cpu: 0              execType:
-subgraph1: 5. FPGA output postprocessing:EXECUTED       layerType:                    realTime: 7          cpu: 7              execType:
-subgraph1: 6. copy to IE blob:EXECUTED       layerType:                    realTime: 2          cpu: 2              execType:
-subgraph2: out_prob:          NOT_RUN        layerType: Output             realTime: 0          cpu: 0              execType: unknown
-subgraph2: prob:              EXECUTED       layerType: SoftMax            realTime: 10         cpu: 10             execType: ref
-Total time: 4212     microseconds
-```
+
+@snippet openvino/docs/examples/HETERO4.cpp
+
 ## See Also
 * [Supported Devices](Supported_Devices.md)
