@@ -34,7 +34,10 @@ void op::ReadValue::validate_and_infer_types()
     auto output_shape = get_input_partial_shape(0);
 
     VariableInfo info = {output_shape, arg_t, m_variable_id};
-    m_variable = std::make_shared<Variable>(info);
+    if (m_variable == nullptr)
+        m_variable = std::make_shared<Variable>(info);
+    else
+        m_variable->update(info);
     set_output_type(0, arg_t, output_shape);
 }
 
