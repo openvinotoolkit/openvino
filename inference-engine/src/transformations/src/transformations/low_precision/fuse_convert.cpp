@@ -25,6 +25,11 @@ void FuseConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         pass,
         context,
         make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
+
+    addPattern(
+        pass,
+        context,
+        make_op_pattern<opset1::Add>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
 }
 
 std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
@@ -61,6 +66,13 @@ void FuseConvertTransformation::transform(TransformationContext& context, ngraph
         newOp = removeConvertIfPossibleForSubtract(convert, subtract);
     } else if (is_type<opset1::Multiply>(op)) {
         newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Multiply>>(
+            std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
+            ngraph::op::TemporaryReplaceOutputType(convert->get_input_node_shared_ptr(0), element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(op->get_input_node_shared_ptr(1), element::f32).get());
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
+        replace_node(op, newOp);
+    } else if (is_type<opset1::Add>(op)) {
+        newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Add>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
             ngraph::op::TemporaryReplaceOutputType(convert->get_input_node_shared_ptr(0), element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(op->get_input_node_shared_ptr(1), element::f32).get());
