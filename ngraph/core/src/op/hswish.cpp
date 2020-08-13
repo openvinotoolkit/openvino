@@ -19,7 +19,7 @@
 #include "ngraph/op/constant.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-// #include "ngraph/runtime/reference/hswish.hpp"
+#include "ngraph/runtime/reference/hswish.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -55,8 +55,7 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
 
-        // runtime::reference::hswish<T>(
-        //     arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::hswish<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 
