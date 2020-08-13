@@ -1,6 +1,61 @@
-# Face Detection Java Samples
+# Benchmark Application
 
-This guide describes how to run the ```face_detection_java_sample``` and ```face_detection_sample_async``` applications.
+This guide describes how to run the benchmark applications.
+
+## How It Works
+
+Upon start-up, the application reads command-line parameters and loads a network to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
+
+## Build
+Create an environment variable with OpenCV installation path:
+```bash
+export OpenCV_DIR=/path/to/opencv/
+```
+
+and the same for Inference Engine:
+```bash
+export IE_PATH=/path/to/openvino/bin/intel64/Release/lib
+```
+
+To create java library and java samples for Inference Engine add `-DENABLE_JAVA=ON` flag in cmake command while building dldt:
+```bash
+cd /openvino/build
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_JAVA=ON -DENABLE_SAMPLES=ON ..
+make
+```
+
+## Running
+Add library path for openvino java library and for opencv library before running:
+```bash
+export LD_LIBRARY_PATH=${OpenCV_DIR}/share/java/opencv4/:/${IE_PATH}:$LD_LIBRARY_PATH
+```
+
+To get ```benchmark_app``` help use:
+```bash
+java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main --help
+```
+
+To run ```benchmark_app`` use:
+```bash
+java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main -m /path/to/model
+```
+
+## Application Output
+
+The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
+
+Below is fragment of application output for CPU device: 
+
+```
+[Step 10/11] Measuring performance (Start inference asyncronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+[Step 11/11] Dumping statistics report
+Count:      8904 iterations
+Duration:   60045.87 ms
+Latency:    27.03 ms
+Throughput: 148.29 FPS
+```
+
+# Face Detection Java Samples
 
 ## How It Works
 
@@ -10,45 +65,9 @@ Engine device. When inference is done, the application creates an output image/v
 To download model ( .bin and .xml files must be downloaded) use:
 https://download.01.org/opencv/2019/open_model_zoo/R1/models_bin/face-detection-adas-0001/FP32/
 
-## Build
-To create java library for Inference Engine add `-DENABLE_JAVA=ON` flag in cmake command while building dldt:
-```bash
-cd /openvino/build
-cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_JAVA=ON ..
-make
-```
+## Build and run
 
-Create an environment variable with OpenCV installation path:
-```bash
-export OCV_PATH=/path/to/opencv/build
-```
-
-and the same for Inference Engine:
-```bash
-export IE_PATH=/path/to/openvino/bin/intel64/Release/lib
-```
-
-To compile parser class and sample use:
-```bash
-cd <sample_folder>
-javac -cp ".:${OCV_PATH}/bin/*:${IE_PATH}/*" -d . ../ArgumentParser.java -d . Main.java
-```
-
-## Running
-Add library path for openvino java library and for opencv library before running:
-```bash
-export LD_LIBRARY_PATH=${OCV_PATH}/lib:/${IE_PATH}:$LD_LIBRARY_PATH
-```
-
-To get sample help use:
-```bash
-java -cp ".:${OCV_PATH}/bin/*:${IE_PATH}/*" Main --help
-```
-
-Or to run sample use:
-```bash
-java -cp ".:${OCV_PATH}/bin/*:${IE_PATH}/*" Main <flags>
-```
+Build and run steps are similar to ```benchmark_app```
 
 ## Sample Output
 

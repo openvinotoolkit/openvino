@@ -15,15 +15,42 @@ file(GLOB_RECURSE sources cpp/*.cpp)
 add_library(${PROJECT_NAME} SHARED ${sources})
 
 file(GLOB_RECURSE java_source org/intel/openvino/*.java)
-add_jar(inference_engine_jar ${java_source} OUTPUT_NAME ${PROJECT_NAME} OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+add_jar(inference_engine_jar ${java_source} 
+        OUTPUT_NAME ${PROJECT_NAME} 
+        OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${JNI_INCLUDE_DIRS})
 
 if(ENABLE_TESTS)
-    file(DOWNLOAD https://search.maven.org/remotecontent?filepath=junit/junit/4.13/junit-4.13.jar ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/junit-4.13.jar)
-    file(DOWNLOAD https://search.maven.org/remotecontent?filepath=org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/hamcrest-core-1.3.jar)
+    file(DOWNLOAD https://search.maven.org/remotecontent?filepath=junit/junit/4.13/junit-4.13.jar 
+                  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/junit-4.13.jar)
+    file(DOWNLOAD https://search.maven.org/remotecontent?filepath=org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar 
+                  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/hamcrest-core-1.3.jar)
 
-    file(GLOB_RECURSE java_tests tests/*.java)
-    add_jar(java_tests_jar ${java_tests} OUTPUT_NAME openvino_tests OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/*)
+    file(GLOB_RECURSE java_tests_src tests/*.java)
+    add_jar(ie_java_api_tests_jar ${java_tests_src} 
+            OUTPUT_NAME ie_java_api_tests 
+            OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} 
+            INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/*)
+endif()
+
+if(ENABLE_SAMPLES)
+    find_package(OpenCV REQUIRED)
+       
+    if (OpenCV_FOUND AND EXISTS "${OpenCV_INSTALL_PATH}/share/java/opencv4")
+        file(GLOB java_samples samples/*)
+        
+        foreach(sample ${java_samples})
+            if(IS_DIRECTORY ${sample})
+                get_filename_component(sample_name "${sample}" NAME)
+                file(GLOB_RECURSE sample_src ${sample}/*.java)
+                add_jar("${sample_name}_jar"
+                    SOURCES ${sample_src} samples/ArgumentParser.java 
+                    OUTPUT_NAME ${sample_name} 
+                    OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} 
+                    INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/* ${OpenCV_INSTALL_PATH}/share/java/opencv4/*)
+            endif()
+        endforeach()
+        endif()
 endif()
