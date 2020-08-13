@@ -49,9 +49,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
 
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
-    get_state().set_function(func);
-    vector<shared_ptr<Function>> f_array{func};
-
     size_t index = 0;
     stopwatch pass_timer;
     stopwatch overall_timer;
@@ -60,22 +57,13 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     for (auto& pass : m_pass_list)
     {
         pass_timer.start();
-        pass->set_state(get_state());
         if (!m_has_default_callback)
         {
             pass->set_callback(m_transformation_callback);
         }
 
         NGRAPH_SUPPRESS_DEPRECATED_START
-        if (auto module_pass = dynamic_pointer_cast<ModulePass>(pass))
-        {
-            if (auto vt_pass = dynamic_pointer_cast<pass::VisualizeTree>(module_pass))
-            {
-                vt_pass->set_ops_to_details(get_state().get_visualize_tree_ops_map());
-            }
-            function_changed = module_pass->run_on_module(f_array);
-        }
-        else if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
+        if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
         {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -128,17 +116,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                 function_changed |= node_pass->run_on_node(n);
             }
         }
-        else if (auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass))
-        {
-            if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                func->is_dynamic())
-            {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
-                continue;
-            }
-            function_changed = call_graph_pass->run_on_call_graph(func->get_ordered_ops());
-        }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (m_visualize)
@@ -147,7 +124,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             const size_t num_digits_in_pass_index = 3;
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
-            auto base_filename = f_array.at(0)->get_name() + std::string("_") + index_str +
+            auto base_filename = func->get_name() + std::string("_") + index_str +
                                  std::string("_") + pass->get_name();
 
             if (m_visualize)
@@ -155,8 +132,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                 static const string format = getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
                 auto file_ext = format.empty() ? "svg" : format;
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
-                vt.set_ops_to_details(get_state().get_visualize_tree_ops_map());
-                vt.run_on_module(f_array);
+                vt.run_on_function(func);
             }
         }
         index++;
@@ -170,9 +146,4 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-}
-
-pass::ManagerState& pass::Manager::get_state()
-{
-    return m_state;
 }
