@@ -240,7 +240,7 @@ protected:
             Blob::Ptr output_low_data = make_shared_blob<float>({Precision::FP32, { p.ic_const_blobs }, Layout::C});
             output_low_data->allocate();
             if (p.levels == 2) {
-                CommonTestUtils::fill_data_const(output_low_data->buffer().as<float*>(), output_low_data->size(), low_val);
+                CommonTestUtils::fill_data_const(output_low_data, low_val);
             } else {
                 CommonTestUtils::fill_data_sine(output_low_data->buffer().as<float*>(), output_low_data->size(), low_center, 2.f, 0.3f);
             };
@@ -249,7 +249,7 @@ protected:
             Blob::Ptr output_high_data = make_shared_blob<float>({Precision::FP32, {p.ic_const_blobs}, Layout::C});
             output_high_data->allocate();
             if (p.levels == 2) {
-                CommonTestUtils::fill_data_const(output_high_data->buffer().as<float*>(), output_high_data->size(), high_val);
+                CommonTestUtils::fill_data_const(output_high_data, high_val);
             } else {
                 CommonTestUtils::fill_data_sine(output_high_data->buffer().as<float*>(), output_high_data->size(), high_center, 2.f, 0.3f);
             };

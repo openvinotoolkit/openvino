@@ -634,10 +634,6 @@ void MKLDNNGraph::AllocateWithReuse() {
             isConst  |= isConstOutput(edge);
             isOutput |= edge->getChild()->getType() == Output;
             isInput  |= edge->getParent()->getType() == Input;
-
-            // WA. MemoryOutput will keep data in that edge
-            // So need to make it immortal..
-            isConst |= edge->getParent()->getType() == MemoryInput;
         }
 
         if (reuse_io_tensors) {
