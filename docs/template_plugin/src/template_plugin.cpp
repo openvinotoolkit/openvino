@@ -72,9 +72,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         }
     }
 
-    auto clonedNetwork = cloneNet(network);
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
+    auto clonedNetwork = cloneNetwork(network);
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, cfg);
 }

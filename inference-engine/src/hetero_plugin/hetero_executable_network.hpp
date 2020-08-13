@@ -16,7 +16,6 @@
 #include <unordered_set>
 
 #include <ie_common.h>
-#include <cpp/ie_plugin_cpp.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 #include "hetero_infer_request.hpp"

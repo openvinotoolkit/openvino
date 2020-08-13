@@ -5,6 +5,7 @@
 #include <memory>
 #include <ie_plugin.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
+#include <ie_util_internal.hpp>
 #include "gna_plugin_internal.hpp"
 
 using namespace InferenceEngine;

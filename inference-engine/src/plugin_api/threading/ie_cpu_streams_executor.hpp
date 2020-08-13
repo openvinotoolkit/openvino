@@ -13,7 +13,6 @@
 #include <string>
 
 #include <threading/ie_istreams_executor.hpp>
-#include "ie_parallel.hpp"
 #include "ie_api.h"
 
 namespace InferenceEngine {
