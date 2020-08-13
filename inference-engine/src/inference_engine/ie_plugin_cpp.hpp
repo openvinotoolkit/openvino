@@ -19,8 +19,13 @@
 #include "details/ie_exception_conversion.hpp"
 #include "ie_plugin_ptr.hpp"
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wreturn-type"
+#endif
+
 #define CALL_STATEMENT(...)                                                                        \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC was not initialized."; \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATEMENT was not initialized.";  \
     try {                                                                                          \
         __VA_ARGS__;                                                                               \
     } catch (const InferenceEngine::details::InferenceEngineException& iex) {                      \
@@ -145,3 +150,7 @@ public:
 }  // namespace InferenceEngine
 
 #undef CALL_STATEMENT
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
