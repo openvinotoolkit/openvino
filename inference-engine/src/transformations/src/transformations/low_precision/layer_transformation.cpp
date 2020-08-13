@@ -184,10 +184,6 @@ bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcep
     return true;
 }
 
-bool LayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    return true;
-}
-
 DataPrecision LayerTransformation::getDataPrecision(
         std::shared_ptr<Node> layer,
         const QuantizationDetails& quantizationDetails,

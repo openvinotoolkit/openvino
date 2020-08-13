@@ -96,6 +96,10 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     return newFakeQuantize;
 }
 
+bool FuseFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

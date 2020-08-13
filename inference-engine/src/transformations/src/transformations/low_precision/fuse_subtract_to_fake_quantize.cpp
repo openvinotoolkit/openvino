@@ -88,6 +88,10 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     return true;
 }
 
+bool FuseSubtractToFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

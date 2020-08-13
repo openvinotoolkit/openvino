@@ -55,6 +55,10 @@ void UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
     moveDequantizationAfter(context, unsqueeze, dequantization, false);
 }
 
+bool UnsqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return true;
+}
+
 
 } // namespace low_precision
 } // namespace pass

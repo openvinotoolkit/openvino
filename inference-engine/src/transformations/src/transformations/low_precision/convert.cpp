@@ -38,6 +38,10 @@ void ConvertTransformation::transform(TransformationContext& context, ngraph::pa
     subtract->set_friendly_name(convert->get_friendly_name());
 }
 
+bool ConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

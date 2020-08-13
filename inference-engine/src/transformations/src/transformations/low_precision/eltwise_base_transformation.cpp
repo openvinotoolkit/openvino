@@ -150,3 +150,7 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
 
     return { multiplyBranch, multiplyActBranch };
 }
+
+bool EltwiseBaseTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}

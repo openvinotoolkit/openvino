@@ -198,6 +198,10 @@ bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const Transfo
         isSupportedByScaleShift(dequantization.multiply);
 }
 
+bool SubtractMultiplyToMultiplyAddTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

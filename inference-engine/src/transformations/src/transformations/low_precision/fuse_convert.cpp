@@ -77,6 +77,10 @@ bool FuseConvertTransformation::canBeTransformed(const TransformationContext& co
     return is_type<opset1::Convert>(op->get_input_node_shared_ptr(0));
 }
 
+bool FuseConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

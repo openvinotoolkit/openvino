@@ -130,3 +130,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
 
     updateOutput(context, newMultiply, normalize);
 }
+
+bool NormalizeL2Transformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
+}

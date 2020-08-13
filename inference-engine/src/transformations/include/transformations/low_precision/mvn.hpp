@@ -16,7 +16,7 @@ public:
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    //bool isPrecisionPreserved(const CNNLayer& layer) const noexcept override;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
 }  // namespace low_precision

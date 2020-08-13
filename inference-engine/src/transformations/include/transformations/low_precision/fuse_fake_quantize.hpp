@@ -18,6 +18,7 @@ public:
     ~FuseFakeQuantizeTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 private:
     std::shared_ptr<opset1::FakeQuantize> handle(
