@@ -437,7 +437,9 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq,
     element::Type precision,
     float min,
-    float max) {
+    float max,
+    const bool hasZeroPoint,
+    const bool updatePrecision) {
     using std::make_shared;
 
     const ngraph::element::Type_t fqPrecision = fq->get_output_element_type(0);
@@ -453,16 +455,19 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
         fold<opset1::Subtract>(outputHigh, outputLow),
         fold<opset1::Subtract>(newMax, newMin));
 
-    std::shared_ptr<Node> shift = fold<opset1::Divide>(
-        fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-        fold<opset1::Subtract>(outputHigh, outputLow));
-    Shape shiftShape = shift->get_output_shape(0);
+    std::shared_ptr<Node> shift = hasZeroPoint ?
+        fold<opset1::Divide>(
+            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+            fold<opset1::Subtract>(outputHigh, outputLow)) :
+        nullptr;
 
-    const opset1::Constant* shiftConstant = as_type<opset1::Constant>(shift.get());
-    if (shiftConstant->get_all_data_elements_bitwise_identical()) {
-        const std::vector<float> values = shiftConstant->cast_vector<float>();
-        if (values[0] == 0.0f) {
-            shift = nullptr;
+    if (shift != nullptr) {
+        std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
+        if (isScalarLike(shiftConst)) {
+            auto scalar = toScalar(shiftConst);
+            if (op::util::constantIsEqualTo(scalar, 0)) {
+                shift = nullptr;
+            }
         }
     }
 

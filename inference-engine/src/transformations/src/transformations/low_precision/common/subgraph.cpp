@@ -61,6 +61,7 @@ bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQua
 }
 
 bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handledLayers) {
+    // if at least one parent is handled incorrectly then subgraph is not in low precision
     for (size_t index = 0; index < layer.get_input_size(); ++index) {
         ngraph::Node& parent = *layer.get_input_node_ptr(index);
         if (handledLayers.find(parent.get_friendly_name()) != handledLayers.end()) {
@@ -76,7 +77,7 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
             ngraph::opset1::FakeQuantize* fakeQuantizeParent = ngraph::as_type<ngraph::opset1::FakeQuantize>(&parent);
             if (fakeQuantizeParent != nullptr) {
                 if (!fillSubgraphForQuantization(*fakeQuantizeParent, handledLayers)) {
-                    return false;
+                    //
                 }
             } else {
                 if (layerTransformationsManager->isPrecisionPreserved(parent.shared_from_this())) {
@@ -90,6 +91,7 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
         }
     }
 
+    // TODO: if at least one child was handled correctly then subgraph is low precision
     for (size_t index = 0; index < layer.get_output_size(); ++index) {
         const auto childInputs = layer.get_output_target_inputs(index);
         for (const auto childInput : childInputs) {

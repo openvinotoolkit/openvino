@@ -106,7 +106,9 @@ public:
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
         float min,
-        float max);
+        float max,
+        const bool hasZeroPoint,
+        const bool updatePrecision);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
 
