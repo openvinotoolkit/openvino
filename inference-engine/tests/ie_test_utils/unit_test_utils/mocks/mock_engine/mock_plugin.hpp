@@ -21,7 +21,7 @@ public:
                      const std::map<std::string, std::string> &config) override;
     ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
-                       const std::map<std::string, std::string>& config);
+                       const std::map<std::string, std::string>& config) override;
 
     std::map<std::string, std::string> config;
 };
