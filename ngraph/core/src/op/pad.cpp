@@ -334,13 +334,13 @@ namespace
                       const op::PadMode pad_mode)
     {
         ngraph::runtime::reference::pad<T>(data->get_data_ptr<T>(),
-                                   pad_value->get_data_ptr<T>(),
-                                   out->get_data_ptr<T>(),
-                                   data->get_shape(),
-                                   out->get_shape(),
-                                   pads_begin,
-                                   pads_end,
-                                   pad_mode);
+                                           pad_value->get_data_ptr<T>(),
+                                           out->get_data_ptr<T>(),
+                                           data->get_shape(),
+                                           out->get_shape(),
+                                           pads_begin,
+                                           pads_end,
+                                           pad_mode);
         return true;
     }
 }
@@ -353,10 +353,6 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
     switch (data->get_element_type())
     {
-    case element::Type_t::undefined:
-    case element::Type_t::dynamic:
-    case element::Type_t::u1:
-        return false;
     case element::Type_t::boolean:
         return evaluate_pad<char>(
             data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
@@ -409,5 +405,8 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
         return evaluate_pad<uint64_t>(
             data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
         break;
+    case element::Type_t::undefined:
+    case element::Type_t::dynamic:
+    case element::Type_t::u1: return false;
     }
 }
