@@ -18,7 +18,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockIExecutableNetwork : public IExecutableNetwork {
 public:
     MOCK_QUALIFIED_METHOD2(GetOutputsInfo, const noexcept, StatusCode(ConstOutputsDataMap  &, ResponseDesc *));
@@ -34,4 +33,3 @@ public:
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IMemoryState::Ptr &, size_t, ResponseDesc *));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
 };
-IE_SUPPRESS_DEPRECATED_END
