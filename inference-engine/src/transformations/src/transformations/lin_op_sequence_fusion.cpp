@@ -53,7 +53,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         // Add two constants using opset3::Add constant folding and create new Add operation
         auto new_add = std::make_shared<opset3::Add>(new_mul, eltwise_fold<opset3::Multiply>(add_const, mul_const));
 
-        copy_runtime_info({add, mul}, {new_mul, new_add});
+        copy_runtime_info(NodeVector{add, mul}, NodeVector{new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
         return true;
@@ -85,7 +85,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         // Add operation will be added to the list of ops requested for pattern matching
         auto new_add = register_new_node<opset3::Add>(input, eltwise_fold<opset3::Add>(add1_const, add2_const));
 
-        copy_runtime_info({add1, add2}, new_add);
+        copy_runtime_info(NodeVector{add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
         return true;
@@ -117,7 +117,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         // Multiply operation will be added to the list of ops requested for pattern matching
         auto new_mul = register_new_node<opset3::Multiply>(input, eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
 
-        copy_runtime_info({mul1, mul2}, new_mul);
+        copy_runtime_info(NodeVector{mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
         return true;

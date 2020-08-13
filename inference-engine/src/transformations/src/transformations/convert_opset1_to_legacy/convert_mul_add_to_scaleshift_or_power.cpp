@@ -175,7 +175,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 
             auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift);
             power->set_friendly_name(add_node->get_friendly_name());
-            ngraph::copy_runtime_info({mul_node, add_node}, power);
+            ngraph::copy_runtime_info(NodeVector{mul_node, add_node}, power);
             ngraph::replace_node(m.get_match_root(), power);
         }
 

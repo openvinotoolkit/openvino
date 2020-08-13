@@ -48,7 +48,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
                                                                       lstm_cell->get_clip());
 
         lstm_cell_ie->set_friendly_name(lstm_cell->get_friendly_name());
-        ngraph::copy_runtime_info(lstm_cell, {concat, lstm_cell_ie});
+        ngraph::copy_runtime_info(lstm_cell, NodeVector{concat, lstm_cell_ie});
         ngraph::replace_node(m.get_match_root(), lstm_cell_ie);
         return true;
     };
@@ -89,7 +89,7 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
                                                                    gru_cell->get_linear_before_reset());
 
         gru_cell_ie->set_friendly_name(gru_cell->get_friendly_name());
-        ngraph::copy_runtime_info(gru_cell, {concat, gru_cell_ie});
+        ngraph::copy_runtime_info(gru_cell, NodeVector{concat, gru_cell_ie});
         ngraph::replace_node(m.get_match_root(), gru_cell_ie);
         return true;
     };
@@ -129,7 +129,7 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
                                                                     rnn_cell->get_clip());
 
         rnn_cell_ie->set_friendly_name(rnn_cell->get_friendly_name());
-        ngraph::copy_runtime_info(rnn_cell, {concat, rnn_cell_ie});
+        ngraph::copy_runtime_info(rnn_cell, NodeVector{concat, rnn_cell_ie});
         ngraph::replace_node(m.get_match_root(), rnn_cell_ie);
         return true;
     };

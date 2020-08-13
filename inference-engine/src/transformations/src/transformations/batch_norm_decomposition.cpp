@@ -66,8 +66,8 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         add->set_friendly_name(m_bn->get_friendly_name());
 
-        copy_runtime_info(m_bn, {scale_add, scale, gamma_div_scale, gamma_div_scale_aligned,
-                                 beta_aligned, input_sub_mean, mul, add});
+        copy_runtime_info(m_bn, NodeVector{scale_add, scale, gamma_div_scale, gamma_div_scale_aligned,
+                                           beta_aligned, input_sub_mean, mul, add});
 
         replace_node(m_bn, add);
 

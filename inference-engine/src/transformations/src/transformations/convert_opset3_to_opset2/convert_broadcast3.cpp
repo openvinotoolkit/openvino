@@ -40,7 +40,7 @@ void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
             auto constant_one = std::make_shared<ngraph::opset1::Constant>(input.get_element_type(), Shape({1}), std::vector<int>{1});
             auto broadcast_ones = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape, op::AutoBroadcastType::NUMPY);
             last_node = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
-            ngraph::copy_runtime_info(broadcast, {last_node, broadcast_ones, constant_one});
+            ngraph::copy_runtime_info(broadcast, NodeVector{last_node, broadcast_ones, constant_one});
         }
 
         last_node->set_friendly_name(broadcast->get_friendly_name());

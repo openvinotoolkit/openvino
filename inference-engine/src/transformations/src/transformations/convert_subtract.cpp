@@ -26,7 +26,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
 
         add->set_friendly_name(sub->get_friendly_name());
-        ngraph::copy_runtime_info(sub, {neg, add});
+        ngraph::copy_runtime_info(sub, NodeVector{neg, add});
         ngraph::replace_node(sub, add);
         return true;
     };

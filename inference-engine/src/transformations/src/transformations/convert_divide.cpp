@@ -27,7 +27,7 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 
         mul->set_friendly_name(div->get_friendly_name());
-        ngraph::copy_runtime_info(div, {pow, mul});
+        ngraph::copy_runtime_info(div, NodeVector{pow, mul});
         ngraph::replace_node(div, mul);
         return true;
     };

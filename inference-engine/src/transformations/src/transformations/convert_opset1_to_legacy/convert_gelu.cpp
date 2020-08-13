@@ -30,7 +30,7 @@ void ngraph::pass::ConvertGELU::convert_gelu() {
         auto res = std::make_shared<ngraph::opset1::Multiply>(mul, add);
 
         res->set_friendly_name(gelu->get_friendly_name());
-        ngraph::copy_runtime_info(gelu, {mul, sq2, div, erf, add, res});
+        ngraph::copy_runtime_info(gelu, NodeVector{mul, sq2, div, erf, add, res});
         ngraph::replace_node(gelu, res);
         return true;
     };

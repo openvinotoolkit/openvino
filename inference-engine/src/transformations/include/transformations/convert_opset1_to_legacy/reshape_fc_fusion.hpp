@@ -84,7 +84,7 @@ private:
                                                                fc->get_shape());
 
             new_fc->set_friendly_name(fc->get_friendly_name());
-            ngraph::copy_runtime_info({reshape, fc}, new_fc);
+            ngraph::copy_runtime_info(NodeVector{reshape, fc}, new_fc);
             ngraph::replace_node(fc, new_fc);
             return true;
         };

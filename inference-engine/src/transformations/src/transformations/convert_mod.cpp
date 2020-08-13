@@ -38,7 +38,7 @@ ngraph::pass::ConvertMod::ConvertMod() {
         auto mul = std::make_shared<opset1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
-        ngraph::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
+        ngraph::copy_runtime_info(mod, NodeVector{dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
         ngraph::replace_node(mod, mul);
         return true;
     };

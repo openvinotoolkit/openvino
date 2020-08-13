@@ -26,11 +26,11 @@ ngraph::pass::MishFusion::MishFusion() {
         auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
 
         mish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(tanh).get_node_shared_ptr(),
-                                   pattern_to_output.at(log).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr()}, mish);
+        ngraph::copy_runtime_info({pattern_to_output.at(mul),
+                                   pattern_to_output.at(tanh),
+                                   pattern_to_output.at(log),
+                                   pattern_to_output.at(add),
+                                   pattern_to_output.at(exp)}, mish);
         ngraph::replace_node(m.get_match_root(), mish);
         return true;
     };

@@ -41,10 +41,10 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
     return newInfo;
 }
 
-void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to)
+void ngraph::copy_runtime_info(Output<ngraph::Node> from, Output<ngraph::Node> to)
 {
-    auto& rtInfoFrom = from->get_rt_info();
-    auto& rtInfoTo = to->get_rt_info();
+    auto& rtInfoFrom = from.get_node_shared_ptr()->get_rt_info();
+    auto& rtInfoTo = to.get_node_shared_ptr()->get_rt_info();
     rtInfoTo = rtInfoFrom;
 }
 
@@ -56,10 +56,24 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeV
     }
 }
 
+void ngraph::copy_runtime_info(Output<ngraph::Node> from, ngraph::OutputVector to)
+{
+    for (auto& op : to)
+    {
+        copy_runtime_info(from.get_node_shared_ptr(), op.get_node_shared_ptr());
+    }
+}
+
 void ngraph::copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to)
 {
     auto& rtInfoTo = to->get_rt_info();
     rtInfoTo = mergeRuntimeInfo(from);
+}
+
+void ngraph::copy_runtime_info(const ngraph::OutputVector& from, Output<ngraph::Node> to)
+{
+    auto& rtInfoTo = to.get_node_shared_ptr()->get_rt_info();
+    rtInfoTo = mergeRuntimeInfo(as_node_vector(from));
 }
 
 void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to)
@@ -68,6 +82,16 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVecto
     for (auto& node : to)
     {
         auto& rtInfoTo = node->get_rt_info();
+        rtInfoTo = mergedInfo;
+    }
+}
+
+void ngraph::copy_runtime_info(const ngraph::OutputVector& from, ngraph::OutputVector to)
+{
+    auto mergedInfo = mergeRuntimeInfo(as_node_vector(from));
+    for (auto& node : to)
+    {
+        auto& rtInfoTo = node.get_node_shared_ptr()->get_rt_info();
         rtInfoTo = mergedInfo;
     }
 }

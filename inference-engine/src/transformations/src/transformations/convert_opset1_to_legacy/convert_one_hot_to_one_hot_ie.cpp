@@ -45,7 +45,7 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
         if (on_value_node->get_element_type() != m_output_type) {
             auto convert = std::make_shared<ngraph::opset1::Convert>(one_hot_ie, on_value_node->get_element_type());
             convert->set_friendly_name(one_hot->get_friendly_name() + "/Convert");
-            ngraph::copy_runtime_info(one_hot, {one_hot_ie, convert});
+            ngraph::copy_runtime_info(one_hot, NodeVector{one_hot_ie, convert});
             ngraph::replace_node(m.get_match_root(), convert);
         } else {
             ngraph::copy_runtime_info(one_hot, one_hot_ie);

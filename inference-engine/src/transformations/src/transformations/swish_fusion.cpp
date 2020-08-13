@@ -54,8 +54,8 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid),
+                                   pattern_to_output.at(mul)},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
@@ -97,9 +97,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input, new_beta);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
-                                  swish);
+        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid), pattern_to_output.at(mul)}, swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
@@ -131,13 +129,13 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input, pattern_to_output.at(beta));
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(beta).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(beta),
+                                   pattern_to_output.at(mul),
+                                   pattern_to_output.at(neg),
+                                   pattern_to_output.at(exp),
+                                   pattern_to_output.at(add_constant),
+                                   pattern_to_output.at(add),
+                                   pattern_to_output.at(div)},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
@@ -168,11 +166,11 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(neg),
+                                   pattern_to_output.at(exp),
+                                   pattern_to_output.at(add_constant),
+                                   pattern_to_output.at(add),
+                                   pattern_to_output.at(div)},
                                    swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;

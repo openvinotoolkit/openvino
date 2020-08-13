@@ -99,7 +99,7 @@ bool fusion(std::shared_ptr<T> m_eltwise) {
             auto new_const = std::make_shared<T>(constant, res.second);
             auto new_eltwise = std::make_shared<T>(res.first, new_const);
 
-            copy_runtime_info(m_eltwise, {new_const, new_eltwise});
+            copy_runtime_info(m_eltwise, NodeVector{new_const, new_eltwise});
             replace_node(m_eltwise, new_eltwise);
             new_eltwise->set_op_annotations(std::make_shared<op::util::EltwiseAttrs>(m_attrs));
             new_eltwise->set_friendly_name(m_eltwise->get_friendly_name());
@@ -112,7 +112,7 @@ bool fusion(std::shared_ptr<T> m_eltwise) {
             auto new_const = std::make_shared<opset1::Multiply>(constant, res.second);
             auto new_add = std::make_shared<opset1::Add> (new_mul, new_const);
 
-            copy_runtime_info(m_eltwise, {new_mul, new_const, new_add});
+            copy_runtime_info(m_eltwise, NodeVector{new_mul, new_const, new_add});
             replace_node(m_eltwise, new_add);
 
             // We need to preserve op annotations and namings
