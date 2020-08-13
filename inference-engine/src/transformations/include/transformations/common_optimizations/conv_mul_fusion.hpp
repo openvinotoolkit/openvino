@@ -16,6 +16,8 @@ namespace pass {
 
 class TRANSFORMATIONS_API ConvolutionMultiplyFusion;
 class TRANSFORMATIONS_API GroupConvolutionMultiplyFusion;
+class TRANSFORMATIONS_API ConvolutionBackpropDataMultiplyFusion;
+class TRANSFORMATIONS_API GroupConvolutionBackpropDataMultiplyFusion;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -28,4 +30,14 @@ public:
 class ngraph::pass::GroupConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
     GroupConvolutionMultiplyFusion();
+};
+
+class ngraph::pass::ConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+public:
+    ConvolutionBackpropDataMultiplyFusion();
+};
+
+class ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+public:
+    GroupConvolutionBackpropDataMultiplyFusion();
 };

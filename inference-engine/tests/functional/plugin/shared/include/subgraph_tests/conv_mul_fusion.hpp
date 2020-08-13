@@ -17,6 +17,7 @@ typedef std::tuple<
         ngraph::Shape,              // Input shape
         ngraph::Shape,              // Weights shape
         ngraph::Shape,              // Const shape
+        int64_t,                    // Number of ops in final function
         ngraph::element::Type,      // Network precision
         std::string                 // Device name
         > ConvMultiplyParams;
@@ -26,6 +27,7 @@ class ConvMultiply
           public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvMultiplyParams> &obj);
+
 protected:
     void SetUp() override;
 };

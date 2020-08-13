@@ -82,7 +82,7 @@ namespace ngraph
             return [=](Output<Node> output) -> bool {
                 const auto& shape = output.get_partial_shape();
                 return shape.rank().is_static() &&
-                       shape.rank().get_length() > *std::max(dims.begin(), dims.end()) &&
+                       shape.rank().get_length() > *std::max_element(dims.begin(), dims.end()) &&
                        std::all_of(dims.begin(), dims.end(), [&shape](size_t pos) {
                            return shape[pos].is_static();
                        });

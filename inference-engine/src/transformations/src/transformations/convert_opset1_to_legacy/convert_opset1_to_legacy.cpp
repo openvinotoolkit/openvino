@@ -94,6 +94,9 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
     manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
