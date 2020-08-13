@@ -66,7 +66,7 @@ IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network) {
             const auto constBlob = layer->blobs.begin()->second;
             IE_ASSERT(constBlob != nullptr);
 
-            out.constDatas[constData] = constBlob;
+            out.constDatas.emplace_back(constData, constBlob);
 
             continue;
         }

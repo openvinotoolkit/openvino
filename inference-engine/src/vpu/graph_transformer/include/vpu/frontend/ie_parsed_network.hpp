@@ -17,7 +17,7 @@ namespace ie = InferenceEngine;
 struct IeParsedNetwork final {
     ie::InputsDataMap networkInputs;
     ie::OutputsDataMap networkOutputs;
-    std::unordered_map<ie::DataPtr, ie::Blob::Ptr> constDatas;
+    std::vector<std::pair<ie::DataPtr, ie::Blob::Ptr>> constDatas;
     std::vector<ie::CNNLayerPtr> orderedLayers;
 };
 
