@@ -32,9 +32,9 @@ public:
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
 
-    MOCK_METHOD2(SetConfig, void(const std::map<std::string, Parameter> &config, ResponseDesc *resp));
-    MOCK_CONST_METHOD3(GetConfig, void(const std::string &name, Parameter &result, ResponseDesc *resp));
-    MOCK_CONST_METHOD3(GetMetric, void(const std::string &name, Parameter &result, ResponseDesc *resp));
-    MOCK_CONST_METHOD2(GetContext, void(RemoteContext::Ptr &pContext, ResponseDesc *resp));
+    MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));
+    MOCK_CONST_METHOD2(GetConfig, void(const std::string &name, Parameter &result));
+    MOCK_CONST_METHOD2(GetMetric, void(const std::string &name, Parameter &result));
+    MOCK_CONST_METHOD1(GetContext, void(RemoteContext::Ptr &pContext));
 };
 IE_SUPPRESS_DEPRECATED_END

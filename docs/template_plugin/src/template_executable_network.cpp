@@ -109,13 +109,13 @@ void TemplatePlugin::ExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& a
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result) const {
     result = _cfg.Get(name);
 }
 // ! [executable_network:get_config]
 
 // ! [executable_network:get_metric]
-void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result) const {
     // TODO: return more supported values for metrics
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         result = IE_SET_METRIC(SUPPORTED_METRICS, std::vector<std::string>{

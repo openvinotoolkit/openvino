@@ -168,7 +168,7 @@ ExecutableNetwork::ExecutableNetwork(
     Import(blobFile, devicePool, config);
 }
 
-void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         result = IE_SET_METRIC(NETWORK_NAME, _graphDesc._name);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {

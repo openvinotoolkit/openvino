@@ -194,7 +194,7 @@ void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &grap
     graphPtr = _graphs.begin()->get()->dump();
 }
 
-void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
     Config engConfig = _graphs.begin()->get()->getProperty();
@@ -206,7 +206,7 @@ void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, Re
     }
 }
 
-void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 

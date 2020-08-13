@@ -959,7 +959,7 @@ void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncReques
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
-void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
     if (name == "TARGET_FALLBACK") {
         auto it = _config.find(name);
         if (it != _config.end()) {
@@ -1026,7 +1026,7 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 
 }  // namespace
 
-void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),

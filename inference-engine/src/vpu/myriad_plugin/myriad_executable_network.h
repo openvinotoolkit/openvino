@@ -107,7 +107,7 @@ public:
         }
     }
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 

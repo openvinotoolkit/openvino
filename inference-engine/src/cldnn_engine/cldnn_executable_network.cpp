@@ -109,7 +109,7 @@ void CLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graph
     m_graphs.front()->GetExecGraphInfo(graphPtr);
 }
 
-void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const {
+void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
     auto option = m_config.key_config_map.find(name);
     if (option != m_config.key_config_map.end()) {
         result = option->second;
@@ -118,7 +118,7 @@ void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Param
     }
 }
 
-void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const {
+void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
         result = IE_SET_METRIC(NETWORK_NAME, m_graphs[0]->getName());
@@ -142,7 +142,7 @@ void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Param
     }
 }
 
-void CLDNNExecNetwork::GetContext(RemoteContext::Ptr &pContext, ResponseDesc *resp) const {
+void CLDNNExecNetwork::GetContext(RemoteContext::Ptr &pContext) const {
     pContext = m_context;
 }
 

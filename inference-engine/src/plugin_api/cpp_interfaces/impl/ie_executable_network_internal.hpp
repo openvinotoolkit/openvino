@@ -94,7 +94,7 @@ public:
         return {};
     }
 
-    void SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /* resp */) override {
+    void SetConfig(const std::map<std::string, Parameter>& config) override {
         if (config.empty()) {
             THROW_IE_EXCEPTION << "The list of configuration values is empty";
         }
@@ -102,15 +102,15 @@ public:
                            << config.begin()->first;
     }
 
-    void GetConfig(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
+    void GetConfig(const std::string& /* name */, Parameter& /* result */) const override {
         THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
     }
 
-    void GetMetric(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
+    void GetMetric(const std::string& /* name */, Parameter& /* result */) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void GetContext(RemoteContext::Ptr& /* pContext */, ResponseDesc* /* resp */) const override {
+    void GetContext(RemoteContext::Ptr& /* pContext */) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

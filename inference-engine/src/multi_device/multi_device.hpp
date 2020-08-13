@@ -103,9 +103,9 @@ public:
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config, InferenceEngine::ResponseDesc *resp) override;
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
+    void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
     void run(Task inferTask) override;
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,

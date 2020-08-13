@@ -82,33 +82,28 @@ public:
     /**
      * @brief Sets configuration for current executable network
      * @param config Map of pairs: (config parameter name, config parameter value)
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
      */
-    virtual void SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) = 0;
+    virtual void SetConfig(const std::map<std::string, Parameter>& config) = 0;
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
      * @param name - config key, can be found in ie_plugin_config.hpp
      * @param result - value of config corresponding to config key
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
      */
-    virtual void GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const = 0;
+    virtual void GetConfig(const std::string& name, Parameter& result) const = 0;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
      * @param name  - metric name to request
      * @param result - metric value corresponding to metric key
-     * @param resp - Pointer to the response message that holds a description of an error if any
-     *             occurred
      */
-    virtual void GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const = 0;
+    virtual void GetMetric(const std::string& name, Parameter& result) const = 0;
 
     /**
      * @brief Gets the remote context.
      * @param pContext  A reference to a context
-     * @param resp A response
      */
-    virtual void GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const = 0;
+    virtual void GetContext(RemoteContext::Ptr& pContext) const = 0;
 };
 
 }  // namespace InferenceEngine

@@ -40,8 +40,8 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
+    void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
 
 private:
     friend class TemplateInferRequest;

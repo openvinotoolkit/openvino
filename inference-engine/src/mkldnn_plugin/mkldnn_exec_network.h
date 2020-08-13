@@ -36,9 +36,9 @@ public:
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 

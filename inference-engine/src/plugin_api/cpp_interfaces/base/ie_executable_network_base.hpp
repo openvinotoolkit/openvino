@@ -90,20 +90,20 @@ public:
         return _impl;
     }
 
-    StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetConfig(config, resp));
+    StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /*resp*/) noexcept override {
+        TO_STATUS_NO_RESP(_impl->SetConfig(config));
     }
 
-    StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetConfig(name, result, resp));
+    StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* /*resp*/) const noexcept override {
+        TO_STATUS_NO_RESP(_impl->GetConfig(name, result));
     }
 
-    StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetMetric(name, result, resp));
+    StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* /*resp*/) const noexcept override {
+        TO_STATUS_NO_RESP(_impl->GetMetric(name, result));
     }
 
-    StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetContext(pContext, resp));
+    StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* /*resp*/) const noexcept override {
+        TO_STATUS_NO_RESP(_impl->GetContext(pContext));
     }
 
 private:

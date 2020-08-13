@@ -246,8 +246,7 @@ void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncR
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
-void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config,
-        InferenceEngine::ResponseDesc * /* resp */) {
+void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str <<
@@ -281,8 +280,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
     }
 }
 
-void MultiDeviceExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result,
-        InferenceEngine::ResponseDesc * /* resp */) const {
+void MultiDeviceExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
     auto res = _config.find(name);
     if (res != _config.end()) {
         result =  res->second;
@@ -291,7 +289,7 @@ void MultiDeviceExecutableNetwork::GetConfig(const std::string &name, InferenceE
     }
 }
 
-void MultiDeviceExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void MultiDeviceExecutableNetwork::GetMetric(const std::string &name, Parameter &result) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         unsigned int res = 0u;
         for (auto n : _networksPerDevice) {

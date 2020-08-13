@@ -55,9 +55,9 @@ public:
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 
