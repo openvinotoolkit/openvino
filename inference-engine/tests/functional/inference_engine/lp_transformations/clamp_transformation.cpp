@@ -16,6 +16,7 @@
 #include "ngraph_functions/low_precision_transformations/clamp_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
+
 namespace {
 using namespace testing;
 using namespace ngraph::pass;
