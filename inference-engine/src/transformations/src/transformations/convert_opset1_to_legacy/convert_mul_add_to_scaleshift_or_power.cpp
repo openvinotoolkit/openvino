@@ -10,6 +10,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/variant.hpp>
 
 #include "transformations/utils/utils.hpp"
 
@@ -53,6 +54,16 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
     }
 
     return is_power ? CONVERSION_RESULT::POWER : CONVERSION_RESULT::SCALE_SHIFT;
+}
+
+bool is_scale_shift(const std::shared_ptr<ngraph::Node> & node) {
+    auto & rt_info = node->get_rt_info();
+    if (rt_info.count("CONVERSION_TYPE")) {
+        if (auto variant_string = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string> >(rt_info.at("CONVERSION_TYPE"))) {
+            return variant_string->get() == "SCALE_SHIFT";
+        }
+    }
+    return false;
 }
 
 void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshift_or_power() {
@@ -141,7 +152,9 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         }
 
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT ||
+            res2 == CONVERSION_RESULT::SCALE_SHIFT ||
+            (is_scale_shift(add_node) && is_scale_shift(mul_node))) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);

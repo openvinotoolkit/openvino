@@ -45,3 +45,5 @@ enum class CONVERSION_RESULT {
 
 TRANSFORMATIONS_API CONVERSION_RESULT
 check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);
+
+bool is_scale_shift(const std::shared_ptr<ngraph::Node> & node);
