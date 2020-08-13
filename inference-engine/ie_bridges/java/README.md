@@ -9,13 +9,4 @@ sudo apt-get install -y openjdk-11-jdk
 
 ## Building on Linux
 
-Build Inference Engine Java API alongside with the Inference Engine build. 
-You need to run Inference Engine build with the following flags:
-
-```bash
-  cd <IE_ROOT>
-  mkdir -p build
-  cd build
-  cmake -DENABLE_JAVA=ON ..
-  make --jobs=$(nproc --all)
-```
+To create Inference Engine Java API add ```-DENABLE_JAVA=ON``` flag in cmake command while building the Inference Engine.

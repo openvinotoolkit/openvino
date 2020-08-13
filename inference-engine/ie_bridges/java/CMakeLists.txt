@@ -38,8 +38,9 @@ endif()
 if(ENABLE_SAMPLES)
     find_package(OpenCV REQUIRED)
        
-    if (OpenCV_FOUND AND EXISTS "${OpenCV_INSTALL_PATH}/share/java/opencv4")
+    if (OpenCV_FOUND AND EXISTS "${OpenCV_INSTALL_PATH}/share/java")
         file(GLOB java_samples samples/*)
+        file(GLOB_RECURSE java_opencv_src ${OpenCV_INSTALL_PATH}/share/java/*)
         
         foreach(sample ${java_samples})
             if(IS_DIRECTORY ${sample})
@@ -49,7 +50,7 @@ if(ENABLE_SAMPLES)
                     SOURCES ${sample_src} samples/ArgumentParser.java 
                     OUTPUT_NAME ${sample_name} 
                     OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} 
-                    INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/* ${OpenCV_INSTALL_PATH}/share/java/opencv4/*)
+                    INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/* ${java_opencv_src})
             endif()
         endforeach()
         endif()
