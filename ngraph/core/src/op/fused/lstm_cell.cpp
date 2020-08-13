@@ -285,9 +285,9 @@ OutputVector op::LSTMCell::decompose_op() const
     const auto& p_f = p_iof.at(2);
 
     // Xt*(W^T) -- for [iofc] gates.
-    auto Xt_W = make_shared<op::Dot>(X, builder::transpose(W));
+    auto Xt_W = make_shared<op::Dot>(X, builder::opset1::transpose(W));
     // Ht-1*(R^T)  -- for [iofc] gates.
-    auto Ht_R = make_shared<op::Dot>(H_t, builder::transpose(R));
+    auto Ht_R = make_shared<op::Dot>(H_t, builder::opset1::transpose(R));
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb  -- for [iofc] gates.
     auto gates = add(Xt_W, add(Ht_R, bias));
 

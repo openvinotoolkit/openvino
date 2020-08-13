@@ -84,7 +84,7 @@ OutputVector op::MatMul::decompose_op() const
         iota(axes_order.begin(), axes_order.end(), 0);
         // transpose the last 2 spatial dims
         swap(axes_order[a_rank - 1], axes_order[a_rank - 2]);
-        A = builder::reorder_axes(A, axes_order);
+        A = builder::opset1::reorder_axes(A, axes_order);
     }
 
     if (m_transpose_b && b_rank >= 2)
@@ -92,7 +92,7 @@ OutputVector op::MatMul::decompose_op() const
         vector<size_t> axes_order(b_rank);
         iota(axes_order.begin(), axes_order.end(), 0);
         swap(axes_order[b_rank - 1], axes_order[b_rank - 2]);
-        B = builder::reorder_axes(B, axes_order);
+        B = builder::opset1::reorder_axes(B, axes_order);
     }
 
     builder::MatmulFactory factory({A, B});
