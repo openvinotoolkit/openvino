@@ -286,6 +286,7 @@ extensions/front/onnx/priorbox_ext.py
 extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
+extensions/front/onnx/quantize_dequantize_redundant.py 
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
 extensions/front/onnx/quantize_linear_resolver.py
