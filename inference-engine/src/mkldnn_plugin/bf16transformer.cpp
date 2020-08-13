@@ -55,8 +55,11 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
     for (auto iter : sortedLayers) {
-        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
-            continue;
+        //  check, if memory output node needs to be transformed
+        if (iter->type == "Memory" && iter->outData.size() == 0 &&
+            iter->insData[0].lock()->getPrecision() == Precision::FP32) {
+            auto curPrec = iter->insData[0].lock()->getPrecision();
+            iter->insData[0].lock()->setPrecision(Precision::BF16);
         }
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
@@ -66,7 +69,6 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
             }
         }
     }
-
     // convert all edges back to FP32 on demand
     optimizeToFloat(network);
 }
@@ -108,13 +110,9 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
             toAnalyzeTensors.insert(output.second);
         }
     }
-
     // 2b. go over all unknown layers for this algo and mark them as fp32 and add to the toAnalyzeTensors
     // 2c. go over all inputs to _initbf16 and if they are fp32 - add them to the toAnalyzeTensors
     for (auto iter : sortedLayers) {
-        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
-            continue;
-        }
         if (_initbf16.find(iter->type) == _initbf16.end()
             && _complementbf16.find(iter->type) == _complementbf16.end()
             && _multiinput.find(iter->type) == _multiinput.end()) {
@@ -156,7 +154,6 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
             }
         }
     }
-
     // 3 - while toAnalyzeTensors is not empty look at the layers dealing with tensors mentioned in toAnalyzeTensors
     while (!toAnalyzeTensors.empty()) {
         DataPtr tensor = *toAnalyzeTensors.begin();
@@ -167,6 +164,10 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         if (_initbf16.find(layer->type) == _initbf16.end()) {
             // for all inputs investigate and modify tensor precision if required
             for (size_t i = 0; i < layer->insData.size(); i++) {
+                auto creator = getCreatorLayer(layer->insData[i].lock());
+                if (_skipmarking.find(creator.lock()->type) != _skipmarking.end()) {
+                    continue;
+                }
                 bool marked = tryToMarkFP32(layer->insData[i].lock(), immutable);
                 if (marked) {
                     toAnalyzeTensors.insert(layer->insData[i].lock());
@@ -183,6 +184,18 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         for (auto inputTo : getInputTo(tensor)) {
             for (size_t o = 0; o < inputTo.second->outData.size(); o++) {
                 if (inputTo.second->outData[o]->getTensorDesc().getPrecision() == Precision::BF16) {
+                    // if some layer (e.g. memory) consumes tensor, but must be fitted with another layer (e.g. memory output)
+                    // in the net, whe must prevent this tensor to be fp32 - marked
+                    bool notToMarkFP32 = false;
+                    for (auto consumer : getInputTo(inputTo.second->outData[o])) {
+                        if (_skipmarking.find(consumer.second->type) !=
+                            _skipmarking.end()) {
+                            notToMarkFP32 = true;
+                        }
+                    }
+                    if (notToMarkFP32) {
+                        continue;
+                    }
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
                     if (marked) {
                         toAnalyzeTensors.insert(layer->outData[o]);
