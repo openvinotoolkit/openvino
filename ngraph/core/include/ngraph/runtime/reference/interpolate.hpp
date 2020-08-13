@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <map>
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -236,11 +237,20 @@ namespace ngraph
                 {
                     std::array<float, 4> coeff;
                     float abs_s = std::fabs(s);
-                    coeff[0] = a * (abs_s - 1.0f) * (abs_s - 1.0f) * abs_s;
-                    coeff[1] = ((a + 2.0f) * abs_s - (a + 3.0f)) * abs_s * abs_s + 1.0;
-                    coeff[2] = (((-a - 2.0f) * abs_s + (2.0f * a + 3.0f)) * abs_s - a) * abs_s;
-                    coeff[3] = -a * abs_s * abs_s * (abs_s - 1.0f);
+                    coeff[0] = static_cast<float>(((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
+                    coeff[1] = static_cast<float>(((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1);
+                    coeff[2] = static_cast<float>(((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
+                    coeff[3] = static_cast<float>(((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
                     return coeff;
+                }
+
+                float get_in_coord(float coord, int64_t axis_idx)
+                {
+                    float scale = m_scales[axis_idx];
+                    int64_t axis = m_axes[axis_idx];
+                    float length_resized = static_cast<float>(m_out_shape[axis]);
+                    float length_original = static_cast<float>(m_input_data_shape[axis]);
+                    return m_get_original_coord(coord, scale, length_resized, length_original);
                 }
             };
 
@@ -302,11 +312,7 @@ namespace ngraph
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[i];
-                        float length_resized = static_cast<float>(m_out_shape[axis]);
-                        float length_original = static_cast<float>(m_input_data_shape[axis]);
-                        float in_coord = m_get_original_coord(
-                            coordinate, scale, length_resized, length_original);
+                        float in_coord = get_in_coord(coordinate, i);
                         icoords[axis] = in_coord;
                         icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
                     }
@@ -322,7 +328,7 @@ namespace ngraph
                         {
                             int64_t axis = m_axes[i];
                             inner_coords[axis] = index[i] + icoords_r[axis];
-                            inner_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
+                            inner_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
                         }
 
                         bool condition = true;
@@ -369,28 +375,35 @@ namespace ngraph
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
                 std::size_t input_rank = m_input_data_shape.size();
+
                 assert((input_rank == 2) || (input_rank == 4));
+                assert(m_axes.size() == 2);
+                bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1)) ||
+                    ((m_axes[0] == 2) && (m_axes[1] == 3));
+                assert(correct_axes);
 
                 Shape input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
                 Shape output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
-                std::vector<float> scales = {1.0, 1.0, m_scales[0], m_scales[1]};
                 if (input_rank == 4)
                 {
                     input_shape = m_input_data_shape;
                     output_shape = m_out_shape;
-                    scales = m_scales;
                 }
-                std::size_t output_height = output_shape[2];
-                std::size_t output_width = output_shape[3];
-                std::size_t input_height = input_shape[2];
-                std::size_t input_width = input_shape[3];
-                float height_scale = scales[2];
-                float width_scale = scales[3];
-                std::size_t batch_size = input_shape[0];
-                std::size_t num_channels = input_shape[1];
 
-                std::vector<int64_t> in_y1(output_height);
-                std::vector<int64_t> in_y2(output_height);
+                int64_t batch_size = input_shape[0];
+                int64_t num_channels = input_shape[1];
+                int64_t input_height = input_shape[2];
+                int64_t input_width = input_shape[3];
+                int64_t output_height = output_shape[2];
+                int64_t output_width = output_shape[3];
+                float height_scale = m_scales[0];
+                float width_scale = m_scales[1];
+
+                std::vector<float> y_original;
+                std::vector<float> x_original;
+
+                std::vector<int64_t> input_width_mul_y1(output_height);
+                std::vector<int64_t> input_width_mul_y2(output_height);
                 std::vector<int64_t> in_x1(output_width);
                 std::vector<int64_t> in_x2(output_width);
 
@@ -399,73 +412,66 @@ namespace ngraph
                 std::vector<float> dx1(output_width);
                 std::vector<float> dx2(output_width);
 
-                std::vector<float> y_original(output_height);
-                std::vector<float> x_original(output_width);
-
-                for (std::size_t y = 0; y < output_height; ++y)
-                {
+                for (int64_t y = 0; y < output_height; ++y) {
                     float in_y = m_get_original_coord(static_cast<float>(y),
                                                       height_scale,
                                                       static_cast<float>(output_height),
                                                       static_cast<float>(input_height));
-                    y_original[y] = in_y;
+                    y_original.push_back(in_y);
                     in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
-                    in_y1[y] = std::min(static_cast<int64_t>(in_y),
-                                        static_cast<int64_t>(input_height - 1));
-                    in_y2[y] = std::min(in_y1[y] + 1, static_cast<int64_t>(input_height - 1));
-                    dy1[y] = std::fabs(in_y - in_y1[y]);
-                    dy2[y] = std::fabs(in_y - in_y2[y]);
 
-                    if (in_y1[y] == in_y2[y])
-                    {
-                        dy1[y] = 0.5f;
-                        dy2[y] = 0.5f;
+                    const int64_t in_y1 = std::min(static_cast<int64_t>(in_y), input_height - 1);
+                    const int64_t in_y2 = std::min(in_y1 + 1, input_height - 1);
+                    dy1[y] = std::fabs(in_y - in_y1);
+                    dy2[y] = std::fabs(in_y - in_y2);
+
+                    if (in_y1 == in_y2) {
+                       dy1[y] = 0.5f;
+                       dy2[y] = 0.5f;
                     }
+
+                    input_width_mul_y1[y] = input_width * in_y1;
+                    input_width_mul_y2[y] = input_width * in_y2;
                 }
 
-                for (std::size_t x = 0; x < output_width; ++x)
-                {
+                for (int64_t x = 0; x < output_width; ++x) {
                     float in_x = m_get_original_coord(static_cast<float>(x),
                                                       width_scale,
                                                       static_cast<float>(output_width),
                                                       static_cast<float>(input_width));
-                    x_original[x] = in_x;
+                    x_original.push_back(in_x);
                     in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
-                    in_x1[x] =
-                        std::min(static_cast<int64_t>(in_x), static_cast<int64_t>(input_width - 1));
-                    in_x2[x] = std::min(in_x1[x] + 1, static_cast<int64_t>(input_width - 1));
-                    dx1[x] = std::fabs(in_x - in_x1[x]);
-                    dx2[x] = std::fabs(in_x - in_x2[x]);
 
-                    if (in_y1[x] == in_y2[x])
-                    {
+                    in_x1[x] = std::min(static_cast<int64_t>(in_x), input_width - 1);
+                    in_x2[x] = std::min(in_x1[x] + 1, input_width - 1);
+
+                    dx1[x] = std::abs(in_x - in_x1[x]);
+                    dx2[x] = std::abs(in_x - in_x2[x]);
+                    if (in_x1[x] == in_x2[x]) {
                         dx1[x] = 0.5f;
                         dx2[x] = 0.5f;
                     }
                 }
 
-                for (std::size_t n = 0; n < batch_size; ++n)
-                {
-                    for (std::size_t c = 0; c < num_channels; ++c)
-                    {
-                        T* out_data_ptr_nc = out + n * num_channels * output_height * output_width +
-                                             c * output_height * output_width;
-                        const T* in_data_ptr_nc = input_data +
-                                                  n * num_channels * input_height * input_width +
-                                                  c * input_height * input_width;
-                        for (std::size_t y = 0; y < output_height; ++y)
-                        {
-                            for (std::size_t x = 0; x < output_width; ++x)
-                            {
-                                T x11 = in_data_ptr_nc[in_y1[y] * input_width + in_x1[x]];
-                                T x21 = in_data_ptr_nc[in_y1[y] * input_width + in_x2[x]];
-                                T x12 = in_data_ptr_nc[in_y2[y] * input_width + in_x1[x]];
-                                T x22 = in_data_ptr_nc[in_y2[y] * input_width + in_x2[x]];
-                                float temp = dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21 +
-                                             dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22;
-                                out_data_ptr_nc[output_width * y + x] = static_cast<T>(temp);
+                const T* xdata = input_data;
+                T* ydata = out;
+                for (int64_t n = 0; n < batch_size; ++n) {
+                    for (int64_t c = 0; c < num_channels; ++c) {
+                        for (int64_t y = 0; y < output_height; ++y) {
+                            for (int64_t x = 0; x < output_width; ++x) {
+                            T x11 = xdata[input_width_mul_y1[y] + in_x1[x]];
+                            T x21 = xdata[input_width_mul_y1[y] + in_x2[x]];
+                            T x12 = xdata[input_width_mul_y2[y] + in_x1[x]];
+                            T x22 = xdata[input_width_mul_y2[y] + in_x2[x]];
+
+                            ydata[output_width * y + x] = static_cast<T>(dx2[x] * dy2[y] * x11 +
+                                                                         dx1[x] * dy2[y] * x21 +
+                                                                         dx2[x] * dy1[y] * x12 +
+                                                                         dx1[x] * dy1[y] * x22);
                             }
                         }
+                        xdata += input_height * input_width;
+                        ydata += output_width * output_height;
                     }
                 }
             }
@@ -491,19 +497,16 @@ namespace ngraph
                 for (const auto& coordinates : coords_range)
                 {
                     runtime::NDimIndex input_coords{coordinates};
-                    std::vector<std::array<float, 4>> cubic_coeffs(input_rank);
+                    std::map<std::size_t, std::array<float, 4>> cubic_coeffs;
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[i];
-                        float length_resized = static_cast<float>(m_out_shape[axis]);
-                        float length_original = static_cast<float>(m_input_data_shape[axis]);
-                        float in_coord = m_get_original_coord(
-                            coordinate, scale, length_resized, length_original);
+                        float in_coord = get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         input_coords[axis] = in_coord_int;
-                        cubic_coeffs[axis] = get_cubic_coeff(in_coord - in_coord_int, m_cube_coeff);
+                        auto s = static_cast<float>(in_coord - in_coord_int);
+                        cubic_coeffs[axis] = get_cubic_coeff(s, m_cube_coeff);
                         input_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
                     }
 
