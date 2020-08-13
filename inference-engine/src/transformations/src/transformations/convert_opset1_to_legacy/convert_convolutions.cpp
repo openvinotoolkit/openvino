@@ -55,7 +55,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 
         // Merge weights layout GOIYX to (G*O)IYX
         auto shape = gconv->input_value(1).get_shape();
-        std::vector<int64_t> reshape_shape{-1};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(shape[0] * shape[1])};
         for (size_t i = 2; i < shape.size(); ++i) {
             reshape_shape.push_back(shape[i]);
         }
@@ -129,7 +129,8 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         // Merge weights layout GIOYX to I(G*O)YX
         auto input_shape = gconv->input_value(0).get_shape();
         auto weights_shape = gconv->input_value(1).get_shape();
-        std::vector<size_t> reshape_shape{weights_shape[1], weights_shape[2] * group};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(weights_shape[1]),
+                                           static_cast<int64_t>(weights_shape[2] * group)};
         for (size_t i = 3; i < weights_shape.size(); ++i) {
             reshape_shape.push_back(weights_shape[i]);
         }

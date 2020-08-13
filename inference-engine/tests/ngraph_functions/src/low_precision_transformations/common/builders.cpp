@@ -17,13 +17,13 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<Node> makeDequantization(
-    const std::shared_ptr<ngraph::Node> data,
+    const Output<Node>& data,
     const DequantizationOperations& dequantizationOperations) {
-    std::shared_ptr<ngraph::Node> parent = data;
+    Output<Node> parent = data;
 
     if (!dequantizationOperations.convert.empty()) {
         std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(
-            parent,
+            data,
             dequantizationOperations.convert.outPrecision);
         parent = convert;
     }
@@ -38,18 +38,18 @@ std::shared_ptr<Node> makeDequantization(
             if (dequantizationOperations.subtract.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
             } else {
-                shape = std::vector<size_t>(parent->get_output_shape(0).size(), 1ul);
+                shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.subtract.values.size();
             }
         }
 
         const auto subtractConst = std::make_shared<ngraph::opset1::Constant>(
-            parent->get_output_element_type(0),
+            parent.get_element_type(),
             shape,
             dequantizationOperations.subtract.values);
 
         if ((dequantizationOperations.subtract.outPrecision == element::undefined) ||
-            (dequantizationOperations.subtract.outPrecision == parent->get_output_element_type(0))) {
+            (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) {
             subtract = std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
         } else {
             subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(parent, subtractConst);
@@ -66,7 +66,7 @@ std::shared_ptr<Node> makeDequantization(
             if (dequantizationOperations.multiply.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
             } else {
-                shape = std::vector<size_t>(parent->get_output_shape(0).size(), 1ul);
+                shape = std::vector<size_t>(parent.get_shape().size(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.multiply.values.size();
             }
         }
@@ -74,13 +74,13 @@ std::shared_ptr<Node> makeDequantization(
         std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
-                parent->get_output_element_type(0),
+                parent.get_element_type(),
                 shape,
                 dequantizationOperations.multiply.values));
         parent = multiply;
     }
 
-    return parent;
+    return parent.get_node_shared_ptr();
 }
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(

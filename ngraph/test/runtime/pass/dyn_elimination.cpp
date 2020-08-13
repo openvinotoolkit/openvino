@@ -21,7 +21,6 @@
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/reverse.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"

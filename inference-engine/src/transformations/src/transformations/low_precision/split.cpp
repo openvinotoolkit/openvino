@@ -56,7 +56,7 @@ void SplitTransformation::transform(TransformationContext& context, ngraph::patt
     ngraph::OutputVector replacement;
     for (size_t i = 0; i < outputSize; ++i) {
         const std::shared_ptr<ngraph::Node> convert =
-            dequantization.convert->clone_with_new_inputs({ newSplit->get_output_as_single_output_node(i) });
+            dequantization.convert->clone_with_new_inputs({ newSplit->output(i) });
 
         std::shared_ptr<ngraph::Node> subtract;
         if (!subSplitLengths.empty()) {

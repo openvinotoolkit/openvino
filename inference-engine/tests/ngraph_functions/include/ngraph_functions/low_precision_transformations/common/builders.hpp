@@ -58,7 +58,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
 }
 
 std::shared_ptr<Node> makeDequantization(
-    const std::shared_ptr<ngraph::Node> data,
+    const Output<Node>& data,
     const DequantizationOperations& dequantizationOperations);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(

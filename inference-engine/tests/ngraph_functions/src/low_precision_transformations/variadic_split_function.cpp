@@ -34,7 +34,7 @@ namespace subgraph {
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < splitLengths.size(); ++i) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(variadicSplit->get_output_as_single_output_node(i)));
+            results.push_back(std::make_shared<ngraph::opset1::Result>(variadicSplit->output(i)));
         }
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "VariadicSplitFunction");
     }
@@ -64,7 +64,7 @@ std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < splitLengths.size(); ++i) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(variadicSplit->get_output_as_single_output_node(i)));
+        results.push_back(std::make_shared<ngraph::opset1::Result>(variadicSplit->output(i)));
     }
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "VariadicSplitFunction");
 }
@@ -86,7 +86,7 @@ std::shared_ptr<ngraph::Function> VariadicSplitFunction::getReference(
     ngraph::ResultVector results;
     for (size_t i = 0; i < splitLengths.size(); ++i) {
         const std::shared_ptr<Node> quantizationOpAfter =
-            makeDequantization(variadicSplit->get_output_as_single_output_node(i), dequantizationAfter[i]);
+            makeDequantization(variadicSplit->output(i), dequantizationAfter[i]);
         results.push_back(std::make_shared<ngraph::opset1::Result>(quantizationOpAfter));
     }
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "VariadicSplitTransformation");

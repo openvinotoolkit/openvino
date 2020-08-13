@@ -12,6 +12,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
+
 #ifdef LPT_SUPPORT
 #include "ngraph/opsets/opset1.hpp"
 #endif

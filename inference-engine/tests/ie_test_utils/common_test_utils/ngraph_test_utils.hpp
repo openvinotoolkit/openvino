@@ -27,7 +27,6 @@ std::pair<bool, std::string> compare_functions(
 
 void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
 
-void visualize_function(std::shared_ptr<ngraph::Function> f, const std::string & file_name);
 
 template<typename T>
 std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) {
