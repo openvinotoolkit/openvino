@@ -27,14 +27,16 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/provenance.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_upgrade.hpp"
 #include "pass/fused_op_decomposition.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_upgrade.hpp"
 #include "util/provenance_enabler.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ::testing::Return;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using ProvSet = std::unordered_set<std::string>;
 

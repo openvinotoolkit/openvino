@@ -11,7 +11,6 @@
 
 #include <ie_iextension.h>
 #include <ie_icnn_network.hpp>
-#include <ie_core.hpp>
 #include <ie_icore.hpp>
 
 #include <map>
@@ -187,14 +186,5 @@ public:
      */
     ~IInferencePlugin() override;
 };
-
-/**
- * @brief Creates the default instance of the interface (per plugin)
- *
- * @param plugin Pointer to the plugin
- * @param resp Pointer to the response message that holds a description of an error if any occurred
- * @return Status code of the operation. InferenceEngine::OK if succeeded
- */
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
 
 }  // namespace InferenceEngine

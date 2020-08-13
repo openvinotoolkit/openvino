@@ -77,6 +77,7 @@ struct ModelHeader {
      */
     uint32_t nRotateRows = 0u;
     uint32_t nRotateColumns = 0u;
+    bool doRotateInput = false;
 
     uint32_t nInputs = 0u;
     uint32_t nOutputs = 0u;
@@ -143,6 +144,7 @@ private:
     std::vector<RuntimeEndPoint> outputs;
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
+    bool doRotateInput = false;
 
     MemoryType states, *pstates = nullptr;
     ModelHeader modelHeader;
@@ -201,9 +203,10 @@ private:
      }
 #endif
 
-    GNAModelSerial & SetInputRotation(uint32_t nRotateRows, uint32_t nRotateColumns) {
+    GNAModelSerial & SetInputRotation(uint32_t nRotateRows, uint32_t nRotateColumns, bool do_rotate_inputs) {
       this->nRotateColumns = nRotateColumns;
       this->nRotateRows = nRotateRows;
+      this->doRotateInput = do_rotate_inputs;
       return *this;
     }
 

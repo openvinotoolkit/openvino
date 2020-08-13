@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/nms_ie.hpp>
@@ -14,10 +15,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
-    auto nms = ngraph::pattern::wrap_type<opset1::NonMaxSuppression>();
+    auto nms = ngraph::pattern::wrap_type<opset3::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto nms = std::dynamic_pointer_cast<opset1::NonMaxSuppression>(m.get_match_root());
+        auto nms = std::dynamic_pointer_cast<opset3::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;
         }
@@ -71,10 +72,10 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
         }
         int center_point_box = 0;
         switch (nms->get_box_encoding()) {
-            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CENTER:
+            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
                 center_point_box = 1;
                 break;
-            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CORNER:
+            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
                 center_point_box = 0;
                 break;
             default:
@@ -87,7 +88,8 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
                                                                          new_iou_threshold,
                                                                          new_score_threshold,
                                                                          center_point_box,
-                                                                         nms->get_sort_result_descending());
+                                                                         nms->get_sort_result_descending(),
+                                                                         nms->get_output_type());
         new_ops.push_back(new_nms);
         new_nms->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);

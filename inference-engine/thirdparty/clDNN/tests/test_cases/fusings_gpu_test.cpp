@@ -36,6 +36,9 @@
 #include "api/gather.hpp"
 #include "api/depth_to_space.hpp"
 #include "api/space_to_depth.hpp"
+#include "api/batch_to_space.hpp"
+#include "api/space_to_batch.hpp"
+
 
 #include "test_utils/test_utils.h"
 
@@ -461,6 +464,7 @@ public:
 #define CASE_CONV_S8S8_8 {1, 3, 4, 5}, {1, 32, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_9 {16, 32, 5, 5}, {16, 32, 3, 3}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_10 {16, 32, 5, 5}, {16, 32, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_11 {1, 4, 1280, 720}, {1, 4, 1280, 720}, {1, 1, 5, 5}, tensor{1}, tensor{0, 0, -2, -2}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv4, data_types::i8, format::os_is_yx_osv16_isv4, data_types::f32, format::bfyx
 
 #define CASE_CONV3D_U8S8_1 {1, 15, 5, 4, 5}, {1, 30, 3, 2, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_U8S8_2 {1, 15, 5, 5, 5}, {1, 30, 3, 3, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
@@ -1719,6 +1723,34 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8,
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 4},
+                        }), );
+
+class conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
+TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), -127)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 scale("scale", "conv_prim", "scale_data"),
+                 quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{ CASE_CONV_S8S8_11, 2, 4 },
                         }), );
 
 class conv_int8_relu_quantize : public ConvFusingTest {};
@@ -4959,6 +4991,18 @@ struct gather_test_params {
 #define CASE_GATHER_FP16_4 {5, 3, 2, 2}, {3, 1, 1, 1}, {5, 2, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GATHER_FP16_5 {2, 3, 1, 2}, {1, 3, 1, 1}, {2, 3, 3, 1}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
+#define CASE_GATHER_5D_FP32_1 {2, 3, 1, 4, 1}, {4, 1, 1, 1}, {4, 3, 1, 4, 1}, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_2 {2, 3, 2, 2, 2}, {2, 1, 1, 1}, {2, 2, 2, 2, 2}, cldnn::gather::gather_axis::along_f, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_3 {5, 3, 2, 2, 2}, {3, 1, 1, 1}, {5, 3, 2, 3, 2}, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_4 {2, 3, 1, 4, 4}, {2, 1, 1, 1}, {2, 3, 1, 4, 2}, cldnn::gather::gather_axis::along_z, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_5 {3, 1, 5, 2, 1}, {2, 1, 1, 1}, {3, 1, 2, 2, 1}, cldnn::gather::gather_axis::along_x, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+
+#define CASE_GATHER_5D_FP16_1 {3, 2, 1, 2, 1}, {2, 1, 1, 1}, {2, 2, 2, 2, 1}, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_2 {1, 3, 1, 2, 1}, {2, 1, 1, 1}, {1, 2, 1, 2, 1}, cldnn::gather::gather_axis::along_f, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_3 {2, 3, 1, 3, 3}, {1, 2, 1, 1}, {2, 3, 1, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_4 {3, 2, 2, 2, 2}, {2, 1, 1, 1}, {3, 2, 2, 2, 2}, cldnn::gather::gather_axis::along_z, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_5 {1, 1, 2, 1, 1}, {3, 1, 1, 1}, {1, 1, 3, 1, 1}, cldnn::gather::gather_axis::along_x, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+
 class GatherPrimitiveFusingTest : public ::BaseFusingTest<gather_test_params> {
 public:
     void execute(gather_test_params& p) {
@@ -4985,6 +5029,10 @@ public:
                 return p.dictionary_shape.spatial[0];
             case cldnn::gather::gather_axis::along_y:
                 return p.dictionary_shape.spatial[1];
+            case cldnn::gather::gather_axis::along_z:
+                return p.dictionary_shape.spatial[2];
+            case cldnn::gather::gather_axis::along_w:
+                return p.dictionary_shape.spatial[3];
             case cldnn::gather::gather_axis::along_f:
                 return p.dictionary_shape.feature[0];
             case cldnn::gather::gather_axis::along_b:
@@ -5030,6 +5078,18 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_quantize,
                         gather_test_params{ CASE_GATHER_FP16_3, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP16_4, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP16_5, 2, 3 },
+
+                        gather_test_params{ CASE_GATHER_5D_FP32_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_5, 2, 3 },
+
+                        gather_test_params{ CASE_GATHER_5D_FP16_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 3 },
 }), );
 
 class gather_scale_activation : public GatherPrimitiveFusingTest {};
@@ -5061,6 +5121,18 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_scale_activation,
                         gather_test_params{ CASE_GATHER_FP16_3, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP16_4, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP16_5, 2, 4 },
+
+                        gather_test_params{ CASE_GATHER_5D_FP32_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP32_5, 2, 4 },
+
+                        gather_test_params{ CASE_GATHER_5D_FP16_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 4 },
 }), );
 
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -5464,3 +5536,285 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             normalize_test_params{CASE_NORMALIZE_I8_1, false, 2, 4},
                             normalize_test_params{CASE_NORMALIZE_I8_1, true, 2, 4},
                         }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ---------------------------------------- BatchToSpace cases ----------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+struct batch_to_space_test_params {
+    tensor input_size;
+    tensor output_size;
+    data_types input_type;
+    format input_format;
+    tensor block_shape;
+    tensor crops_begin;
+    tensor crops_end;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_BATCH_TO_SPACE_F32_1 {8,  1,  1, 1}, {2, 1,   2,  2}, data_types::f32, format::bfyx,          {1, 1, 2,  2}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_F32_2 {64, 16, 2, 2}, {2, 112, 4,  4}, data_types::f32, format::b_fs_yx_fsv16, {1, 8, 2,  2}, {0, 8, 0, 0}, {0, 8, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_F16_1 {16, 4,  1, 2}, {2, 12,  1,  2}, data_types::f16, format::bfyx,          {1, 4, 2,  1}, {0, 2, 1, 0}, {0, 2, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_F16_2 {32, 16, 2, 1}, {1, 16,  32, 2}, data_types::f16, format::b_fs_yx_fsv16, {1, 1, 16, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_U8_1  {30, 12, 4, 6}, {1, 52,  8,  9}, data_types::u8,  format::bfyx,          {1, 5, 2,  3}, {0, 8, 0, 9}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_U8_2  {24, 32, 4, 5}, {2, 64,  12, 8}, data_types::u8,  format::b_fs_yx_fsv16, {1, 2, 3,  2}, {0, 0, 0, 2}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_I8_1  {32, 1,  3, 4}, {1, 8,   6,  8}, data_types::i8,  format::bfyx,          {1, 8, 2,  2}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_BATCH_TO_SPACE_I8_2  {16, 16, 2, 1}, {2, 32,  4,  2}, data_types::i8,  format::b_fs_yx_fsv16, {1, 2, 2,  2}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+
+class BatchToSpaceFusingsTest : public ::BaseFusingTest<batch_to_space_test_params> {
+public:
+    void execute(batch_to_space_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(batch_to_space_test_params& p) {
+        return layout{p.input_type, p.input_format, p.input_size};
+    }
+
+    layout get_per_channel_layout(batch_to_space_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.output_size.feature[0], 1, 1}};
+    }
+};
+
+class batch_to_space_quantize_i8 : public BatchToSpaceFusingsTest {};
+TEST_P(batch_to_space_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      batch_to_space("batch_to_space", "input", p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), -128)),
+                      data("out_high", get_mem(get_single_element_layout(p), 127)),
+                      quantize("quant", "batch_to_space", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    batch_to_space_quantize_i8,
+    ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_1, 2, 3},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_2, 2, 3},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_1, 2, 3},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_2, 2, 3},
+    }), );
+
+class batch_to_space_scale_act_eltwise_quantize_u8 : public BatchToSpaceFusingsTest {};
+TEST_P(batch_to_space_scale_act_eltwise_quantize_u8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      batch_to_space("batch_to_space", "input", p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "batch_to_space", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    batch_to_space_scale_act_eltwise_quantize_u8,
+    ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_1, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_2, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_1, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_2, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_U8_1, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_U8_2, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_I8_1, 2, 6},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_I8_2, 2, 6},
+    }), );
+
+class batch_to_space_scale_act_eltw : public BatchToSpaceFusingsTest {};
+TEST_P(batch_to_space_scale_act_eltw, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      batch_to_space("batch_to_space", "input", p.block_shape, p.crops_begin, p.crops_end, p.output_size),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "batch_to_space", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    batch_to_space_scale_act_eltw,
+    ::testing::ValuesIn(std::vector<batch_to_space_test_params> {
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_1, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F32_2, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_1, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_F16_2, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_U8_1, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_U8_2, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_I8_1, 2, 5},
+        batch_to_space_test_params{CASE_BATCH_TO_SPACE_I8_2, 2, 5},
+    }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ---------------------------------------- SpaceToBatch cases ----------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+
+struct space_to_batch_test_params {
+    tensor input_size;
+    tensor output_size;
+    data_types input_type;
+    format input_format;
+    tensor block_shape;
+    tensor pads_begin;
+    tensor pads_end;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_SPACE_TO_BATCH_F32_1 {1, 4,  8, 8}, {16, 2, 3, 8}, data_types::f32, format::bfyx,          {1, 2,  4, 1}, {0, 0, 4, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_F32_2 {2, 16, 4, 6}, {24, 4, 4, 3}, data_types::f32, format::b_fs_yx_fsv16, {1, 4,  1, 3}, {0, 0, 0, 0}, {0, 0, 0, 3}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_F16_1 {1, 1,  6, 8}, {48, 1, 1, 1}, data_types::f16, format::bfyx,          {1, 1,  6, 8}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_F16_2 {1, 32, 1, 5}, {20, 4, 1, 4}, data_types::f16, format::b_fs_yx_fsv16, {1, 10, 1, 2}, {0, 8, 0, 0}, {0, 0, 0, 3}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_U8_1  {3, 12, 4, 8}, {48, 6, 2, 3}, data_types::u8,  format::bfyx,          {1, 2,  2, 4}, {0, 0, 0, 4}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_U8_2  {2, 16, 3, 6}, {30, 4, 1, 6}, data_types::u8,  format::b_fs_yx_fsv16, {1, 5,  3, 1}, {0, 4, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_I8_1  {1, 2,  8, 1}, {4,  2, 2, 1}, data_types::i8,  format::bfyx,          {1, 1,  4, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, data_types::f32, format::bfyx
+#define CASE_SPACE_TO_BATCH_I8_2  {1, 32, 4, 8}, {48, 2, 6, 3}, data_types::i8,  format::b_fs_yx_fsv16, {1, 16, 1, 3}, {0, 0, 2, 0}, {0, 0, 0, 1}, data_types::f32, format::bfyx
+
+class SpaceToBatchFusingsTest : public ::BaseFusingTest<space_to_batch_test_params> {
+public:
+    void execute(space_to_batch_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(space_to_batch_test_params& p) {
+        return layout{p.input_type, p.input_format, p.input_size};
+    }
+
+    layout get_per_channel_layout(space_to_batch_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.output_size.feature[0], 1, 1}};
+    }
+};
+
+class space_to_batch_quantize_i8 : public SpaceToBatchFusingsTest {};
+TEST_P(space_to_batch_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      space_to_batch("space_to_batch", "input", p.block_shape, p.pads_begin, p.pads_end, p.output_size),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), -128)),
+                      data("out_high", get_mem(get_single_element_layout(p), 127)),
+                      quantize("quant", "space_to_batch", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    space_to_batch_quantize_i8,
+    ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_1, 2, 3},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_2, 2, 3},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_1, 2, 3},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_2, 2, 3},
+    }), );
+
+class space_to_batch_scale_act_eltwise_quantize_u8 : public SpaceToBatchFusingsTest {};
+TEST_P(space_to_batch_scale_act_eltwise_quantize_u8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      space_to_batch("space_to_batch", "input", p.block_shape, p.pads_begin, p.pads_end, p.output_size),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "space_to_batch", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    space_to_batch_scale_act_eltwise_quantize_u8,
+    ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_1, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_2, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_1, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_2, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_U8_1, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_U8_2, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_I8_1, 2, 6},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_I8_2, 2, 6},
+    }), );
+
+
+class space_to_batch_scale_act_eltw : public SpaceToBatchFusingsTest {};
+TEST_P(space_to_batch_scale_act_eltw, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      space_to_batch("space_to_batch", "input", p.block_shape, p.pads_begin, p.pads_end, p.output_size),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "space_to_batch", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    space_to_batch_scale_act_eltw,
+    ::testing::ValuesIn(std::vector<space_to_batch_test_params> {
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_1, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F32_2, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_1, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_F16_2, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_U8_1, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_U8_2, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_I8_1, 2, 5},
+        space_to_batch_test_params{CASE_SPACE_TO_BATCH_I8_2, 2, 5},
+    }), );

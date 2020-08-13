@@ -28,6 +28,8 @@ ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
 ie_dependent_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "X86 OR X86_64" OFF)
 
+ie_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF)
+
 ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
@@ -41,3 +43,5 @@ ie_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR X8
 ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" OFF)
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
+
+ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)

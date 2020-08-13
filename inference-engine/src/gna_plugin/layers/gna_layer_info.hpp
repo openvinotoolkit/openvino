@@ -7,8 +7,8 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "inference_engine.hpp"
-#include "details/caseless.hpp"
+#include "ie_layers.h"
+#include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "gna-api.h"
 #include "gna_permute.hpp"
@@ -214,6 +214,7 @@ class LayerInfo {
         if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
             return true;  // supported case
         }
+        IE_ASSERT(!layer->insData.empty());
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 

@@ -22,7 +22,6 @@
 #include "ie_tensor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/util.hpp"
 
@@ -49,15 +48,7 @@ shared_ptr<runtime::Executable> runtime::ie::IE_Backend::compile(shared_ptr<Func
 bool runtime::ie::IE_Backend::is_supported(const Node& node) const
 {
     const auto& opset = get_opset1();
-    if (node.get_type_info() == op::GetOutputElement::type_info)
-    {
-        // IE currently can handle this op
-        return true;
-    }
-    else
-    {
-        return opset.contains_op_type(&node);
-    }
+    return opset.contains_op_type(&node);
 }
 
 shared_ptr<runtime::Tensor>

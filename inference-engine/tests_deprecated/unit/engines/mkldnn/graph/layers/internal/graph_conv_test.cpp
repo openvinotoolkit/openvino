@@ -5,7 +5,7 @@
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include <ie_core.hpp>
 #include <ie_system_conf.h>

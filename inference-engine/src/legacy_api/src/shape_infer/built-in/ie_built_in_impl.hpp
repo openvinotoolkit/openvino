@@ -5,7 +5,8 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
+#include <legacy/ie_ishape_infer_extension.hpp>
 
 #include <description_buffer.hpp>
 #include <ie_layer_validators.hpp>

@@ -7,7 +7,7 @@
 #include "mkldnn_graph.h"
 #include "mkldnn_graph_dumper.h"
 #include "ie_blob.h"
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 #include <ie_core.hpp>
 
