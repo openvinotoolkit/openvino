@@ -14,6 +14,9 @@
 #include <set>
 #include <cmath>
 
+// Quantization ranges validation is switched off by default in order to avoid regressions on user side
+// #define VALIDATE_QUANTIZATION_RANGES
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -221,10 +224,12 @@ void MKLDNNQuantizeNode::init() {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
-            if (il == ih) {
-                if (levels != 2)
-                    THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong input quantize ranges";
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                                   << "inputLow = " << il << ", inputHigh = " << ih;
             }
+#endif
 
             inputScale[i] = (levels - 1) / (ih - il);
             inputShift[i] = -il * (levels - 1) / (ih - il);
@@ -234,10 +239,12 @@ void MKLDNNQuantizeNode::init() {
             float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
             float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
-            if (ol == oh) {
-                if (levels != 2)
-                    THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges";
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                                   << "outputLow = " << ol << ", outputHigh = " << oh;
             }
+#endif
 
             outputScale[i] = (oh - ol) / (levels - 1);
 
