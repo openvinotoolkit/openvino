@@ -70,8 +70,7 @@ namespace ngraph
             class NGRAPH_API ShapeOf : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ShapeOf", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 ShapeOf() = default;
                 /// \brief Constructs a shape-of operation.
                 ShapeOf(const Output<Node>& arg);

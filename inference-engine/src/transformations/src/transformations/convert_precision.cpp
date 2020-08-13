@@ -16,6 +16,7 @@ using namespace ngraph;
 
 bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
 bool fuse_type_to_shapeof(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_parameter(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_convert(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
@@ -79,6 +80,7 @@ static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&,
         {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
         {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
+        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
 };
 
 static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_extend {
@@ -248,6 +250,16 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
 bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     node->set_output_type(idx, to, node->output(idx).get_partial_shape());
     return true;
+}
+
+bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
+        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
+                element::TypeVector{}, element::TypeVector{to});
+        replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
 }
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
