@@ -22,9 +22,9 @@ import numpy as np
 
 
 def refer_to_faq_msg(question_num: int):
-    return '\n For more information please refer to Model Optimizer FAQ' \
-           ' (https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html),' \
-           ' question #{}. '.format(question_num)
+    return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
+           '(https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+           '?question={0}#question-{0})'.format(question_num)
 
 
 class NamedAttrsClass:
