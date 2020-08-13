@@ -283,7 +283,7 @@ jobs:
     displayName: 'CMake'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
       echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
