@@ -207,8 +207,8 @@ OutputVector op::v3::GRUCell::decompose_op() const
     Output<Node> B = input_value(4);
 
     // Xt*(W^T)
-    auto Xt_W = make_shared<op::Dot>(X, builder::transpose(W));
-    auto R_transpose = builder::transpose(R);
+    auto Xt_W = make_shared<op::Dot>(X, builder::opset1::transpose(W));
+    auto R_transpose = builder::opset1::transpose(R);
     // Ht-1*(R^T)
     auto Ht_R = make_shared<op::Dot>(H_t, R_transpose);
 

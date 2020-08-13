@@ -180,9 +180,9 @@ OutputVector op::RNNCell::decompose_op() const
     Output<Node> bias = input_value(4);
 
     // Xt*(W^T)
-    auto Xt_W = std::make_shared<op::Dot>(X, builder::transpose(W));
+    auto Xt_W = std::make_shared<op::Dot>(X, builder::opset1::transpose(W));
     // Ht-1*(R^T)
-    auto Ht_R = std::make_shared<op::Dot>(H_t, builder::transpose(R));
+    auto Ht_R = std::make_shared<op::Dot>(H_t, builder::opset1::transpose(R));
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
     auto i_t = add(Xt_W, add(Ht_R, bias));
 

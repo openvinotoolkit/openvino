@@ -72,7 +72,7 @@ OutputVector op::GRN::decompose_op() const
     {
         Shape data_shape(4 - input_shape.size(), 1);
         copy(begin(input_shape), end(input_shape), back_inserter(data_shape));
-        data = builder::reshape(data, data_shape);
+        data = builder::opset1::reshape(data, data_shape);
     }
 
     const auto axis_set_const = op::Constant::create(element::i64, {}, {1});
@@ -85,7 +85,7 @@ OutputVector op::GRN::decompose_op() const
     // get back original input tensor rank
     if (input_shape.size() != 4)
     {
-        data = builder::reshape(data, input_shape);
+        data = builder::opset1::reshape(data, input_shape);
     }
 
     return OutputVector{data};

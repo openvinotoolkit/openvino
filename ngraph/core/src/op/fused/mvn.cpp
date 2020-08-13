@@ -76,7 +76,7 @@ OutputVector op::MVN::decompose_op() const
     auto data_shape = data.get_shape(); // assume that data has n and c channels.
 
     // calculate mean normalization
-    auto mean = builder::mean(data, m_reduction_axes);
+    auto mean = builder::opset1::mean(data, m_reduction_axes);
     mean = std::make_shared<op::Broadcast>(mean, data_shape, m_reduction_axes);
     auto mean_normalization = data - mean;
 
@@ -87,7 +87,7 @@ OutputVector op::MVN::decompose_op() const
     else
     {
         // calculate variance
-        auto variance = builder::variance(data, m_reduction_axes);
+        auto variance = builder::opset1::variance(data, m_reduction_axes);
         variance = make_shared<op::Sqrt>(variance);
         // add epsilon
         auto eps_node = op::Constant::create(

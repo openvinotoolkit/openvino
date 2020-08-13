@@ -173,7 +173,31 @@ namespace
         }
         if (!empty_axes.empty())
         {
-            squeezed_arg = builder::squeeze(arg, empty_axes);
+            auto v0squeeze = [](const Output<Node>& value, vector<size_t> axes) {
+                if (axes.empty())
+                {
+                    return value.get_node_shared_ptr();
+                }
+
+                Shape in_shape{value.get_shape()};
+                for (size_t idx = 0; idx < axes.size(); ++idx)
+                {
+                    in_shape.at(axes.at(idx)) = 0;
+                }
+                Shape output_shape;
+                for (auto axis : in_shape)
+                {
+                    if (axis != 0)
+                    {
+                        output_shape.push_back(axis);
+                    }
+                }
+                return make_shared<op::Reshape>(
+                           value, get_default_order(value.get_shape().size()), output_shape)
+                    ->add_provenance_group_members_above({value});
+
+            };
+            squeezed_arg = v0squeeze(arg, empty_axes);
         }
 
         replacement_node =

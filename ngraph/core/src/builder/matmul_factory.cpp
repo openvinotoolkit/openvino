@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <iterator>
 #include <memory>
+#include <numeric>
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/make_constant.hpp"
@@ -55,7 +56,7 @@ static Output<Node> get_sub_matrix(const Output<Node>& node, size_t idx)
 
     auto sub_matrix = Output<Node>{make_shared<op::Slice>(node, lower_bounds, upper_bounds)};
     // Remove first single entry dim.
-    return builder::squeeze(sub_matrix);
+    return builder::opset1::squeeze(sub_matrix);
 }
 
 Output<Node> builder::MatmulFactory::get_left()
@@ -70,6 +71,19 @@ Output<Node> builder::MatmulFactory::get_right()
 
 OutputVector builder::MatmulFactory::make_matmul_op()
 {
+    auto collapse = [](const Output<Node>& value, const size_t start_axis, const size_t end_axis) {
+        auto shape = value.get_shape();
+        size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
+                                                next(begin(shape), end_axis + 1),
+                                                1UL,
+                                                multiplies<size_t>());
+
+        Shape output_shape{collapsed_axis_size};
+        output_shape.insert(end(output_shape), next(begin(shape), end_axis + 1), end(shape));
+        return make_shared<op::Reshape>(
+                   value, get_default_order(value.get_shape().size()), output_shape)
+            ->add_provenance_group_members_above({value});
+    };
     auto left = get_left();
     auto right = get_right();
 
@@ -104,11 +118,11 @@ OutputVector builder::MatmulFactory::make_matmul_op()
     // This will make easier further dot product calculations.
     if (left_shape.size() > 3)
     {
-        left = builder::collapse(left, 0, left_shape.size() - 3);
+        left = collapse(left, 0, left_shape.size() - 3);
     }
     if (right_shape.size() > 3)
     {
-        right = builder::collapse(right, 0, right_shape.size() - 3);
+        right = collapse(right, 0, right_shape.size() - 3);
     }
 
     // Perform multiple small dot products
@@ -129,7 +143,7 @@ OutputVector builder::MatmulFactory::make_matmul_op()
 
         // Expand sub_dot result with single empty outermost axis, in order to
         // later concatenate sub_dots at this axis.
-        small_dots.at(g) = builder::expand_dims(sub_dot);
+        small_dots.at(g) = builder::opset1::expand_dims(sub_dot);
     }
 
     // Concatenate sub_dots on groups axis.
