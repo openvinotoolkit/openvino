@@ -374,29 +374,33 @@ class InterpolateCalculation:
         else:
             reshaped_data = input_data
 
-        output_height = self.output_shape[0] if rank == 2 else self.output_shape[2]
-        output_width = self.output_shape[1] if rank == 2 else self.output_shape[3]
-        input_height = self.input_shape[0] if rank == 2 else self.input_shape[2]
-        input_width = self.input_shape[1] if rank == 2 else self.input_shape[3]
+        input_shape = np.array(reshaped_data.shape).astype(np.int64)
+        output_shape = np.array(result.shape).astype(np.int64)
+
+        output_height = output_shape[2]
+        output_width = output_shape[3]
+        input_height = input_shape[2]
+        input_width = input_shape[3]
         height_scale = self.scales[0]
         width_scale = self.scales[1]
-        batch_size = 1 if rank == 2 else self.input_shape[0]
-        num_channels = 1 if rank == 2 else self.input_shape[1]
+        batch_size = input_shape[0]
+        num_channels = input_shape[1]
+
+        y_original = np.zeros(output_height).astype(np.float)
+        x_original = np.zeros(output_width).astype(np.float)
 
         in_y1 = np.zeros(output_height).astype(np.int64)
         in_y2 = np.zeros(output_height).astype(np.int64)
         in_x1 = np.zeros(output_width).astype(np.int64)
         in_x2 = np.zeros(output_width).astype(np.int64)
 
-        dy1 = np.zeros(output_height).astype(np.float64)
-        dy2 = np.zeros(output_height).astype(np.float64)
-        dx1 = np.zeros(output_width).astype(np.float64)
-        dx2 = np.zeros(output_width).astype(np.float64)
+        dy1 = np.zeros(output_height).astype(np.float)
+        dy2 = np.zeros(output_height).astype(np.float)
 
-        y_original = np.zeros(output_height).astype(np.float64)
-        x_original = np.zeros(output_width).astype(np.float64)
+        dx1 = np.zeros(output_width).astype(np.float)
+        dx2 = np.zeros(output_width).astype(np.float)
 
-        for y in range(output_height):
+        for y in range(0, output_height):
             in_y = self.get_original_coordinate(y, height_scale, output_height, input_height)
             y_original[y] = in_y
             in_y = max(0, min(in_y, input_height - 1))
@@ -405,33 +409,33 @@ class InterpolateCalculation:
             dy1[y] = abs(in_y - in_y1[y])
             dy2[y] = abs(in_y - in_y2[y])
 
-            if np.array_equal(in_y1, in_y2):
+            if in_y1[y] == in_y2[y]:
                 dy1[y] = 0.5
                 dy2[y] = 0.5
 
-        for x in range(output_width):
-            in_x = self.get_original_coordinate(x, width_scale, output_width, input_width)
+        for x in range(0, output_width):
+            in_x = self.get_original_coordinate(x, width_scale, output_width, input_width);
             x_original[x] = in_x
-            in_x = max(0, min(in_x, input_width - 1))
-            in_x1[x] = max(0, min(int(in_x), input_width - 1))
-            in_x2[x] = min(in_x1[x] + 1, input_width - 1)
-            dx1[x] = abs(in_x - in_x1[x])
-            dx2[x] = abs(in_x - in_x2[x])
+            in_x = max(0.0, min(in_x, input_width - 1));
 
-            if np.array_equal(in_x1, in_x2):
+            in_x1[x] = min(in_x, input_width - 1);
+            in_x2[x] = min(in_x1[x] + 1, input_width - 1);
+
+            dx1[x] = abs(in_x - in_x1[x]);
+            dx2[x] = abs(in_x - in_x2[x]);
+            if in_x1[x] == in_x2[x]:
                 dx1[x] = 0.5
                 dx2[x] = 0.5
 
-        for n in range(batch_size):
-            for c in range(num_channels):
-                for y in range(output_height):
-                    for x in range(output_width):
+        for n in range(0, batch_size):
+            for c in range(0, num_channels):
+                for y in range(0, output_height):
+                    for x in range(0, output_width):
                         x11 = reshaped_data[n, c, in_y1[y], in_x1[x]]
                         x21 = reshaped_data[n, c, in_y1[y], in_x2[x]]
                         x12 = reshaped_data[n, c, in_y2[y], in_x1[x]]
                         x22 = reshaped_data[n, c, in_y2[y], in_x2[x]]
-                        temp = dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21
-                        temp += dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22
+                        temp = dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21 + dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22
                         result[n, c, y, x] = temp
 
         return np.reshape(result, self.output_shape)
