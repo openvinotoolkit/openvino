@@ -190,6 +190,15 @@ DECLARE_CONFIG_VALUE(NO);
 DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
 
 /**
+ * @brief If set, enables dynamic sequence recognition for 1D inputs for the CPU, the value defines the min seq boundary
+ */
+DECLARE_CONFIG_KEY(CPU_DYNAMIC_SEQUENCE);
+/**
+ * @brief Step to pre-reshape for the dynamic sequence recognition
+ */
+DECLARE_CONFIG_KEY(CPU_DYNAMIC_SEQUENCE_STEP);
+
+/**
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:

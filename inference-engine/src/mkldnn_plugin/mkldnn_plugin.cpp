@@ -158,28 +158,46 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
-    bool is_transformed = false;
-    if (clonedNetwork->getFunction()) {
-        Transformation(clonedNetwork);
-        is_transformed = true;
-    }
-    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
-    if (implNetwork) {
-        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
-        ConstTransformer transformator(implNetwork.get());
-        transformator.fullTrim();
-        if (!is_transformed) {
-            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+    CNNNetwork localNetwork(cloneNetwork(network));
+    const InputsDataMap inputInfo = localNetwork.getInputsInfo();
+    ICNNNetwork::InputShapes shapes = localNetwork.getInputShapes();
+    ReshapedCNNNetworks reshapedNetworks;
+    int seq = shapes.at(inputInfo.cbegin()->first)[1];
+    do {
+        CNNNetwork clonedNetwork(cloneNetwork(network));
+        if (conf.dynamicSequence) {
+            for (const InputsDataMap::value_type &item : inputInfo)
+                shapes[item.first][1] = seq;
+                // std::cout << "Reshaped network by sequence to  " << seq << std::endl;
+            clonedNetwork.reshape(shapes);
         }
-    }
+        bool is_transformed = false;
+        if (clonedNetwork.getFunction()) {
+            auto temp = clonedNetwork.operator ICNNNetwork::Ptr();
+            Transformation(temp);
+            clonedNetwork = CNNNetwork(temp);
+            is_transformed = true;
+        }
+        auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(
+                clonedNetwork.operator ICNNNetwork::Ptr());
+        if (implNetwork) {
+            // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+            ConstTransformer transformator(implNetwork.get());
+            transformator.fullTrim();
+            if (!is_transformed) {
+                NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
+                NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
+                NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
+                NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
+                NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
+                NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+            }
+        }
+        reshapedNetworks[seq] = clonedNetwork;
+        seq -= conf.dynamicSequenceStep;
+    } while (conf.dynamicSequence && seq >= conf.dynamicSequence);
 
-    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(reshapedNetworks, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {

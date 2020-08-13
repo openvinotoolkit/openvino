@@ -57,6 +57,14 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // zero and any negative value will be treated
             // as default batch size
             batchLimit = std::max(val_i, 0);
+        } else if (key == PluginConfigParams::KEY_CPU_DYNAMIC_SEQUENCE) {
+            int val_i = std::stoi(val);
+            // zero and any negative value will be treated
+            // as default sequence size, so no auto-reshaping will happen
+            dynamicSequence = std::max(val_i, 0);
+        }  else if (key == PluginConfigParams::KEY_CPU_DYNAMIC_SEQUENCE_STEP) {
+            int val_i = std::stoi(val);
+            dynamicSequenceStep = std::max(val_i, 0);
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
@@ -110,6 +118,15 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     }
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
+    if (dynamicSequence && !dynamicSequenceStep) {
+        THROW_IE_EXCEPTION << "Dynamic sequence recognition is enabled, but the "
+                           << PluginConfigParams::KEY_CPU_DYNAMIC_SEQUENCE_STEP
+                           << " is not set!";
+
+    } else if (!dynamicSequence && dynamicSequenceStep) {
+        THROW_IE_EXCEPTION << "Dynamic sequence recognition " << PluginConfigParams::KEY_CPU_DYNAMIC_SEQUENCE
+                           << " is not enabled while the " << PluginConfigParams::KEY_CPU_DYNAMIC_SEQUENCE_STEP << " is set!";
+    }
 
     updateProperties();
 }

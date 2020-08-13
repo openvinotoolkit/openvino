@@ -38,70 +38,76 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
-MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
+MKLDNNExecNetwork::MKLDNNExecNetwork(ReshapedCNNNetworks networks,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr,
                                      NumaNodesWeights &numaNodesWeights) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
-    _name{network.getName()} {
+    _name{networks.begin()->second.getName()} {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
 
-    // we are cloning network if we have statistics and we can transform network.
-    _clonedNetwork = cloneNet(network);
+    typedef std::map<int, InferenceEngine::details::CNNNetworkImplPtr, sorting_order> PluginInternalNetworks;
+    PluginInternalNetworks plugin_internal_networks;
+    for (auto n : networks) {
+        // we are cloning network if we have statistics and we can transform network.
+        auto _clonedNetwork = cloneNet(n.second);
 
-    if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                    true,  // quantizeOutputs
-                                                    true,  // weightsToConst
-                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                    true,  // roundQuantizedValues
-                                                    true,  // updateBiases
-                                                    true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-            add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
-            addCleanup<ScaleShiftToConvolutionTransformation>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
-                "ScaleShift"));
-        transformer.transform(*_clonedNetwork);
+        if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
+            auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                                      true,  // quantizeOutputs
+                                                      true,  // weightsToConst
+                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                      LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                      true,  // roundQuantizedValues
+                                                      true,  // updateBiases
+                                                      true);  // supportAsymmetricQuantization
+            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+                    add<ConvolutionTransformation>(
+                    LayerTransformation::Params(params).setPrecisionsOnActivations({Precision::U8}), "Convolution").
+                    addCleanup<ScaleShiftToConvolutionTransformation>(
+                    LayerTransformation::Params(params).setPrecisionsOnActivations({Precision::U8}),
+                    "ScaleShift"));
+            transformer.transform(*_clonedNetwork);
 
-        // Check if network is INT8 or Binary.
-        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-        // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
-        CNNNetworkIterator i(&network);
-        while (i != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
-                isFloatModel = false;
-                break;
+            // Check if network is INT8 or Binary.
+            // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
+            // BF16 + INT8 or BF16 + BIN.
+            bool isFloatModel = true;
+            CNNNetworkIterator i(&n.second.operator InferenceEngine::ICNNNetwork &());
+            while (i != CNNNetworkIterator()) {
+                if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+                    isFloatModel = false;
+                    break;
+                }
+                i++;
             }
-            i++;
+
+            if (with_cpu_x86_bfloat16() && isFloatModel) {
+                BF16Transformer bf16Transformer;
+                CNNNetwork cnnetwork(_clonedNetwork);
+                // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
+                // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+                // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
+                if (cfg.enforceBF16 == true)
+                    bf16Transformer.convertToBFloat16(cnnetwork);
+            } else {
+                BF16Transformer bf16Transformer;
+                CNNNetwork cnnetwork(_clonedNetwork);
+                bf16Transformer.convertToFloat(cnnetwork);
+            }
         }
 
-        if (with_cpu_x86_bfloat16() && isFloatModel) {
-            BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
-            // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
-            // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
-                bf16Transformer.convertToBFloat16(cnnetwork);
-        } else {
-            BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
-            bf16Transformer.convertToFloat(cnnetwork);
-        }
-    }
-
-    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
+        MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork &>(*_clonedNetwork));
 
     if (_cfg.enableDynamicBatch) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(*_clonedNetwork)) {
-            THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
+            // check topology for applicability
+            if (!CanProcessDynBatch(*_clonedNetwork)) {
+                THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
+            }
         }
+        plugin_internal_networks[n.first] = _clonedNetwork;
     }
 
     if (cfg.exclusiveAsyncRequests) {
@@ -131,19 +137,23 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     _graphs = decltype(_graphs){[&] {
         // TODO: Remove `cloneNet` to `localNetwork` when `MKLDNNGraph::CreateGraph`
         //       is fixed and does not change content of network passed (CVS-26420)
-        auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*_clonedNetwork));
-        auto graph = std::make_shared<MKLDNNGraph>();
-        {
-            std::unique_lock<std::mutex> lock{_cfgMutex};
-            graph->setConfig(_cfg);
+        SequenceGraphs m;
+        for (auto n : plugin_internal_networks) {
+            auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*n.second.get()));
+            auto graph = std::make_shared<MKLDNNGraph>();
+            {
+                std::unique_lock<std::mutex> lock{_cfgMutex};
+                graph->setConfig(_cfg);
+            }
+            int numaNode = 0;
+            auto *streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor *>(_taskExecutor.get());
+            if (nullptr != streamExecutor) {
+                numaNode = streamExecutor->GetNumaNodeId();
+            }
+            graph->CreateGraph(static_cast<ICNNNetwork &>(*localNetwork), extensionManager, numaNodesWeights[numaNode]);
+            m[n.first] = graph;
         }
-        int numaNode = 0;
-        auto* streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
-        if (nullptr != streamExecutor) {
-            numaNode = streamExecutor->GetNumaNodeId();
-        }
-        graph->CreateGraph(static_cast<ICNNNetwork&>(*localNetwork), extensionManager, numaNodesWeights[numaNode]);
-        return graph;
+        return m;
     }};
 
     _taskExecutor->runAndWait({std::thread::hardware_concurrency(), [this] {_graphs.local();}});
@@ -152,7 +162,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     if (_graphs.size() == 1) {
-        for (auto &node : _graphs.begin()->get()->GetNodes()) {
+        for (auto &node : _graphs.begin()->begin()->second->GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
                 auto state_store = memoryNode->getStore();
@@ -174,9 +184,9 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
         std::lock_guard<std::mutex> lock{_cfgMutex};
         _cfg.readProperties(properties);
     }
-    for (auto g : _graphs) {
-        g->setProperty(properties);
-    }
+    for (auto g : _graphs)
+        for (auto s : g)
+                s.second->setProperty(properties);
 }
 
 void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
@@ -193,13 +203,13 @@ void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &grap
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
-    graphPtr = _graphs.begin()->get()->dump();
+    graphPtr = _graphs.begin()->begin()->second->dump();
 }
 
 void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
-    Config engConfig = _graphs.begin()->get()->getProperty();
+    Config engConfig = _graphs.begin()->begin()->second->getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
@@ -213,9 +223,9 @@ void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, Re
         THROW_IE_EXCEPTION << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        if (_graphs.begin()->get()->dump() == nullptr)
+        if (_graphs.begin()->begin()->second->dump() == nullptr)
             THROW_IE_EXCEPTION << "Invalid graph dump";
-        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->dump()->getName());
+        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->begin()->second->dump()->getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -225,12 +235,12 @@ void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, Re
         result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : _graphs.begin()->get()->getProperty()._config) {
+        for (auto && key : _graphs.begin()->begin()->second->getProperty()._config) {
             configKeys.push_back(key.first);
         }
         result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = _graphs.begin()->get()->getProperty();
+        Config engConfig = _graphs.begin()->begin()->second->getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
