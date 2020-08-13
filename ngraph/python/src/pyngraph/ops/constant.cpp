@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <pybind11/buffer_info.h>
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -67,6 +68,13 @@ py::buffer_info _get_buffer_info<ngraph::float16>(const ngraph::op::Constant& c)
         );
 }
 
+template <typename T>
+py::array _cast_vector(const ngraph::op::Constant& self)
+{
+    auto vec = self.cast_vector<T>();
+    return py::array(vec.size(), vec.data());
+}
+
 void regclass_pyngraph_op_Constant(py::module m)
 {
     py::class_<ngraph::op::Constant, std::shared_ptr<ngraph::op::Constant>, ngraph::Node> constant(
@@ -106,6 +114,63 @@ void regclass_pyngraph_op_Constant(py::module m)
                           const std::vector<uint64_t>&>());
 
     constant.def("get_value_strings", &ngraph::op::Constant::get_value_strings);
+
+    constant.def("get_vector", [](const ngraph::op::Constant& self) {
+        auto element_type = self.get_element_type();
+        if (element_type == ngraph::element::boolean)
+        {
+            return _cast_vector<char>(self);
+        }
+        else if (element_type == ngraph::element::f16)
+        {
+            return _cast_vector<ngraph::float16>(self);
+        }
+        else if (element_type == ngraph::element::f32)
+        {
+            return _cast_vector<float>(self);
+        }
+        else if (element_type == ngraph::element::f64)
+        {
+            return _cast_vector<double>(self);
+        }
+        else if (element_type == ngraph::element::i8)
+        {
+            return _cast_vector<int8_t>(self);
+        }
+        else if (element_type == ngraph::element::i16)
+        {
+            return _cast_vector<int16_t>(self);
+        }
+        else if (element_type == ngraph::element::i32)
+        {
+            return _cast_vector<int32_t>(self);
+        }
+        else if (element_type == ngraph::element::i64)
+        {
+            return _cast_vector<int64_t>(self);
+        }
+        else if (element_type == ngraph::element::u8)
+        {
+            return _cast_vector<uint8_t>(self);
+        }
+        else if (element_type == ngraph::element::u16)
+        {
+            return _cast_vector<uint16_t>(self);
+        }
+        else if (element_type == ngraph::element::u32)
+        {
+            return _cast_vector<uint32_t>(self);
+        }
+        else if (element_type == ngraph::element::u64)
+        {
+            return _cast_vector<uint64_t>(self);
+        }
+        else
+        {
+            throw std::runtime_error("Unsupported data type!");
+        }
+    });
+
     // Provide buffer access
     constant.def_buffer([](const ngraph::op::Constant& self) -> py::buffer_info {
         auto element_type = self.get_element_type();

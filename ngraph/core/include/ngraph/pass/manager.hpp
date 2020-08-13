@@ -50,7 +50,7 @@ public:
         return rc;
     }
 
-    void run_passes(std::shared_ptr<Function>, bool transitive = true);
+    void run_passes(std::shared_ptr<Function>);
 
     void set_pass_visualization(bool new_state) { m_visualize = new_state; }
     /// \brief Set flag to enable/disable running Validate pass after executing
@@ -80,7 +80,7 @@ public:
         m_has_default_callback = false;
     }
 
-private:
+protected:
     template <typename T, class... Args>
     std::shared_ptr<T> push_pass(Args&&... args)
     {
