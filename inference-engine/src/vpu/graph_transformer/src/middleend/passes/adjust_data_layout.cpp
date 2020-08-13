@@ -210,14 +210,7 @@ void PassImpl::run(const Model& model) {
                     }
                 }
                 if (newInput == nullptr) {
-                    if (input->usage() == DataUsage::Const) {
-                        auto dataNew = model->addNewData(input->name(), input->desc());
-                    
-                        dataNew->attrs().copyFrom(input->attrs());
-                        newInput = addConvertedData(model, dataNew, requiredStrides);
-                    } else {
-                        newInput = addConvertedData(model, input, requiredStrides);
-                    }
+                    newInput = addConvertedData(model, input, requiredStrides);
 
                     _stageBuilder->addCopyStage(
                         model,
@@ -291,7 +284,6 @@ void PassImpl::run(const Model& model) {
                         newOutput,
                         output,
                         "adjustDataLayout::output");
-                    // model->replaceStageOutput(outEdge, newOutput);
                 } else {
                     IE_ASSERT(output->usage() == DataUsage::Intermediate);
 
@@ -366,23 +358,20 @@ Data PassImpl::addConvertedData(
         const Data& orig,
         const StridesRequirement& reqs) {
 
-    // if (orig->usage() == DataUsage::Const) {
-    //     std::cout << "Const addConvertedData\n";
-    //     auto newData = model->addNewData(orig->name(), orig->desc());
-    //     newData->attrs().copyFrom(orig->attrs());
-    //     auto data = model->duplicateData(newData, "@adjust-strides");
-    //     data->resetRequiredStrides();
-    //     data->updateRequiredStrides(reqs);
+    auto data = orig;
 
-    //     return data;
-    // } else 
-    {
-        auto data = model->duplicateData(orig, "@adjust-strides");
-        data->resetRequiredStrides();
-        data->updateRequiredStrides(reqs);
-
-        return data;
+    if (orig->usage() == DataUsage::Const) {
+        auto newData = model->addNewData(orig->name(), orig->desc());
+        newData->attrs().copyFrom(orig->attrs());
+        data = model->duplicateData(newData, "@adjust-strides");
+    } else {
+        data = model->duplicateData(orig, "@adjust-strides");
     }
+
+    data->resetRequiredStrides();
+    data->updateRequiredStrides(reqs);
+
+    return data;
 }
 
 }  // namespace
