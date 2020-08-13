@@ -25,6 +25,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::DepthToSpace::type_info;
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data,

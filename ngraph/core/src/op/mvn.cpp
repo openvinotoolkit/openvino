@@ -27,6 +27,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::MVN::type_info;
 
 op::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)

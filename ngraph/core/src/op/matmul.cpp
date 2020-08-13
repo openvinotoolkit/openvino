@@ -27,6 +27,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
 op::MatMul::MatMul(const Output<Node>& A,

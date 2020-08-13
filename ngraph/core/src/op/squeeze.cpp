@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::Squeeze::type_info;
 
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)

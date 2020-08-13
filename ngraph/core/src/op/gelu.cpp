@@ -29,6 +29,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::Gelu::type_info;
 
 op::Gelu::Gelu(const Output<Node>& data)

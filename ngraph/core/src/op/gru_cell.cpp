@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::v3::GRUCell::type_info;
 
 op::v3::GRUCell::GRUCell()

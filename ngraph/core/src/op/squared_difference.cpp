@@ -24,6 +24,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::SquaredDifference::type_info;
 
 op::SquaredDifference::SquaredDifference(const Output<Node>& x1,

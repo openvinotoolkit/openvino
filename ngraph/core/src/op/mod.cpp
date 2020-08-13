@@ -26,6 +26,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::v1::Mod::type_info;
 
 op::v1::Mod::Mod(const Output<Node>& A,

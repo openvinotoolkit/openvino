@@ -29,6 +29,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::RNNCell::type_info;
 
 op::RNNCell::RNNCell()

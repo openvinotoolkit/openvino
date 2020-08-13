@@ -22,6 +22,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
 
 constexpr DiscreteTypeInfo op::v0::TensorIterator::SliceInputDescription::type_info;

@@ -29,6 +29,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::GRN::type_info;
 
 op::GRN::GRN(const Output<Node>& data, float bias)

@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::NormalizeL2::type_info;
 
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,

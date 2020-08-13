@@ -27,6 +27,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::HardSigmoid::type_info;
 
 op::HardSigmoid::HardSigmoid(const Output<Node>& data,
