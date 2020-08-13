@@ -180,47 +180,43 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
 
-bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
+bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    for (shared_ptr<Function> f : functions)
+    unordered_map<Node*, HeightMap> height_maps;
+
+    for (auto& node : f->get_ops())
     {
-        unordered_map<Node*, HeightMap> height_maps;
-
-        for (auto& node : f->get_ops())
+        if (node->description() == "Result")
         {
-            if (node->description() == "Result")
-            {
-                height_maps[node.get()] = HeightMap({node.get()});
-            }
-            else
-            {
-                height_maps[node.get()] = HeightMap();
-            }
+            height_maps[node.get()] = HeightMap({node.get()});
         }
-
-        auto nodes = topological_sort(f->get_ops());
-
-        for (auto it = nodes.rbegin(); it != nodes.rend(); ++it)
+        else
         {
-            auto& node = *it;
-            for (auto& output : node->outputs())
-            {
-                for (auto& input : output.get_target_inputs())
-                {
-                    auto target_node = input.get_node();
-                    height_maps[node.get()].absorb(height_maps[target_node]);
-                }
-            }
+            height_maps[node.get()] = HeightMap();
         }
-
-        // TODO(amprocte): Maybe find a way to make this tunable.
-
-        size_t fake_node_ctr = 0;
-
-        traverse_nodes(f, [&](shared_ptr<Node> node) {
-            add_node_arguments(node, height_maps, fake_node_ctr);
-        });
     }
+
+    auto nodes = topological_sort(f->get_ops());
+
+    for (auto it = nodes.rbegin(); it != nodes.rend(); ++it)
+    {
+        auto& node = *it;
+        for (auto& output : node->outputs())
+        {
+            for (auto& input : output.get_target_inputs())
+            {
+                auto target_node = input.get_node();
+                height_maps[node.get()].absorb(height_maps[target_node]);
+            }
+        }
+    }
+
+    // TODO(amprocte): Maybe find a way to make this tunable.
+
+    size_t fake_node_ctr = 0;
+
+    traverse_nodes(
+        f, [&](shared_ptr<Node> node) { add_node_arguments(node, height_maps, fake_node_ctr); });
 
     render();
 

@@ -15,8 +15,7 @@ To visualize the nGraph function to the xDot format or to an image file, use the
 
 std::shared_ptr<ngraph::Function> nGraph;
 ...
-std::vector<std::shared_ptr<ngraph::Function>> g2{nGraph};
-ngraph::pass::VisualizeTree("after.png").run_on_module(g2);     // Visualize the nGraph function to an image
+ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
 ```
 
 ## CNNNetwork

@@ -21,7 +21,6 @@
 #include <typeinfo>
 #include <vector>
 
-#include "ngraph/pass/manager_state.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/pass/validate.hpp"
@@ -31,7 +30,6 @@ namespace ngraph
     namespace pass
     {
         class Manager;
-        class ManagerState;
     }
 }
 
@@ -54,9 +52,6 @@ public:
 
     void run_passes(std::shared_ptr<Function>, bool transitive = true);
 
-    ManagerState& get_state();
-    PassConfig& get_pass_config() { return m_pass_config; }
-    void set_pass_config(const PassConfig& pass_config) { m_pass_config = pass_config; }
     void set_pass_visualization(bool new_state) { m_visualize = new_state; }
     /// \brief Set flag to enable/disable running Validate pass after executing
     /// each registered pass
@@ -102,8 +97,6 @@ private:
     bool m_has_default_callback = true;
 
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
-    ManagerState m_state;
-    PassConfig m_pass_config;
     bool m_visualize = false;
     bool m_per_pass_validation = true;
 };

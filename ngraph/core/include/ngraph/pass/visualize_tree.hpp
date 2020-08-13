@@ -25,7 +25,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "ngraph/pass/manager_state.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
@@ -38,7 +37,11 @@ namespace ngraph
 
 class HeightMap;
 
-class NGRAPH_API ngraph::pass::VisualizeTree : public ModulePass
+using visualize_tree_ops_map_t =
+    std::unordered_map<ngraph::Node::type_info_t,
+                       std::function<void(const ngraph::Node&, std::ostream& ss)>>;
+
+class NGRAPH_API ngraph::pass::VisualizeTree : public FunctionPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -48,7 +51,7 @@ public:
     VisualizeTree(const std::string& file_name,
                   node_modifiers_t nm = nullptr,
                   bool dot_only = false);
-    bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) override;
+    bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 
     void set_ops_to_details(const visualize_tree_ops_map_t& ops_map) { m_ops_to_details = ops_map; }
 protected:
