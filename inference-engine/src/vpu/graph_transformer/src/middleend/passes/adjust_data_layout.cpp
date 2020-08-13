@@ -209,6 +209,7 @@ void PassImpl::run(const Model& model) {
                         break;
                     }
                 }
+
                 if (newInput == nullptr) {
                     newInput = addConvertedData(model, input, requiredStrides);
 
@@ -302,6 +303,7 @@ void PassImpl::run(const Model& model) {
     //
     // Final adjustment and check.
     //
+
     {
         for (const auto& stage : model->getStages()) {
             stage->finalizeDataLayout();
