@@ -12,7 +12,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockExecutableNetworkThreadSafe : public ExecutableNetworkThreadSafeDefault {
 public:
     MOCK_METHOD2(CreateInferRequestImpl,
@@ -20,4 +19,3 @@ public:
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {}
 };
-IE_SUPPRESS_DEPRECATED_END

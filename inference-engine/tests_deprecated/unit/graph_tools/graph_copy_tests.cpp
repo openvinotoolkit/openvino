@@ -47,7 +47,6 @@ protected:
             prepareOutputs(maps);
         })));
 
-        EXPECT_CALL(*mockNet, getPrecision()).WillRepeatedly(Return(Precision::FP16));
         EXPECT_CALL(*mockNet, getBatchSize()).WillRepeatedly(Return(12));
         EXPECT_CALL(*mockNet, getName()).WillRepeatedly(ReturnRefOfCopy(std::string("nm")));
 
