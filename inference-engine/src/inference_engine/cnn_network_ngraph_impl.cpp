@@ -17,10 +17,10 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
 
+#include <transformations/utils/utils.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -47,12 +47,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     if (constFolding) {
         ngraph::pass::ConstantFolding().run_on_function(specialized_function);
     }
-    // TODO: remove this code after the fix on the nGraph side
-    ::ngraph::pass::GetOutputElementElimination goe_elimination;
-    for (auto n : specialized_function->get_ops()) {
-        goe_elimination.run_on_node(n);
-    }
-    specialized_function->set_friendly_name(func->get_friendly_name());
     return specialized_function;
 }
 
@@ -244,12 +238,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
 }
 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
-    auto outputNode = output.get_node_shared_ptr();
-    auto dataName = outputNode->get_friendly_name();
-    if (outputNode->get_output_size() != 1) {
-        dataName += "." + std::to_string(output.get_index());
-    }
-
+    auto dataName = ngraph::op::util::create_ie_output_name(output);
     DataPtr data;
     createDataForResult(output, dataName, data);
     _data[dataName] = data;
@@ -317,7 +306,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
                 ::ngraph::pass::Manager manager;
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
+                        specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
@@ -361,12 +351,12 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             }
 #endif
             std::unordered_set<std::string> opName;
-            for (const auto & result : specialized_ngraph_function->get_results()) {
+            for (const auto &result : specialized_ngraph_function->get_results()) {
                 addOutput(result->input_value(0));
             }
 
-            for (const auto & parameter : specialized_ngraph_function->get_parameters()) {
-                const auto & outName = parameter->get_friendly_name();
+            for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
+                const auto &outName = parameter->get_friendly_name();
                 if (opName.find(outName) != opName.end()) {
                     THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
                 }
