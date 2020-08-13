@@ -115,16 +115,18 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
+    auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+        ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(axes, element::f32).get(),
+        normalize->get_eps(),
+        normalize->get_eps_mode());
+    NetworkHelper::copyInfo(normalize, newNormalize);
+
     auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
-        std::make_shared<opset1::NormalizeL2>(
-            dequantization.subtract == nullptr ?
-                dequantization.convert == nullptr ?
-                    dequantization.data : dequantization.convert :
-                dequantization.subtract,
-            axes,
-            normalize->get_eps(),
-            normalize->get_eps_mode()),
-        newScalesConst);
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+        ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 
     replace_node(normalize, newMultiply);
 

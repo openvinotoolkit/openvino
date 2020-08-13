@@ -85,6 +85,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ actualValues.axes.size() }, actualValues.axes);
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(parent, axesNode, 1e-6, epsMode);
+    normalizeL2->set_friendly_name("normalizeL2");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
@@ -99,26 +100,35 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     const auto input = std::make_shared<ngraph::opset1::Parameter>(expectedValues.precision, shape);
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
-    parent = convert;
-
     if (!expectedValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared< ngraph::opset1::Subtract >(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ expectedValues.subtractValues.size() }), expectedValues.subtractValues));
+        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
+        parent = convert;
+
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+            std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(std::make_shared<ngraph::opset1::Constant>(
+                precision,
+                Shape({ expectedValues.subtractValues.size() }),
+                expectedValues.subtractValues), element::f32).get());
         parent = subtract;
     }
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ expectedValues.axes.size() }, expectedValues.axes);
-    const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(parent, axesNode, 1e-6, epsMode);
+    const auto normalizeL2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::NormalizeL2>>(
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+        ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(axesNode, element::f32).get(),
+        1e-6,
+        epsMode);
     std::shared_ptr<ngraph::Node> output = normalizeL2;
 
     if (!expectedValues.mutliplyValues.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::Multiply> >(
-            output,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ 1, expectedValues.mutliplyValues.size(), 1, 1 }), expectedValues.mutliplyValues));
+        const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
+            std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+            ngraph::op::TemporaryReplaceOutputType(output, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(std::make_shared<ngraph::opset1::Constant>(
+                precision, Shape({ 1, expectedValues.mutliplyValues.size(), 1, 1 }), expectedValues.mutliplyValues), element::f32).get());
         output = multiply;
     }
 
