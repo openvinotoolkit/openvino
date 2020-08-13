@@ -93,15 +93,26 @@ class IInferencePlugin : public details::IRelease,
         std::string _dsc;
         std::string _buildNumber;
 
-    public:
-        VersionStore() = default;
-
-        explicit VersionStore(const Version& v) {
+        void copyFrom(const Version & v) {
             _dsc = v.description;
             _buildNumber = v.buildNumber;
             description = _dsc.c_str();
             buildNumber = _buildNumber.c_str();
             apiVersion = v.apiVersion;
+        }
+
+    public:
+        VersionStore() = default;
+
+        explicit VersionStore(const Version& v) {
+            copyFrom(v);
+        }
+
+        VersionStore & operator = (const VersionStore & v) {
+            if (&v != this) {
+                copyFrom(v);
+            }
+            return *this;
         }
     } _version;
 
