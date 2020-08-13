@@ -37,7 +37,7 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
         mul->set_friendly_name(div->get_friendly_name());
 
         // Copy runtime info attributes to newly created operation
-        ngraph::copy_runtime_info(div, {pow, mul});
+        ngraph::copy_runtime_info(div, NodeVector{pow, mul});
 
         // Replace Divide operation with Multiply
         ngraph::replace_node(div, mul);
