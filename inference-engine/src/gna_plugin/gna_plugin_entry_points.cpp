@@ -20,12 +20,4 @@ static const Version gnaPluginDescription = {
         "GNAPlugin"
 };
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(gnaPluginDescription, make_shared<GNAPluginInternal>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(GNAPluginInternal, gnaPluginDescription)
