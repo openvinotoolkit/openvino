@@ -46,6 +46,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
 
     ngraph::ResultVector results;
     ngraph::ParameterVector params;
+    ngraph::NodeVector to_hold;
 
     auto get_inputs = [&] (const MKLDNNNodePtr & node) {
         auto pr_edges = node->getParentEdges();
@@ -67,7 +68,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
     };
 
     auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
-        bool is_input = false, is_output = false;
+        bool is_input = false, is_output = false, should_be_hold = false;
         for (auto && kvp : graph.inputNodes) {
             if (kvp.second == node) {
                 is_input = true;
@@ -80,6 +81,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
                 is_output = true;
                 break;
             }
+        }
+
+        if (!is_output && node->getChildEdges().empty()) {
+            // The node has no consumer and is not an output.
+            // Should be hold in other irregular way.
+            should_be_hold = true;
         }
 
         auto meta_data = extract_node_metadata(node);
@@ -106,6 +113,10 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
             }
         }
 
+        if (should_be_hold) {
+            to_hold.push_back(return_node);
+        }
+
         for (auto && kvp : meta_data)
             return_node->get_rt_info()[kvp.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
         return_node->set_friendly_name(node->getName());
@@ -118,6 +129,11 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
     for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
         node2layer[node] = nodes.back();
+    }
+
+    auto holder = results[0];
+    for (auto &node : to_hold) {
+        holder->add_control_dependency(node);
     }
 
     ngraph::op::GenericIE::DisableReshape reshape(nodes);
