@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/interpolate.hpp"
+#include <algorithm>
 #include <cmath>
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/ndim_array_view.hpp"
@@ -505,7 +506,7 @@ namespace
         std::vector<int64_t> limits_for_indices(input_rank);
         for (std::size_t i = 0; i < input_rank; ++i)
         {
-            limits_for_indices[i] = padded_input_shape[i] - 1;
+            limits_for_indices[i] = input_shape[i] - 1;
         }
         auto index_vector = limits_for_indices;
 
@@ -517,6 +518,7 @@ namespace
             for (std::size_t i = 0; i < input_rank; ++i)
             {
                 padded_index[i] += pads_begin[i];
+                padded_index.set_axes_high_limit(padded_input_shape[i] - 1, i);
             }
             padded_array_view[padded_index] = input_array_view[index];
         }
