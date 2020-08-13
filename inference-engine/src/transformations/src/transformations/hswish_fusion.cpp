@@ -16,7 +16,7 @@ bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& const
     }
     if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
         auto data = constant->cast_vector<float>();
-        if (data.size() != 1 || data[0] != value) {
+        if (data.size() != 1 || std::fabs(data[0] - value) < std::numeric_limits<float>::epsilon()) {
             return false;
         }
     } else {
@@ -45,18 +45,18 @@ ngraph::pass::HSwishFusionWithRelu::HSwishFusionWithRelu() {
         auto min_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0) && check_constant_value(min_const_value, 6.0) && 
-        check_constant_value(div_const_value, 6.0);
+        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
+                                        && check_constant_value(min_const_value, 6.0)
+                                        && check_constant_value(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;
         }
 
-        auto hswish = std::make_shared<ngraph::opset4::HSwish>(pattern_output);
+        auto hswish = std::make_shared<ngraph::opset4::HSwish>(x_output);
 
         hswish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ 
-                                    pattern_to_output.at(add_constant).get_node_shared_ptr(),
+        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(add).get_node_shared_ptr(),
                                     pattern_to_output.at(relu).get_node_shared_ptr(),
                                     pattern_to_output.at(min_constant).get_node_shared_ptr(),
