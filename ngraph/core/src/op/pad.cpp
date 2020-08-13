@@ -20,6 +20,7 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/pad.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -319,5 +320,94 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
     else
     {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
+    }
+}
+
+namespace
+{
+    template <typename T>
+    bool evaluate_pad(const HostTensorPtr& data,
+                      const HostTensorPtr& pad_value,
+                      const HostTensorPtr& out,
+                      const CoordinateDiff& pads_begin,
+                      const CoordinateDiff& pads_end,
+                      const op::PadMode pad_mode)
+    {
+        ngraph::runtime::reference::pad<T>(data->get_data_ptr<T>(),
+                                   pad_value->get_data_ptr<T>(),
+                                   out->get_data_ptr<T>(),
+                                   data->get_shape(),
+                                   out->get_shape(),
+                                   pads_begin,
+                                   pads_end,
+                                   pad_mode);
+        return true;
+    }
+}
+
+bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto& pad_value = inputs[3];
+    const auto& out = outputs[0];
+
+    switch (data->get_element_type())
+    {
+    case element::Type_t::undefined:
+    case element::Type_t::dynamic:
+    case element::Type_t::u1:
+        return false;
+    case element::Type_t::boolean:
+        return evaluate_pad<char>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::bf16:
+        return evaluate_pad<bfloat16>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::f16:
+        return evaluate_pad<float16>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::f32:
+        return evaluate_pad<float>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::f64:
+        return evaluate_pad<double>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::i8:
+        return evaluate_pad<int8_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::i16:
+        return evaluate_pad<int16_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::i32:
+        return evaluate_pad<int32_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::i64:
+        return evaluate_pad<int64_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::u8:
+        return evaluate_pad<uint8_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::u16:
+        return evaluate_pad<uint16_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::u32:
+        return evaluate_pad<uint32_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
+    case element::Type_t::u64:
+        return evaluate_pad<uint64_t>(
+            data, pad_value, out, get_pads_begin(), get_pads_end(), get_pad_mode());
+        break;
     }
 }

@@ -30,28 +30,28 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void pad(const T* arg0,
-                     const T* arg1,
+            void pad(const T* data,
+                     const T* pad_value,
                      T* out,
-                     const Shape& arg0_shape,
+                     const Shape& data_shape,
                      const Shape& out_shape,
                      const CoordinateDiff& padding_below,
                      const CoordinateDiff& padding_above,
                      op::PadMode pad_mode)
             {
-                Coordinate input_start(arg0_shape.size(), 0); // start at (0,0,...,0)
+                Coordinate input_start(data_shape.size(), 0); // start at (0,0,...,0)
                 Coordinate input_end = out_shape; // end at (d'0,d'1,...,d'n), the outer corner of
                                                   // the post-padding shape
 
-                Strides input_strides(arg0_shape.size(), 1);
+                Strides input_strides(data_shape.size(), 1);
 
-                AxisVector input_axis_order(arg0_shape.size());
-                for (size_t i = 0; i < arg0_shape.size(); i++)
+                AxisVector input_axis_order(data_shape.size());
+                for (size_t i = 0; i < data_shape.size(); i++)
                 {
                     input_axis_order[i] = i;
                 }
 
-                CoordinateTransform input_transform(arg0_shape,
+                CoordinateTransform input_transform(data_shape,
                                                     input_start,
                                                     input_end,
                                                     input_strides,
@@ -74,10 +74,10 @@ namespace ngraph
                     switch (pad_mode)
                     {
                     case op::PadMode::CONSTANT:
-                        // If the coordinate is out of bounds, substitute *arg1.
+                        // If the coordinate is out of bounds, substitute *pad_value.
                         v = input_transform.has_source_coordinate(in_coord)
-                                ? arg0[input_transform.index(in_coord)]
-                                : *arg1;
+                                ? data[input_transform.index(in_coord)]
+                                : *pad_value;
                         break;
                     case op::PadMode::EDGE:
                     {
@@ -92,13 +92,13 @@ namespace ngraph
                             }
 
                             if (static_cast<ptrdiff_t>(c[i]) >=
-                                (padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i])))
+                                (padding_below[i] + static_cast<ptrdiff_t>(data_shape[i])))
                             {
                                 c[i] = static_cast<size_t>(
-                                    padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i]) - 1);
+                                    padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]) - 1);
                             }
                         }
-                        v = arg0[input_transform.index(c)];
+                        v = data[input_transform.index(c)];
                         break;
                     }
                     case op::PadMode::REFLECT:
@@ -144,13 +144,13 @@ namespace ngraph
                                     new_dim = padding_below[i] + distance_oob;
                                 }
                                 else if (new_dim >=
-                                         padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i]))
+                                         padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]))
                                 {
                                     ptrdiff_t distance_oob =
                                         new_dim - padding_below[i] -
-                                        (static_cast<ptrdiff_t>(arg0_shape[i]) - 1);
+                                        (static_cast<ptrdiff_t>(data_shape[i]) - 1);
                                     new_dim = padding_below[i] +
-                                              static_cast<ptrdiff_t>(arg0_shape[i]) - distance_oob -
+                                              static_cast<ptrdiff_t>(data_shape[i]) - distance_oob -
                                               1;
                                 }
                                 else
@@ -161,7 +161,7 @@ namespace ngraph
 
                             c[i] = static_cast<size_t>(new_dim);
                         }
-                        v = arg0[input_transform.index(c)];
+                        v = data[input_transform.index(c)];
                         break;
                     }
                     case op::PadMode::SYMMETRIC:
@@ -177,7 +177,7 @@ namespace ngraph
                             else
                             {
                                 pos = -(pos + 1);
-                                ptrdiff_t src_dim = static_cast<ptrdiff_t>(arg0_shape[i]);
+                                ptrdiff_t src_dim = static_cast<ptrdiff_t>(data_shape[i]);
                                 if (pos < src_dim)
                                 {
                                     c[i] = static_cast<size_t>(pos + padding_below[i]);
@@ -189,7 +189,7 @@ namespace ngraph
                                 }
                             }
                         }
-                        v = arg0[input_transform.index(c)];
+                        v = data[input_transform.index(c)];
                         break;
                     }
                     }

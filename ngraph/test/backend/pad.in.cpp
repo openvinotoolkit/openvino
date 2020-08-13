@@ -32,33 +32,30 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{15};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{5};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {4});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {5});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{15});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 1>(
-             {2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112})
-             .get_vector()),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(
+        test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112},
+                          read_vector<float>(result),
+                          MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
@@ -68,9 +65,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{8};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{-2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{4};
+    CoordinateDiff pads_end{-2};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -97,9 +94,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{3};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{-7};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{4};
+    CoordinateDiff pads_end{-7};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -125,11 +122,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{11};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -155,11 +151,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-3};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{-3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -184,11 +179,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-7};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{-7};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -213,11 +207,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{7};
-    CoordinateDiff padding_below{-2};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{-2};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -242,11 +235,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{2};
-    CoordinateDiff padding_below{-7};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{-7};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -271,11 +263,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{6, 9};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{1, 2};
+    CoordinateDiff pads_begin{2, 3};
+    CoordinateDiff pads_end{1, 2};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -307,11 +298,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{6, 5};
-    CoordinateDiff padding_below{2, -1};
-    CoordinateDiff padding_above{1, 2};
+    CoordinateDiff pads_begin{2, -1};
+    CoordinateDiff pads_end{1, 2};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::EDGE), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -343,10 +333,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{11};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -373,10 +363,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-3};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{-3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -402,10 +392,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-7};
+    CoordinateDiff pads_begin{2};
+    CoordinateDiff pads_end{-7};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -431,10 +421,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{7};
-    CoordinateDiff padding_below{-2};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{-2};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -460,10 +450,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{2};
-    CoordinateDiff padding_below{-7};
-    CoordinateDiff padding_above{3};
+    CoordinateDiff pads_begin{-7};
+    CoordinateDiff pads_end{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -489,10 +479,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_multi_reflect)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{22};
-    CoordinateDiff padding_below{10};
-    CoordinateDiff padding_above{9};
+    CoordinateDiff pads_begin{10};
+    CoordinateDiff pads_end{9};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -520,10 +510,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{6, 9};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{1, 2};
+    CoordinateDiff pads_begin{2, 3};
+    CoordinateDiff pads_end{1, 2};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -556,10 +546,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{6, 5};
-    CoordinateDiff padding_below{2, -1};
-    CoordinateDiff padding_above{1, 2};
+    CoordinateDiff pads_begin{2, -1};
+    CoordinateDiff pads_end{1, 2};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::REFLECT),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -593,9 +583,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5, 2};
-    CoordinateDiff padding_below{1, -1};
-    CoordinateDiff padding_above{2, 0};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{1, -1};
+    CoordinateDiff pads_end{2, 0};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -622,9 +612,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 1};
-    CoordinateDiff padding_below{-1, -1};
-    CoordinateDiff padding_above{-1, -1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{-1, -1};
+    CoordinateDiff pads_end{-1, -1};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -650,9 +640,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5, 5};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{3, 2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{2, 3};
+    CoordinateDiff pads_end{3, 2};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -683,9 +673,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5, 5};
-    CoordinateDiff padding_below{2, 1};
-    CoordinateDiff padding_above{3, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{2, 1};
+    CoordinateDiff pads_end{3, 1};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -716,9 +706,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{5, 5};
-    CoordinateDiff padding_below{1, 3};
-    CoordinateDiff padding_above{1, 2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{1, 3};
+    CoordinateDiff pads_end{1, 2};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -749,9 +739,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 2, 4, 4};
-    CoordinateDiff padding_below{0, 0, 1, 1};
-    CoordinateDiff padding_above{0, 0, 1, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{0, 0, 1, 1};
+    CoordinateDiff pads_end{0, 0, 1, 1};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -810,9 +800,9 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 1, 4, 4};
-    CoordinateDiff padding_below{0, -1, 1, 1};
-    CoordinateDiff padding_above{0, -1, 1, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    CoordinateDiff pads_begin{0, -1, 1, 1};
+    CoordinateDiff pads_end{0, -1, 1, 1};
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -868,13 +858,13 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
 {
     Shape shape_a{2, 2, 4, 4};
     auto window_movement_strides = Strides{2, 2};
-    CoordinateDiff padding_below{0, 0, 0, 0};
-    CoordinateDiff padding_above{0, 0, 2, 2};
+    CoordinateDiff pads_begin{0, 0, 0, 0};
+    CoordinateDiff pads_end{0, 0, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{2, 2, 6, 6};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
+    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
                                    ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -949,10 +939,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric)
     Shape shape_b{};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{4, 7};
-    CoordinateDiff padding_below{1, 2};
-    CoordinateDiff padding_above{1, 2};
+    CoordinateDiff pads_begin{1, 2};
+    CoordinateDiff pads_end{1, 2};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::SYMMETRIC),
+        make_shared<op::Pad>(A, B, pads_begin, pads_end, op::PadMode::SYMMETRIC),
         ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
