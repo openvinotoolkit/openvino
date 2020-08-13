@@ -91,8 +91,3 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
         throw ngraph::ngraph_error(err_msg);
     }
 }
-
-void visualize_function(std::shared_ptr<ngraph::Function> f, const std::string & file_name) {
-    std::vector<std::shared_ptr<ngraph::Function> > g{f};
-    ngraph::pass::VisualizeTree(file_name).run_on_module(g);
-}
