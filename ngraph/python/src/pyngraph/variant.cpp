@@ -14,28 +14,18 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/pass/pass_util.hpp"
-#include "ngraph/log.hpp"
+#include <pybind11/pybind11.h>
 
-using namespace std;
-using namespace ngraph;
+#include "ngraph/variant.hpp" // ngraph::Variant
+#include "pyngraph/variant.hpp"
 
-std::function<bool(std::shared_ptr<Node>)> ngraph::pass::get_no_fan_out_function()
+namespace py = pybind11;
+
+void regclass_pyngraph_Variant(py::module m)
 {
-    auto ret_fun = [](std::shared_ptr<Node> n) {
-        auto users = n->get_users(true);
-        std::set<std::shared_ptr<Node>> user_set(users.begin(), users.end());
-        size_t num_unique_users = user_set.size();
-        if (num_unique_users == 1)
-        {
-            return true;
-        }
-        else
-        {
-            NGRAPH_DEBUG << n->get_name() << " has fan out\n";
-            return false;
-        }
-    };
-
-    return ret_fun;
+    py::class_<ngraph::Variant, std::shared_ptr<ngraph::Variant>> variant_base(m, "Variant");
+    variant_base.doc() = "ngraph.impl.Variant wraps ngraph::Variant";
 }
+
+template void regclass_pyngraph_VariantWrapper<std::string>(py::module m, std::string typestring);
+template void regclass_pyngraph_VariantWrapper<int64_t>(py::module m, std::string typestring);

@@ -78,7 +78,7 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
         stack.push(node_ptr.get());
     }
 
-    while (stack.size() > 0)
+    while (!stack.empty())
     {
         Node* n = stack.top();
         stack.pop();
@@ -117,7 +117,7 @@ NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr
     traverse_nodes({node2}, compute_node2_args, NodeVector{});
 
     NodeVector common_args;
-    for (auto e : node1_args)
+    for (const auto& e : node1_args)
     {
         if (node2_args.count(e) > 0)
         {
