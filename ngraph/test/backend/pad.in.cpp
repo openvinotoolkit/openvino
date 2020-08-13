@@ -60,31 +60,29 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{8};
-    CoordinateDiff pads_begin{4};
-    CoordinateDiff pads_end{-2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, pads_begin, pads_end),
-                                   ParameterVector{A, B});
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {4});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{8});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 1>({2112, 2112, 2112, 2112, 1, 2, 3, 4}).get_vector()),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4},
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
