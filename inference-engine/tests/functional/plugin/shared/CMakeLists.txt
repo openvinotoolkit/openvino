@@ -21,9 +21,9 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
         DEPENDENCIES
+            mock_engine
             HeteroPlugin
             MultiDevicePlugin
-            mock_engine
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )
