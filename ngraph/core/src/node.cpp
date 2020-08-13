@@ -243,14 +243,6 @@ void Node::set_output_type(size_t i, const element::Type& element_type, const Pa
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
-const std::string& Node::description() const
-{
-    // Terrible transitional kludge to keep description working while we change
-    // type_name to const_char and virtual description() to virtual get_type_name()
-    const_cast<Node*>(this)->m_node_type = get_type_name();
-    return m_node_type;
-}
-
 const std::string& Node::get_friendly_name() const
 {
     if (m_friendly_name.empty())
@@ -264,7 +256,8 @@ const std::string& Node::get_name() const
 {
     if (m_unique_name.empty())
     {
-        const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
+        const_cast<Node*>(this)->m_unique_name =
+            std::string(get_type_name()) + "_" + to_string(m_instance_id);
     }
     return m_unique_name;
 }
@@ -542,8 +535,8 @@ std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
     }
     else
     {
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_name()
-            << "(";
+        out << "v" << get_type_info().version << "::" << get_type_info().name << " "
+            << get_friendly_name() << "(";
         string sep = "";
         for (auto arg : input_values())
         {
@@ -602,7 +595,7 @@ const Shape& Node::get_shape() const
     if (get_output_size() != 1)
     {
         stringstream es;
-        es << "get_shape() must be called on a node with exactly one output (" << description()
+        es << "get_shape() must be called on a node with exactly one output (" << get_type_name()
            << ")";
         throw ngraph_error(es);
     }

@@ -60,7 +60,7 @@ void op::Squeeze::pre_validate_and_infer_types()
 
     // Get value of axes from Constant
     auto axes =
-        normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
+        normalize_axes(this->get_type_name(), axes_constant->cast_vector<int64_t>(), data_rank);
 
     // Prepare set of unique axes marked to be removed from input data.
     vector<uint64_t> axes_to_squeeze(data_rank);

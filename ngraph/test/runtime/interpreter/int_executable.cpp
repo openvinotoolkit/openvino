@@ -144,7 +144,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // for each ordered op in the graph
     for (auto op : m_nodes)
     {
-        event::Duration d2(op->description(), "Interpreter");
+        event::Duration d2(op->get_type_name(), "Interpreter");
         if (op::is_parameter(op))
         {
             continue;

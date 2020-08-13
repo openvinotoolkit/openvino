@@ -134,15 +134,15 @@ public:
     void Release() noexcept override {}
 
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (impls.find(node->description()) == impls.end())
+        if (impls.find(node->get_type_name()) == impls.end())
             return {};
         return {"CPU"};
     }
 
     InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-        if (impls.find(node->description()) == impls.end() || implType != "CPU")
+        if (impls.find(node->get_type_name()) == impls.end() || implType != "CPU")
             return nullptr;
-        return impls[node->description()](node);
+        return impls[node->get_type_name()](node);
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {

@@ -1243,7 +1243,7 @@ protected:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
-            throw unsupported_op("Unsupported op '" + node.description() + "'");
+            throw unsupported_op("Unsupported op '" + std::string(node.get_type_name()) + "'");
         case OP_TYPEID::Add:
         case OP_TYPEID::Broadcast:
         case OP_TYPEID::Clamp:

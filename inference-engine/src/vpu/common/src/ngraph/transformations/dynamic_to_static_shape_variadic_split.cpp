@@ -27,7 +27,7 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
     const auto data_rank = target->get_input_partial_shape(0).rank();
     VPU_THROW_UNLESS(data_rank.is_static(), "dynamicToStaticShapeVariadic transformation for {} doesn't support dynamic rank", target);
 
-    int64_t axis = ngraph::normalize_axis(target->description(), axis_node->cast_vector<int64_t>()[0], data_rank);
+    int64_t axis = ngraph::normalize_axis(target->get_type_name(), axis_node->cast_vector<int64_t>()[0], data_rank);
 
     const auto split_lengths_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(2).get_node_shared_ptr());
     VPU_THROW_UNLESS(split_lengths_node, "dynamicToStaticShapeVariadic transformation is not applicable for {}, dynamic split_length is not supported", target);

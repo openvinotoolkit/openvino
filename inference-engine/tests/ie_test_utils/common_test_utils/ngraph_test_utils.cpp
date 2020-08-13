@@ -53,8 +53,8 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
         for (int i = 0; i < node1->inputs().size(); ++i) {
             if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
-                        << node2->description() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
+                        << node1->get_type_name() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
+                        << node2->get_type_name() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});
@@ -63,8 +63,8 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
         for (int i = 0; i < node1->outputs().size(); ++i) {
             if (!node1->output(i).get_partial_shape().same_scheme(node2->output(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
-                        << node2->description() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+                        << node1->get_type_name() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
+                        << node2->get_type_name() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
             }
         }
     }

@@ -685,7 +685,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     }
 
     // 3. Compute output_shape
-    auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
+    auto output_shape = compute_output_shape(this->get_type_name(), inputs[0]->get_shape(), k);
 
     // do this after compute_output_shape
     if (k == 0)

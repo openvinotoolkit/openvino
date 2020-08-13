@@ -230,10 +230,6 @@ namespace ngraph
         // Called after transition
         void delayed_validate_and_infer_types();
 
-        /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
-        ///        The class name, must not contain spaces as it is used for codegen.
-        /// \returns A const reference to the node's type name
-        virtual const std::string& description() const;
         /// \brief Get the unique name of the node.
         /// \returns A const reference to the node's unique name.
         const std::string& get_name() const;

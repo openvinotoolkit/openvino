@@ -40,7 +40,7 @@ void dynamicToStaticShapeSqueeze(std::shared_ptr<ngraph::Node> target) {
             "DynamicToStaticShape transformation for {} does not support default squeezing which may result in rank dynamism", target);
 
     const auto axes_value = ngraph::normalize_axes(
-            squeeze->description(), original_axes, input_rank);
+            squeeze->get_type_name(), original_axes, input_rank);
     const auto rank_value = input_rank.get_length();
 
     std::vector<int64_t> indices_vector;

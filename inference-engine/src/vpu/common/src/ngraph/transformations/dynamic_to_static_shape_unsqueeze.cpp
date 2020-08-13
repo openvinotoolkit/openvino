@@ -38,7 +38,7 @@ void dynamicToStaticShapeUnsqueeze(std::shared_ptr<ngraph::Node> target) {
     const auto original_axes = axes->cast_vector<int64_t>();
 
     auto axes_value = ngraph::normalize_axes(
-            unsqueeze->description(), original_axes, input_rank + original_axes.size());
+            unsqueeze->get_type_name(), original_axes, input_rank + original_axes.size());
     std::sort(axes_value.begin(), axes_value.end());
 
     const auto rank_value = input_rank.get_length();

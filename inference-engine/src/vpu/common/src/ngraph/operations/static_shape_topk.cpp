@@ -87,7 +87,7 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
     }
 
     PartialShape output_shape{input_partial_shape};
-    m_normalized_axis = ngraph::normalize_axis(this->description(), m_axis, output_shape.rank());
+    m_normalized_axis = ngraph::normalize_axis(this->get_type_name(), m_axis, output_shape.rank());
     if (k != 0) {
         output_shape[m_normalized_axis] = k;
     } else {
@@ -111,7 +111,7 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
 void ngraph::vpu::op::StaticShapeTopK::set_axis(const int64_t axis) {
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static()) {
-        m_normalized_axis = ngraph::normalize_axis(this->description(), axis, input_rank);
+        m_normalized_axis = ngraph::normalize_axis(this->get_type_name(), axis, input_rank);
     } else {
         m_normalized_axis = UNKNOWN_NORMALIZED_AXIS;
     }

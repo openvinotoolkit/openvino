@@ -863,7 +863,7 @@ std::vector<size_t> ngraph::normalize_axes(const std::string& node_description,
 
 int64_t ngraph::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank)
 {
-    return normalize_axis(node->description(), axis, tensor_rank);
+    return normalize_axis(node->get_type_name(), axis, tensor_rank);
 }
 
 int64_t ngraph::normalize_axis(const std::string& node_description,
@@ -898,7 +898,7 @@ int64_t ngraph::normalize_axis(const Node* node,
                                std::int64_t axis_range_max)
 {
     return ngraph::normalize_axis(
-        node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+        node->get_type_name(), axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
 int64_t ngraph::normalize_axis(const std::string& node_description,

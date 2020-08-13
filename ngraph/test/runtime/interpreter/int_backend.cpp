@@ -68,7 +68,8 @@ shared_ptr<runtime::Executable>
 
 bool runtime::interpreter::INTBackend::is_supported(const Node& node) const
 {
-    return m_unsupported_op_name_list.find(node.description()) == m_unsupported_op_name_list.end();
+    return m_unsupported_op_name_list.find(node.get_type_name()) ==
+           m_unsupported_op_name_list.end();
 }
 
 bool runtime::interpreter::INTBackend::set_config(const map<string, string>& config, string& error)
