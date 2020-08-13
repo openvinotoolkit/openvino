@@ -209,7 +209,7 @@ namespace
             filters_shape[0] /= groups;
             filters_shape.insert(filters_shape.begin(), groups);
 
-            auto reshaped_filters = builder::reshape(node->input_value(1), filters_shape);
+            auto reshaped_filters = builder::opset1::reshape(node->input_value(1), filters_shape);
 
             replacement_node = make_shared<op::v1::GroupConvolution>(node->input_value(0),
                                                                      reshaped_filters,
@@ -251,7 +251,7 @@ namespace
 
         filters_shape[0] /= groups;
         filters_shape.insert(filters_shape.begin(), groups);
-        auto reshaped_filters = builder::reshape(node->input_value(1), filters_shape);
+        auto reshaped_filters = builder::opset1::reshape(node->input_value(1), filters_shape);
 
         auto replacement_node = make_shared<op::v1::GroupConvolutionBackpropData>(
             node->input_value(2),
