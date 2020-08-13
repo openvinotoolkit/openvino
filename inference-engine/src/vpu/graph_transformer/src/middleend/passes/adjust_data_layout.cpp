@@ -210,7 +210,14 @@ void PassImpl::run(const Model& model) {
                     }
                 }
                 if (newInput == nullptr) {
-                    newInput = addConvertedData(model, input, requiredStrides);
+                    if (input->usage() == DataUsage::Const) {
+                        auto dataNew = model->addNewData(input->name(), input->desc());
+                    
+                        dataNew->attrs().copyFrom(input->attrs());
+                        newInput = addConvertedData(model, dataNew, requiredStrides);
+                    } else {
+                        newInput = addConvertedData(model, input, requiredStrides);
+                    }
 
                     _stageBuilder->addCopyStage(
                         model,
@@ -359,23 +366,23 @@ Data PassImpl::addConvertedData(
         const Data& orig,
         const StridesRequirement& reqs) {
 
-    // auto data = nullptr;
-    if (orig->usage() == DataUsage::Const) {
-        auto newData = model->addNewData(orig->name(), orig->desc());
-        auto data = model->duplicateData(newData, "@adjust-strides");
-        data->resetRequiredStrides();
-        data->updateRequiredStrides(reqs);
-        return data;
-    } else {
+    // if (orig->usage() == DataUsage::Const) {
+    //     std::cout << "Const addConvertedData\n";
+    //     auto newData = model->addNewData(orig->name(), orig->desc());
+    //     newData->attrs().copyFrom(orig->attrs());
+    //     auto data = model->duplicateData(newData, "@adjust-strides");
+    //     data->resetRequiredStrides();
+    //     data->updateRequiredStrides(reqs);
+
+    //     return data;
+    // } else 
+    {
         auto data = model->duplicateData(orig, "@adjust-strides");
         data->resetRequiredStrides();
         data->updateRequiredStrides(reqs);
+
         return data;
     }
-    
-    // data->resetRequiredStrides();
-    // data->updateRequiredStrides(reqs);
-    // return data;
 }
 
 }  // namespace
