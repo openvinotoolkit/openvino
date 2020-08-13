@@ -28,7 +28,7 @@ shared_ptr<op::Constant> fold_constant_pad(shared_ptr<op::Constant> constant,
 {
     const Shape& out_shape = pad->get_shape();
     runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
-    T* data_ptr = buffer.get_ptr<T>();
+    char* data_ptr = buffer.get_ptr<char>();
     auto pad_value = std::static_pointer_cast<op::Constant>(pad->get_input_node_shared_ptr(1));
 
     if (func != nullptr)
@@ -44,14 +44,15 @@ shared_ptr<op::Constant> fold_constant_pad(shared_ptr<op::Constant> constant,
     }
     else
     {
-        runtime::reference::pad<T>(constant->get_data_ptr<T>(),
-                                   pad_value->get_data_ptr<T>(),
-                                   data_ptr,
-                                   constant->get_shape(),
-                                   out_shape,
-                                   pad->get_padding_below(),
-                                   pad->get_padding_above(),
-                                   pad->get_pad_mode());
+        runtime::reference::pad(constant->get_data_ptr<char>(),
+                                pad_value->get_data_ptr<char>(),
+                                data_ptr,
+                                sizeof(T),
+                                constant->get_shape(),
+                                out_shape,
+                                pad->get_padding_below(),
+                                pad->get_padding_above(),
+                                pad->get_pad_mode());
     }
 
     return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
