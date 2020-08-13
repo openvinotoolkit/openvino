@@ -23,7 +23,6 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/pass/manager_state.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -62,8 +61,6 @@ namespace ngraph
             virtual const type_info_t& get_type_info() const = 0;
 
         protected:
-            ManagerState& get_state();
-            void set_state(ManagerState&);
             void set_property(const PassPropertyMask& prop, bool value);
 
             param_callback m_transformation_callback =
@@ -72,15 +69,7 @@ namespace ngraph
 
         private:
             PassPropertyMask m_property;
-            ManagerState* m_state{nullptr};
             std::string m_name;
-        };
-
-        class NGRAPH_API ModulePass : public PassBase
-        {
-        public:
-            virtual ~ModulePass();
-            virtual bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) = 0;
         };
 
         class NGRAPH_API FunctionPass : public PassBase
@@ -98,15 +87,6 @@ namespace ngraph
             NGRAPH_RTTI_DECLARATION;
             virtual ~NodePass();
             virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
-        };
-
-        class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API CallGraphPass
-            : public PassBase
-        {
-        public:
-            virtual ~CallGraphPass();
-            virtual bool run_on_call_graph(const std::list<std::shared_ptr<ngraph::Node>>&) = 0;
-            virtual bool run_on_call_graph(const std::vector<std::shared_ptr<ngraph::Node>>&);
         };
 
         class Manager;
