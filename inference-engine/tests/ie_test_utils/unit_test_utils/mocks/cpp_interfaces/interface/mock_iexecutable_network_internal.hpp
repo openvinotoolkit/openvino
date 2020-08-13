@@ -21,7 +21,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockIExecutableNetworkInternal : public IExecutableNetworkInternal {
 public:
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
@@ -37,4 +36,3 @@ public:
     MOCK_CONST_METHOD2(GetMetric, void(const std::string &name, Parameter &result));
     MOCK_CONST_METHOD1(GetContext, void(RemoteContext::Ptr &pContext));
 };
-IE_SUPPRESS_DEPRECATED_END
