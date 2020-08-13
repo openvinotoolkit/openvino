@@ -169,7 +169,7 @@ std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original)
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
 #ifdef LPT_SUPPORT
-	// replace low precision tensor to fp32
+    // replace low precision tensor to fp32
     std::shared_ptr<HostTensor> input0;
     if ((inputs[1]->get_element_type() == element::f32) &&
         (inputs[0]->get_element_type() == element::i8))

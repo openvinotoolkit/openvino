@@ -32,12 +32,12 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
                 MatMul() = default;
-                /// \brief Constructs an Matrix Multiplication operation.
-                ///
-                /// \param A Matrix A
-                /// \param B Matrix B
-                /// \param transpose_a If matrix A should be transposed.
-                /// \param transpose_b If matrix B should be transposed.
+/// \brief Constructs an Matrix Multiplication operation.
+///
+/// \param A Matrix A
+/// \param B Matrix B
+/// \param transpose_a If matrix A should be transposed.
+/// \param transpose_b If matrix B should be transposed.
 #ifdef LPT_SUPPORT
                 MatMul(const Output<Node>& A,
                        const Output<Node>& B,

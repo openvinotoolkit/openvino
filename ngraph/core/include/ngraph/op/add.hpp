@@ -77,17 +77,17 @@ namespace ngraph
                 {
                 }
 
-                /// \brief Constructs an addition operation.
-                ///
-                /// \param arg0 Output that produces the first input tensor.<br>
-                /// `[d0, ...]`
-                /// \param arg1 Output that produces the second input tensor.<br>
-                /// `[d0, ...]`
-                /// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
-                ///                       implicit broadcasting.
-                ///
-                /// Output `[d0, ...]`
-                ///
+/// \brief Constructs an addition operation.
+///
+/// \param arg0 Output that produces the first input tensor.<br>
+/// `[d0, ...]`
+/// \param arg1 Output that produces the second input tensor.<br>
+/// `[d0, ...]`
+/// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
+///                       implicit broadcasting.
+///
+/// Output `[d0, ...]`
+///
 #ifdef LPT_SUPPORT
                 Add(const Output<Node>& arg0,
                     const Output<Node>& arg1,

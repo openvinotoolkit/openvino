@@ -66,11 +66,11 @@ namespace ngraph
                 {
                 }
 
-                /// \brief Constructs a multiplication operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param auto_broadcast Auto broadcast specification
+/// \brief Constructs a multiplication operation.
+///
+/// \param arg0 Node that produces the first input tensor.
+/// \param arg1 Node that produces the second input tensor.
+/// \param auto_broadcast Auto broadcast specification
 #ifdef LPT_SUPPORT
                 Multiply(const Output<Node>& arg0,
                          const Output<Node>& arg1,

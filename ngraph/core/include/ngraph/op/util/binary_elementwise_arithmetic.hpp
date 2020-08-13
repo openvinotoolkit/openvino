@@ -58,15 +58,16 @@ namespace ngraph
 
                 BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
 
-                /// \brief Constructs a binary elementwise arithmetic operation.
-                ///
-                /// \param arg0 Output that produces the first input tensor.
-                /// \param arg1 Output that produces the second input tensor.
+/// \brief Constructs a binary elementwise arithmetic operation.
+///
+/// \param arg0 Output that produces the first input tensor.
+/// \param arg1 Output that produces the second input tensor.
 #ifdef LPT_SUPPORT
-                BinaryElementwiseArithmetic(const Output<Node>& arg0,
-                                            const Output<Node>& arg1,
-                                            const AutoBroadcastSpec& autob,
-                                            const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
+                BinaryElementwiseArithmetic(
+                    const Output<Node>& arg0,
+                    const Output<Node>& arg1,
+                    const AutoBroadcastSpec& autob,
+                    const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
 #else
                 BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                             const Output<Node>& arg1,

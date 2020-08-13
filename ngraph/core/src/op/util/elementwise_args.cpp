@@ -41,10 +41,11 @@ std::tuple<element::Type, PartialShape>
 #ifdef LPT_SUPPORT
             if (!ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global)
             {
-                NODE_VALIDATION_CHECK(
-                    node,
-                    element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
-                    "Argument element types are inconsistent.");
+                NODE_VALIDATION_CHECK(node,
+                                      element::Type::merge(element_type,
+                                                           element_type,
+                                                           node->get_input_element_type(i)),
+                                      "Argument element types are inconsistent.");
             }
             else
             {

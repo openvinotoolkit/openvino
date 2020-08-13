@@ -144,7 +144,7 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
 #ifdef LPT_SUPPORT
-	// replace low precision tensor to fp32
+    // replace low precision tensor to fp32
     std::shared_ptr<HostTensor> input0;
     if ((inputs[1]->get_element_type() == element::f32) &&
         (inputs[0]->get_element_type() == element::i8))
