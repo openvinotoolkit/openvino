@@ -47,19 +47,29 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::str
 }
 
 FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, std::string input_name, Datatype dt,
-                                                                size_t dims) {
+                                                                size_t dims, bool is_vector) {
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
+    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    size_t vec_size = is_vector ? 8 : 1;
     std::vector<std::string> idx_order;
-    if (dims == 5)
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
-    else
-        idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+    if (is_vector) {
+        if (dims == 5)
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
+        else
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+    } else {
+        if (dims == 5)
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "od", "oh", "(ow + i)"};
+        else
+            idx_order = {"(mb + " + std::to_string(conf_id * 8) + ")", "(oc*16 + local_id)", "oh", "(ow + i)"};
+    }
 
-    return { "_VEC" + std::to_string(conf_id),
+    return { suffix,
              idx_order,
-             input_name + std::to_string(conf_id),
+             input_var_name,
              dt,
-             8,
-             FusedOpsConfiguration::LoadType::LT_ALIGNED_READ,
+             vec_size,
+             is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
              FusedOpsConfiguration::BoundaryCheck::ENABLED,
              FusedOpsConfiguration::IndexType::TENSOR_COORD,
              Tensor::DataChannelName::BATCH };
@@ -287,15 +297,22 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     if (ver_16mb16c && !params.fused_ops.empty()) {
         const auto dims_num = DataTensor::ChannelsCount(input.GetLayout());
         if (output.GetDType() != Datatype::F16) {
-            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1}));
+            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "blockC0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "blockC0", input_dt, dims_num, false);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0, conf_scalar1}));
         } else {
-            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num);
-            FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3}));
+            FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num, true);
+            FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num, false);
+            FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num, false);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
+                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
         }
     } else if (!is_1stconv && !params.fused_ops.empty()) {
         FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_f16(0, "blockC0", input_dt, true);

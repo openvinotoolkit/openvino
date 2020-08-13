@@ -5689,8 +5689,9 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
 }
 
+template<typename T>
 void blockedFormatZeroCheck(cldnn::memory out_mem) {
-    auto out_ptr = out_mem.pointer<float>();
+    auto out_ptr = out_mem.pointer<T>();
 
     bool batch_blocked = false;
     if (out_mem.get_layout().format == format::bs_fs_zyx_bsv16_fsv16 ||
@@ -5714,9 +5715,12 @@ void blockedFormatZeroCheck(cldnn::memory out_mem) {
     while (i < number_of_zeroes) {
         size_t f_tmp = f_mod;
         while (f_tmp % 16 != 0) {
-            if (out_ptr[zero_ind] != 0)
+            auto equal = are_equal(out_ptr[zero_ind], 0, 1e-2f);
+            EXPECT_TRUE(equal);
+            if (!equal) {
                 std::cout << "Should be zero idx: " << zero_ind << std::endl;
-            ASSERT_EQ(out_ptr[zero_ind], 0);
+                return;
+            }
             f_tmp++;
             zero_ind++;
             i++;
@@ -5744,7 +5748,6 @@ INSTANTIATE_TEST_CASE_P(convolution_gpu_block3D,
                                 TestParamType_convolution_gpu_block_layout(17, 2, 16, 3, 1, 0, true, 32),
                                 TestParamType_convolution_gpu_block_layout(30, 2, 5, 1, 1, 0, true, 8),
                                 TestParamType_convolution_gpu_block_layout(2, 1, 7, 3, 1, 0, true, 8),
-                                TestParamType_convolution_gpu_block_layout(16, 1, 17, 1, 1, 0, true, 10),
                                 TestParamType_convolution_gpu_block_layout(5, 16, 1, 1, 1, 0, true, 5),
 
                                 TestParamType_convolution_gpu_block_layout(32, 4, 15, 1, 1, 0, false, 5),
@@ -5755,6 +5758,7 @@ INSTANTIATE_TEST_CASE_P(convolution_gpu_block3D,
                                 TestParamType_convolution_gpu_block_layout(32, 2, 1, 3, 3, 0, true, 10),
                                 TestParamType_convolution_gpu_block_layout(32, 17, 1, 1, 1, 0, true, 8),
 
+                                TestParamType_convolution_gpu_block_layout(16, 1, 17, 1, 1, 0, true, 10),
                                 TestParamType_convolution_gpu_block_layout(16, 3, 15, 1, 1, 0, false, 8),
                                 TestParamType_convolution_gpu_block_layout(16, 1, 17, 3, 1, 0, false, 1),
                                 TestParamType_convolution_gpu_block_layout(16, 15, 17, 1, 1, 0, false, 3),
@@ -5895,7 +5899,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
 
-    blockedFormatZeroCheck(out_mem);
+    blockedFormatZeroCheck<float>(out_mem);
 
     ASSERT_EQ(out_mem.get_layout().format, input_format);
 
@@ -6033,6 +6037,8 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<FLOAT16>();
 
+    blockedFormatZeroCheck<FLOAT16>(out_mem);
+
     ASSERT_EQ(out_mem.get_layout().format, input_format);
 
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
@@ -6167,7 +6173,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
 
-    blockedFormatZeroCheck(out_mem);
+    blockedFormatZeroCheck<float>(out_mem);
 
     ASSERT_EQ(out_mem.get_layout().format, input_format);
 
