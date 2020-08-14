@@ -18,7 +18,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
 #include <memory>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin_config.hpp"
 #include "caseless.hpp"
 #include <legacy/details/ie_cnn_network_tools.h>

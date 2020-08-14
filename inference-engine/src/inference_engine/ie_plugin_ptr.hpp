@@ -12,8 +12,7 @@
 #include <string>
 
 #include "details/ie_so_pointer.hpp"
-#include "ie_extension.h"
-#include "cpp_interfaces/interface/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace InferenceEngine {
 namespace details {

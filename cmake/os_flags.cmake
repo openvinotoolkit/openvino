@@ -265,6 +265,7 @@ else()
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
     ie_add_compiler_flags(-fdiagnostics-show-option)
     ie_add_compiler_flags(-Wundef)
+    ie_add_compiler_flags(-Wreturn-type)
 
     # Disable noisy warnings
 

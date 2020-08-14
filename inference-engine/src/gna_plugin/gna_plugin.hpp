@@ -29,7 +29,7 @@
 #endif
 
 namespace GNAPluginNS {
-class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::enable_shared_from_this<GNAPlugin> {
+class GNAPlugin : public InferenceEngine::IInferencePlugin {
  protected:
     std::string _pluginName = "GNA";
 

@@ -217,7 +217,7 @@ void CLDNNRemoteAllocator::unlock(void* handle) noexcept {
     release_lock();
 }
 
-CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<InferencePluginInternal> plugin,
+CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
     const ParamMap& params,
     const Config& config) :
     m_plugin(plugin),

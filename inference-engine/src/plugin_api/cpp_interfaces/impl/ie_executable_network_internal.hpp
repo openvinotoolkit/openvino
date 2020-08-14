@@ -85,7 +85,7 @@ public:
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
      */
-    void SetPointerToPluginInternal(IInferencePluginInternal::Ptr plugin) {
+    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
         _plugin = plugin;
     }
 
@@ -130,10 +130,10 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
     /**
-     * @brief A pointer to a IInferencePluginInternal interface.
+     * @brief A pointer to a IInferencePlugin interface.
      * @note Needed to correctly handle ownership between objects.
      */
-    IInferencePluginInternal::Ptr _plugin;
+    IInferencePlugin::Ptr _plugin;
 };
 
 }  // namespace InferenceEngine

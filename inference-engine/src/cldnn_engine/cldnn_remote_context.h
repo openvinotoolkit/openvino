@@ -213,7 +213,7 @@ public:
     using Ptr = std::shared_ptr<CLDNNExecutionContextImpl>;
     using CPtr = std::shared_ptr<const CLDNNExecutionContextImpl>;
 
-    explicit CLDNNExecutionContextImpl(std::shared_ptr<InferencePluginInternal> plugin,
+    explicit CLDNNExecutionContextImpl(std::shared_ptr<IInferencePlugin> plugin,
         const ParamMap& params,
         const Config& config = {});
 
@@ -223,7 +223,7 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
     Config& GetConfig() { return m_config; }
     ContextType GetType() const { return m_type; }
-    const std::weak_ptr<InferencePluginInternal> GetPlugin() const { return m_plugin; }
+    const std::weak_ptr<IInferencePlugin> GetPlugin() const { return m_plugin; }
 
     void acquire_lock() {
         while (lock.test_and_set(std::memory_order_acquire)) {}
@@ -239,7 +239,7 @@ protected:
     Config m_config;
 
     ContextType m_type;
-    std::weak_ptr<InferencePluginInternal> m_plugin;
+    std::weak_ptr<IInferencePlugin> m_plugin;
     std::atomic_flag lock;
 };
 
@@ -374,7 +374,7 @@ public:
     using Ptr = std::shared_ptr<typedCLDNNExecutionContext>;
     using CPtr = std::shared_ptr<const typedCLDNNExecutionContext>;
 
-    explicit typedCLDNNExecutionContext(std::shared_ptr<InferencePluginInternal> plugin,
+    explicit typedCLDNNExecutionContext(std::shared_ptr<IInferencePlugin> plugin,
         const ParamMap& params,
         const Config& config = {})
         : _impl(plugin, params, config) {}
