@@ -18,10 +18,13 @@
 from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
 from ngraph.opset1.ops import acos
+from ngraph.opset4.ops import acosh
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
+from ngraph.opset4.ops import asinh
 from ngraph.opset3.ops import assign
 from ngraph.opset1.ops import atan
+from ngraph.opset4.ops import atanh
 from ngraph.opset1.ops import avg_pool
 from ngraph.opset1.ops import batch_norm_inference
 from ngraph.opset2.ops import batch_to_space
