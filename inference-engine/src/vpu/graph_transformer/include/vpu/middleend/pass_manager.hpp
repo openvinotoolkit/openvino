@@ -218,6 +218,7 @@ public:
     //
 
     Pass::Ptr dumpModel(const std::string& postfix);
+    Pass::Ptr markFastStages();
 
     //
     // Dilation Conv NCE  passes
