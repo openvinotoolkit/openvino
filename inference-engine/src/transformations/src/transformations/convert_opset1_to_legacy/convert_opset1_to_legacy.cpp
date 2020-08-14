@@ -40,8 +40,6 @@
 #include <transformations/batch_norm_decomposition.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <transformations/mul_add_squence_fusion.hpp>
-#include <transformations/mul_add_verification.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
