@@ -17,8 +17,8 @@
 #pragma once
 
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/shape.hpp"
+#include "runtime/reference/reshape.hpp"
 
 namespace ngraph
 {

@@ -20,8 +20,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/asinh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/asinh.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "runtime/reference/asinh.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -19,8 +19,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/mean.hpp"
 #include "ngraph/shape_util.hpp"
+#include "runtime/reference/mean.hpp"
 
 using namespace std;
 using namespace ngraph;

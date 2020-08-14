@@ -28,7 +28,7 @@
 #include "ngraph/op/subtract.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/acos.hpp"
+#include "runtime/reference/acos.hpp"
 
 #include <string>
 

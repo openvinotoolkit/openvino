@@ -28,7 +28,7 @@
 #include "ngraph/shape.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/asin.hpp"
+#include "runtime/reference/asin.hpp"
 
 #include <string>
 #include <vector>

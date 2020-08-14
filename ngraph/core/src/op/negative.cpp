@@ -17,7 +17,7 @@
 #include "ngraph/op/negative.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/negate.hpp"
+#include "runtime/reference/negate.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -20,7 +20,7 @@
 #include "ngraph/op/relu.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
+#include "runtime/reference/relu.hpp"
 
 using namespace std;
 using namespace ngraph;

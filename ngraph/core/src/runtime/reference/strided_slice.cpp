@@ -19,7 +19,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
+#include "runtime/reference/strided_slice.hpp"
 
 using namespace ngraph;
 

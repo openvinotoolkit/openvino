@@ -63,6 +63,7 @@ if (NOT WIN32)
 endif()
 target_compile_definitions(ngraph_backend PRIVATE BACKEND_DLL_EXPORTS)
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(ngraph_backend PUBLIC ${NGRAPH_PRIVATE_INCLUDE_PATH})
 
 add_subdirectory(interpreter)
 

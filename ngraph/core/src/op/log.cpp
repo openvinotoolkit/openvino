@@ -20,7 +20,7 @@
 #include "ngraph/op/log.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/log.hpp"
+#include "runtime/reference/log.hpp"
 
 using namespace std;
 using namespace ngraph;

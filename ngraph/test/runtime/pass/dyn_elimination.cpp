@@ -25,8 +25,8 @@
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/pattern/op/label.hpp"
-#include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/slice_plan.hpp"
+#include "runtime/reference/range.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -19,7 +19,7 @@
 #include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/gather_nd.hpp"
+#include "runtime/reference/gather_nd.hpp"
 
 namespace ngraph
 {

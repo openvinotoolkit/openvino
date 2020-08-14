@@ -19,7 +19,7 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/transpose.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "runtime/opt_kernel/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;

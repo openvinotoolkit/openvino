@@ -17,7 +17,7 @@
 #include "ngraph/op/tile.hpp"
 
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/tile.hpp"
+#include "runtime/reference/tile.hpp"
 
 using namespace std;
 using namespace ngraph;

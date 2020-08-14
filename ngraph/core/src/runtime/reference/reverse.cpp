@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
+#include "runtime/reference/reverse.hpp"
 
 using namespace ngraph;
 

@@ -14,29 +14,29 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <algorithm>
+#pragma once
+
+#include <cmath>
 
 #include "ngraph/check.hpp"
-#include "runtime/reference/eval_helpers.hpp"
+#include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/slice_plan.hpp"
+#include "runtime/opt_kernel/reshape.hpp"
+#include "runtime/reference/reverse.hpp"
+#include "runtime/reference/slice.hpp"
 
 namespace ngraph
 {
-    namespace eval
+    namespace runtime
     {
-        AxisSet extract_reduction_axes(const HostTensorPtr& axes, const char* op_name)
+        namespace reference
         {
-            const auto axes_count = axes->get_element_count();
-            const auto axes_buffer = axes->get_data_ptr<int64_t>();
-
-            const bool negative_axis_received = std::any_of(
-                axes_buffer, axes_buffer + axes_count, [](const int64_t axis) { return axis < 0; });
-
-            NGRAPH_CHECK(!negative_axis_received,
-                         "Negative axis value received in the ",
-                         op_name,
-                         " evaluation. This case is not supported.");
-
-            return AxisSet(std::vector<AxisSet::value_type>(axes_buffer, axes_buffer + axes_count));
+            void strided_slice(const char* arg,
+                               char* out,
+                               const Shape& arg_shape,
+                               const SlicePlan& sp,
+                               size_t elem_type);
         }
     }
 }

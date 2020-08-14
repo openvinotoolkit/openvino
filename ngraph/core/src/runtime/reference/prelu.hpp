@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,14 +17,11 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
+#include <op/util/attr_types.hpp>
+#include <shape.hpp>
 
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
-#include "ngraph/slice_plan.hpp"
+#include "runtime/reference/autobroadcast_binop.hpp"
 
 namespace ngraph
 {
@@ -32,11 +29,20 @@ namespace ngraph
     {
         namespace reference
         {
-            void strided_slice(const char* arg,
-                               char* out,
-                               const Shape& arg_shape,
-                               const SlicePlan& sp,
-                               size_t elem_type);
+            template <typename T>
+            void prelu(const T* arg,
+                       const T* slope,
+                       T* out,
+                       const Shape& arg_shape,
+                       const Shape& slope_shape)
+            {
+                int cnt = 0;
+                for (size_t i = 0; i < shape_size(arg_shape); ++i)
+                {
+                    out[i] =
+                        arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) : arg[i];
+                }
+            }
         }
     }
 }

@@ -23,11 +23,11 @@
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "runtime/reference/strided_slice.hpp"
 
 #include <algorithm>
 

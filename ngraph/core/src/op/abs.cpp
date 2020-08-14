@@ -21,7 +21,7 @@
 #include "ngraph/op/sign.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/abs.hpp"
+#include "runtime/reference/abs.hpp"
 
 using namespace std;
 using namespace ngraph;

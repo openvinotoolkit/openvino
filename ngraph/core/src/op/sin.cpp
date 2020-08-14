@@ -21,7 +21,7 @@
 #include "ngraph/op/sin.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sin.hpp"
+#include "runtime/reference/sin.hpp"
 
 using namespace std;
 using namespace ngraph;
