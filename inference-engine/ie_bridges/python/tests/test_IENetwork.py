@@ -200,11 +200,11 @@ def test_serialize(recwarn):
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
-    # assert net.layers.keys() == serialized_net.layers.keys()
+    assert net.layers.keys() == serialized_net.layers.keys()
     os.remove("./serialized_net.xml")
     os.remove("./serialized_net.bin")
-    # assert len(recwarn) == 2
-    # assert recwarn.pop(DeprecationWarning)
+    assert len(recwarn) == 2
+    assert recwarn.pop(DeprecationWarning)
 
 
 def test_reshape():

@@ -1263,7 +1263,7 @@ cdef class InferRequest:
 ## This class represents a main layer information and providing setters allowing to modify layer properties
 #
 #  \note This class is deprecated: for working with layers, please, use nGraph Python API.
-#        This class will going to be removed in 2021.2
+#        This class is going to be removed in 2021.2
 #
 cdef class IENetLayer:
     ## Name of the layer

@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 import logging as log
 from openvino.inference_engine import IECore
-import ngraph as ng
+
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
@@ -65,8 +65,7 @@ def main():
 
     if "CPU" in args.device:
         supported_layers = ie.query_network(net, "CPU")
-        func = ng.function_from_cnn(net)
-        not_supported_layers = [l.friendly_name for l in func.get_ops() if l.friendly_name not in supported_layers]
+        not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
         if len(not_supported_layers) != 0:
             log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
                       format(args.device, ', '.join(not_supported_layers)))
