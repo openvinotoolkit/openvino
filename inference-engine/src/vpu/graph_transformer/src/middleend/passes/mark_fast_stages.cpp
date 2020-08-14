@@ -15,11 +15,11 @@ public:
 
         for (const auto& stage : model->getStages()) {
             const auto& outputs = stage->outputs();
-            const auto& itSlowStage = std::find_if(outputs.begin(), outputs.end(), [](const Data& output) {
-                return output->desc().totalDimSize() > 100;
+            const auto isStageFast = std::all_of(outputs.begin(), outputs.end(), [](const Data& output) {
+                return output->desc().totalDimSize() <= 100;
             });
 
-            if (itSlowStage == outputs.end()) {
+            if (isStageFast) {
                 stage->appendNamePostfix("@fast-stage");
             }
         }
