@@ -23,11 +23,11 @@
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
-#include <net_pass.h>
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/net_pass.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <ie_memcpy.h>
 
 #include "precision_utils.h"
@@ -634,10 +634,6 @@ void MKLDNNGraph::AllocateWithReuse() {
             isConst  |= isConstOutput(edge);
             isOutput |= edge->getChild()->getType() == Output;
             isInput  |= edge->getParent()->getType() == Input;
-
-            // WA. MemoryOutput will keep data in that edge
-            // So need to make it immortal..
-            isConst |= edge->getParent()->getType() == MemoryInput;
         }
 
         if (reuse_io_tensors) {

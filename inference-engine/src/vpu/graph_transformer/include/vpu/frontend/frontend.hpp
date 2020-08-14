@@ -66,9 +66,6 @@ private:
     void removeConstLayers(
             ie::ICNNNetwork& network);
 
-    void moveConstInputsToBlobs(
-            ie::ICNNNetwork& network);
-
     //
     // Process internal VPU Model
     //

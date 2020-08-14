@@ -16,7 +16,6 @@
 
 #include "ie_executable.hpp"
 #include "ie_tensor.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/shape.hpp"
@@ -102,16 +101,8 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            if (node->get_type_info() == op::GetOutputElement::type_info)
-            {
-                // IE currently can handle GetOutuputElement op;
-                continue;
-            }
-            else
-            {
-                cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
-                THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
-            }
+            cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
+            THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
         }
     }
 

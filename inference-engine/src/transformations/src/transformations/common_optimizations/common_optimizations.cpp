@@ -12,6 +12,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/itt.hpp"
 #include "transformations/mish_fusion.hpp"
+#include "transformations/swish_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>
@@ -30,6 +31,7 @@
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/lin_op_sequence_fusoin.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
 
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
@@ -48,6 +50,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
+    manager.register_pass<ngraph::pass::SwishFusion>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->set_name("CommonDecompositions");
@@ -71,7 +74,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    // TODO: here should be Convolution + Multiply fusion
+    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);

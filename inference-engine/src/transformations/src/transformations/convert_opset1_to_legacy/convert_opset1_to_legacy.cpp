@@ -27,6 +27,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
@@ -61,10 +62,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertConvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertGroupConvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
@@ -74,9 +71,16 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
+    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+
+    // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
-    fusion->add_matcher<ngraph::pass::ConvMultiplyFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
     fusion->set_name("ngraph::pass::Fusions");
@@ -108,6 +112,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
     anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSwishToSwishIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
     anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();

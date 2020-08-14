@@ -6,7 +6,7 @@
 #include "mkldnn_depthwise_node.h"
 #include "mkldnn_activation_node.h"
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"

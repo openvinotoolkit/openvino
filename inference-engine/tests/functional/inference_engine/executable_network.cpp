@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "cpp_interfaces/base/ie_plugin_base.hpp"
+#include <cpp/ie_executable_network.hpp>
 
 using namespace ::testing;
 using namespace std;
