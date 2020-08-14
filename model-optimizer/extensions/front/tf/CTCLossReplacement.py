@@ -173,8 +173,8 @@ class CTCLossReplacement(FrontReplacementSubgraph):
 
         select_node = Select(graph, {'name': output_sparse_to_dense_name + '/Select'}).create_node()
         select_node.in_port(0).connect(equal_op.out_port(0))
-        select_node.in_port(1).connect(broadcast_one.out_port(0))
-        select_node.in_port(2).connect(broadcast_zero.out_port(0))
+        select_node.in_port(1).connect(broadcast_zero.out_port(0))
+        select_node.in_port(2).connect(broadcast_one.out_port(0))
         label_length_node = create_op_with_const_inputs(graph, ReduceSum, {1: int64_array([1])},
                                                       op_attrs={'name': output_sparse_to_dense_name + '/LabelLength',
                                                                 'keep_dims': False})

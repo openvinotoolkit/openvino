@@ -114,8 +114,8 @@ class CTCLossFrontReplacementTest(unittest.TestCase):
                                  ('labels_shape_op', 'broadcast_zero_op', {'out': 0, 'in': 1}),
 
                                  ('equal_op', 'select_op', {'out': 0, 'in': 0}),
-                                 ('broadcast_one_op', 'select_op', {'out': 0, 'in': 1}),
-                                 ('broadcast_zero_op', 'select_op', {'out': 0, 'in': 2}),
+                                 ('broadcast_zero_op', 'select_op', {'out': 0, 'in': 1}),
+                                 ('broadcast_one_op', 'select_op', {'out': 0, 'in': 2}),
 
                                  ('select_op', 'label_length_op', {'out': 0, 'in': 0}),
                                  ('reduce_sum_axis', 'label_length_op', {'out': 0, 'in': 1}),
