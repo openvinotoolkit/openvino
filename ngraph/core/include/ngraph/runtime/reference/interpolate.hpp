@@ -238,10 +238,13 @@ namespace ngraph
                 {
                     std::array<float, 4> coeff;
                     float abs_s = std::fabs(s);
-                    coeff[0] = static_cast<float>(((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
+                    coeff[0] = static_cast<float>(
+                        ((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
                     coeff[1] = static_cast<float>(((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1);
-                    coeff[2] = static_cast<float>(((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
-                    coeff[3] = static_cast<float>(((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
+                    coeff[2] = static_cast<float>(
+                        ((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
+                    coeff[3] = static_cast<float>(
+                        ((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
                     return coeff;
                 }
 
@@ -380,7 +383,7 @@ namespace ngraph
                 assert((input_rank == 2) || (input_rank == 4));
                 assert(m_axes.size() == 2);
                 bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1)) ||
-                    ((m_axes[0] == 2) && (m_axes[1] == 3));
+                                    ((m_axes[0] == 2) && (m_axes[1] == 3));
                 assert(correct_axes);
 
                 Shape input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
@@ -413,7 +416,8 @@ namespace ngraph
                 std::vector<float> dx1(output_width);
                 std::vector<float> dx2(output_width);
 
-                for (int64_t y = 0; y < output_height; ++y) {
+                for (int64_t y = 0; y < output_height; ++y)
+                {
                     float in_y = m_get_original_coord(static_cast<float>(y),
                                                       height_scale,
                                                       static_cast<float>(output_height),
@@ -426,16 +430,18 @@ namespace ngraph
                     dy1[y] = std::fabs(in_y - in_y1);
                     dy2[y] = std::fabs(in_y - in_y2);
 
-                    if (in_y1 == in_y2) {
-                       dy1[y] = 0.5f;
-                       dy2[y] = 0.5f;
+                    if (in_y1 == in_y2)
+                    {
+                        dy1[y] = 0.5f;
+                        dy2[y] = 0.5f;
                     }
 
                     input_width_mul_y1[y] = input_width * in_y1;
                     input_width_mul_y2[y] = input_width * in_y2;
                 }
 
-                for (int64_t x = 0; x < output_width; ++x) {
+                for (int64_t x = 0; x < output_width; ++x)
+                {
                     float in_x = m_get_original_coord(static_cast<float>(x),
                                                       width_scale,
                                                       static_cast<float>(output_width),
@@ -448,7 +454,8 @@ namespace ngraph
 
                     dx1[x] = std::abs(in_x - in_x1[x]);
                     dx2[x] = std::abs(in_x - in_x2[x]);
-                    if (in_x1[x] == in_x2[x]) {
+                    if (in_x1[x] == in_x2[x])
+                    {
                         dx1[x] = 0.5f;
                         dx2[x] = 0.5f;
                     }
@@ -456,19 +463,22 @@ namespace ngraph
 
                 const T* xdata = input_data;
                 T* ydata = out;
-                for (int64_t n = 0; n < batch_size; ++n) {
-                    for (int64_t c = 0; c < num_channels; ++c) {
-                        for (int64_t y = 0; y < output_height; ++y) {
-                            for (int64_t x = 0; x < output_width; ++x) {
-                            T x11 = xdata[input_width_mul_y1[y] + in_x1[x]];
-                            T x21 = xdata[input_width_mul_y1[y] + in_x2[x]];
-                            T x12 = xdata[input_width_mul_y2[y] + in_x1[x]];
-                            T x22 = xdata[input_width_mul_y2[y] + in_x2[x]];
+                for (int64_t n = 0; n < batch_size; ++n)
+                {
+                    for (int64_t c = 0; c < num_channels; ++c)
+                    {
+                        for (int64_t y = 0; y < output_height; ++y)
+                        {
+                            for (int64_t x = 0; x < output_width; ++x)
+                            {
+                                T x11 = xdata[input_width_mul_y1[y] + in_x1[x]];
+                                T x21 = xdata[input_width_mul_y1[y] + in_x2[x]];
+                                T x12 = xdata[input_width_mul_y2[y] + in_x1[x]];
+                                T x22 = xdata[input_width_mul_y2[y] + in_x2[x]];
 
-                            ydata[output_width * y + x] = static_cast<T>(dx2[x] * dy2[y] * x11 +
-                                                                         dx1[x] * dy2[y] * x21 +
-                                                                         dx2[x] * dy1[y] * x12 +
-                                                                         dx1[x] * dy1[y] * x22);
+                                ydata[output_width * y + x] =
+                                    static_cast<T>(dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21 +
+                                                   dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22);
                             }
                         }
                         xdata += input_height * input_width;
@@ -521,7 +531,8 @@ namespace ngraph
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
-                                clip_coord(input_coords[axis] + index[i] - 1, static_cast<float>(m_input_data_shape[axis]));
+                                clip_coord(input_coords[axis] + index[i] - 1,
+                                           static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][index[i]];
                         }
                         summa += coeffs_prod * input_view[coords_for_sum];
