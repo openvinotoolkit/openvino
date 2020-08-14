@@ -55,7 +55,7 @@ public:
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory_impl& data);
-    void set_output_memory(const primitive_id& id, memory_impl& mem);
+    void set_output_memory(const primitive_id& id, memory_impl& mem, bool isFirst = true);
 
     void set_learning_rate(const float lr);
     float get_learning_rate();
@@ -79,7 +79,7 @@ public:
     void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
-    std::string get_primitive_info(const primitive_id& id) const;
+    std::string get_primitive_info_string(const primitive_id& id) const;
     const event_impl::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);

@@ -23,6 +23,7 @@
 #include <list>
 #include <utility>
 
+#include "arg_max_min_inst.h"
 #include "reshape_inst.h"
 
 using namespace cldnn;
@@ -165,9 +166,16 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         auto& r_node = node->as<reorder>();
 
-        bool no_output_optimization = remove_output_reorders ?
-            r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                r_node.get_dependency(0).can_be_optimized()) : r_node.is_output();
+        // We should not try optimize output in case when node before reorder
+        // is argmax or output from argmax.
+        auto& dep = r_node.get_dependency(0);
+        bool no_output_optimization =
+            remove_output_reorders
+                ? r_node.is_output() &&
+                      (dep.is_output() || dep.is_type<input_layout>() || dep.is_type<arg_max_min>() ||
+                       (dep.get_dependencies().size() > 0 && dep.get_dependency(0).is_type<arg_max_min>()) ||
+                       dep.can_be_optimized())
+                : r_node.is_output();
 
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||

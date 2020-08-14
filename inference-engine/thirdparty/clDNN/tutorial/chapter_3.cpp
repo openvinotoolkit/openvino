@@ -54,7 +54,7 @@ void chapter_3(engine& engine, topology& topology)
     for (auto it : outputs)
     {
         // Print primtive info for all outputs.
-        std::cout << network.get_primitive_info(it.first) << std::endl;
+        std::cout << network.get_primitive_info_string(it.first) << std::endl;
         // OUTPUT:
         // id: fc, type : fully connected
         //     input : softmax, count : 3, size : [b:1, f : 1, x : 3, y : 1]
@@ -71,7 +71,7 @@ void chapter_3(engine& engine, topology& topology)
         }
         std::cout << std::endl;
 
-        // As you probably noticed network output is a result of the last one primitive "fc". By the last one we mean, the one that 
+        // As you probably noticed network output is a result of the last one primitive "fc". By the last one we mean, the one that
         // is not input to any other primitive.
     }
 

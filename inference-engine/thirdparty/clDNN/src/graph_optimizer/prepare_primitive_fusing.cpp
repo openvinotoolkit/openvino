@@ -1066,7 +1066,13 @@ void prepare_conv_eltw_read_write_opt::run(program_impl& p) {
     while (itr != fused_conv_eltw_nodes.end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
+        bool optimizeRW = true;
+        for (auto& it : node->get_users()) {
+            if (it->is_output())
+                optimizeRW = false;
+        }
 
-        conv_eltwise_read_write_opt(p, node);
+        if (optimizeRW)
+            conv_eltwise_read_write_opt(p, node);
     }
 }

@@ -98,6 +98,10 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
         net_id++;
     }
 
+    for (auto& id : network->get_output_ids()) {
+        outputLayouts.insert({id, network->get_primitive_info(id).output_layout});
+    }
+
     return network;
 }
 
@@ -576,7 +580,7 @@ void CLDNNGraph::UpdateImplementationsMap() {
         for (auto& id : profilingIDs) {
             std::string prim_info = "";
             try {
-                prim_info = GetNetwork()->get_primitive_info(id);
+                prim_info = GetNetwork()->get_primitive_info_string(id);
             } catch (std::exception& /*e*/) { }
 
             implementationsMap.insert({id, extractImplementationFromInfo(prim_info)});

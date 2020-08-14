@@ -57,6 +57,8 @@ public:
     std::shared_ptr<const cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
     int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->getInputLayouts(); }
+    const std::map<std::string, cldnn::layout>& GetOutputLayouts() const { return outputLayouts; }
+    bool IsFirstOutput(const cldnn::primitive_id& id) const { return m_program->isFirstOutput(id); }
     size_t GetNetworksCount() const { return m_networks.size(); }
     std::shared_ptr<cldnn::network> GetNetwork(size_t idx = 0) const;
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
@@ -73,6 +75,7 @@ protected:
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
     std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
+    std::map<std::string, cldnn::layout> outputLayouts;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
     std::map<cldnn::primitive_id, std::string> implementationsMap;

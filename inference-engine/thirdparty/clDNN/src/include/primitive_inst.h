@@ -96,7 +96,7 @@ public:
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     network_impl& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    void set_output_memory(memory_impl& mem);
+    void set_output_memory(memory_impl& mem, bool isFirst = true);
     void check_memory_to_set(const memory_impl& mem, const layout& layout) const;
 
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead

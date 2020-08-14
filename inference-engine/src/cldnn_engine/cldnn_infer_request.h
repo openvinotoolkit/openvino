@@ -48,6 +48,7 @@ public:
 
 protected:
     std::map<std::string, cldnn::memory> inputsMemory;
+    std::map<std::string, cldnn::memory> outputsMemory;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
     bool m_useProfiling;
@@ -68,6 +69,8 @@ protected:
 
     void input_attach(cldnn::primitive_id name, cldnn::memory& inputMem);
     void input_alloc(cldnn::primitive_id name, const cldnn::layout& layout);
+    void output_attach(cldnn::primitive_id name, cldnn::memory& outputMem);
+    void output_alloc(cldnn::primitive_id name, const cldnn::layout& layout);
     void AllocateInputs();
     void AllocateOutputs();
     void AllocateInputsDyn();

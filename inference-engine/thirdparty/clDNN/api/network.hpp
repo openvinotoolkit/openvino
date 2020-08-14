@@ -111,7 +111,7 @@ struct network {
     void set_input_data(const primitive_id& id, const memory& mem) const;
 
     /// @brief Provides user-supplied @ref memory for output primitives defined by user in source @ref topology.
-    void set_output_memory(const primitive_id& id, const memory& mem) const;
+    void set_output_memory(const primitive_id& id, const memory& mem, bool isFirst = true) const;
 
     /// @brief Return stream id.
     uint16_t get_stream_id();
@@ -119,10 +119,12 @@ struct network {
     /// @brief Return internal network id.
     uint32_t get_id();
 
-    std::string get_primitive_info(const primitive_id& id) const;
+    std::string get_primitive_info_string(const primitive_id& id) const;
+
+    primitive_info get_primitive_info(const primitive_id& id) const;
 
     /// @brief Returns description of final runtime graph
-    std::vector<primitive_info> get_primitives_info();
+    std::vector<primitive_info> get_primitives_info() const;
 
     /// @brief Returns description of all optimization stages
     std::vector<std::pair<std::string, std::vector<primitive_info>>> get_optimization_steps_info();

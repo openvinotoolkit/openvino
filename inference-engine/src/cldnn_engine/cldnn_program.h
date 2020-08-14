@@ -98,6 +98,7 @@ public:
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
+    std::map<cldnn::primitive_id, bool> outputInFirstPort;
     std::map<const char *, cldnn::primitive_id> blobMemCache;
 
     int m_max_batch;
@@ -107,6 +108,7 @@ public:
 
     std::vector<cldnn::primitive_id> GetPrevLayersPrimitives(const InferenceEngine::CNNLayerPtr layer) const;
     const std::map<std::string, cldnn::layout>& getInputLayouts() const { return inputLayouts; }
+    bool isFirstOutput(const cldnn::primitive_id& outputID) const;
     int GetMaxBatchSizeForSingleProgram();
 
     void AddPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,

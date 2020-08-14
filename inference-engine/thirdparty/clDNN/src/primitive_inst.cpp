@@ -72,12 +72,27 @@ void primitive_inst::check_memory_to_set(const memory_impl& mem, const layout& l
     }
 }
 
-void primitive_inst::set_output_memory(memory_impl& mem) {
+void primitive_inst::set_output_memory(memory_impl& mem, bool isFirst) {
     auto ol = _node.get_output_layout();
 
     check_memory_to_set(mem, ol);
 
-    _output = (memory_impl::ptr) &mem;
+    if (_node.is_constant())
+        mem.copy_from_other(*_output.get());
+    else
+        _output = (memory_impl::ptr) &mem;
+
+    for (const auto& dep : _node.get_dependencies()) {
+        if (dep->is_type<arg_max_min>()) {
+            if (!isFirst) {
+                for (const auto& in : dep->get_dependencies()) {
+                    if (in->is_type<mutable_data>()) {
+                        _network.get_primitive(in->id())->set_output_memory(mem);
+                    }
+                }
+            }
+        }
+    }
 }
 
 event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& events) {

@@ -48,7 +48,7 @@ TEST(memory_tests, DISABLED_execution_loop)
     };
 
     network net(eng, tpl);
-    
+
     while (true)
     {
         net.set_input_data("in", in);

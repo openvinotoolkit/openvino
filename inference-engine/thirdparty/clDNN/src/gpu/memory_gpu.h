@@ -86,6 +86,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory_impl {
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
+    void copy_from_other(const memory_impl& other) override;
     shared_mem_params get_internal_params() const override;
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
@@ -110,6 +111,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory_impl {
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
+    void copy_from_other(const memory_impl& other) override;
     shared_mem_params get_internal_params() const override;
     const cl::Image2D& get_buffer() const {
         assert(0 == _lock_count);
@@ -178,7 +180,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory_impl {
 
     void fill(unsigned char pattern, event_impl::ptr ev) override;
     void zero_buffer();
-    void copy_from_other(const gpu_usm& other);
+    void copy_from_other(const memory_impl& other) override;
     shared_mem_params get_internal_params() const override;
 protected:
     gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id, allocation_type type, bool reset = true);

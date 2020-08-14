@@ -71,19 +71,28 @@ void network::set_input_data(const primitive_id& id, const memory& mem) const {
     _impl->set_input_data(id, *mem.get());
 }
 
-void network::set_output_memory(const primitive_id& id, const memory& mem) const {
-    _impl->set_output_memory(id, *mem.get());
+void network::set_output_memory(const primitive_id& id, const memory& mem, bool isFirst) const {
+    _impl->set_output_memory(id, *mem.get(), isFirst);
 }
 
 uint32_t network::get_id() {
     return _impl->get_id();
 }
 
-std::string network::get_primitive_info(const primitive_id& id) const {
-    return _impl->get_primitive_info(id);
+std::string network::get_primitive_info_string(const primitive_id& id) const {
+    return _impl->get_primitive_info_string(id);
 }
 
-std::vector<primitive_info> network::get_primitives_info() {
+primitive_info network::get_primitive_info(const primitive_id& id) const {
+    for (auto& it : get_primitives_info()) {
+        if (id == it.original_id) {
+            return it;
+        }
+    }
+    throw std::runtime_error("Cannot find primitive: " + id);
+}
+
+std::vector<primitive_info> network::get_primitives_info() const {
     return _impl->get_primitives_info();
 }
 
@@ -381,7 +390,7 @@ void network_impl::set_input_data(const primitive_id& id, memory_impl& data) {
     input->set_data(data);
 }
 
-void network_impl::set_output_memory(const primitive_id& id, memory_impl& mem) {
+void network_impl::set_output_memory(const primitive_id& id, memory_impl& mem, bool isFirst) {
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
@@ -397,7 +406,7 @@ void network_impl::set_output_memory(const primitive_id& id, memory_impl& mem) {
 
     // Wait for previous execution completion
     reset_execution(true);
-    output->set_output_memory(mem);
+    output->set_output_memory(mem, isFirst);
 }
 
 void cldnn::network_impl::check_names() {
@@ -447,7 +456,7 @@ bool network_impl::is_secondary_stream() {
     return _nstreams > 1 && _stream_id > 0;
 }
 
-std::string network_impl::get_primitive_info(const primitive_id& id) const {
+std::string network_impl::get_primitive_info_string(const primitive_id& id) const {
     const auto& node = _program->get_node(id);
     return node.type()->to_string(node);
 }
@@ -526,7 +535,7 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
 
         std::string layer_name = node.id();
 #if DUMP_VERBOSE
-        std::cerr << get_primitive_info(inst->id()) << std::endl;
+        std::cerr << get_primitive_info_string(inst->id()) << std::endl;
 #endif
 #if DUMP_SINGLE_LAYER
         if (layer_name == DUMP_LAYER_NAME) {

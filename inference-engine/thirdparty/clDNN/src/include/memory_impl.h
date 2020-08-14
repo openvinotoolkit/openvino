@@ -35,6 +35,7 @@ struct memory_impl : refcounted_obj<memory_impl> {
     virtual void* lock() = 0;
     virtual void unlock() = 0;
     virtual void fill(unsigned char pattern, event_impl::ptr ev) = 0;
+    virtual void copy_from_other(const memory_impl& other) = 0;
     size_t size() const { return _bytes_count; }
     virtual shared_mem_params get_internal_params() const = 0;
     virtual bool is_allocated_by(const engine_impl& engine) const { return &engine == _engine; }
@@ -83,6 +84,9 @@ struct simple_attached_memory : memory_impl {
     void* lock() override { return _pointer; }
     void unlock() override {}
     void fill(unsigned char, event_impl::ptr) override {}
+    void copy_from_other(const memory_impl&) override {
+        throw std::runtime_error("simple_attached_memory::copy_from_other is not implemented");
+    }
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef WIN32
         nullptr,

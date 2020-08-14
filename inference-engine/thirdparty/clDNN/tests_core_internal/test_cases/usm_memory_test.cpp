@@ -281,3 +281,123 @@ INSTANTIATE_TEST_CASE_P(cldnn_usm, fill_buffer, ::testing::ValuesIn(std::vector<
         usm_test_params{ allocation_type::usm_shared },
         usm_test_params{ allocation_type::usm_device },
 }), );
+
+class copy_from_other : public BaseUSMTest {};
+TEST_P(copy_from_other, basic) {
+    auto p = GetParam();
+    if (!supports_usm()) {
+        return;
+    }
+    try {
+        gpu::command_queues_builder q_builder(_device->get()->get_context(), _device->get()->get_device(), _device->get()->get_platform());
+        q_builder.build();
+        auto queue = cl::CommandQueueIntel(q_builder.queue());
+
+        size_t values_count = 100;
+        size_t values_bytes_count = values_count * sizeof(float);
+        std::vector<float> src_buffer(values_count);
+        std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
+        cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+        auto cldnn_mem_src = _engine->get()->allocate_memory(linear_layout, p.type);
+        // Fill src buffer
+        switch (p.type) {
+        case allocation_type::usm_host:
+        case allocation_type::usm_shared: {
+            auto ptr_to_fill = cldnn_mem_src->lock();
+            std::copy(src_buffer.begin(), src_buffer.end(), static_cast<float*>(ptr_to_fill));
+            cldnn_mem_src->unlock();
+            break;
+        }
+        case allocation_type::usm_device: {
+            auto host_buf = _engine->get()->allocate_memory(linear_layout, allocation_type::usm_host);
+            std::copy(src_buffer.begin(), src_buffer.end(), static_cast<float*>(host_buf->lock()));
+            host_buf->unlock();
+            queue.enqueueCopyUsm(
+                dynamic_cast<gpu::gpu_usm&>(*host_buf).get_buffer(),
+                dynamic_cast<gpu::gpu_usm&>(*cldnn_mem_src).get_buffer(),
+                values_bytes_count,
+                true
+            );
+            break;
+        }
+        case allocation_type::cl_mem: {
+            auto host_buf = _engine->get()->allocate_memory(linear_layout, allocation_type::cl_mem);
+            auto host_float = static_cast<float*>(host_buf->lock());
+            std::copy(src_buffer.begin(), src_buffer.end(), host_float);
+            host_buf->unlock();
+            cl::Event e;
+            queue.enqueueCopyBuffer(
+                dynamic_cast<gpu::gpu_buffer&>(*host_buf).get_buffer(),
+                dynamic_cast<gpu::gpu_buffer&>(*cldnn_mem_src).get_buffer(),
+                0,
+                0,
+                values_bytes_count,
+                nullptr,
+                &e
+            );
+            e.wait();
+            break;
+        }
+        default:
+            FAIL() << "Not supported allocation type!";
+        }
+
+        // Read from res buffer
+        std::vector<float> dst_buffer(values_count);
+        auto cldnn_mem_res = _engine->get()->allocate_memory(linear_layout, p.type);
+        cldnn_mem_res->copy_from_other(*cldnn_mem_src.get());
+        switch (p.type) {
+        case allocation_type::usm_host:
+        case allocation_type::usm_shared: {
+            auto values_ptr = cldnn_mem_res->lock();
+            std::memcpy(dst_buffer.data(), values_ptr, values_bytes_count);
+            cldnn_mem_res->unlock();
+            break;
+        }
+        case allocation_type::usm_device: {
+            auto host_buf = _engine->get()->allocate_memory(linear_layout, allocation_type::usm_host);
+            queue.enqueueCopyUsm(
+                dynamic_cast<gpu::gpu_usm&>(*cldnn_mem_res).get_buffer(),
+                dynamic_cast<gpu::gpu_usm&>(*host_buf).get_buffer(),
+                values_bytes_count,
+                true
+                );
+            auto values_ptr = host_buf->lock();
+            std::memcpy(dst_buffer.data(), values_ptr, values_bytes_count);
+            host_buf->unlock();
+            break;
+        }
+        case allocation_type::cl_mem: {
+            auto host_buf = _engine->get()->allocate_memory(linear_layout, allocation_type::cl_mem);
+            cl::Event e;
+            queue.enqueueCopyBuffer(
+                dynamic_cast<gpu::gpu_buffer&>(*cldnn_mem_res).get_buffer(),
+                dynamic_cast<gpu::gpu_buffer&>(*host_buf).get_buffer(),
+                0,
+                0,
+                values_bytes_count,
+                nullptr,
+                &e
+            );
+            e.wait();
+            auto values_ptr = host_buf->lock();
+            std::memcpy(dst_buffer.data(), values_ptr, values_bytes_count);
+            host_buf->unlock();
+            break;
+        }
+        default:
+            FAIL() << "Not supported allocation type!";
+        }
+        bool are_equal = std::equal(src_buffer.begin(), src_buffer.begin() + 100, dst_buffer.begin());
+        ASSERT_EQ(true, are_equal);
+    } catch (const char* msg) {
+        FAIL() << msg;
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(cldnn_memory, copy_from_other, ::testing::ValuesIn(std::vector<usm_test_params>{
+        usm_test_params{ allocation_type::cl_mem },
+        usm_test_params{ allocation_type::usm_host },
+        usm_test_params{ allocation_type::usm_shared },
+        usm_test_params{ allocation_type::usm_device },
+}), );

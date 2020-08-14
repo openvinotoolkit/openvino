@@ -127,19 +127,27 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     }
 }
 
-class TwoNets_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+using TwoNetsParams = std::tuple<size_t,   // number of streams
+                                 size_t>;  // number of requests
+
+class TwoNets_Test : public CommonTestUtils::TestsCommon,
+                     public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
-        num_streams = this->GetParam();
+        std::tie(num_streams, num_requests) = this->GetParam();
         fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
                    ngraph::builder::subgraph::makeMultiSingleConv()};
     };
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::size_t> &obj) {
-        return "num_streams_" + std::to_string(obj.param);
+    static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams> &obj) {
+        size_t streams, requests;
+        std::tie(streams, requests) = obj.param;
+        return "_num_streams_" + std::to_string(streams) + "_num_requests_" +
+               std::to_string(requests);
     }
 
 protected:
     size_t num_streams;
+    size_t num_requests;
     std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
 };
 
@@ -165,7 +173,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
                                        {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
 
-        for (int j = 0; j < num_streams; j++) {
+        for (int j = 0; j < num_streams * num_requests; j++) {
             outputs.push_back(net.getOutputsInfo().begin()->first);
 
             auto inf_req = exec_net.CreateInferRequest();
@@ -211,6 +219,10 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
     }
 }
 
-const std::vector<size_t> num_strems{1, 2};
+const std::vector<size_t> num_streams{1, 2};
+const std::vector<size_t> num_requests{1, 2};
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_strems), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(RemoteBlob, TwoNets_Test,
+                        ::testing::Combine(::testing::ValuesIn(num_streams),
+                                           ::testing::ValuesIn(num_requests)),
+                        TwoNets_Test::getTestCaseName);

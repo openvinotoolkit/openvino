@@ -69,6 +69,19 @@ void gpu_buffer::fill(unsigned char pattern, event_impl::ptr ev) {
     _context->queue(_net_id).enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), 0, &ev_ocl);
 }
 
+void gpu_buffer::copy_from_other(const memory_impl& other) {
+    try {
+        auto& mem_inst = dynamic_cast<const gpu_buffer&>(other);
+        _engine->get_context()->queue(_net_id).enqueueCopyBuffer(mem_inst.get_buffer(),
+                                                                 get_buffer(),
+                                                                 0,
+                                                                 0,
+                                                                 other.size());
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("gpu_buffer::copy_from_other: cannot cast other to gpu_buffer");
+    }
+}
+
 shared_mem_params gpu_buffer::get_internal_params() const {
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(_context->context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
@@ -180,6 +193,10 @@ void gpu_image2d::fill(unsigned char pattern, event_impl::ptr ev) {
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
     _context->queue(_net_id).enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
+}
+
+void gpu_image2d::copy_from_other(const memory_impl&) {
+    throw std::runtime_error("gpu_image2d::copy_from_other is not implemented");
 }
 
 shared_mem_params gpu_image2d::get_internal_params() const {
@@ -299,8 +316,13 @@ void gpu_usm::zero_buffer() {
     ev->wait();
 }
 
-void gpu_usm::copy_from_other(const gpu_usm& other) {
-    _engine->get_context()->queue(_net_id).enqueueCopyUsm(other.get_buffer(), get_buffer(), _bytes_count, true);
+void gpu_usm::copy_from_other(const memory_impl& other) {
+    try {
+        auto& mem_inst = dynamic_cast<const gpu_usm&>(other);
+        _engine->get_context()->queue(_net_id).enqueueCopyUsm(mem_inst.get_buffer(), get_buffer(), _bytes_count, true);
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("gpu_usm::copy_from_other: cannot cast other to gpu_usm");
+    }
 }
 
 shared_mem_params gpu_usm::get_internal_params() const {

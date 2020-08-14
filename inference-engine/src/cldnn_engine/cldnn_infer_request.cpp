@@ -114,14 +114,32 @@ void CLDNNInferRequest::input_attach(cldnn::primitive_id name, cldnn::memory& in
     impl->release_lock();
 }
 
+void CLDNNInferRequest::output_attach(cldnn::primitive_id name, cldnn::memory& outputMem) {
+    auto impl = getContextImpl(m_graph->GetContext());
+    impl->acquire_lock();
+
+    auto mem_itr = outputsMemory.find(name);
+
+    if (mem_itr != outputsMemory.end())
+        mem_itr->second = outputMem;
+    else
+        outputsMemory.insert({name, outputMem});
+
+    impl->release_lock();
+}
+
 void CLDNNInferRequest::input_alloc(cldnn::primitive_id name, const cldnn::layout& layout) {
     cldnn::memory input_mem = cldnn::memory::allocate(*(m_graph->GetEngine()), layout);
     input_attach(name, input_mem);
 }
 
+void CLDNNInferRequest::output_alloc(cldnn::primitive_id name, const cldnn::layout& layout) {
+    cldnn::memory output_mem = cldnn::memory::allocate(*(m_graph->GetEngine()), layout);
+    output_attach(name, output_mem);
+}
+
 void CLDNNInferRequest::copyOutputData(const cldnn::memory& outputMemory,
-                                        Blob::Ptr bptr,
-                                        buf_info* bi) {
+                                       Blob::Ptr bptr, buf_info* bi) {
     size_t n = (bi == nullptr) ? bptr->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -622,25 +640,19 @@ void CLDNNInferRequest::AllocateInputsDyn() {
 
 void CLDNNInferRequest::AllocateOutputs() {
     // allocate outputs
-    bool can_reuse_internal_mem = !m_useStreams;
     for (auto& no : _networkOutputs) {
         std::string outputID = m_graph->MapOutputName(no.first);
-        cldnn::memory output_mem = m_graph->GetNetwork()->get_output_memory(outputID);
-        cldnn::pointer<uint8_t> output_mem_ptr = output_mem.pointer<uint8_t>();
-        if (output_mem_ptr.data() == nullptr) {
-            THROW_IE_EXCEPTION << "Empty output memory for primitive " << outputID;
+        auto& outLayouts = m_graph->GetOutputLayouts();
+        if (outLayouts.find(outputID) == outLayouts.end()) {
+            THROW_IE_EXCEPTION << "Cannot find layout for id " << no.first;
         }
-
+        cldnn::layout layout = m_graph->GetOutputLayouts().at(outputID);
+        output_alloc(outputID, layout);
+        cldnn::pointer<uint8_t> mem_ptr = outputsMemory.at(outputID).pointer<uint8_t>();
         DataPtr oi = no.second;
         const TensorDesc& desc = oi->getTensorDesc();
+        _outputs[no.first] = createOutputBlob(desc, mem_ptr.data());
 
-        if (can_reuse_internal_mem) {
-            _outputs[no.first] = createOutputBlob(desc, output_mem_ptr.data());
-        } else {
-            Blob::Ptr outputBlob = createOutputBlob(desc);
-            outputBlob->allocate();
-            _outputs[no.first] = outputBlob;
-        }
         outputsMap[no.first] = outputID;
     }
 }
@@ -844,6 +856,11 @@ void CLDNNInferRequest::InferImpl() {
                 PrepareInput(name + "_UV", *nv12_ptr->uv());
             }
         }
+    }
+
+    for (auto& it : outputsMemory) {
+        auto isFirst = m_graph->IsFirstOutput(it.first);
+        m_graph->GetNetwork()->set_output_memory(it.first, it.second, isFirst);
     }
 
     // The actual inference
