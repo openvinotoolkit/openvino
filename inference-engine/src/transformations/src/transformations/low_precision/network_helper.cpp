@@ -412,16 +412,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
     // Build a substitution sub-graph:
 
-    std::shared_ptr<ngraph::Node> newFQ = fq->copy_with_new_inputs(
-        {
-            fq->input_value(0),
-            fq->input_value(1),
-            fq->input_value(2),
-            newMin->output(0),
-            newMax->output(0)
-        });
-
-    newFQ = fold_fake_quantize(std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         fq->input_value(0),
         fq->input_value(1),
         fq->input_value(2),
