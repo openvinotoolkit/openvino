@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace ngraph;
 
@@ -60,6 +61,17 @@ bool fuse_type_to_logical<opset4::LogicalNot>(std::shared_ptr<ngraph::Node> & no
     return false;
 }
 
+template <class T>
+bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
+                element::TypeVector{element::boolean, element::undefined}, element::TypeVector{to});
+        replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
+}
+
 static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
         {opset4::Convert::type_info, fuse_type_to_convert},
@@ -80,6 +92,8 @@ static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&,
         {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
         {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
+        {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
+        {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
 };
 
@@ -96,10 +110,6 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     std::function<void(const std::shared_ptr<Function> &)> register_constants =
             [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
         for (auto & node : f->get_ordered_ops()) {
-            // Recursively run for TensorIterator body function
-            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                register_constants(ti->get_body()->to_function());
-            }
             for (auto & input : node->inputs()) {
                 if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node].emplace_back(input);
@@ -107,8 +117,6 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
             }
         }
     };
-
-    register_constants(f);
 
     auto convert_node_output_precision = [this, &const_to_internal_output](std::shared_ptr<Node> & node) {
         for (auto output : node->outputs()) {
@@ -142,6 +150,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
     std::function<void(const std::shared_ptr<Function> &)> convert_function_precision =
             [this, &const_to_internal_output,
+                   &register_constants,
                    &convert_node_output_precision,
                    &convert_node_input_precision,
                    &convert_function_precision] (const std::shared_ptr<Function> & f) {
@@ -155,6 +164,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
             }
             convert_node_input_precision(node);
         }
+        // Register internal constants only after fixing input type that could lead to nodes replacement
+        register_constants(f);
 
         for (auto &node : f->get_ordered_ops()) {
             convert_node_output_precision(node);

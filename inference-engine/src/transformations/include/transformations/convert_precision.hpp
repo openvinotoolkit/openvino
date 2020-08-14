@@ -59,6 +59,8 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     LogicalNot
  *     LogicalOr
  *     LogicalXor
+ *     ReduceLogicalAnd
+ *     ReduceLogicalOr
  *     Equal
  *     NotEqual
  *     Greater
