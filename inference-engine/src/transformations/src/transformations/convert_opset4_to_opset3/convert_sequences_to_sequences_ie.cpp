@@ -35,14 +35,21 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             return false;
         }
 
+        // for forward/reverse cases we can squeeze num_direction dimension
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(1).get_source_output(), axis_1);
+        auto in_2 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(2).get_source_output(), axis_1);
         auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(6).get_source_output(), axis_2);
         auto lstm_sequence_ie = std::make_shared<ngraph::op::LSTMSequenceIE>(
                 lstm_sequence->input(0).get_source_output(),  // X
-                lstm_sequence->input(1).get_source_output(),  // initial_hidden_state
-                lstm_sequence->input(2).get_source_output(),  // initial_cell_state
-                lstm_sequence->input(3).get_source_output(),  // sequence_lengths
-                concat->output(0),                           // WR
-                lstm_sequence->input(6).get_source_output(),  // B
+                in_1,  // initial_hidden_state
+                in_2,  // initial_cell_state
+                //lstm_sequence->input(3).get_source_output(),  // sequence_lengths
+                in_3,                           // WR
+                in_4,  // B
                 lstm_sequence->get_hidden_size(),
                 lstm_sequence->get_direction(),
                 lstm_sequence->get_activations(),
@@ -50,6 +57,17 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
                 lstm_sequence->get_activations_beta(),
                 lstm_sequence->get_clip_threshold());
 
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(1), unsqueeze_axis);
+        auto unsqueeze_3 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(2), unsqueeze_axis);
+        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2, unsqueeze_3};
+
+        for (int out_id = 0; out_id < lstm_sequence->outputs().size(); ++out_id) {
+            for (const auto& target_input : lstm_sequence->output(out_id).get_target_inputs()) {
+                target_input.replace_source_output(unsqueezes[out_id]);
+            }
+        }
         lstm_sequence_ie->set_friendly_name(lstm_sequence->get_friendly_name());
         ngraph::copy_runtime_info(lstm_sequence, {concat, lstm_sequence_ie});
         ngraph::replace_node(m.get_match_root(), lstm_sequence_ie);
@@ -147,13 +165,19 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             return false;
         }
 
+        // for forward/reverse cases we can squeeze num_direction dimension
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input(1).get_source_output(), axis_1);
         auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input(5).get_source_output(), axis_2);
         auto rnn_sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(
                 rnn_sequence->input(0).get_source_output(),  // X
-                rnn_sequence->input(1).get_source_output(),  // initial_hidden_state
-                rnn_sequence->input(2).get_source_output(),  // sequence_lengths
-                concat->output(0),                          // WR
-                rnn_sequence->input(5).get_source_output(),  // B
+                in_1,  // initial_hidden_state
+//                rnn_sequence->input(2).get_source_output(),  // sequence_lengths
+                in_3,                          // WR
+                in_4,  // B
                 rnn_sequence->get_hidden_size(),
                 rnn_sequence->get_direction(),
                 rnn_sequence->get_activations(),
@@ -161,6 +185,16 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
                 rnn_sequence->get_activations_beta(),
                 rnn_sequence->get_clip());
 
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(1), unsqueeze_axis);
+        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2};
+
+        for (int out_id = 0; out_id < rnn_sequence->outputs().size(); ++out_id) {
+            for (const auto& target_input : rnn_sequence->output(out_id).get_target_inputs()) {
+                target_input.replace_source_output(unsqueezes[out_id]);
+            }
+        }
         rnn_sequence_ie->set_friendly_name(rnn_sequence->get_friendly_name());
         ngraph::copy_runtime_info(rnn_sequence, {concat, rnn_sequence_ie});
         ngraph::replace_node(m.get_match_root(), rnn_sequence_ie);

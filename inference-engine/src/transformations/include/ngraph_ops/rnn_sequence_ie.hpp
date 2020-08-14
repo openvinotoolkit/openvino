@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API RNNSequenceIE : public Op, public ngraph::op::util::RN
 public:
     RNNSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
-                  const Output <Node> &sequence_lengths,
+                  //const Output <Node> &sequence_lengths,
                   const Output <Node> &WR,
                   const Output <Node> &B,
                   size_t hidden_size,
@@ -52,13 +52,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    int64_t m_hidden_size{};
-
-    const std::vector<std::string> m_activations;
-    const std::vector<float> m_activations_alpha;
-    const std::vector<float> m_activations_beta;
     op::RecurrentSequenceDirection m_direction;
-    float m_clip;
 };
 }  // namespace op
 }  // namespace ngraph

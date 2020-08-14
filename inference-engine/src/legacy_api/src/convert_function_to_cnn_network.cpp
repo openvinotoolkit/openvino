@@ -605,14 +605,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params["direction"] = "Bidirectional";
 
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        const auto biasNode = node->input_value(3).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -639,14 +639,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params["direction"] = "Bidirectional";
 
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(4).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(5).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -829,13 +829,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             if (::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
                              ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer) ||
                              ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
-                    ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer)) {
-                inputID = 2;
-            } else if (
+                    ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer) ||
                     ::ngraph::as_type_ptr<::ngraph::op::RNNSequenceIE>(consumerLayer)) {
-                inputID = 3;
+                inputID = 2;
             } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMSequenceIE>(consumerLayer)) {
-                inputID = 4;
+                inputID = 3;
             }
 
             for (; inputID < consumerLayer->inputs().size(); ++inputID) {

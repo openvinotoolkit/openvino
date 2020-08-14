@@ -13,12 +13,12 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::RNNSequenceIE::type_info;
 
-op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X, const Output<Node>& H_t, const Output<Node>& sequence_lengths,
+op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X, const Output<Node>& H_t,
                                  const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,
                                  op::RecurrentSequenceDirection direction, const std::vector<std::string>& activations,
                                  const std::vector<float>& activations_alpha, const std::vector<float>& activations_beta,
                                  float clip)
-        : Op({X, H_t, sequence_lengths, WR, B}),
+        : Op({X, H_t, WR, B}),
           RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta),
           m_direction(direction) {
     constructor_validate_and_infer_types();
@@ -30,21 +30,13 @@ void op::RNNSequenceIE::validate_and_infer_types() {
     PartialShape output_shape_1{PartialShape::dynamic(3)};
     if (get_input_partial_shape(0).is_static()) {
         int64_t batch_size = get_input_partial_shape(0).get_shape()[0];
+        int64_t seq_lenghts = get_input_partial_shape(0).get_shape()[1];
         output_shape_0 = {batch_size,
-                          m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1,
-                          Dimension::dynamic(),
+                          seq_lenghts,
                           static_cast<int64_t>(m_hidden_size)};
 
         output_shape_1 = {batch_size,
-                          m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1,
                           static_cast<int64_t>(m_hidden_size)};
-
-        const auto seq_len_in = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                input_value(2).get_node_shared_ptr());
-        if (seq_len_in) {
-            auto seq_len = seq_len_in->cast_vector<size_t>()[0];
-            output_shape_0[2] = seq_len;
-        }
     }
     set_output_type(0, arg_type, output_shape_0);
     set_output_type(1, arg_type, output_shape_1);
@@ -58,6 +50,5 @@ bool op::RNNSequenceIE::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::RNNSequenceIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::RNNSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                          new_args.at(4), m_hidden_size, m_direction, m_activations,
-                                          m_activations_alpha, m_activations_beta, m_clip);
+             m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta, m_clip);
 }

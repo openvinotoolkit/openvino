@@ -39,13 +39,6 @@ void op::GRUSequenceIE::validate_and_infer_types() {
 
         output_shape_1 = {batch_size,
                           static_cast<int64_t>(m_hidden_size)};
-
-//        const auto seq_len_in = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-//                input_value(2).get_node_shared_ptr());
-//        if (seq_len_in) {
-//            auto seq_len = seq_len_in->cast_vector<size_t>()[0];
-//            output_shape_0[1] = seq_len;
-//        }
     }
     set_output_type(0, arg_type, output_shape_0);
     set_output_type(1, arg_type, output_shape_1);
