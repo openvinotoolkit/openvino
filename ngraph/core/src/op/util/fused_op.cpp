@@ -20,6 +20,8 @@
 
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 op::util::FusedOp::FusedOp()
     : Op()
 {

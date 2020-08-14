@@ -7,10 +7,8 @@
 #include "unit_test_utils/mocks/mock_ie_imemory_state.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 
-#include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
 
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
@@ -26,3 +24,4 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_imemory_state_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
