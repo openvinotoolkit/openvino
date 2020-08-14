@@ -54,9 +54,14 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 )
 {
     const uint x    = (uint)get_global_id(0);
+#if OUTPUT_DIMS == 4
+    const uint y   = (uint)get_global_id(1);
+    const uint z    = 0;
+#else
     const uint zy   = (uint)get_global_id(1);
     const uint y    = zy % OUTPUT_SIZE_Y;
     const uint z    = zy / OUTPUT_SIZE_Y;
+#endif
     const uint bf   = (uint)get_global_id(2);
     const uint f    = (bf * FEATURE_SLICE_SIZE) % ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
     const uint b    = (bf * FEATURE_SLICE_SIZE) / ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
