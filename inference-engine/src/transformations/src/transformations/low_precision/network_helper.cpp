@@ -276,6 +276,96 @@ std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_
     return constant;
 }
 
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues) {
+    if (is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(1)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(2)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(3)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(4)) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1)), 0.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2)), 254.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3)), -127.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4)), 127.f)) {
+        return fold<opset1::Add>(fq->input_value(0), fq->input_value(3));
+    }
+
+    auto constant = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
+
+    if (constant) {
+        Shape constShape = fq->get_output_shape(0);
+        if (constShape.empty() || constShape.size() > 5lu) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
+        }
+
+        // OIDHW
+        const size_t OC = constShape[0];
+        const size_t IC = constShape.size() > 1lu ? constShape[1] : 1;
+        const size_t D = constShape.size() > 4lu ? constShape[constShape.size() - 3] : 1;
+        const size_t H = constShape.size() > 2lu ? constShape.size() == 3lu ? constShape[2] : constShape[constShape.size() - 2] : 1;
+        const size_t W = constShape.size() > 3lu ? constShape[constShape.size() - 1] : 1;
+
+        const auto inputLowValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1))->cast_vector<float>();
+        const auto inputHighValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2))->cast_vector<float>();
+        const auto outputLowValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const auto outputHighValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4))->cast_vector<float>();
+
+        const size_t inputLowSize = inputLowValues.size();
+        const size_t inputHighSize = inputHighValues.size();
+        const size_t outputLowSize = outputLowValues.size();
+        const size_t outputHighSize = outputHighValues.size();
+
+        const bool isInputLowBroadcasted = inputLowSize != OC;
+        if ((inputLowSize != 1) && (inputLowSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input low values count " << inputLowSize << " for " << OC << " channels";
+        }
+        const bool isInputHighBroadcasted = inputHighSize != OC;
+        if ((inputHighSize != 1) && (inputHighSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input high values count " << inputHighSize << " for " << OC << " channels";
+        }
+        const bool isOutputLowBroadcasted = outputLowSize != OC;
+        if ((outputLowSize != 1) && (outputLowSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output low values count " << outputLowSize << " for " << OC << " channels";
+        }
+        const bool isOutputHighBroadcasted = outputHighSize != OC;
+        if ((outputHighSize != 1) && (outputHighSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output high values count " << outputHighSize << " for " << OC << " channels";
+        }
+
+        auto levels_1 = fq->get_levels() - 1.f;
+
+        //const size_t DHW = D * H * W;
+        const size_t IDHW = IC * D * H * W;
+
+        const auto values = constant->cast_vector<float>();
+        std::vector<float> quantizedValues(OC * IC * D * H * W);
+
+        for (int oc = 0; oc < OC; ++oc) {
+            for (int iidx = 0; iidx < IDHW; ++iidx) {
+                const float inputLow = inputLowValues[isInputLowBroadcasted ? 0 : oc];
+                const float inputHigh = inputHighValues[isInputHighBroadcasted ? 0 : oc];
+                const float outputLow = outputLowValues[isOutputLowBroadcasted ? 0 : oc];
+                const float outputHigh = outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+
+                const size_t idx = oc * IDHW + iidx;
+
+                if (values[idx] <= inputLow) {
+                    quantizedValues[idx] = roundValues ? std::roundf(outputLow) : outputLow;
+                } else if (values[idx] > inputHigh) {
+                    quantizedValues[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
+                } else {
+                    const float value = std::roundf((values[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
+                        levels_1 * (outputHigh - outputLow) + outputLow;
+                    quantizedValues[idx] = roundValues ? std::roundf(value) : value;
+                }
+            }
+        }
+
+        return std::make_shared<opset1::Constant>(fq->get_output_element_type(0), constShape, quantizedValues);
+    }
+
+    return fq;
+}
+
 // Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
 // To align types the resulting sequence is FakeQuantize -> Convert -> Convert -> MultiplyAdd
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decomposeFakeQuantize(
@@ -306,14 +396,23 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
     // Build a substitution sub-graph:
 
-    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize<opset1::FakeQuantize>(
+    std::shared_ptr<ngraph::Node> newFQ = fq->copy_with_new_inputs(
+        {
             fq->input_value(0),
             fq->input_value(1),
             fq->input_value(2),
             newMin->output(0),
-            newMax->output(0),
-            fq->get_levels(),
-            fq->get_auto_broadcast());
+            newMax->output(0)
+        });
+
+    newFQ = fold_fake_quantize(std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+        fq->input_value(0),
+        fq->input_value(1),
+        fq->input_value(2),
+        newMin->output(0),
+        newMax->output(0),
+        fq->get_levels(),
+        fq->get_auto_broadcast()));
     // TODO: for debuging only - remove later
     newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
 
@@ -336,13 +435,11 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             convert = fold<opset1::Convert>(newFQ, precision);
         } else if (is_type<opset1::FakeQuantize>(newFQ)) {
             newFQ = setOutDataPrecision(as_type_ptr<opset1::FakeQuantize>(newFQ), precision);
-            auto type = newFQ->get_output_element_type(0);
             convert = newFQ;
         } else {
             THROW_IE_LPT_EXCEPTION(*newFQ) << "unexpected operation type";
         }
 
-        auto pre = fq->get_output_element_type(0);
         convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
     }
 
