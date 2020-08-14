@@ -257,19 +257,35 @@ std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_
         return castedConstant;
     }
 
-    castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(fold<opset1::Add>(constant,
-        std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, 0.5f)), target_type));
-    castedValues = castedConstant->cast_vector<float>();
+    auto round = [](
+        const std::shared_ptr<opset1::Constant>& constant,
+        element::Type target_type,
+        float tolerance,
+        std::vector<float>& values,
+        float increaseValue) -> std::shared_ptr<opset1::Constant> {
+        const auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(
+            fold<opset1::Add>(constant, std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, increaseValue)),
+            target_type));
+        const auto castedValues = castedConstant->cast_vector<float>();
+        if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+            return castedConstant;
+        }
 
-    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+        return nullptr;
+    };
+
+    castedConstant = round(constant, target_type, tolerance, values, 0.5f);
+    if (castedConstant != nullptr) {
         return castedConstant;
     }
 
-    castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(fold<opset1::Add>(constant,
-        std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{ 1 }, 1.f)), target_type));
-    castedValues = castedConstant->cast_vector<float>();
+    castedConstant = round(constant, target_type, tolerance, values, -0.5f);
+    if (castedConstant != nullptr) {
+        return castedConstant;
+    }
 
-    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+    castedConstant = round(constant, target_type, tolerance, values, 1.f);
+    if (castedConstant != nullptr) {
         return castedConstant;
     }
 

@@ -23,6 +23,10 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 
     if (isGroup(layer)) {
         FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+        if (dequantization.empty()) {
+            return false;
+        }
+
         std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
         const ngraph::Shape constShape = multiplyConst->get_output_shape(0);
         if ((constShape.size() != 0) && (constShape.size() != 1ul) && (constShape.size() != 3ul) && (constShape.size() != 4ul)) {
