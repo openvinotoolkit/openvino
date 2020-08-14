@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-GatherTree operation implements the same algorithm as GatherTree operation in TensorFlow. Please see complete documentation [here](https://www.tensorflow.org/versions/r1.12/api_docs/python/tf/contrib/seq2seq/gather_tree?hl=en).
+GatherTree operation implements the same algorithm as `tfa.seq2seq.gather_tree` operation in TensorFlow.
 
 Pseudo code:
 
