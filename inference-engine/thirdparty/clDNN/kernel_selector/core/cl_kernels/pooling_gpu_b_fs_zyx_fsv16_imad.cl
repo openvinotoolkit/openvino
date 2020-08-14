@@ -109,16 +109,11 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
                         if(!zero)
                         {
                             const uint input_idx = batch_and_feature_offset + input_offset_z*IN_Z_PITCH + input_offset_y*IN_Y_PITCH + input_offset_x*IN_X_PITCH;
-
-#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             IN_VEC16 ch16_data;
+#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             if (!last_in_f_group) {
-                                ch16_data = vload16(0, (input + input_idx));
-#else
-                            int4 int_data = vload4(0, (__global int*)(input + input_idx));
-                            IN_VEC16 ch16_data = AS_TYPE(IN_VEC16, int_data);
 #endif
-
+                                ch16_data = AS_TYPE(IN_VEC16, vload4(0, (__global int*)(input + input_idx)));
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                             } else {
                                 __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -180,7 +175,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 if (!last_in_f_group) {
 #endif
-                    ch16_data = vload16(0, (input + input_idx));
+                    ch16_data = AS_TYPE(IN_VEC16, vload4(0, (__global int*)(input + input_idx)));
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
                 } else {
                     __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
@@ -273,12 +268,10 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #endif
 
 #if OUTPUT_TYPE_SIZE == 1
-
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     if (!last_in_f_group) {
-        vstore16(final_result, 0, ((output + output_pos)));
 #endif
-    vstore4(as_uint4(final_result), 0, ((__global uint*)(output + output_pos)));
+        vstore4(as_uint4(final_result), 0, ((__global uint*)(output + output_pos)));
 #if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
     } else {
         __attribute__((opencl_unroll_hint(OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE)))
