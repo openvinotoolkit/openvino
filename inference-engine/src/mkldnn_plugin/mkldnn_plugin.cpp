@@ -162,7 +162,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     const InputsDataMap inputInfo = localNetwork.getInputsInfo();
     ICNNNetwork::InputShapes shapes = localNetwork.getInputShapes();
     ReshapedCNNNetworks reshapedNetworks;
-    int seq = shapes.at(inputInfo.cbegin()->first)[1];
+    int seq = 0;
+    if (conf.dynamicSequence) {
+        if (shapes.at(inputInfo.cbegin()->first).size() < 2)
+            THROW_IE_EXCEPTION << "Auto-reshaping of the network with no sequence (first input is scalar or channels-only)!";
+        seq = shapes.at(inputInfo.cbegin()->first)[1];
+    }
     do {
         CNNNetwork clonedNetwork(cloneNetwork(network));
         if (conf.dynamicSequence) {

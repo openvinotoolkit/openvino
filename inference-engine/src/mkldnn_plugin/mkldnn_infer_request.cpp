@@ -24,7 +24,9 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
 
     if (execNetwork->_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
-    const int seq = (_networkInputs.cbegin()->second->getTensorDesc().getDims())[1];
+    const int seq = execNetwork->_graphs.begin()->size() > 1
+            ? _networkInputs.cbegin()->second->getTensorDesc().getDims()[1]
+            : 0;
     graph = execNetwork->_graphs.begin()->at(seq).get();
     for (const auto& it : _networkInputs) {
         InferenceEngine::Blob::Ptr blob;
