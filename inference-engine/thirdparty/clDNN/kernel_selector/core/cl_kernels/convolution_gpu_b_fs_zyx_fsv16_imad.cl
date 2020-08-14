@@ -62,9 +62,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     uint out_f_sg = (uint)(get_group_id(2) * OFM_SIZE_PER_SIMD) % (ALIGN(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD) * FILTER_GROUPS_NUM);
     uint out_f = out_f_sg + get_sub_group_local_id();
     uint out_f_g = (out_f % ALIGN(FILTER_OFM_NUM, OFM_SIZE_PER_SIMD));
-    if (FILTER_OFM_NUM % SIMD != 0) {
-        out_f = out_f - (out_f / ALIGN(FILTER_OFM_NUM, SIMD)) * (SIMD - (FILTER_OFM_NUM % SIMD));
-    }
+#if FILTER_OFM_NUM % SIMD != 0
+    out_f = out_f - (out_f / ALIGN(FILTER_OFM_NUM, SIMD)) * (SIMD - (FILTER_OFM_NUM % SIMD));
+#endif
 
     const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -162,7 +162,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             uint4 weights_val[OFM_BLOCKS_PER_SIMD];
                             __attribute__((opencl_unroll_hint))
                             for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
-                                weights_val[ofb] = as_uint4(vload16(0, (__global char *)(weights + filter_idx + ofb * filter_idx_diff)));
+                                weights_val[ofb] = vload4(0, (__global uint *)(weights + filter_idx + ofb * filter_idx_diff));
                             }
 
                             __attribute__((opencl_unroll_hint))
