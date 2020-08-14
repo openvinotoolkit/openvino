@@ -1,7 +1,7 @@
 jobs:
 - job: Lin
   # About 150% of total time
-  timeoutInMinutes: 75
+  timeoutInMinutes: 85
   pool:
     name: LIN_VMSS_VENV_F8S_WU2
   variables:
@@ -95,7 +95,7 @@ jobs:
       export DATA_PATH=$(WORK_DIR)/testdata
       export MODELS_PATH=$(WORK_DIR)/testdata
       python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
-      workingDirectory: $(WORK_DIR)
+    workingDirectory: $(WORK_DIR)
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
