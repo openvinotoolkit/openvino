@@ -23,7 +23,6 @@
 #include <legacy/ie_ngraph_utils.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -31,10 +30,11 @@
 #include <transformations/convert_opset4_to_opset3/convert_opset4_to_opset3.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/gelu.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
@@ -334,15 +334,5 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     }
 }
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-                {{2, 1},
-                 CI_BUILD_NUMBER,
-                 "MKLDNNPlugin"}, std::make_shared<Engine>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

@@ -14,7 +14,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockExecutableNetworkThreadSafeAsyncOnly : public ExecutableNetworkThreadSafeAsyncOnly {
 public:
     MOCK_METHOD2(CreateAsyncInferRequestImpl,
@@ -22,4 +21,3 @@ public:
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream&) override {}
 };
-IE_SUPPRESS_DEPRECATED_END

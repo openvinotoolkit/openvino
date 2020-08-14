@@ -275,6 +275,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nOutputs = outputs.size();
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
+    header.doRotateInput = doRotateInput;
 
 
     writeBits(header, os);

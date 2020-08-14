@@ -288,3 +288,26 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
         ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()->to_function()));
     }
 }
+
+TEST(TransformationTests, ConvertPrecision_Variables) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        Shape shape {1, 10, 2};
+        auto inp = std::make_shared<opset4::Parameter>(element::f16, shape);
+        auto m_i = std::make_shared<opset4::Constant>(element::f16, shape, 1);
+        auto m_r = std::make_shared<opset4::ReadValue>(m_i, "ID");
+        auto sum = std::make_shared<opset4::Add>(inp, m_r);
+        auto m_w = std::make_shared<opset4::Assign>(sum, "ID");
+        auto mul = std::make_shared<opset4::Multiply>(inp, sum);
+
+        mul->add_control_dependency(m_w);
+
+        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{inp});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
