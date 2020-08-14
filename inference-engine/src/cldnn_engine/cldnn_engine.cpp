@@ -24,7 +24,7 @@
 #include <legacy/details/ie_cnn_network_tools.h>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
