@@ -490,7 +490,7 @@ namespace ngraph
             }
 
             operator TensorProto_DataType() const { return m_tensor_proto->data_type(); }
-            std::shared_ptr<ngraph::op::Constant> get_ng_constant() const
+            std::shared_ptr<ngraph::op::v0::Constant> get_ng_constant() const
             {
                 switch (m_tensor_proto->data_type())
                 {
@@ -524,10 +524,11 @@ namespace ngraph
 
         private:
             template <typename T>
-            std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const
+            std::shared_ptr<ngraph::op::v0::Constant>
+                make_ng_constant(const element::Type& type) const
             {
                 auto constant =
-                    std::make_shared<ngraph::op::Constant>(type, m_shape, get_data<T>());
+                    std::make_shared<ngraph::op::v0::Constant>(type, m_shape, get_data<T>());
                 if (m_tensor_proto->has_name())
                 {
                     constant->set_friendly_name(get_name());

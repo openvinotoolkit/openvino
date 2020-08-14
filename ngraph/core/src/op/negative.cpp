@@ -22,9 +22,9 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Negative::type_info;
+constexpr NodeTypeInfo op::v0::Negative::type_info;
 
-op::Negative::Negative(const Output<Node>& arg)
+op::v0::Negative::Negative(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
@@ -35,7 +35,7 @@ bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Negative::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Negative>(new_args.at(0));
@@ -78,13 +78,14 @@ namespace
     }
 }
 
-bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Negative::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Negative::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Negative::evaluate");
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)
 {
-    return make_shared<op::Negative>(arg0);
+    return make_shared<op::v0::Negative>(arg0);
 }

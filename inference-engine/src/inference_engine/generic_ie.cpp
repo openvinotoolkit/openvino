@@ -34,7 +34,7 @@ void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Lambda> f
         if (auto generic = std::dynamic_pointer_cast<GenericIE>(op)) {
             generic->addExtension(ext);
         }
-        if (auto ti = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(op)) {
+        if (auto ti = std::dynamic_pointer_cast<ngraph::op::v0::TensorIterator>(op)) {
             addExtension(ti->get_body(), ext);
         }
     });

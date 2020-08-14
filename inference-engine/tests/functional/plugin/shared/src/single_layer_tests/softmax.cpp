@@ -53,7 +53,7 @@ void SoftMaxLayerTest::SetUp() {
     const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     const auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
 
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
 

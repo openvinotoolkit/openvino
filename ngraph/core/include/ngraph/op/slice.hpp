@@ -77,7 +77,5 @@ namespace ngraph
                 Strides m_strides;
             };
         }
-        // default opset version
-        using v0::Slice;
     }
 }

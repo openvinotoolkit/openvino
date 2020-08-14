@@ -29,11 +29,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+constexpr NodeTypeInfo op::v0::GRN::type_info;
 
-constexpr NodeTypeInfo op::GRN::type_info;
-
-op::GRN::GRN(const Output<Node>& data, float bias)
+op::v0::GRN::GRN(const Output<Node>& data, float bias)
     : FusedOp({data})
     , m_bias(bias)
 {
@@ -46,7 +44,7 @@ bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::GRN::pre_validate_and_infer_types()
+void op::v0::GRN::pre_validate_and_infer_types()
 {
     const auto& data_pshape = get_input_partial_shape(0);
 
@@ -64,7 +62,7 @@ void op::GRN::pre_validate_and_infer_types()
     }
 }
 
-OutputVector op::GRN::decompose_op() const
+OutputVector op::v0::GRN::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     const Shape& input_shape{data.get_shape()};
@@ -77,7 +75,7 @@ OutputVector op::GRN::decompose_op() const
         data = builder::opset1::reshape(data, data_shape);
     }
 
-    const auto axis_set_const = op::Constant::create(element::i64, {}, {1});
+    const auto axis_set_const = op::v0::Constant::create(element::i64, {}, {1});
     // Calculate l2 norm across channels.
     shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
     // Get back reduced axis.
@@ -93,7 +91,7 @@ OutputVector op::GRN::decompose_op() const
     return OutputVector{data};
 }
 
-shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
     if (new_args.size() != 1)
     {

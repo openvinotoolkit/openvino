@@ -41,16 +41,16 @@ pass::DynElimination::DynElimination()
 void pass::DynElimination::construct_transpose()
 {
     auto data_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{1, 2, 3});
-    auto perm_arg_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{3}, pattern::has_class<op::Constant>());
+    auto perm_arg_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{3}, pattern::has_class<op::v0::Constant>());
 
-    auto transpose = make_shared<op::Transpose>(data_arg_label, perm_arg_label);
+    auto transpose = make_shared<op::v1::Transpose>(data_arg_label, perm_arg_label);
 
     auto transpose_callback = [data_arg_label, perm_arg_label](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_map();
 
         auto data_arg = pattern_map[data_arg_label];
-        auto perm_arg = static_pointer_cast<op::Constant>(pattern_map[perm_arg_label]);
+        auto perm_arg = static_pointer_cast<op::v0::Constant>(pattern_map[perm_arg_label]);
 
         // TODO(amprocte): Can't handle the case where data shape is dynamic, because static
         // Reshape requries the exact output shape to be declared. See if we can come up with a
@@ -75,7 +75,7 @@ void pass::DynElimination::construct_transpose()
 
         auto output_shape = ngraph::apply_permutation(data_shape, perm);
 
-        auto replacement = std::make_shared<op::Reshape>(data_arg, perm, output_shape);
+        auto replacement = std::make_shared<op::v0::Reshape>(data_arg, perm, output_shape);
 
         replace_node(m.get_match_root(), replacement);
         return true;
@@ -88,10 +88,11 @@ void pass::DynElimination::construct_transpose()
 }
 
 template <typename T>
-std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
-                                                     const Shape& shape,
-                                                     const std::shared_ptr<op::Constant>& start_arg,
-                                                     const std::shared_ptr<op::Constant>& step_arg)
+std::shared_ptr<op::v0::Constant>
+    make_range_replacement(const element::Type& et,
+                           const Shape& shape,
+                           const std::shared_ptr<op::v0::Constant>& start_arg,
+                           const std::shared_ptr<op::v0::Constant>& step_arg)
 {
     std::vector<T> elements(shape_size(shape));
     std::vector<T> start_vec = start_arg->get_vector<T>();
@@ -101,26 +102,26 @@ std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
 
     runtime::reference::range<T>(start_vec.data(), step_vec.data(), shape, elements.data());
 
-    return make_shared<op::Constant>(et, shape, elements);
+    return make_shared<op::v0::Constant>(et, shape, elements);
 }
 
 void pass::DynElimination::construct_range()
 {
-    auto start_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto stop_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto step_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto start_arg_label = make_shared<pattern::op::Label>(
+        element::f32, Shape{}, pattern::has_class<op::v0::Constant>());
+    auto stop_arg_label = make_shared<pattern::op::Label>(
+        element::f32, Shape{}, pattern::has_class<op::v0::Constant>());
+    auto step_arg_label = make_shared<pattern::op::Label>(
+        element::f32, Shape{}, pattern::has_class<op::v0::Constant>());
 
-    auto range_pat = make_shared<op::Range>(start_arg_label, stop_arg_label, step_arg_label);
+    auto range_pat = make_shared<op::v0::Range>(start_arg_label, stop_arg_label, step_arg_label);
 
     auto range_callback = [start_arg_label, stop_arg_label, step_arg_label](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_map();
 
-        auto start_arg = static_pointer_cast<op::Constant>(pattern_map[start_arg_label]);
-        auto step_arg = static_pointer_cast<op::Constant>(pattern_map[step_arg_label]);
-        auto range_node = static_pointer_cast<op::Range>(m.get_match_root());
+        auto start_arg = static_pointer_cast<op::v0::Constant>(pattern_map[start_arg_label]);
+        auto step_arg = static_pointer_cast<op::v0::Constant>(pattern_map[step_arg_label]);
+        auto range_node = static_pointer_cast<op::v0::Range>(m.get_match_root());
 
         NGRAPH_CHECK(start_arg->get_output_partial_shape(0).rank().compatible(0) &&
                      step_arg->get_output_partial_shape(0).rank().compatible(0));
@@ -128,7 +129,7 @@ void pass::DynElimination::construct_range()
         auto et = range_node->get_output_element_type(0);
         auto shape = range_node->get_output_shape(0);
 
-        std::shared_ptr<op::Constant> replacement;
+        std::shared_ptr<op::v0::Constant> replacement;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic push

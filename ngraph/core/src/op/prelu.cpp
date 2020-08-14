@@ -55,7 +55,7 @@ OutputVector op::PRelu::decompose_op() const
     auto data = input_value(0);
     auto data_shape = data.get_shape();
     auto slope = input_value(1);
-    slope = std::make_shared<op::Convert>(slope, data.get_element_type());
+    slope = std::make_shared<op::v0::Convert>(slope, data.get_element_type());
     auto slope_shape = slope.get_shape();
 
     if ((slope_shape.size() == 1) && (slope_shape.at(0) != 1))
@@ -72,15 +72,15 @@ OutputVector op::PRelu::decompose_op() const
     // x <  0 => f(x) = x * slope
     // x >= 0 => f(x) = x
 
-    std::shared_ptr<ngraph::Node> zero_node = std::make_shared<ngraph::op::Constant>(
+    std::shared_ptr<ngraph::Node> zero_node = std::make_shared<ngraph::op::v0::Constant>(
         data.get_element_type(), ngraph::Shape{}, std::vector<double>{0});
     zero_node = builder::make_broadcast_node(zero_node, data.get_shape());
 
-    std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Less>(data, zero_node), data.get_element_type());
+    std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::v0::Convert>(
+        std::make_shared<ngraph::op::v0::Less>(data, zero_node), data.get_element_type());
 
-    std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Greater>(data, zero_node), data.get_element_type());
+    std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::v0::Convert>(
+        std::make_shared<ngraph::op::v0::Greater>(data, zero_node), data.get_element_type());
 
     slope = negative_map * slope + positive_map;
 

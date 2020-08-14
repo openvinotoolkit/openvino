@@ -105,9 +105,9 @@ static
 template <typename T>
 static PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */)
 {
-    auto const_start = as_type_ptr<op::Constant>(node->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
+    auto const_start = as_type_ptr<op::v0::Constant>(node->input_value(0).get_node_shared_ptr());
+    auto const_stop = as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
+    auto const_step = as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
 
     T start = static_cast<T>(0);
     T stop = static_cast<T>(0);

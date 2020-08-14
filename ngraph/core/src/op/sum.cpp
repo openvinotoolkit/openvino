@@ -39,7 +39,7 @@ op::v0::Sum::Sum(const Output<Node>& arg, const Output<Node>& reduction_axes)
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Sum::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Sum::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Sum>(new_args.at(0), new_args.at(1));

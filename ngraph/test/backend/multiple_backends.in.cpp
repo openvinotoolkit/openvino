@@ -33,12 +33,12 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, multiple_backends)
 {
     Shape shape{2, 2};
-    auto A1 = make_shared<op::Parameter>(element::f32, shape);
-    auto B1 = make_shared<op::Parameter>(element::f32, shape);
+    auto A1 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B1 = make_shared<op::v0::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(A1 + B1, ParameterVector{A1, B1});
 
-    auto A2 = make_shared<op::Parameter>(element::f32, shape);
-    auto B2 = make_shared<op::Parameter>(element::f32, shape);
+    auto A2 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B2 = make_shared<op::v0::Parameter>(element::f32, shape);
     auto g = make_shared<Function>(A2 * B2, ParameterVector{A2, B2});
 
     auto backend1 = runtime::Backend::create("${BACKEND_NAME}");

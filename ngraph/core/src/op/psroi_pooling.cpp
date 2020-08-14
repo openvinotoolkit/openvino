@@ -20,16 +20,16 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PSROIPooling::type_info;
+constexpr NodeTypeInfo op::v0::PSROIPooling::type_info;
 
-op::PSROIPooling::PSROIPooling(const Output<Node>& input,
-                               const Output<Node>& coords,
-                               const size_t output_dim,
-                               const size_t group_size,
-                               const float spatial_scale,
-                               int spatial_bins_x,
-                               int spatial_bins_y,
-                               const string& mode)
+op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
+                                   const Output<Node>& coords,
+                                   const size_t output_dim,
+                                   const size_t group_size,
+                                   const float spatial_scale,
+                                   int spatial_bins_x,
+                                   int spatial_bins_y,
+                                   const string& mode)
     : Op({input, coords})
     , m_output_dim(output_dim)
     , m_group_size(group_size)
@@ -52,7 +52,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::PSROIPooling::validate_and_infer_types()
+void op::v0::PSROIPooling::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
@@ -80,7 +80,7 @@ void op::PSROIPooling::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<PSROIPooling>(new_args.at(0),

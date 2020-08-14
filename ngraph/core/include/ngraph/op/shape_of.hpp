@@ -99,6 +99,5 @@ namespace ngraph
                 bool m_is_foldable = true;
             };
         }
-        using v0::ShapeOf;
     }
 }

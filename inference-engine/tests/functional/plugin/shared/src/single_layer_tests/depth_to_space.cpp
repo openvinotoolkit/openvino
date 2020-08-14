@@ -59,7 +59,7 @@ void DepthToSpaceLayerTest::SetUp() {
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto params = ngraph::builder::makeParams(inPrc, {inShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
     auto d2s = ngraph::builder::makeDepthToSpace(paramOuts[0], mode, blockSize);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
     function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");

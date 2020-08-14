@@ -23,27 +23,28 @@ using namespace ngraph;
 
 TEST(type_prop, replace_slice_deduce_vector)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{2}, Coordinate{5});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+    auto rsl = make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{2}, Coordinate{5});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6}));
 }
 
 TEST(type_prop, replace_slice_deduce_matrix)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{3, 6});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{3, 6});
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
 }
 
 TEST(type_prop, replace_slice_deduce_matrix_strided)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{1, 3});
-    auto rsl = make_shared<op::ReplaceSlice>(
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto rsl = make_shared<op::v0::ReplaceSlice>(
         param0, param1, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 2});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
@@ -51,9 +52,9 @@ TEST(type_prop, replace_slice_deduce_matrix_strided)
 
 TEST(type_prop, replace_slice_deduce_matrix_strided_uneven)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{1, 2});
-    auto rsl = make_shared<op::ReplaceSlice>(
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+    auto rsl = make_shared<op::v0::ReplaceSlice>(
         param0, param1, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 4});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
@@ -61,47 +62,50 @@ TEST(type_prop, replace_slice_deduce_matrix_strided_uneven)
 
 TEST(type_prop, replace_slice_deduce_vector_edge)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto rsl = make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{6});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6}));
 }
 
 TEST(type_prop, replace_slice_deduce_matrix_edge)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 8});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 8});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
 }
 
 TEST(type_prop, replace_slice_deduce_matrix_zero_cols)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 0});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 0});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 0});
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 0});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
 }
 
 TEST(type_prop, replace_slice_deduce_matrix_zero_zero)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{0, 0});
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{0, 0});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{0, 0});
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{0, 0});
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_EQ(rsl->get_shape(), (Shape{6, 8}));
 }
 
 TEST(type_prop, replace_slice_deduce_vector_invalid_strides)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{4});
     try
     {
-        auto sl = make_shared<op::ReplaceSlice>(
+        auto sl = make_shared<op::v0::ReplaceSlice>(
             param0, param1, Coordinate{0}, Coordinate{7}, Strides{1, 2});
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid slice strides not detected";
@@ -121,12 +125,12 @@ TEST(type_prop, replace_slice_deduce_vector_invalid_strides)
 
 TEST(type_prop, replace_slice_deduce_matrix_arg_rank_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{3, 6, 5});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{3, 6, 5});
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
         // Should have thrown, so fail if it didn't
         FAIL() << "Argument rank mismatch not detected";
     }
@@ -142,12 +146,12 @@ TEST(type_prop, replace_slice_deduce_matrix_arg_rank_mismatch)
 
 TEST(type_prop, replace_slice_deduce_matrix_arg_element_type_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::i32, Shape{3, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::i32, Shape{3, 6});
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{2, 1}, Coordinate{5, 7});
         // Should have thrown, so fail if it didn't
         FAIL() << "Argument element type mismatch not detected";
     }
@@ -163,12 +167,12 @@ TEST(type_prop, replace_slice_deduce_matrix_arg_element_type_mismatch)
 
 TEST(type_prop, replace_slice_deduce_matrix_slice_shape_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{3, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{3, 6});
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{1, 1}, Coordinate{5, 7});
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{1, 1}, Coordinate{5, 7});
         // Should have thrown, so fail if it didn't
         FAIL() << "Slice shape mismatch not detected";
     }
@@ -187,11 +191,11 @@ TEST(type_prop, replace_slice_deduce_matrix_slice_shape_mismatch)
 
 TEST(type_prop, replace_slice_deduce_matrix_slice_shape_mismatch_strided)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{4, 6});
     try
     {
-        auto rsl = make_shared<op::ReplaceSlice>(
+        auto rsl = make_shared<op::v0::ReplaceSlice>(
             param0, param1, Coordinate{1, 1}, Coordinate{5, 7}, Strides{1, 2});
         // Should have thrown, so fail if it didn't
         FAIL() << "Slice shape mismatch not detected";
@@ -211,11 +215,11 @@ TEST(type_prop, replace_slice_deduce_matrix_slice_shape_mismatch_strided)
 
 TEST(type_prop, replace_slice_deduce_vector_edge_upper_oob)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{7});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{7});
     try
     {
-        auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{7});
+        auto rsl = make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{7});
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bound out of range not detected";
     }
@@ -232,12 +236,12 @@ TEST(type_prop, replace_slice_deduce_vector_edge_upper_oob)
 
 TEST(type_prop, replace_slice_deduce_matrix_edge_upper_oob)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 9});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 9});
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 9});
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{6, 9});
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bound out of range not detected";
     }
@@ -254,11 +258,11 @@ TEST(type_prop, replace_slice_deduce_matrix_edge_upper_oob)
 
 TEST(type_prop, replace_slice_deduce_vector_lower_above_upper)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{0});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{0});
     try
     {
-        auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{3}, Coordinate{2});
+        auto rsl = make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{3}, Coordinate{2});
         // Should have thrown, so fail if it didn't
         FAIL() << "Lower bound above upper not detected";
     }
@@ -276,12 +280,12 @@ TEST(type_prop, replace_slice_deduce_vector_lower_above_upper)
 
 TEST(type_prop, replace_slice_deduce_matrix_lower_above_upper)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 0});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 0});
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 5}, Coordinate{6, 4});
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 5}, Coordinate{6, 4});
         // Should have thrown, so fail if it didn't
         FAIL() << "Lower bound above upper not detected";
     }
@@ -299,11 +303,12 @@ TEST(type_prop, replace_slice_deduce_matrix_lower_above_upper)
 
 TEST(type_prop, replace_slice_deduce_matrix_lower_missing)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 6});
     try
     {
-        auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{5, 5});
+        auto rsl =
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0}, Coordinate{5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Missing lower bound coordinate not detected";
     }
@@ -322,11 +327,12 @@ TEST(type_prop, replace_slice_deduce_matrix_lower_missing)
 
 TEST(type_prop, replace_slice_deduce_matrix_upper_missing)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 6});
     try
     {
-        auto rsl = make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{5});
+        auto rsl =
+            make_shared<op::v0::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Missing upper bound coordinate not detected";
     }
@@ -345,12 +351,12 @@ TEST(type_prop, replace_slice_deduce_matrix_upper_missing)
 
 TEST(type_prop, replace_slice_deduce_matrix_lower_extra)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 6});
     try
     {
-        auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0, 0}, Coordinate{5, 5});
+        auto rsl = make_shared<op::v0::ReplaceSlice>(
+            param0, param1, Coordinate{0, 0, 0}, Coordinate{5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Extra lower bound coordinate not detected";
     }
@@ -369,12 +375,12 @@ TEST(type_prop, replace_slice_deduce_matrix_lower_extra)
 
 TEST(type_prop, replace_slice_deduce_matrix_upper_extra)
 {
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 6});
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, Shape{6, 6});
     try
     {
-        auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, Coordinate{0, 0}, Coordinate{5, 5, 5});
+        auto rsl = make_shared<op::v0::ReplaceSlice>(
+            param0, param1, Coordinate{0, 0}, Coordinate{5, 5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Extra upper bound coordinate not detected";
     }
@@ -399,9 +405,10 @@ TEST(type_prop, replace_slice_partial_input_rank_dynamic_replacement_rank_dynami
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_TRUE(rsl->get_output_partial_shape(0).same_scheme(PartialShape{
@@ -417,12 +424,12 @@ TEST(type_prop,
     Coordinate upper_bounds{1, 3, 5};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of lower-bounds/upper-bounds/strides ranks not detected (argument "
                   "rank-dynamic)";
@@ -449,12 +456,12 @@ TEST(type_prop,
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Crossing lower/upper bounds not detected (argument rank-dynamic)";
     }
@@ -480,9 +487,10 @@ TEST(type_prop, replace_slice_partial_input_rank_static_dynamic_replacement_rank
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_TRUE(rsl->get_output_partial_shape(0).same_scheme(PartialShape{
@@ -498,9 +506,10 @@ TEST(type_prop,
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_TRUE(
@@ -521,12 +530,12 @@ TEST(
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of attrib ranks with arg ranks not detected (argument rank-static "
                   "dynamic)";
@@ -554,12 +563,12 @@ TEST(
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bounds out of bounds not detected (argument rank-static dynamic)";
     }
@@ -585,9 +594,10 @@ TEST(type_prop, replace_slice_partial_input_rank_dynamic_replacement_rank_static
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_TRUE(rsl->get_output_partial_shape(0).same_scheme(PartialShape{
@@ -603,9 +613,10 @@ TEST(type_prop,
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
-    auto rsl = make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
+    auto rsl =
+        make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(rsl->get_element_type(), element::f32);
     ASSERT_TRUE(rsl->get_output_partial_shape(0).same_scheme(PartialShape{
@@ -622,12 +633,12 @@ TEST(
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of shape inferred from attributes with provided replacement shape not "
                   "detected (rank-dynamic/rank-static dynamic inputs)";
@@ -658,12 +669,12 @@ TEST(
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of attrib ranks with arg ranks not detected (arguments "
                   "rank-dynamic/rank-static "
@@ -697,12 +708,12 @@ TEST(
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param0 = make_shared<op::Parameter>(element::f32, input_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, replacement_shape);
+    auto param0 = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto param1 = make_shared<op::v0::Parameter>(element::f32, replacement_shape);
     try
     {
         auto rsl =
-            make_shared<op::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
+            make_shared<op::v0::ReplaceSlice>(param0, param1, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatching input/replacement ranks not detected (arguments both rank-static "
                   "dynamic)";

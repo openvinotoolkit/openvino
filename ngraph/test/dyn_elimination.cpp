@@ -30,12 +30,12 @@ using namespace std;
 TEST(dyn_elimination, transpose)
 {
     Shape shape_in{2, 4, 6, 8};
-    auto param = make_shared<op::Parameter>(element::boolean, shape_in);
+    auto param = make_shared<op::v0::Parameter>(element::boolean, shape_in);
 
     auto constant_perm =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
+        make_shared<op::v0::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
 
-    auto transpose = make_shared<op::Transpose>(param, constant_perm);
+    auto transpose = make_shared<op::v1::Transpose>(param, constant_perm);
 
     auto f = make_shared<Function>(transpose, ParameterVector{param});
 
@@ -43,11 +43,11 @@ TEST(dyn_elimination, transpose)
     pass_manager.register_pass<pass::DynElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Transpose>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Reshape>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v1::Transpose>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Reshape>(f), 1);
 
     auto new_reshape =
-        as_type_ptr<op::Reshape>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::v0::Reshape>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_reshape);
 
     ASSERT_EQ(new_reshape->get_input_order(), (AxisVector{2, 3, 1, 0}));
@@ -63,12 +63,12 @@ TEST(dyn_elimination, transpose_dyn_shape)
 {
     PartialShape shape_in{2, 4, Dimension::dynamic(), 8};
 
-    auto param = make_shared<op::Parameter>(element::boolean, shape_in);
+    auto param = make_shared<op::v0::Parameter>(element::boolean, shape_in);
 
     auto constant_perm =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
+        make_shared<op::v0::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
 
-    auto transpose = make_shared<op::Transpose>(param, constant_perm);
+    auto transpose = make_shared<op::v1::Transpose>(param, constant_perm);
 
     auto f = make_shared<Function>(transpose, ParameterVector{param});
 
@@ -76,11 +76,11 @@ TEST(dyn_elimination, transpose_dyn_shape)
     pass_manager.register_pass<pass::DynElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Transpose>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v1::Transpose>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(f), 1);
 
-    auto new_transpose =
-        as_type_ptr<op::Transpose>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    auto new_transpose = as_type_ptr<op::v1::Transpose>(
+        f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_transpose);
 
     ASSERT_EQ(new_transpose->get_output_element_type(0), element::boolean);
@@ -90,11 +90,11 @@ TEST(dyn_elimination, transpose_dyn_shape)
 
 TEST(dyn_elimination, range)
 {
-    auto constant_start = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{0});
-    auto constant_stop = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{5});
-    auto constant_step = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
+    auto constant_start = make_shared<op::v0::Constant>(element::i64, Shape{}, vector<int64_t>{0});
+    auto constant_stop = make_shared<op::v0::Constant>(element::i64, Shape{}, vector<int64_t>{5});
+    auto constant_step = make_shared<op::v0::Constant>(element::i64, Shape{}, vector<int64_t>{2});
 
-    auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
+    auto range = make_shared<op::v0::Range>(constant_start, constant_stop, constant_step);
 
     ASSERT_EQ(range->get_element_type(), element::i64);
     ASSERT_EQ(range->get_shape(), (Shape{3}));
@@ -105,11 +105,11 @@ TEST(dyn_elimination, range)
     pass_manager.register_pass<pass::DynElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Range>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Range>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(f), 1);
 
     auto replacement =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::v0::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
 
     ASSERT_NE(replacement, nullptr);
     ASSERT_EQ(replacement->get_element_type(), element::i64);
@@ -122,11 +122,12 @@ TEST(dyn_elimination, range)
 
 TEST(dyn_elimination, range_f64)
 {
-    auto constant_start = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{-0.5});
-    auto constant_stop = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{2});
-    auto constant_step = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{0.25});
+    auto constant_start =
+        make_shared<op::v0::Constant>(element::f64, Shape{}, vector<double>{-0.5});
+    auto constant_stop = make_shared<op::v0::Constant>(element::f64, Shape{}, vector<double>{2});
+    auto constant_step = make_shared<op::v0::Constant>(element::f64, Shape{}, vector<double>{0.25});
 
-    auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
+    auto range = make_shared<op::v0::Range>(constant_start, constant_stop, constant_step);
 
     ASSERT_EQ(range->get_element_type(), element::f64);
     ASSERT_EQ(range->get_shape(), (Shape{10}));
@@ -137,11 +138,11 @@ TEST(dyn_elimination, range_f64)
     pass_manager.register_pass<pass::DynElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Range>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Range>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(f), 1);
 
     auto replacement =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::v0::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
 
     ASSERT_NE(replacement, nullptr);
     ASSERT_EQ(replacement->get_element_type(), element::f64);

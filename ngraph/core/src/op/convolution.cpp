@@ -216,7 +216,7 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic)
     {
-        return !is_type<op::Constant>(input_value(2).get_node());
+        return !is_type<op::v0::Constant>(input_value(2).get_node());
     }
     return is_dynamic;
 }
@@ -237,7 +237,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
+        if (auto const_op = as_type<op::v0::Constant>(input_value(2).get_node()))
         {
             shape = const_op->get_shape_val();
         }
@@ -252,7 +252,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
 void op::v1::ConvolutionBackpropData::set_output_shape(const Shape& shape)
 {
     this->input(2).replace_source_output(
-        op::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)
+        op::v0::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)
             ->output(0));
 }
 

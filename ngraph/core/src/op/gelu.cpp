@@ -58,7 +58,7 @@ OutputVector op::Gelu::decompose_op() const
     shared_ptr<ngraph::Node> sqrt_two =
         builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
 
-    return {half * data * (one + make_shared<ngraph::op::Erf>(data / sqrt_two))};
+    return {half * data * (one + make_shared<ngraph::op::v0::Erf>(data / sqrt_two))};
 }
 
 shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) const

@@ -32,8 +32,8 @@ using namespace ngraph;
 TEST(op_eval, split)
 {
     const auto data_shape = Shape{3, 8, 3};
-    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto data = make_shared<op::v0::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -70,8 +70,8 @@ TEST(op_eval, split)
 TEST(op_eval, split_neg_axis)
 {
     const auto data_shape = Shape{2, 1, 4, 1};
-    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto data = make_shared<op::v0::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -104,8 +104,8 @@ TEST(op_eval, split_neg_axis)
 TEST(op_eval, split_boolean_type)
 {
     const auto data_shape = Shape{2, 1, 2, 1, 2};
-    const auto data = make_shared<op::Parameter>(element::boolean, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto data = make_shared<op::v0::Parameter>(element::boolean, data_shape);
+    const auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{});
     const size_t num_splits = 2;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -138,8 +138,8 @@ TEST(op_eval, split_boolean_type)
 TEST(op_eval, split_1d)
 {
     const auto data_shape = Shape{8};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);

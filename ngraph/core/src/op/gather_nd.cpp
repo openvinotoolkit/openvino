@@ -23,15 +23,15 @@ using namespace ngraph;
 static int PARAMS = 0;
 static int INDICES = 1;
 
-constexpr NodeTypeInfo op::GatherND::type_info;
+constexpr NodeTypeInfo op::v0::GatherND::type_info;
 
-shared_ptr<Node> op::GatherND::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::GatherND::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<GatherND>(new_args.at(PARAMS), new_args.at(INDICES));
 }
 
-void op::GatherND::validate_and_infer_types()
+void op::v0::GatherND::validate_and_infer_types()
 {
     element::Type result_et = get_input_element_type(PARAMS);
     element::Type indices_et = get_input_element_type(INDICES);

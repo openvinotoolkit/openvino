@@ -32,9 +32,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
 {
     Shape shape_a{};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{};
-    auto r = make_shared<op::Slice>(A, Coordinate{}, Coordinate{});
+    auto r = make_shared<op::v0::Slice>(A, Coordinate{}, Coordinate{});
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(r), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -53,9 +53,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{3, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{0, 1}, Coordinate{3, 3});
+    auto r = make_shared<op::v0::Slice>(A, Coordinate{0, 1}, Coordinate{3, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -74,9 +74,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
 NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
 {
     Shape shape_a{16};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{12};
-    auto r = make_shared<op::Slice>(A, Coordinate{2}, Coordinate{14});
+    auto r = make_shared<op::v0::Slice>(A, Coordinate{2}, Coordinate{14});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -96,13 +96,13 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto B = make_shared<op::Parameter>(element::f32, shape_a);
-    auto C = make_shared<op::Add>(A, B);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape_a);
+    auto C = make_shared<op::v0::Add>(A, B);
     Shape shape_r{2, 4};
-    auto D = make_shared<op::Slice>(C, Coordinate{0, 0}, Coordinate{2, 4});
-    auto E = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto D = make_shared<op::v0::Slice>(C, Coordinate{0, 0}, Coordinate{2, 4});
+    auto E = make_shared<op::v0::Slice>(C, Coordinate{1, 0}, Coordinate{3, 4});
+    auto r = make_shared<op::v0::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -124,11 +124,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
-    auto D = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
-    auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto D = make_shared<op::v0::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
+    auto E = make_shared<op::v0::Slice>(A, Coordinate{2, 0}, Coordinate{4, 4});
+    auto r = make_shared<op::v0::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -148,12 +148,12 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{1, 4};
-    auto B = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
-    auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{2, 4});
-    auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto B = make_shared<op::v0::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
+    auto D = make_shared<op::v0::Slice>(B, Coordinate{1, 0}, Coordinate{2, 4});
+    auto E = make_shared<op::v0::Slice>(A, Coordinate{2, 0}, Coordinate{3, 4});
+    auto r = make_shared<op::v0::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -172,12 +172,12 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
 {
     Shape shape_a{5, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
-    auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{5, 4});
-    auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{3, 4});
-    auto E = make_shared<op::Slice>(B, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto B = make_shared<op::v0::Slice>(A, Coordinate{1, 0}, Coordinate{5, 4});
+    auto D = make_shared<op::v0::Slice>(B, Coordinate{1, 0}, Coordinate{3, 4});
+    auto E = make_shared<op::v0::Slice>(B, Coordinate{2, 0}, Coordinate{4, 4});
+    auto r = make_shared<op::v0::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -198,13 +198,13 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_reshape)
 {
     Shape shape_a{4, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
-    auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 5});
-    auto C = make_shared<op::Reshape>(B, AxisVector{1, 0}, Shape{5, 3});
-    auto D = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{5, 3});
-    auto E = make_shared<op::Reshape>(D, AxisVector{1, 0}, Shape{3, 4});
-    auto r = make_shared<op::Slice>(E, Coordinate{1, 0}, Coordinate{3, 4});
+    auto B = make_shared<op::v0::Slice>(A, Coordinate{1, 0}, Coordinate{4, 5});
+    auto C = make_shared<op::v0::Reshape>(B, AxisVector{1, 0}, Shape{5, 3});
+    auto D = make_shared<op::v0::Slice>(C, Coordinate{1, 0}, Coordinate{5, 3});
+    auto E = make_shared<op::v0::Reshape>(D, AxisVector{1, 0}, Shape{3, 4});
+    auto r = make_shared<op::v0::Slice>(E, Coordinate{1, 0}, Coordinate{3, 4});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -225,9 +225,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_reshape)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 4}, Strides{2, 3});
+    auto r = make_shared<op::v0::Slice>(A, Coordinate{1, 0}, Coordinate{4, 4}, Strides{2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -246,9 +246,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{1, 1, 1}, Coordinate{3, 3, 3});
+    auto r = make_shared<op::v0::Slice>(A, Coordinate{1, 1, 1}, Coordinate{3, 3, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -274,9 +274,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 2});
+    auto r =
+        make_shared<op::v0::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 2});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -302,9 +303,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
+    auto r =
+        make_shared<op::v0::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -330,9 +332,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::i64, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i64, shape_a);
     Shape shape_r{2, 2, 2};
-    auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
+    auto r =
+        make_shared<op::v0::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -356,10 +359,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_start_just_oob)
 {
     Shape shape_a{20, 10, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_r{20, 0, 5};
-    auto r =
-        make_shared<op::Slice>(A, Coordinate{0, 10, 0}, Coordinate{20, 10, 5}, Strides{1, 1, 1});
+    auto r = make_shared<op::v0::Slice>(
+        A, Coordinate{0, 10, 0}, Coordinate{20, 10, 5}, Strides{1, 1, 1});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

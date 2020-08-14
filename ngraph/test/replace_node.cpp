@@ -61,24 +61,25 @@ using namespace ngraph;
 //
 TEST(replace_node, replace_nodes)
 {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto z = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto x = make_shared<op::v0::Parameter>(element::f32, Shape{2});
+    auto y = make_shared<op::v0::Parameter>(element::f32, Shape{2});
+    auto z = make_shared<op::v0::Parameter>(element::f32, Shape{2});
 
     auto add = x + y;
-    auto k = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
+    auto k = make_shared<op::v0::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
     auto mul = add * k;
     auto sub = mul - z;
 
     auto f = make_shared<Function>(NodeVector{sub}, ParameterVector{x, y, z});
 
-    unordered_map<shared_ptr<op::Parameter>, shared_ptr<op::Parameter>> parameter_replacement_map;
-    auto x_replacement = make_shared<op::Parameter>(element::f32, Shape{2});
+    unordered_map<shared_ptr<op::v0::Parameter>, shared_ptr<op::v0::Parameter>>
+        parameter_replacement_map;
+    auto x_replacement = make_shared<op::v0::Parameter>(element::f32, Shape{2});
     parameter_replacement_map[x] = x_replacement;
 
     unordered_map<shared_ptr<Node>, shared_ptr<Node>> body_replacement_map;
-    auto y_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
-    auto k_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
+    auto y_replacement = make_shared<op::v0::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
+    auto k_replacement = make_shared<op::v0::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
     auto z_replacement = x_replacement + mul;
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;

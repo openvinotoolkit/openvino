@@ -50,7 +50,7 @@ void MatMulTest::SetUp() {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
     auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
     auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
             ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, transpose_a, transpose_b));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};

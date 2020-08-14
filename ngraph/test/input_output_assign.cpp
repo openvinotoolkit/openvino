@@ -27,7 +27,7 @@ TEST(input_output, param_tensor)
     // Params have no arguments, so we can check that the value becomes a tensor output
     auto& et = element::f32;
     Shape shape{2, 4};
-    auto param = make_shared<op::Parameter>(et, shape);
+    auto param = make_shared<op::v0::Parameter>(et, shape);
 
     ASSERT_EQ(param->get_output_size(), 1);
     ASSERT_EQ(et, param->get_element_type());
@@ -36,9 +36,9 @@ TEST(input_output, param_tensor)
 
 TEST(input_output, simple_output)
 {
-    auto param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto add = make_shared<op::Add>(param_0, param_1);
+    auto param_0 = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto param_1 = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto add = make_shared<op::v0::Add>(param_0, param_1);
 
     // Sort the ops
     vector<shared_ptr<Node>> nodes;

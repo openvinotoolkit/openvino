@@ -993,7 +993,7 @@ namespace
     vector<MaxValue> exec_constant(Node* node, vector<MaxValue>& inputs)
     {
         auto result = MaxValue();
-        auto op = as_type<op::Constant>(node);
+        auto op = as_type<op::v0::Constant>(node);
         auto element_type = op->get_output_element_type(0);
         if (element_type.is_integral())
         {

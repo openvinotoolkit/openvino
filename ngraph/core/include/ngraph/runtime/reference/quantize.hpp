@@ -34,7 +34,7 @@ namespace ngraph
                           const Shape& input_shape,
                           const Shape& scale_zero_point_shape,
                           const AxisSet& axes,
-                          op::Quantize::RoundMode round_mode)
+                          op::v0::Quantize::RoundMode round_mode)
             {
                 CoordinateTransform input_transform(input_shape);
                 CoordinateTransform scale_zero_point_transform(scale_zero_point_shape);
@@ -48,7 +48,7 @@ namespace ngraph
                                   scale[scale_zero_point_transform.index(scale_zero_point_coord)];
 
                     // round
-                    if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY)
+                    if (round_mode == op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY)
                     {
                         REAL abs_qvalue = std::fabs(qvalue);
                         REAL abs_qvalue_toward_inf =
@@ -56,7 +56,7 @@ namespace ngraph
                         qvalue = (qvalue < static_cast<REAL>(0.0)) ? -abs_qvalue_toward_inf
                                                                    : abs_qvalue_toward_inf;
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_ZERO)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_ZERO)
                     {
                         auto abs_qvalue = std::fabs(qvalue);
                         auto abs_qvalue_toward_zero =
@@ -64,40 +64,40 @@ namespace ngraph
                         qvalue = (qvalue < static_cast<REAL>(0.0)) ? -abs_qvalue_toward_zero
                                                                    : abs_qvalue_toward_zero;
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_UPWARD)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_NEAREST_UPWARD)
                     {
                         qvalue = std::floor(qvalue + static_cast<REAL>(0.5));
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_DOWNWARD)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_NEAREST_DOWNWARD)
                     {
                         qvalue = std::ceil(qvalue - static_cast<REAL>(0.5));
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN)
                     {
                         auto up_qvalue = std::floor(qvalue + static_cast<REAL>(0.5));
                         auto dn_qvalue = std::ceil(qvalue - static_cast<REAL>(0.5));
                         auto rem = std::fmod(up_qvalue, 2.0);
                         qvalue = (rem == 0.0) ? up_qvalue : dn_qvalue;
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_TOWARD_INFINITY)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_TOWARD_INFINITY)
                     {
                         auto abs_qvalue = std::fabs(qvalue);
                         auto abs_qvalue_toward_inf = std::ceil(abs_qvalue);
                         qvalue = (qvalue < static_cast<REAL>(0.0)) ? -abs_qvalue_toward_inf
                                                                    : abs_qvalue_toward_inf;
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_TOWARD_ZERO)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_TOWARD_ZERO)
                     {
                         auto abs_qvalue = std::fabs(qvalue);
                         auto abs_qvalue_toward_zero = std::floor(abs_qvalue);
                         qvalue = (qvalue < static_cast<REAL>(0.0)) ? -abs_qvalue_toward_zero
                                                                    : abs_qvalue_toward_zero;
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_UP)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_UP)
                     {
                         qvalue = std::ceil(qvalue);
                     }
-                    else if (round_mode == op::Quantize::RoundMode::ROUND_DOWN)
+                    else if (round_mode == op::v0::Quantize::RoundMode::ROUND_DOWN)
                     {
                         qvalue = std::floor(qvalue);
                     }

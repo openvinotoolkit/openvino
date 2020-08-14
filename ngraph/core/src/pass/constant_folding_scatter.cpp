@@ -23,11 +23,11 @@ using namespace std;
 using namespace ngraph;
 
 template <typename DataType, typename IndicesType, typename AxisType>
-static shared_ptr<op::Constant>
-    fold_constant_scatter_elem_updt(const shared_ptr<op::Constant>& data,
-                                    const shared_ptr<op::Constant>& indices,
-                                    const shared_ptr<op::Constant>& updates,
-                                    const shared_ptr<op::Constant>& axis,
+static shared_ptr<op::v0::Constant>
+    fold_constant_scatter_elem_updt(const shared_ptr<op::v0::Constant>& data,
+                                    const shared_ptr<op::v0::Constant>& indices,
+                                    const shared_ptr<op::v0::Constant>& updates,
+                                    const shared_ptr<op::v0::Constant>& axis,
                                     const shared_ptr<Node>& scatter)
 {
     runtime::AlignedBuffer buffer(shape_size(scatter->get_shape()) * sizeof(DataType));
@@ -53,16 +53,16 @@ static shared_ptr<op::Constant>
         throw ngraph_error("Unsupported op in scatter_elem_updt constant folding.");
     }
 
-    return make_shared<op::Constant>(
+    return make_shared<op::v0::Constant>(
         scatter->get_output_element_type(0), scatter->get_output_shape(0), data_ptr);
 }
 
 template <typename T, typename U>
-static shared_ptr<op::Constant>
-    dispatch_const_fold_indices(const shared_ptr<op::Constant>& data,
-                                const shared_ptr<op::Constant>& indices,
-                                const shared_ptr<op::Constant>& updates,
-                                const shared_ptr<op::Constant>& axis,
+static shared_ptr<op::v0::Constant>
+    dispatch_const_fold_indices(const shared_ptr<op::v0::Constant>& data,
+                                const shared_ptr<op::v0::Constant>& indices,
+                                const shared_ptr<op::v0::Constant>& updates,
+                                const shared_ptr<op::v0::Constant>& axis,
                                 const shared_ptr<Node>& scatter_elem_updt)
 {
     auto axis_type = axis->get_output_element_type(0);
@@ -110,11 +110,12 @@ static shared_ptr<op::Constant>
 }
 
 template <typename T>
-static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Constant>& data,
-                                                         const shared_ptr<op::Constant>& indices,
-                                                         const shared_ptr<op::Constant>& updates,
-                                                         const shared_ptr<op::Constant>& axis,
-                                                         const shared_ptr<Node>& scatter_elem_updt)
+static shared_ptr<op::v0::Constant>
+    dispatch_const_fold_data(const shared_ptr<op::v0::Constant>& data,
+                             const shared_ptr<op::v0::Constant>& indices,
+                             const shared_ptr<op::v0::Constant>& updates,
+                             const shared_ptr<op::v0::Constant>& axis,
+                             const shared_ptr<Node>& scatter_elem_updt)
 {
     auto indices_type = indices->get_output_element_type(0);
 
@@ -163,13 +164,13 @@ static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Co
 void pass::ConstantFolding::construct_constant_scatter_elements_update()
 {
     const auto data_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{10, 20, 30}, pattern::has_class<op::Constant>());
+        element::f32, Shape{10, 20, 30}, pattern::has_class<op::v0::Constant>());
     const auto indices_label = make_shared<pattern::op::Label>(
-        element::i64, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
+        element::i64, Shape{5, 10, 15}, pattern::has_class<op::v0::Constant>());
     const auto updates_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{5, 10, 15}, pattern::has_class<op::Constant>());
-    const auto axis_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+        element::f32, Shape{5, 10, 15}, pattern::has_class<op::v0::Constant>());
+    const auto axis_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{}, pattern::has_class<op::v0::Constant>());
     auto scatter_elem_updt = make_shared<op::v3::ScatterElementsUpdate>(
         data_label, indices_label, updates_label, axis_label);
 
@@ -182,10 +183,10 @@ void pass::ConstantFolding::construct_constant_scatter_elements_update()
 
         auto pattern_map = m.get_pattern_map();
 
-        const auto data = static_pointer_cast<op::Constant>(pattern_map[data_label]);
-        const auto indices = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
-        const auto updates = static_pointer_cast<op::Constant>(pattern_map[updates_label]);
-        const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
+        const auto data = static_pointer_cast<op::v0::Constant>(pattern_map[data_label]);
+        const auto indices = static_pointer_cast<op::v0::Constant>(pattern_map[indices_label]);
+        const auto updates = static_pointer_cast<op::v0::Constant>(pattern_map[updates_label]);
+        const auto axis = static_pointer_cast<op::v0::Constant>(pattern_map[axis_label]);
         const auto scatter_elem_updt = m.get_match_root();
 
         NGRAPH_CHECK(revalidate_and_ensure_static(scatter_elem_updt));

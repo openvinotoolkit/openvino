@@ -209,7 +209,7 @@ OutputVector op::v0::GroupConvolution::decompose_op() const
         if (m_groups_in_filters)
         {
             // Remove group dimmension after slicing
-            sliced_filter = make_shared<op::Reshape>(
+            sliced_filter = make_shared<op::v0::Reshape>(
                 sliced_filters[group],
                 get_default_order(sliced_filters[group].get_shape().size()),
                 Shape(std::next(std::begin(filters_shape), 1), std::end(filters_shape)));
@@ -225,7 +225,7 @@ OutputVector op::v0::GroupConvolution::decompose_op() const
                                                           m_pad_type));
     }
     std::size_t concatenation_axis = 1;
-    return {std::make_shared<ngraph::op::Concat>(convolution_nodes, concatenation_axis)};
+    return {std::make_shared<ngraph::op::v0::Concat>(convolution_nodes, concatenation_axis)};
 }
 
 //------------------------------------------------------------------------------
@@ -331,5 +331,5 @@ OutputVector op::v0::GroupConvolutionBackpropData::decompose_op() const
     }
 
     size_t concatenation_axis = 1;
-    return {std::make_shared<ngraph::op::Concat>(sliced_inputs, concatenation_axis)};
+    return {std::make_shared<ngraph::op::v0::Concat>(sliced_inputs, concatenation_axis)};
 }

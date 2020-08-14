@@ -23,7 +23,7 @@
 using namespace testing;
 
 TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -40,7 +40,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 2, 2, 3, 1080, 1616};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -49,21 +49,21 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 3, 4, 1, 5, 2};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 3, 2 * 1080, 2 * 1616};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
 TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -80,7 +80,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 3, 2, 2, 1080, 1616};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -89,21 +89,21 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 1, 4, 2, 5, 3};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 3, 2 * 1080, 2 * 1616};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
 TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -120,7 +120,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 12, 1080 / 2, 2, 1616 / 2, 2};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -129,21 +129,21 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 3, 5, 1, 2, 4};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 12 * 4, 1080 / 2, 1616 / 2};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
 TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
-    auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -160,7 +160,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto reshape_begin = consumers.begin()->get_node();
-    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_begin = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_begin->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_begin_value = shape_begin->get_vector<int64_t>();
     std::vector<int64_t> shape_begin_value_ref{1, 12, 1080 / 2, 2, 1616 / 2, 2};
     ASSERT_EQ(shape_begin_value, shape_begin_value_ref);
@@ -169,14 +169,14 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     ASSERT_EQ(consumers.size(), 1);
 
     auto transpose = consumers.begin()->get_node();
-    auto order = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
+    auto order = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(transpose->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> order_value = order->get_vector<int64_t>();
     std::vector<int64_t> order_value_ref{0, 1, 3, 5, 2, 4};
     ASSERT_EQ(order_value, order_value_ref);
 
     consumers = transpose->output(0).get_target_inputs();
     auto reshape_end = consumers.begin()->get_node();
-    auto shape_end = std::dynamic_pointer_cast<ngraph::op::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
+    auto shape_end = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(reshape_end->input(1).get_source_output().get_node_shared_ptr());
     std::vector<int64_t> shape_end_value = shape_end->get_vector<int64_t>();
     std::vector<int64_t> shape_end_value_ref{1, 12 * 4, 1080 / 2, 1616 / 2};
     ASSERT_EQ(shape_end_value, shape_end_value_ref);

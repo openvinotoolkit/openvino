@@ -63,7 +63,7 @@ namespace ngraph
 
                 const auto function_output_type = results.at(m_output_index)->get_element_type();
 
-                m_expected_outputs.emplace_back(std::make_shared<ngraph::op::Constant>(
+                m_expected_outputs.emplace_back(std::make_shared<ngraph::op::v0::Constant>(
                     function_output_type, expected_shape, values));
 
                 ++m_output_index;
@@ -83,7 +83,7 @@ namespace ngraph
             std::shared_ptr<ngraph::runtime::Executable> m_executable;
             std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_input_tensors;
             std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_result_tensors;
-            std::vector<std::shared_ptr<ngraph::op::Constant>> m_expected_outputs;
+            std::vector<std::shared_ptr<ngraph::op::v0::Constant>> m_expected_outputs;
             size_t m_input_index = 0;
             size_t m_output_index = 0;
         };

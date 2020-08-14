@@ -24,8 +24,8 @@ using namespace testing;
 using namespace ngraph;
 
 TEST(TransformationTests, ConvReshapeTest1) {
-    auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
-    auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
+    auto input = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
+    auto w = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
 
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
@@ -56,9 +56,9 @@ TEST(TransformationTests, ConvReshapeTest1) {
 }
 
 TEST(TransformationTests, ConvBiasReshapeTest1) {
-    auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
-    auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
-    auto b = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+    auto input = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
+    auto w = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
+    auto b = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
 
     std::shared_ptr<ngraph::Function> f(nullptr);
     {

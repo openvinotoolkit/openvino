@@ -47,7 +47,7 @@ protected:
     std::shared_ptr<ngraph::Function> getNgraphModel(const SqueezeCaseParam& param) {
         const std::size_t input_dim = InferenceEngine::details::product(param.input_shape);
 
-        auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
 
         auto reshape1_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{param.input_shape.size()},

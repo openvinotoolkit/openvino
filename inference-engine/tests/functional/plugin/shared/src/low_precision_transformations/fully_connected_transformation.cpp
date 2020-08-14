@@ -47,7 +47,7 @@ void FullyConnectedTransformation::SetUp() {
         { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
     fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
 
-    auto weightsConst = std::make_shared<ngraph::op::Constant>(
+    auto weightsConst = std::make_shared<ngraph::op::v0::Constant>(
         ngPrecision,
         ngraph::Shape { inputShape[inputShape.size() - 1ul], inputShape[inputShape.size() - 1ul] },
         std::vector<float>({ 1.f }));

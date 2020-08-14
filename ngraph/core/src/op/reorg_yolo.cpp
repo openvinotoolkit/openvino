@@ -19,16 +19,16 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReorgYolo::type_info;
+constexpr NodeTypeInfo op::v0::ReorgYolo::type_info;
 
-op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
+op::v0::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
     : Op({input})
     , m_strides(strides)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::ReorgYolo::validate_and_infer_types()
+void op::v0::ReorgYolo::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
@@ -49,13 +49,13 @@ void op::ReorgYolo::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<ReorgYolo>(new_args.at(0), m_strides);
 }
 
-bool op::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("stride", m_strides);
     return true;

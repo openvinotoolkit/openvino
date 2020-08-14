@@ -49,9 +49,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, maximum)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -71,9 +71,9 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum)
 NGRAPH_TEST(${BACKEND_NAME}, maximum_int32)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto B = make_shared<op::Parameter>(element::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -92,9 +92,9 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum_int32)
 NGRAPH_TEST(${BACKEND_NAME}, maximum_int64)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto B = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::i64, shape);
+    auto B = make_shared<op::v0::Parameter>(element::i64, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

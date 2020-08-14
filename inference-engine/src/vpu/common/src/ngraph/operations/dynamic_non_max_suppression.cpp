@@ -41,9 +41,9 @@ DynamicNonMaxSuppression::DynamicNonMaxSuppression(
     const element::Type& output_type)
     : ngraph::op::v4::NonMaxSuppression(boxes,
                                         scores,
-                                        ngraph::op::Constant::create(element::i64, Shape{}, {0}),
-                                        ngraph::op::Constant::create(element::f32, Shape{}, {.0f}),
-                                        ngraph::op::Constant::create(element::f32, Shape{}, {.0f}),
+                                        ngraph::op::v0::Constant::create(element::i64, Shape{}, {0}),
+                                        ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f}),
+                                        ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f}),
                                         box_encoding,
                                         sort_result_descending,
                                         output_type) {
@@ -58,13 +58,13 @@ std::shared_ptr<Node> DynamicNonMaxSuppression::clone_with_new_inputs(const Outp
 
     const auto& arg2 = new_args.size() > 2
                        ? new_args.at(2)
-                       : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                       : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                        ? new_args.at(3)
-                       : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                       : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                        ? new_args.at(4)
-                       : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                       : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<DynamicNonMaxSuppression>(new_args.at(0),
                                                       new_args.at(1),

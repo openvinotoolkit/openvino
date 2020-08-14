@@ -35,15 +35,15 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Acos::type_info;
+constexpr NodeTypeInfo op::v0::Acos::type_info;
 
-op::Acos::Acos(const Output<Node>& arg)
+op::v0::Acos::Acos(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Acos::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Acos::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Acos>(new_args.at(0));
@@ -86,8 +86,8 @@ namespace
     }
 }
 
-bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Acos::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Acos::evaluate");
     return evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

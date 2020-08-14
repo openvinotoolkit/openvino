@@ -82,13 +82,13 @@ void op::v1::BatchToSpace::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
+        auto block_val = std::dynamic_pointer_cast<op::v0::Constant>(block.get_node_shared_ptr())
                              ->cast_vector<int64_t>();
         auto crops_begin_val =
-            std::dynamic_pointer_cast<op::Constant>(crops_begin.get_node_shared_ptr())
+            std::dynamic_pointer_cast<op::v0::Constant>(crops_begin.get_node_shared_ptr())
                 ->cast_vector<int64_t>();
         auto crops_end_val =
-            std::dynamic_pointer_cast<op::Constant>(crops_end.get_node_shared_ptr())
+            std::dynamic_pointer_cast<op::v0::Constant>(crops_end.get_node_shared_ptr())
                 ->cast_vector<int64_t>();
 
         int64_t block_prod = 1;

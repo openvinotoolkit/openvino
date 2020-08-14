@@ -26,11 +26,11 @@ using namespace ngraph;
 void pass::ConstantFolding::construct_constant_gather_with_subgraph()
 {
     auto concat_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{2, 3, 4}, pattern::has_class<op::Concat>());
-    auto indices_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{5}, pattern::has_class<op::Constant>());
-    auto axis_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{1}, pattern::has_class<op::Constant>());
+        element::f32, Shape{2, 3, 4}, pattern::has_class<op::v0::Concat>());
+    auto indices_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{5}, pattern::has_class<op::v0::Constant>());
+    auto axis_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{1}, pattern::has_class<op::v0::Constant>());
     auto gather_v1 = make_shared<op::v1::Gather>(concat_label, indices_label, axis_label);
 
     auto concat_gather_callback = [concat_label, indices_label, axis_label](pattern::Matcher& m) {
@@ -39,10 +39,10 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
 
         auto pattern_map = m.get_pattern_map();
 
-        const auto concat = static_pointer_cast<op::Concat>(pattern_map[concat_label]);
+        const auto concat = static_pointer_cast<op::v0::Concat>(pattern_map[concat_label]);
 
-        const auto indices = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
-        const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
+        const auto indices = static_pointer_cast<op::v0::Constant>(pattern_map[indices_label]);
+        const auto axis = static_pointer_cast<op::v0::Constant>(pattern_map[axis_label]);
         const auto gather = m.get_match_root();
 
         // only along axis=0
@@ -73,7 +73,7 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
         if (indices_shape.empty())
         {
             // gathering a scalar
-            auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+            auto axes = op::v0::Constant::create(element::i64, Shape{1}, {0});
             gathered = make_shared<op::v0::Squeeze>(gathered_concat_input, axes);
         }
         replace_node(m.get_match_root(), gathered);

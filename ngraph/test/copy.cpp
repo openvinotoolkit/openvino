@@ -30,8 +30,8 @@ template <typename OP>
 bool check_unary()
 {
     Shape shape{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape)};
 
     auto node = make_shared<OP>(arg0);
     auto new_node = node->copy_with_new_inputs(new_args);
@@ -43,10 +43,10 @@ template <typename OP>
 bool check_binary()
 {
     Shape shape{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-    auto arg1 = make_shared<op::Parameter>(element::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
-                          make_shared<op::Parameter>(element::f32, shape)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto arg1 = make_shared<op::v0::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape),
+                          make_shared<op::v0::Parameter>(element::f32, shape)};
 
     auto node = make_shared<OP>(arg0, arg1);
     auto new_node = node->copy_with_new_inputs(new_args);
@@ -56,41 +56,41 @@ bool check_binary()
 
 TEST(copy, abs)
 {
-    ASSERT_TRUE(check_unary<op::Abs>());
+    ASSERT_TRUE(check_unary<op::v0::Abs>());
 }
 
 TEST(copy, acos)
 {
-    ASSERT_TRUE(check_unary<op::Acos>());
+    ASSERT_TRUE(check_unary<op::v0::Acos>());
 }
 
 TEST(copy, add)
 {
-    ASSERT_TRUE(check_binary<op::Add>());
+    ASSERT_TRUE(check_binary<op::v0::Add>());
 }
 
 TEST(copy, asin)
 {
-    ASSERT_TRUE(check_unary<op::Asin>());
+    ASSERT_TRUE(check_unary<op::v0::Asin>());
 }
 
 TEST(copy, atan)
 {
-    ASSERT_TRUE(check_unary<op::Atan>());
+    ASSERT_TRUE(check_unary<op::v0::Atan>());
 }
 
 TEST(copy, broadcast)
 {
     Shape shape1{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape1);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape1)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape1);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape1)};
 
     Shape shape{4, 1, 3};
     AxisSet axes{0, 2};
 
-    auto node = make_shared<op::Broadcast>(arg0, shape, axes);
+    auto node = make_shared<op::v0::Broadcast>(arg0, shape, axes);
     auto new_node = node->copy_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Broadcast>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Broadcast>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -101,20 +101,20 @@ TEST(copy, broadcast)
 
 TEST(copy, ceiling)
 {
-    ASSERT_TRUE(check_unary<op::Ceiling>());
+    ASSERT_TRUE(check_unary<op::v0::Ceiling>());
 }
 
 TEST(copy, concat)
 {
     Shape shape{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-    auto arg1 = make_shared<op::Parameter>(element::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
-                          make_shared<op::Parameter>(element::f32, shape)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto arg1 = make_shared<op::v0::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape),
+                          make_shared<op::v0::Parameter>(element::f32, shape)};
     size_t axis = 0;
-    auto node = make_shared<op::Concat>(NodeVector{arg0, arg1}, axis);
+    auto node = make_shared<op::v0::Concat>(NodeVector{arg0, arg1}, axis);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Concat>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Concat>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -127,9 +127,9 @@ TEST(copy, constant)
     Shape shape{};
     vector<float> c{2.4f};
     auto& et = element::f32;
-    auto node = op::Constant::create(et, shape, c);
+    auto node = op::v0::Constant::create(et, shape, c);
     auto new_node = node->clone_with_new_inputs(OutputVector{});
-    auto node_cast = as_type_ptr<op::Constant>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Constant>(new_node);
     ASSERT_NE(node_cast, nullptr);
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(OutputVector{} == new_node->input_values());
@@ -142,12 +142,12 @@ TEST(copy, convert)
 {
     Shape shape;
     auto& et = element::f64;
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape)};
 
-    auto node = make_shared<op::Convert>(arg0, et);
+    auto node = make_shared<op::v0::Convert>(arg0, et);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Convert>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Convert>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -157,95 +157,95 @@ TEST(copy, convert)
 
 TEST(copy, cos)
 {
-    ASSERT_TRUE(check_unary<op::Cos>());
+    ASSERT_TRUE(check_unary<op::v0::Cos>());
 }
 
 TEST(copy, cosh)
 {
-    ASSERT_TRUE(check_unary<op::Cosh>());
+    ASSERT_TRUE(check_unary<op::v0::Cosh>());
 }
 
 TEST(copy, divide)
 {
-    ASSERT_TRUE(check_binary<op::Divide>());
+    ASSERT_TRUE(check_binary<op::v0::Divide>());
 }
 
 TEST(copy, dot)
 {
-    ASSERT_TRUE(check_binary<op::Dot>());
+    ASSERT_TRUE(check_binary<op::v0::Dot>());
 }
 
 TEST(copy, equal)
 {
-    ASSERT_TRUE(check_binary<op::Equal>());
+    ASSERT_TRUE(check_binary<op::v0::Equal>());
 }
 
 TEST(copy, exp)
 {
-    ASSERT_TRUE(check_unary<op::Exp>());
+    ASSERT_TRUE(check_unary<op::v0::Exp>());
 }
 
 TEST(copy, floor)
 {
-    ASSERT_TRUE(check_unary<op::Floor>());
+    ASSERT_TRUE(check_unary<op::v0::Floor>());
 }
 
 TEST(copy, greater_eq)
 {
-    ASSERT_TRUE(check_binary<op::GreaterEq>());
+    ASSERT_TRUE(check_binary<op::v0::GreaterEq>());
 }
 
 TEST(copy, greater)
 {
-    ASSERT_TRUE(check_binary<op::Greater>());
+    ASSERT_TRUE(check_binary<op::v0::Greater>());
 }
 
 TEST(copy, less_eq)
 {
-    ASSERT_TRUE(check_binary<op::LessEq>());
+    ASSERT_TRUE(check_binary<op::v0::LessEq>());
 }
 
 TEST(copy, less)
 {
-    ASSERT_TRUE(check_binary<op::Less>());
+    ASSERT_TRUE(check_binary<op::v0::Less>());
 }
 
 TEST(copy, log)
 {
-    ASSERT_TRUE(check_unary<op::Log>());
+    ASSERT_TRUE(check_unary<op::v0::Log>());
 }
 
 TEST(copy, maximum)
 {
-    ASSERT_TRUE(check_binary<op::Maximum>());
+    ASSERT_TRUE(check_binary<op::v0::Maximum>());
 }
 
 TEST(copy, minimum)
 {
-    ASSERT_TRUE(check_binary<op::Minimum>());
+    ASSERT_TRUE(check_binary<op::v0::Minimum>());
 }
 
 TEST(copy, multiply)
 {
-    ASSERT_TRUE(check_binary<op::Multiply>());
+    ASSERT_TRUE(check_binary<op::v0::Multiply>());
 }
 
 TEST(copy, negative)
 {
-    ASSERT_TRUE(check_unary<op::Negative>());
+    ASSERT_TRUE(check_unary<op::v0::Negative>());
 }
 
 TEST(copy, not_equal)
 {
-    ASSERT_TRUE(check_binary<op::NotEqual>());
+    ASSERT_TRUE(check_binary<op::v0::NotEqual>());
 }
 
 TEST(copy, parameter)
 {
     Shape shape{1};
-    auto node = make_shared<op::Parameter>(element::f32, shape);
+    auto node = make_shared<op::v0::Parameter>(element::f32, shape);
     auto new_node = node->clone_with_new_inputs({});
-    auto node_cast = as_type_ptr<op::Parameter>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Parameter>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -255,7 +255,7 @@ TEST(copy, parameter)
 
 TEST(copy, power)
 {
-    ASSERT_TRUE(check_binary<op::Power>());
+    ASSERT_TRUE(check_binary<op::v0::Power>());
 }
 
 TEST(copy, reshape)
@@ -264,12 +264,12 @@ TEST(copy, reshape)
     AxisVector axes{0, 1, 2};
     Shape shape_out{6, 4};
 
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape_in);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape_in)};
 
-    auto node = make_shared<op::Reshape>(arg0, axes, shape_out);
+    auto node = make_shared<op::v0::Reshape>(arg0, axes, shape_out);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Reshape>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Reshape>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -281,16 +281,16 @@ TEST(copy, reshape)
 TEST(copy, select)
 {
     Shape shape{1};
-    auto arg0 = make_shared<op::Parameter>(element::boolean, shape);
-    auto arg1 = make_shared<op::Parameter>(element::f32, shape);
-    auto arg2 = make_shared<op::Parameter>(element::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::boolean, shape),
-                          make_shared<op::Parameter>(element::f32, shape),
-                          make_shared<op::Parameter>(element::f32, shape)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto arg1 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto arg2 = make_shared<op::v0::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::boolean, shape),
+                          make_shared<op::v0::Parameter>(element::f32, shape),
+                          make_shared<op::v0::Parameter>(element::f32, shape)};
 
-    auto node = make_shared<op::Select>(arg0, arg1, arg2);
+    auto node = make_shared<op::v0::Select>(arg0, arg1, arg2);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Select>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Select>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -299,17 +299,17 @@ TEST(copy, select)
 
 TEST(copy, sign)
 {
-    ASSERT_TRUE(check_unary<op::Sign>());
+    ASSERT_TRUE(check_unary<op::v0::Sign>());
 }
 
 TEST(copy, sin)
 {
-    ASSERT_TRUE(check_unary<op::Sin>());
+    ASSERT_TRUE(check_unary<op::v0::Sin>());
 }
 
 TEST(copy, sinh)
 {
-    ASSERT_TRUE(check_unary<op::Sinh>());
+    ASSERT_TRUE(check_unary<op::v0::Sinh>());
 }
 
 TEST(copy, slice)
@@ -319,12 +319,12 @@ TEST(copy, slice)
     Coordinate upper{2, 3, 4};
     Strides strides{1, 1, 1};
 
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape_in)};
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape_in);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape_in)};
 
-    auto node = make_shared<op::Slice>(arg0, lower, upper, strides);
+    auto node = make_shared<op::v0::Slice>(arg0, lower, upper, strides);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Slice>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Slice>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -336,20 +336,20 @@ TEST(copy, slice)
 
 TEST(copy, subtract)
 {
-    ASSERT_TRUE(check_binary<op::Subtract>());
+    ASSERT_TRUE(check_binary<op::v0::Subtract>());
 }
 
 TEST(copy, sum)
 {
     Shape shape{4, 3};
     AxisSet axes{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, shape);
 
-    auto node = make_shared<op::Sum>(arg0, axes);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
+    auto node = make_shared<op::v0::Sum>(arg0, axes);
+    OutputVector new_args{make_shared<op::v0::Parameter>(element::f32, shape),
                           node->input_value(1).get_node_shared_ptr()};
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Sum>(new_node);
+    auto node_cast = as_type_ptr<op::v0::Sum>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -359,10 +359,10 @@ TEST(copy, sum)
 
 TEST(copy, tan)
 {
-    ASSERT_TRUE(check_unary<op::Tan>());
+    ASSERT_TRUE(check_unary<op::v0::Tan>());
 }
 
 TEST(copy, tanh)
 {
-    ASSERT_TRUE(check_unary<op::Tanh>());
+    ASSERT_TRUE(check_unary<op::v0::Tanh>());
 }

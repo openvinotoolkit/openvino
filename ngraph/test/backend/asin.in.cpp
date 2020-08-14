@@ -46,8 +46,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, asin)
 {
     Shape shape{11};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Asin>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Asin>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(

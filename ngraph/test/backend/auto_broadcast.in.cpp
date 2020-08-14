@@ -75,8 +75,8 @@ void check_auto_bcast(
     {
         oet = element::boolean;
     }
-    auto A = make_shared<op::Parameter>(iet, Shape{2, 3});
-    auto B = make_shared<op::Parameter>(iet, Shape{3});
+    auto A = make_shared<op::v0::Parameter>(iet, Shape{2, 3});
+    auto B = make_shared<op::v0::Parameter>(iet, Shape{3});
     auto f = make_shared<Function>(make_shared<optype>(A, B, autob), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -108,11 +108,11 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 {
     auto pshape_a = PartialShape::dynamic();
     auto pshape_b = PartialShape::dynamic();
-    auto a = make_shared<op::Parameter>(element::f32, pshape_a);
-    auto b = make_shared<op::Parameter>(element::f32, pshape_b);
+    auto a = make_shared<op::v0::Parameter>(element::f32, pshape_a);
+    auto b = make_shared<op::v0::Parameter>(element::f32, pshape_b);
 
     op::AutoBroadcastSpec autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1);
-    auto f = make_shared<Function>(make_shared<op::Add>(a, b, autob), ParameterVector{a, b});
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(a, b, autob), ParameterVector{a, b});
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
@@ -130,7 +130,7 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 
     // a shape {2, 3, 4, 5}, b shape {3, 4} axis = 1
     autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-    f = make_shared<Function>(make_shared<op::Add>(a, b, autob), ParameterVector{a, b});
+    f = make_shared<Function>(make_shared<op::v0::Add>(a, b, autob), ParameterVector{a, b});
     ex = backend->compile(f);
     t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
     t_a = backend->create_tensor(element::f32, Shape{2, 3, 4, 5});
@@ -152,24 +152,24 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1});
-    auto b = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::v0::Parameter>(element::f32, Shape{1});
 
-    auto add = make_shared<op::Add>(a, b, "NUMPY");
+    auto add = make_shared<op::v0::Add>(a, b, "NUMPY");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NUMPY);
 
-    add = make_shared<op::Add>(a, b, "NONE");
+    add = make_shared<op::v0::Add>(a, b, "NONE");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NONE);
 
-    add = make_shared<op::Add>(a, b, "PDPD");
+    add = make_shared<op::v0::Add>(a, b, "PDPD");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::PDPD);
 
-    add = make_shared<op::Add>(a, b, "EXPLICIT");
+    add = make_shared<op::v0::Add>(a, b, "EXPLICIT");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::EXPLICIT);
 
     try
     {
-        add = make_shared<op::Add>(a, b, "UNKNOWN");
+        add = make_shared<op::v0::Add>(a, b, "UNKNOWN");
         FAIL() << "Unknown AutoBroadcastType not detected.";
     }
     catch (const ngraph_error& error)

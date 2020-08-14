@@ -25,12 +25,12 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReverseSequence::type_info;
+constexpr NodeTypeInfo op::v0::ReverseSequence::type_info;
 
-op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
-                                     const Output<Node>& seq_indices,
-                                     int64_t batch_axis,
-                                     int64_t seq_axis)
+op::v0::ReverseSequence::ReverseSequence(const Output<Node>& arg,
+                                         const Output<Node>& seq_indices,
+                                         int64_t batch_axis,
+                                         int64_t seq_axis)
     : Op({arg, seq_indices})
     , m_batch_axis(batch_axis)
     , m_seq_axis(seq_axis)
@@ -47,7 +47,7 @@ bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor
     return true;
 }
 
-void op::ReverseSequence::validate_and_infer_types()
+void op::v0::ReverseSequence::validate_and_infer_types()
 {
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
@@ -91,7 +91,7 @@ void op::ReverseSequence::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<ReverseSequence>(new_args.at(0), new_args.at(1), m_batch_axis, m_seq_axis);

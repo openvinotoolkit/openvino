@@ -120,5 +120,5 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
 
 shared_ptr<Node> ngraph::operator*(const Output<Node>& arg0, const Output<Node>& arg1)
 {
-    return make_shared<op::Multiply>(arg0, arg1);
+    return make_shared<op::v0::Multiply>(arg0, arg1);
 }

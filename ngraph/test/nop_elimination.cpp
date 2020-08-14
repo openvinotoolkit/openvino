@@ -30,9 +30,9 @@ using namespace std;
 TEST(nop_elimination, eliminate_pad)
 {
     Shape shape_a{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape_b);
     CoordinateDiff padding_below{0};
     CoordinateDiff padding_above{0};
     auto p = make_shared<op::v0::Pad>(A, B, padding_below, padding_above);
@@ -48,7 +48,7 @@ TEST(nop_elimination, eliminate_pad)
 TEST(nop_elimination, eliminate_sum)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
     auto s = make_shared<op::v0::Sum>(A, AxisSet{});
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
 
@@ -63,7 +63,7 @@ TEST(nop_elimination, eliminate_convert)
 {
     Shape shape{};
     auto type = element::f32;
-    auto A = make_shared<op::Parameter>(type, shape);
+    auto A = make_shared<op::v0::Parameter>(type, shape);
     auto c = make_shared<op::v0::Convert>(A, element::f32);
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
 
@@ -78,7 +78,7 @@ TEST(nop_elimination, convert_type_agnostic)
 {
     Shape shape{};
     auto type = element::from<char>();
-    auto A = make_shared<op::Parameter>(type, shape);
+    auto A = make_shared<op::v0::Parameter>(type, shape);
     auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
     auto c = make_shared<op::v0::Convert>(c1, element::f32);
     auto z = make_shared<op::v3::NonZero>(c);
@@ -95,7 +95,7 @@ TEST(nop_elimination, convert_type_agnostic)
 TEST(nop_elimination, eliminate_slice)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
     auto s = make_shared<op::v0::Slice>(A, Coordinate{0, 0}, Coordinate{2, 2});
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
 
@@ -109,7 +109,7 @@ TEST(nop_elimination, eliminate_slice)
 TEST(nop_elimination, eliminate_broadcast)
 {
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
     auto b = make_shared<op::v0::Broadcast>(A, shape, AxisSet{});
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
 
@@ -123,7 +123,7 @@ TEST(nop_elimination, eliminate_broadcast)
 TEST(nop_elimination, eliminate_stop_gradient)
 {
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
     auto s = make_shared<op::v0::StopGradient>(A);
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
 
@@ -143,9 +143,10 @@ TEST(nop_elimination, pass_property)
 TEST(nop_elimination, reshape_elimination_v1)
 {
     auto generate_func = [](bool zero) {
-        auto arg = std::make_shared<op::Parameter>(element::i64, PartialShape{8, 16, 2, 3});
-        auto pattern_org = op::Constant::create(element::i64, Shape{3}, vector<int64_t>{8, 16, 6});
-        auto pattern = op::Constant::create(element::i64, Shape{3}, vector<int64_t>{8, 16, 6});
+        auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{8, 16, 2, 3});
+        auto pattern_org =
+            op::v0::Constant::create(element::i64, Shape{3}, vector<int64_t>{8, 16, 6});
+        auto pattern = op::v0::Constant::create(element::i64, Shape{3}, vector<int64_t>{8, 16, 6});
         auto reshape_v1_org = std::make_shared<op::v1::Reshape>(arg, pattern_org, zero);
         auto reshape_v1 = std::make_shared<op::v1::Reshape>(reshape_v1_org, pattern, zero);
         auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
@@ -169,8 +170,8 @@ TEST(nop_elimination, reshape_elimination_v1)
 
 TEST(nop_elimination, reshape_elimination_v1_dynamic)
 {
-    auto arg = std::make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    auto pattern = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    auto pattern = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
     auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
     auto f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg, pattern});
@@ -183,7 +184,7 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic)
 TEST(nop_elimination, concat_elimination_single_node)
 {
     int64_t a = 0;
-    auto A = make_shared<op::Parameter>(element::f32, Shape{2, 3});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
     auto f =
         make_shared<Function>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
 
@@ -198,7 +199,7 @@ TEST(nop_elimination, concat_elimination_single_node)
 TEST(nop_elimination, concat_elimination_single_input)
 {
     int64_t a = 0;
-    auto A = make_shared<op::Parameter>(element::f32, Shape{2, 3});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
     auto B = make_shared<op::v0::Concat>(NodeVector{A}, a);
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
@@ -213,7 +214,7 @@ TEST(nop_elimination, concat_elimination_single_input)
 TEST(nop_elimination, concat_elimination_single_input_dynamic)
 {
     int64_t a = 0;
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 3});
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 3});
     auto B = make_shared<op::v0::Concat>(NodeVector{A}, a);
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
@@ -227,8 +228,8 @@ TEST(nop_elimination, concat_elimination_single_input_dynamic)
 
 TEST(nop_elimination, unsqueeze_elimination)
 {
-    const auto axis = op::Constant::create<int64_t>(element::i64, {}, {0});
-    const auto A = make_shared<op::Parameter>(
+    const auto axis = op::v0::Constant::create<int64_t>(element::i64, {}, {0});
+    const auto A = make_shared<op::v0::Parameter>(
         element::f32, PartialShape{3, Dimension::dynamic(), Dimension::dynamic()});
     const auto unsqueeze = make_shared<op::v0::Unsqueeze>(A, axis);
     auto f = make_shared<Function>(unsqueeze, ParameterVector{A});
@@ -261,20 +262,20 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination)
         {
             std::vector<int32_t> sq_axes_val_i32(sq_axes_val.begin(), sq_axes_val.end());
             std::vector<int32_t> unsq_axes_val_i32(unsq_axes_val.begin(), unsq_axes_val.end());
-            sq_axes = op::Constant::create<int32_t>(
+            sq_axes = op::v0::Constant::create<int32_t>(
                 element::i32, Shape{sq_axes_val.size()}, sq_axes_val_i32);
-            unsq_axes = op::Constant::create<int32_t>(
+            unsq_axes = op::v0::Constant::create<int32_t>(
                 element::i32, Shape{unsq_axes_val.size()}, unsq_axes_val_i32);
         }
         else
         {
-            sq_axes =
-                op::Constant::create<int64_t>(element::i64, Shape{sq_axes_val.size()}, sq_axes_val);
-            unsq_axes = op::Constant::create<int64_t>(
+            sq_axes = op::v0::Constant::create<int64_t>(
+                element::i64, Shape{sq_axes_val.size()}, sq_axes_val);
+            unsq_axes = op::v0::Constant::create<int64_t>(
                 element::i64, Shape{unsq_axes_val.size()}, unsq_axes_val);
         }
 
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
         if (multiout)
         {
@@ -504,11 +505,11 @@ TEST(nop_elimination, squeeze_squeeze_overlap_elimination)
                             size_t sq) {
         static size_t id = 0;
         auto casename = string("usecase #") + to_string(++id);
-        auto sq_axes_1 =
-            op::Constant::create<int64_t>(element::i64, Shape{sq_axes_val_1.size()}, sq_axes_val_1);
-        auto sq_axes_2 =
-            op::Constant::create<int64_t>(element::i64, Shape{sq_axes_val_2.size()}, sq_axes_val_2);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto sq_axes_1 = op::v0::Constant::create<int64_t>(
+            element::i64, Shape{sq_axes_val_1.size()}, sq_axes_val_1);
+        auto sq_axes_2 = op::v0::Constant::create<int64_t>(
+            element::i64, Shape{sq_axes_val_2.size()}, sq_axes_val_2);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Squeeze>(A1, sq_axes_1);
         auto B1 = make_shared<op::v0::Squeeze>(B, sq_axes_2);
@@ -545,11 +546,11 @@ TEST(nop_elimination, unsqueeze_unsqueeze_overlap_elimination)
                             size_t unsq) {
         static size_t id = 0;
         auto casename = string("usecase #") + to_string(++id);
-        auto unsq_axes_1 = op::Constant::create<int64_t>(
+        auto unsq_axes_1 = op::v0::Constant::create<int64_t>(
             element::i64, Shape{unsq_axes_val_1.size()}, unsq_axes_val_1);
-        auto unsq_axes_2 = op::Constant::create<int64_t>(
+        auto unsq_axes_2 = op::v0::Constant::create<int64_t>(
             element::i64, Shape{unsq_axes_val_2.size()}, unsq_axes_val_2);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Unsqueeze>(A1, unsq_axes_1);
         auto B1 = make_shared<op::v0::Unsqueeze>(B, unsq_axes_2);
@@ -579,8 +580,9 @@ TEST(nop_elimination, unsqueeze_unsqueeze_overlap_elimination)
 TEST(nop_elimination, unsqueeze_squeeze_elimination)
 {
     auto generate_func = [](const Shape& shape, const std::vector<int64_t>& axes_val) {
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto axes =
+            op::v0::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Unsqueeze>(A1, axes);
         auto B1 = make_shared<op::v0::Squeeze>(B, axes);
@@ -610,14 +612,15 @@ TEST(nop_elimination, reshape_unsqueeze_elimination)
                             const std::vector<int64_t>& pat_val,
                             bool zero,
                             const std::vector<int64_t>& axes_val) {
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
-        auto pat = op::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto axes =
+            op::v0::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
+        auto pat = op::v0::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
 
         auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
         auto pat2 =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
+            op::v0::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
         auto B1 = make_shared<op::v0::Unsqueeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -640,14 +643,15 @@ TEST(nop_elimination, reshape_squeeze_elimination)
                             const std::vector<int64_t>& pat_val,
                             bool zero,
                             const std::vector<int64_t>& axes_val) {
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
-        auto pat = op::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto axes =
+            op::v0::Constant::create<int64_t>(element::i64, Shape{axes_val.size()}, axes_val);
+        auto pat = op::v0::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
 
         auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
         auto pat2 =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
+            op::v0::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
         auto B1 = make_shared<op::v0::Squeeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -668,13 +672,13 @@ TEST(nop_elimination, reshape_squeeze_elimination)
 TEST(nop_elimination, reshape_reshape_elimination)
 {
     auto check_usecase = [](const Shape& shape, const std::vector<int64_t>& pat_val, bool zero) {
-        auto pat = op::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto pat = op::v0::Constant::create<int64_t>(element::i64, Shape{pat_val.size()}, pat_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
 
         auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
         auto pat2 =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
+            op::v0::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, true);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -695,12 +699,13 @@ TEST(nop_elimination, squeeze_reshape_elimination)
 {
     auto check_usecase = [](const Shape& shape, const std::vector<int64_t>& indices_val) {
         auto indices =
-            op::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+            op::v0::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
 
         auto B = make_shared<op::v0::Squeeze>(A1, indices);
-        auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto pat2 =
+            op::v0::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -722,12 +727,13 @@ TEST(nop_elimination, unsqueeze_reshape_elimination)
 {
     auto check_usecase = [](const Shape& shape, const std::vector<int64_t>& indices_val) {
         auto indices =
-            op::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
-        auto A = make_shared<op::Parameter>(element::f32, shape);
+            op::v0::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
         auto A1 = make_shared<op::v0::Abs>(A);
 
         auto B = make_shared<op::v0::Unsqueeze>(A1, indices);
-        auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto pat2 =
+            op::v0::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
@@ -748,8 +754,9 @@ TEST(nop_elimination, unsqueeze_reshape_elimination)
 TEST(nop_elimination, squeeze_unsqueeze_elimination_negative)
 {
     auto check_usecase = [](const Shape& shape, const std::vector<int64_t>& indices_val) {
-        auto indices = op::Constant::create(element::i64, Shape{indices_val.size()}, indices_val);
-        auto input = make_shared<op::Parameter>(element::f32, shape);
+        auto indices =
+            op::v0::Constant::create(element::i64, Shape{indices_val.size()}, indices_val);
+        auto input = make_shared<op::v0::Parameter>(element::f32, shape);
         auto squeeze = make_shared<ngraph::opset1::Squeeze>(input, indices);
         auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
         auto optimized_f = clone_function(*baseline_f);
@@ -765,17 +772,17 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative)
 TEST(nop_elimination, topk_convert_elimination)
 {
     auto check_usecase = []() {
-        auto A = make_shared<op::Parameter>(element::f32, Shape{20, 3, 4});
+        auto A = make_shared<op::v0::Parameter>(element::f32, Shape{20, 3, 4});
         auto A1 = make_shared<op::v0::Abs>(A);
-        auto B = make_shared<op::TopK>(A1, 0, element::i64, 10);
-        auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
+        auto B = make_shared<op::v0::TopK>(A1, 0, element::i64, 10);
+        auto C = make_shared<op::v0::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         EXPECT_TRUE(
             (compare_pass_int<pass::NopElimination, float, int64_t>(baseline_f, optimized_f)));
 
-        ASSERT_EQ(count_ops_of_type<op::Convert>(baseline_f), 1);
-        ASSERT_EQ(count_ops_of_type<op::Convert>(optimized_f), 0);
+        ASSERT_EQ(count_ops_of_type<op::v0::Convert>(baseline_f), 1);
+        ASSERT_EQ(count_ops_of_type<op::v0::Convert>(optimized_f), 0);
     };
 
     check_usecase();

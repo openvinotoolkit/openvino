@@ -37,7 +37,7 @@ TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
         auto bias = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1});
         auto fc = std::make_shared<ngraph::op::FullyConnected>(input, weights, bias, ngraph::Shape{4, 2, 2});
         fc->set_friendly_name("FullyConnected");
-        auto result = std::make_shared<ngraph::op::Result>(fc);
+        auto result = std::make_shared<ngraph::op::v0::Result>(fc);
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params {input };
         function = std::make_shared<ngraph::Function>(results, params);
@@ -77,16 +77,16 @@ TEST_F(VPU_AddVpuScaleTest, VpuScaleFromIrChangesWeights) {
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f16;
         ngraph::Shape shape { 1, 1, 4, 5 };
-        auto input = std::make_shared<ngraph::op::Parameter>(elementType, shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(elementType, shape);
         input->set_friendly_name("input");
 
-        auto weights = std::make_shared<ngraph::op::Constant>(
+        auto weights = std::make_shared<ngraph::op::v0::Constant>(
                 elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 1.0f));
         auto conv = std::make_shared<ngraph::op::v1::Convolution>(
                 input, weights, ngraph::Strides {1, 1},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
         conv->set_friendly_name("Convolution");
-        auto result = std::make_shared<ngraph::op::Result>(conv);
+        auto result = std::make_shared<ngraph::op::v0::Result>(conv);
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };

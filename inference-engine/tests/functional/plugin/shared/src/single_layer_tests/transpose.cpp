@@ -44,7 +44,7 @@ void TransposeLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
     const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,

@@ -27,9 +27,9 @@ namespace py = pybind11;
 
 void regclass_pyngraph_op_Parameter(py::module m)
 {
-    py::class_<ngraph::op::Parameter, std::shared_ptr<ngraph::op::Parameter>, ngraph::Node>
+    py::class_<ngraph::op::v0::Parameter, std::shared_ptr<ngraph::op::v0::Parameter>, ngraph::Node>
         parameter(m, "Parameter");
-    parameter.doc() = "ngraph.impl.op.Parameter wraps ngraph::op::Parameter";
+    parameter.doc() = "ngraph.impl.op.Parameter wraps ngraph::op::v0::Parameter";
     parameter.def("__repr__", [](const ngraph::Node& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::string shape =
@@ -41,13 +41,13 @@ void regclass_pyngraph_op_Parameter(py::module m)
 
     parameter.def(py::init<const ngraph::element::Type&, const ngraph::Shape&>());
     parameter.def(py::init<const ngraph::element::Type&, const ngraph::PartialShape&>());
-    //    parameter.def_property_readonly("description", &ngraph::op::Parameter::description);
+    //    parameter.def_property_readonly("description", &ngraph::op::v0::Parameter::description);
 
     parameter.def("get_partial_shape",
-                  (const ngraph::PartialShape& (ngraph::op::Parameter::*)() const) &
-                      ngraph::op::Parameter::get_partial_shape);
+                  (const ngraph::PartialShape& (ngraph::op::v0::Parameter::*)() const) &
+                      ngraph::op::v0::Parameter::get_partial_shape);
     parameter.def("get_partial_shape",
-                  (ngraph::PartialShape & (ngraph::op::Parameter::*)()) &
-                      ngraph::op::Parameter::get_partial_shape);
-    parameter.def("set_partial_shape", &ngraph::op::Parameter::set_partial_shape);
+                  (ngraph::PartialShape & (ngraph::op::v0::Parameter::*)()) &
+                      ngraph::op::v0::Parameter::get_partial_shape);
+    parameter.def("set_partial_shape", &ngraph::op::v0::Parameter::set_partial_shape);
 }

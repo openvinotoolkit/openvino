@@ -20,17 +20,17 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::RegionYolo::type_info;
+constexpr NodeTypeInfo op::v0::RegionYolo::type_info;
 
-op::RegionYolo::RegionYolo(const Output<Node>& input,
-                           const size_t coords,
-                           const size_t classes,
-                           const size_t regions,
-                           const bool do_softmax,
-                           const vector<int64_t>& mask,
-                           const int axis,
-                           const int end_axis,
-                           const vector<float>& anchors)
+op::v0::RegionYolo::RegionYolo(const Output<Node>& input,
+                               const size_t coords,
+                               const size_t classes,
+                               const size_t regions,
+                               const bool do_softmax,
+                               const vector<int64_t>& mask,
+                               const int axis,
+                               const int end_axis,
+                               const vector<float>& anchors)
     : Op({input})
     , m_num_coords(coords)
     , m_num_classes(classes)
@@ -57,7 +57,7 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::RegionYolo::validate_and_infer_types()
+void op::v0::RegionYolo::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
@@ -102,7 +102,7 @@ void op::RegionYolo::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<RegionYolo>(new_args.at(0),

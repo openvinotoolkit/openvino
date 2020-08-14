@@ -66,6 +66,5 @@ namespace ngraph
                 double m_epsilon;
             };
         } // namespace v0
-        using v0::BatchNormInference;
     }
 }

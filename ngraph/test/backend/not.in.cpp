@@ -46,8 +46,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, not)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Not>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Not>(A), ParameterVector{A});
 
     std::vector<char> a{1, 0, 1, 0};
 
@@ -60,8 +60,8 @@ NGRAPH_TEST(${BACKEND_NAME}, not)
 NGRAPH_TEST(${BACKEND_NAME}, not_i32)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Not>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Not>(A), ParameterVector{A});
 
     std::vector<int32_t> a{1, 0, 2, 0};
 

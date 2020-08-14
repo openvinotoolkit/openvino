@@ -32,7 +32,7 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, tensor_constant)
 {
     Shape shape{2, 2, 2};
-    auto A = op::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = op::v0::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto f = make_shared<Function>(A, ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -50,7 +50,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant)
 NGRAPH_TEST(${BACKEND_NAME}, tensor_2constant)
 {
     Shape shape{2, 2, 2};
-    auto A = op::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = op::v0::Constant::create(element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
     auto f = make_shared<Function>(NodeVector{A, A}, ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -72,8 +72,8 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_2constant)
 NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op)
 {
     Shape shape{2, 2, 2};
-    auto A = op::Constant::create(element::f32, shape, {-1, 2, 3, -4, 5, -6, -7, 8});
-    auto f = make_shared<Function>(make_shared<op::Abs>(A), ParameterVector{});
+    auto A = op::v0::Constant::create(element::f32, shape, {-1, 2, 3, -4, 5, -6, -7, 8});
+    auto f = make_shared<Function>(make_shared<op::v0::Abs>(A), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -89,7 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op)
 
 NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use)
 {
-    auto A = make_shared<op::Constant>(element::i32, Shape{}, std::vector<std::string>{"388"});
+    auto A = make_shared<op::v0::Constant>(element::i32, Shape{}, std::vector<std::string>{"388"});
     auto f = make_shared<Function>(A, ParameterVector{});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -105,7 +105,7 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use)
 
 NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_float32)
 {
-    auto r = op::Constant::create(element::f32, Shape{}, {4.75});
+    auto r = op::v0::Constant::create(element::f32, Shape{}, {4.75});
     auto f = make_shared<Function>(r, ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -121,7 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_float32)
 
 NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_int64)
 {
-    auto r = op::Constant::create(element::i64, Shape{}, {0x4000000000000001});
+    auto r = op::v0::Constant::create(element::i64, Shape{}, {0x4000000000000001});
     auto f = make_shared<Function>(r, ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -137,7 +137,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scalar_constant_int64)
 NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32)
 {
     Shape shape{2, 2};
-    auto r = op::Constant::create(element::f32, shape, {4.75, 4.5, -5.25, 0.0});
+    auto r = op::v0::Constant::create(element::f32, shape, {4.75, 4.5, -5.25, 0.0});
     auto f = make_shared<Function>(r, ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -155,7 +155,8 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32)
 NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64)
 {
     Shape shape{2};
-    auto r = op::Constant::create(element::i64, shape, {0x4000000000000001, 0x4000000000000002});
+    auto r =
+        op::v0::Constant::create(element::i64, shape, {0x4000000000000001, 0x4000000000000002});
     auto f = make_shared<Function>(r, ParameterVector{});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
@@ -169,13 +170,13 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64)
 NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
 {
     Shape shape{4};
-    // auto A = make_shared<op::Parameter>(element::boolean, shape);
-    // auto B = make_shared<op::Parameter>(element::boolean, shape);
-    // auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{A, B});
+    // auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    // auto B = make_shared<op::v0::Parameter>(element::boolean, shape);
+    // auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{A, B});
 
-    auto A = op::Constant::create(element::boolean, shape, {true, false, true, false});
-    auto B = op::Constant::create(element::boolean, shape, {true, true, true, true});
-    auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{});
+    auto A = op::v0::Constant::create(element::boolean, shape, {true, false, true, false});
+    auto B = op::v0::Constant::create(element::boolean, shape, {true, true, true, true});
+    auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

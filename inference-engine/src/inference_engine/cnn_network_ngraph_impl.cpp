@@ -218,7 +218,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
                 auto& results = const_cast<::ngraph::ResultVector&>(_ngraph_function->get_results());
-                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
+                auto result = make_shared<::ngraph::op::v0::Result>(layer->output(outputIndex));
                 results.push_back(result);
 
                 std::string outputName = layerName;
@@ -295,7 +295,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
                 continue;
             ::ngraph::PartialShape shape(inputShapes.at(param->get_friendly_name()));
-            auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
+            auto newParam = std::make_shared<::ngraph::op::v0::Parameter>(param->get_element_type(), shape);
             newParam->set_friendly_name(param->get_friendly_name());
             _ngraph_function->replace_parameter(i, newParam);
         }
@@ -437,7 +437,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
             if (origShapes.find(param->get_friendly_name()) == origShapes.end())
                 continue;
             ::ngraph::PartialShape shape(origShapes.at(param->get_friendly_name()));
-            auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
+            auto newParam = std::make_shared<::ngraph::op::v0::Parameter>(param->get_element_type(), shape);
             newParam->set_friendly_name(param->get_friendly_name());
             _ngraph_function->replace_parameter(i, newParam);
         }

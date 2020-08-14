@@ -71,6 +71,5 @@ namespace ngraph
                 int64_t m_concat_axis = -1;
             };
         }
-        using v0::Concat;
     }
 }

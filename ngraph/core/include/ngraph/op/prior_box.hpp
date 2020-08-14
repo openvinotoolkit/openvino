@@ -83,7 +83,6 @@ namespace ngraph
                 PriorBoxAttrs m_attrs;
             };
         }
-        using v0::PriorBox;
     }
 
     template <>

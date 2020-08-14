@@ -23,74 +23,74 @@ using namespace ngraph;
 
 TEST(type_prop, slice_deduce_vector)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2}, Coordinate{5});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{2}, Coordinate{5});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{3}));
 }
 
 TEST(type_prop, slice_deduce_matrix)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{3, 6}));
 }
 
 TEST(type_prop, slice_deduce_matrix_strided)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 2});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 2});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{1, 3}));
 }
 
 TEST(type_prop, slice_deduce_matrix_strided_uneven)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 4});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{2, 1}, Coordinate{5, 7}, Strides{3, 4});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{1, 2}));
 }
 
 TEST(type_prop, slice_deduce_vector_edge)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{6});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{0}, Coordinate{6});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{6}));
 }
 
 TEST(type_prop, slice_deduce_matrix_edge)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{6, 8});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{6, 8}));
 }
 
 TEST(type_prop, slice_deduce_matrix_zero_cols)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 0});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{6, 0});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{6, 0}));
 }
 
 TEST(type_prop, slice_deduce_matrix_zero_zero)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
-    auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{0, 0});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
+    auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{0, 0});
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{0, 0}));
 }
 
 TEST(type_prop, slice_deduce_vector_invalid_strides)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{7}, Strides{1, 2});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0}, Coordinate{7}, Strides{1, 2});
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid slice strides not detected";
     }
@@ -109,10 +109,10 @@ TEST(type_prop, slice_deduce_vector_invalid_strides)
 
 TEST(type_prop, slice_deduce_vector_edge_upper_oob)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{7});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0}, Coordinate{7});
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bound out of range not detected";
     }
@@ -129,10 +129,10 @@ TEST(type_prop, slice_deduce_vector_edge_upper_oob)
 
 TEST(type_prop, slice_deduce_matrix_edge_upper_oob)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{6, 9});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{6, 9});
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bound out of range not detected";
     }
@@ -149,10 +149,10 @@ TEST(type_prop, slice_deduce_matrix_edge_upper_oob)
 
 TEST(type_prop, slice_deduce_vector_lower_above_upper)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{3}, Coordinate{2});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{3}, Coordinate{2});
         // Should have thrown, so fail if it didn't
         FAIL() << "Lower bound above upper not detected";
     }
@@ -170,10 +170,10 @@ TEST(type_prop, slice_deduce_vector_lower_above_upper)
 
 TEST(type_prop, slice_deduce_matrix_lower_above_upper)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 5}, Coordinate{6, 4});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 5}, Coordinate{6, 4});
         // Should have thrown, so fail if it didn't
         FAIL() << "Lower bound above upper not detected";
     }
@@ -191,10 +191,10 @@ TEST(type_prop, slice_deduce_matrix_lower_above_upper)
 
 TEST(type_prop, slice_deduce_matrix_lower_missing)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0}, Coordinate{5, 5});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0}, Coordinate{5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Missing lower bound coordinate not detected";
     }
@@ -213,10 +213,10 @@ TEST(type_prop, slice_deduce_matrix_lower_missing)
 
 TEST(type_prop, slice_deduce_matrix_upper_missing)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{5});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Missing upper bound coordinate not detected";
     }
@@ -235,10 +235,10 @@ TEST(type_prop, slice_deduce_matrix_upper_missing)
 
 TEST(type_prop, slice_deduce_matrix_lower_extra)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0, 0}, Coordinate{5, 5});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0, 0}, Coordinate{5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Extra lower bound coordinate not detected";
     }
@@ -257,10 +257,10 @@ TEST(type_prop, slice_deduce_matrix_lower_extra)
 
 TEST(type_prop, slice_deduce_matrix_upper_extra)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{6, 8});
+    auto param = make_shared<op::v0::Parameter>(element::f32, Shape{6, 8});
     try
     {
-        auto sl = make_shared<op::Slice>(param, Coordinate{0, 0}, Coordinate{5, 5, 5});
+        auto sl = make_shared<op::v0::Slice>(param, Coordinate{0, 0}, Coordinate{5, 5, 5});
         // Should have thrown, so fail if it didn't
         FAIL() << "Extra upper bound coordinate not detected";
     }
@@ -284,8 +284,8 @@ TEST(type_prop, slice_partial_arg_input_rank_dynamic_attribs_ok)
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
@@ -298,10 +298,10 @@ TEST(type_prop, slice_partial_arg_rank_dynamic_attribs_rank_mismatch)
     Coordinate upper_bounds{1, 3, 5};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
     try
     {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+        auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of lower-bounds/upper-bounds/strides ranks not detected (argument "
                   "rank-dynamic)";
@@ -326,10 +326,10 @@ TEST(type_prop, slice_partial_arg_rank_dynamic_attribs_bounds_crossing)
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
     try
     {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+        auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Crossing lower/upper bounds not detected (argument rank-dynamic)";
     }
@@ -354,8 +354,8 @@ TEST(type_prop, slice_partial_arg_rank_static_dynamic_ok)
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
@@ -368,8 +368,8 @@ TEST(type_prop, slice_partial_arg_rank_static_dynamic_some_dims_known_ok)
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
-    auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
 
     ASSERT_EQ(sl->get_element_type(), element::f32);
     ASSERT_EQ(sl->get_shape(), (Shape{0, 1, 2, 2}));
@@ -386,10 +386,10 @@ TEST(type_prop, slice_partial_arg_rank_static_dynamic_attribs_rank_mismatches_ar
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
     try
     {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+        auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Mismatch of attrib ranks with arg ranks not detected (argument rank-static "
                   "dynamic)";
@@ -415,10 +415,10 @@ TEST(type_prop, slice_partial_arg_rank_static_dynamic_some_dims_known_upper_boun
     Coordinate upper_bounds{1, 3, 5, 7};
     Strides strides{1, 1, 1, 2};
 
-    auto param = make_shared<op::Parameter>(element::f32, input_shape);
+    auto param = make_shared<op::v0::Parameter>(element::f32, input_shape);
     try
     {
-        auto sl = make_shared<op::Slice>(param, lower_bounds, upper_bounds, strides);
+        auto sl = make_shared<op::v0::Slice>(param, lower_bounds, upper_bounds, strides);
         // Should have thrown, so fail if it didn't
         FAIL() << "Upper bounds out of bounds not detected (argument rank-static dynamic)";
     }

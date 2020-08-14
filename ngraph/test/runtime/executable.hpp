@@ -63,7 +63,7 @@ public:
                   const std::vector<std::shared_ptr<runtime::Tensor>>& inputs);
 
     /// \brief Query the input Parameters
-    /// \returns an ngraph::op::ParameterVector of all input parameters
+    /// \returns an ngraph::op::v0::ParameterVector of all input parameters
     const ngraph::ParameterVector& get_parameters() const;
 
     /// \brief Query the output Results

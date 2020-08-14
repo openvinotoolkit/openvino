@@ -31,7 +31,7 @@ using namespace ngraph;
 
 TEST(op_eval, non_zero_0D)
 {
-    auto p = make_shared<op::Parameter>(element::i32, Shape{});
+    auto p = make_shared<op::v0::Parameter>(element::i32, Shape{});
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -52,7 +52,7 @@ TEST(op_eval, non_zero_0D)
 
 TEST(op_eval, non_zero_0D_0)
 {
-    auto p = make_shared<op::Parameter>(element::i32, Shape{});
+    auto p = make_shared<op::v0::Parameter>(element::i32, Shape{});
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -67,7 +67,7 @@ TEST(op_eval, non_zero_0D_0)
 TEST(op_eval, non_zero_1D)
 {
     Shape p_shape{5};
-    auto p = make_shared<op::Parameter>(element::f32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::f32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
     std::vector<std::vector<float>> inputs{
@@ -89,7 +89,7 @@ TEST(op_eval, non_zero_1D)
 TEST(op_eval, non_zero_1D_0s)
 {
     Shape p_shape{5};
-    auto p = make_shared<op::Parameter>(element::f32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::f32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -105,7 +105,7 @@ TEST(op_eval, non_zero_1D_0s)
 TEST(op_eval, non_zero_2D)
 {
     Shape p_shape{3, 2};
-    auto p = make_shared<op::Parameter>(element::i32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
     std::vector<std::vector<int32_t>> inputs{
@@ -128,7 +128,7 @@ TEST(op_eval, non_zero_2D)
 TEST(op_eval, non_zero_3D)
 {
     Shape p_shape{3, 2, 2};
-    auto p = make_shared<op::Parameter>(element::i64, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i64, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
     std::vector<std::vector<int64_t>> inputs{{1, 0, 3, 4, 0, 1, 0, 0, 1, 3, 5, 0},
@@ -153,7 +153,7 @@ TEST(op_eval, non_zero_3D)
 TEST(op_eval, non_zero_3D_0s)
 {
     Shape p_shape{3, 2, 2};
-    auto p = make_shared<op::Parameter>(element::i64, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i64, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -169,7 +169,7 @@ TEST(op_eval, non_zero_3D_0s)
 TEST(op_eval, non_zero_dynamic)
 {
     PartialShape p_shape = PartialShape::dynamic();
-    auto p = make_shared<op::Parameter>(element::i32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
     std::vector<std::vector<int32_t>> inputs{

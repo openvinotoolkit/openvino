@@ -108,8 +108,6 @@ namespace ngraph
                 const ProposalAttrs& get_attrs() const { return m_attrs; }
             };
         }
-
-        using v0::Proposal;
     }
 
     template <>

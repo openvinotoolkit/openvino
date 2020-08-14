@@ -61,6 +61,5 @@ namespace ngraph
                 ngraph::element::Type m_destination_type;
             };
         }
-        using v0::Convert;
     }
 }

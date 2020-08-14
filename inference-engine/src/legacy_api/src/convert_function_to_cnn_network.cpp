@@ -323,7 +323,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["input"] = Builder::asString(weights_shape[1]);
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
 
-        Builder::NodeConverter<::ngraph::op::Constant> converter;
+        Builder::NodeConverter<::ngraph::op::v0::Constant> converter;
 
         const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
@@ -413,7 +413,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<RNNCell>(attrs);
         res->params = params;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
+        Builder::NodeConverter<ngraph::op::v0::Constant> converter;
         const auto weightsNode = node->input_value(2).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
@@ -437,7 +437,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<GRUCell>(attrs);
         res->params = params;
 
-        Builder::NodeConverter<ngraph::op::Constant> converter;
+        Builder::NodeConverter<ngraph::op::v0::Constant> converter;
         const auto weightsNode = node->input_value(2).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
@@ -487,7 +487,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-        if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr())) {
+        if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node->input_value(1).get_node_shared_ptr())) {
             res->params["order"] = Builder::asString(transpose_const->cast_vector<int64_t>());
         }
         return res;
@@ -552,105 +552,105 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
         };
         const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Abs>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Acos>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Abs>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Acos>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Add>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Asin>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Atan>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Asin>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Atan>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::BatchNormInference>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::BatchNormInference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Broadcast>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Clamp>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Concat>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Constant>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::DeconvolutionIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Cos>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Cosh>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Cos>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Cosh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::DetectionOutput>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Convert>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::CTCGreedyDecoder>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::DetectionOutput>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Divide>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Reshape>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Erf>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Exp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::FakeQuantize>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Floor>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Elu>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Erf>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Exp>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::FakeQuantize>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Floor>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Ceiling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GatherIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::GatherTree>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GatherTreeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Interp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Interpolate>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Log>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::LRN>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Interpolate>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Log>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::LRN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::LRN_IE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::MVN>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::MVN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::MatMul>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::MatMul>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::GRN>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::GRN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Maximum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Multiply>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::NonMaxSuppression>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeL2>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::NormalizeL2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::PRelu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Relu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Range>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ReverseSequence>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Range>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::ReverseSequence>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMin>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMax>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMean>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceProd>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceSum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ROIPooling>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PSROIPooling>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::RegionYolo>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::ReorgYolo>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::ROIPooling>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::PSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ShapeOf>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Sigmoid>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Sin>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Sign>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Sinh>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::ShapeOf>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Sigmoid>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Sin>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Sign>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Sinh>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::SquaredDifference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Softmax>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::StridedSlice>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Squeeze>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Sqrt>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Tan>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Tanh>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Squeeze>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Sqrt>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Subtract>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Tan>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Tanh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TileIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::TopK>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::Unsqueeze>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::TensorIterator>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::LSTMCellIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::HardSigmoid>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalAnd>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalOr>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v0::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };
         CNNLayerPtr result;
@@ -673,7 +673,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         return result;
     };
 
-    const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::op::Constant> &constLayer,
+    const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::op::v0::Constant> &constLayer,
                                          const std::shared_ptr<::ngraph::Node> &consumerLayer,
                                          bool keep_constants) -> bool {
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
@@ -681,13 +681,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Elu>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::v0::Elu>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::NormalizeIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::PRelu>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::v0::PRelu>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::Split>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::VariadicSplit>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::v1::VariadicSplit>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::ScaleShiftIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Transpose>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::v1::Transpose>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer)) {
             // Check that all input nodes except zero input are Constants for all ops except DeformableConvolutions
@@ -715,7 +715,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     // Checks that node is internal layer for all layers from specific function
     const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node> &node,
                                      bool keep_constant) -> bool {
-        if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
+        if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::v0::Constant>(node)) {
             for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
                 const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
@@ -724,7 +724,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             return true;
         }
 
-        return ::ngraph::as_type_ptr<::ngraph::op::Result>(node) != nullptr;
+        return ::ngraph::as_type_ptr<::ngraph::op::v0::Result>(node) != nullptr;
     };
 
     const auto keep_input_info = [](CNNNetworkImpl *network, const DataPtr &inData) {
@@ -742,7 +742,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
     const ngraph::NodeVector& nodes = graph->get_ops();
-    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
+    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::v0::FakeQuantize>(graph);
 
     // Create layers and output data
     for (const auto &layer : nodes) {
@@ -779,7 +779,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::v0::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
             }
@@ -797,11 +797,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             // For proper conversion, we must cut off all the layers and data nodes above ReadValue,
             // if they are connected only with this layer.
             // Now MO generates only constants or constant sub-graphs as input to ReadValue op.
-            if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer)) {
+            if (std::dynamic_pointer_cast<::ngraph::op::v0::Constant>(layer)) {
                 bool all_to_read_value = !layer->output(i).get_target_inputs().empty();
                 for (const auto &output_input : layer->output(i).get_target_inputs()) {
                     all_to_read_value
-                            &= dynamic_cast<ngraph::op::ReadValue *>(output_input.get_node()) != nullptr;
+                            &= dynamic_cast<ngraph::op::v3::ReadValue *>(output_input.get_node()) != nullptr;
                 }
                 if (all_to_read_value)
                     continue;
@@ -844,7 +844,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
             getCreatorLayer(ptr) = cnnLayer;
             cnnLayer->outData.push_back(ptr);
-            if (std::dynamic_pointer_cast<::ngraph::op::Parameter>(layer)) {
+            if (std::dynamic_pointer_cast<::ngraph::op::v0::Parameter>(layer)) {
                 keep_input_info(cnnNetworkImpl, ptr);
             }
         }
@@ -853,9 +853,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Set input data
     for (const auto &layer : graph->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
+        if (std::dynamic_pointer_cast<::ngraph::op::v3::ReadValue>(layer))
             continue;
-        if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
+        if (std::dynamic_pointer_cast<::ngraph::op::v0::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
             auto name = input.get_tensor().get_name();
@@ -871,7 +871,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             const auto &output_port = layer->input_value(i);
             const auto &input = output_port.get_node_shared_ptr();
 
-            if (auto const_node = std::dynamic_pointer_cast<::ngraph::op::Constant>(input)) {
+            if (auto const_node = std::dynamic_pointer_cast<::ngraph::op::v0::Constant>(input)) {
                 if (isInternalConstLayer(const_node, layer, keep_constants)) {
                     count_of_skipped++;
                     continue;

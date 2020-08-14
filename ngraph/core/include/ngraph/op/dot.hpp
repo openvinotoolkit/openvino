@@ -91,6 +91,5 @@ namespace ngraph
                 bool m_has_reduction_axes_count;
             };
         }
-        using v0::Dot;
     }
 }

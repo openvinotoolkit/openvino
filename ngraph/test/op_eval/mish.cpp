@@ -31,7 +31,7 @@ using namespace ngraph;
 
 TEST(op_eval, mish_0D)
 {
-    auto p = make_shared<op::Parameter>(element::f32, Shape{});
+    auto p = make_shared<op::v0::Parameter>(element::f32, Shape{});
     auto mish = make_shared<op::v4::Mish>(p);
     auto fun = make_shared<Function>(OutputVector{mish}, ParameterVector{p});
 

@@ -179,7 +179,7 @@ void op::v1::OneHot::validate_and_infer_types()
                               depth->get_shape(),
                               " elements).");
 
-        const auto depth_constant = as_type_ptr<op::Constant>(depth);
+        const auto depth_constant = as_type_ptr<op::v0::Constant>(depth);
         int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
 
         NODE_VALIDATION_CHECK(this,

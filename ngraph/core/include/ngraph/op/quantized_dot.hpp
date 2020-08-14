@@ -82,6 +82,5 @@ namespace ngraph
                 ngraph::AxisSet m_output_axes;
             };
         }
-        using v0::QuantizedDot;
     }
 }

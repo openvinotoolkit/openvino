@@ -88,6 +88,5 @@ namespace ngraph
             };
         } // namespace v0
 
-        using v0::Or;
     } // namespace op
 } // namespace ngraph

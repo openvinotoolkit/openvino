@@ -76,7 +76,7 @@ namespace ngraph
                 if (variance.empty())
                     variance.push_back(0.1f);
 
-                int64_t num_priors = op::PriorBox::number_of_priors(attrs);
+                int64_t num_priors = op::v0::PriorBox::number_of_priors(attrs);
 
                 float step = attrs.step;
                 auto min_size = attrs.min_size;

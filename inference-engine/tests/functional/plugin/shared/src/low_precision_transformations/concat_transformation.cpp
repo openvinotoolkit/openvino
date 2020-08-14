@@ -69,11 +69,11 @@ void ConcatTransformation::SetUp() {
         input2, ngPrecision, 256ul, { 1ul },
         { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
 
-    const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
+    const auto interpolateShape = std::make_shared<ngraph::op::v0::Constant>(
         ngraph::element::i64,
         ngraph::Shape{ 2 },
         std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
-    ngraph::op::InterpolateAttrs interpolateAttrs;
+    ngraph::op::v0::InterpolateAttrs interpolateAttrs;
     interpolateAttrs.align_corners = false;
     interpolateAttrs.antialias = false;
     interpolateAttrs.axes = ngraph::AxisSet{2, 3};

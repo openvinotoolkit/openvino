@@ -53,16 +53,16 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
     return out_name;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::v0::Constant> & const_node, float & value);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::v0::Constant> & constant,
                                                                            const PartialShape & shape);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
 
-TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
+TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::v0::Constant>& const_node, float value, float eps = 1e-5);
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
 

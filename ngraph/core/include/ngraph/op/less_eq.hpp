@@ -82,6 +82,5 @@ namespace ngraph
             };
         } // namespace v0
 
-        using v0::LessEq;
     } // namespace op
 } // namespace ngraph

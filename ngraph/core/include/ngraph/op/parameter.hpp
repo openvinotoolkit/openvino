@@ -76,9 +76,8 @@ namespace ngraph
                 bool m_is_relevant_to_shapes;
             };
         }
-        using v0::Parameter;
     }
-    using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+    using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
 
     template <>
     class NGRAPH_API AttributeAdapter<ParameterVector> : public VisitorAdapter

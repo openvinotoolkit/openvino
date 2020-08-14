@@ -90,7 +90,6 @@ namespace ngraph
                 DetectionOutputAttrs m_attrs;
             };
         }
-        using v0::DetectionOutput;
     }
 
     template <>

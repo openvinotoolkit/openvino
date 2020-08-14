@@ -24,11 +24,11 @@ using namespace ngraph;
 TEST(type_prop, ctc_loss)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     // create CTCLoss node
     auto ctc_loss =
@@ -42,10 +42,10 @@ TEST(type_prop, ctc_loss)
 TEST(type_prop, ctc_loss_no_blank_index)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
 
     // create CTCLoss node
     auto ctc_loss = make_shared<op::v4::CTCLoss>(logits, logit_length, labels, label_length);
@@ -58,11 +58,11 @@ TEST(type_prop, ctc_loss_no_blank_index)
 TEST(type_prop, ctc_loss_output_type)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f64, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f64, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     // create CTCLoss node
     auto ctc_loss =
@@ -76,11 +76,11 @@ TEST(type_prop, ctc_loss_output_type)
 TEST(type_prop, ctc_loss_non_default_parameters)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f64, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f64, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     // create CTCLoss node
     auto ctc_loss = make_shared<op::v4::CTCLoss>(
@@ -95,13 +95,14 @@ TEST(type_prop, ctc_loss_dynamic_input)
 {
     // create inputs
     auto logits =
-        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 120, 28});
+        make_shared<op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 120, 28});
     auto logit_length =
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto labels = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 120});
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto labels =
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 120});
     auto label_length =
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     // create CTCLoss node
     auto ctc_loss =
@@ -117,12 +118,13 @@ TEST(type_prop, ctc_loss_partly_dynamic_input)
 {
     // create inputs
     auto logits =
-        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, PartialShape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 120});
+        make_shared<op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, PartialShape{10});
+    auto labels =
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 120});
     auto label_length =
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     // create CTCLoss node
     auto ctc_loss =
@@ -136,11 +138,11 @@ TEST(type_prop, ctc_loss_partly_dynamic_input)
 TEST(type_prop, ctc_loss_fail_inputs_dim)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 40, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 40, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
@@ -164,11 +166,11 @@ TEST(type_prop, ctc_loss_fail_inputs_dim)
 TEST(type_prop, ctc_loss_fail_logit_length_dim)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10, 20});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10, 20});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
@@ -192,11 +194,11 @@ TEST(type_prop, ctc_loss_fail_logit_length_dim)
 TEST(type_prop, ctc_loss_fail_labels_dim)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
@@ -220,11 +222,11 @@ TEST(type_prop, ctc_loss_fail_labels_dim)
 TEST(type_prop, ctc_loss_fail_label_length_dim)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10, 40});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10, 40});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
@@ -248,11 +250,11 @@ TEST(type_prop, ctc_loss_fail_label_length_dim)
 TEST(type_prop, ctc_loss_fail_blank_index_dim)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{4});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{4});
 
     try
     {
@@ -276,11 +278,11 @@ TEST(type_prop, ctc_loss_fail_blank_index_dim)
 TEST(type_prop, ctc_loss_fail_batch_dim_mismatch)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 120});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{40});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 120});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{40});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
@@ -307,11 +309,11 @@ TEST(type_prop, ctc_loss_fail_batch_dim_mismatch)
 TEST(type_prop, ctc_loss_fail_time_dim_mismatch)
 {
     // create inputs
-    auto logits = make_shared<op::Parameter>(element::f32, Shape{10, 120, 28});
-    auto logit_length = make_shared<op::Parameter>(element::i32, Shape{10});
-    auto labels = make_shared<op::Parameter>(element::i32, Shape{10, 130});
-    auto label_length = make_shared<op::Parameter>(element::i32, Shape{40});
-    auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
+    auto logits = make_shared<op::v0::Parameter>(element::f32, Shape{10, 120, 28});
+    auto logit_length = make_shared<op::v0::Parameter>(element::i32, Shape{10});
+    auto labels = make_shared<op::v0::Parameter>(element::i32, Shape{10, 130});
+    auto label_length = make_shared<op::v0::Parameter>(element::i32, Shape{40});
+    auto blank_index = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {

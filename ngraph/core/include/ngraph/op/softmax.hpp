@@ -103,8 +103,5 @@ namespace ngraph
                 size_t m_axis;
             };
         }
-
-        // default opset version
-        using v0::Softmax;
     }
 }

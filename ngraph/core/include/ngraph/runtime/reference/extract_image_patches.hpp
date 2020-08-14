@@ -11,7 +11,7 @@ namespace ngraph
         namespace reference
         {
             template <typename T, typename U>
-            void extractImagePatches(const op::ExtractImagePatches* extImgPatches,
+            void extractImagePatches(const op::v3::ExtractImagePatches* extImgPatches,
                                      const T* input,
                                      T* out,
                                      const Shape& inShape,

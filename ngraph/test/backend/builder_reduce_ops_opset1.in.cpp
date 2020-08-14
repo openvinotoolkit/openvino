@@ -34,7 +34,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean)
 {
     const Shape input_shape{4, 3, 2};
     const AxisSet axes{1, 2};
-    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto input = make_shared<op::v0::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
@@ -51,7 +51,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic)
 {
     const Shape input_shape{2, 4, 5};
     const AxisSet axes{0, 1};
-    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto input = make_shared<op::v0::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
@@ -69,7 +69,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic_2)
 {
     const Shape input_shape{2, 1, 3};
     const AxisSet axes{1, 2};
-    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto input = make_shared<op::v0::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 

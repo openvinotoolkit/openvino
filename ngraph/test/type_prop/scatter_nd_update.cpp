@@ -26,9 +26,9 @@ TEST(type_prop, scatter_nd_update_v3_fail_indices_element_type)
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};
     Shape updates_shape{2, 2, 1, 4};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::f16, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<op::v0::Parameter>(element::f16, indices_shape);
+    auto U = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     try
     {
         auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
@@ -51,12 +51,12 @@ TEST(type_prop, scatter_nd_update_v3_fail_updates_rank)
     Shape indices_shape{1};
     Shape updates_shape{3, 3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     try
     {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect updates rank";
     }
@@ -78,12 +78,12 @@ TEST(type_prop, scatter_nd_update_fail_updates_element_type)
     Shape indices_shape{1};
     Shape updates_shape{3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::i32, updates_shape);
+    auto R = make_shared<op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<op::v0::Parameter>(element::i32, updates_shape);
     try
     {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Created ScatterND op with incorrect updates element type.";
     }
@@ -104,12 +104,12 @@ TEST(type_prop, scatter_nd_update_fail_updates_shape)
     Shape indices_shape{1};
     Shape updates_shape{2, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     try
     {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect updates shape";
     }
@@ -132,12 +132,12 @@ TEST(type_prop, scatter_nd_update_fail_indices_last_dim)
     Shape indices_shape{2, 4};
     Shape updates_shape{2, 3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     try
     {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices innermost dim";
     }

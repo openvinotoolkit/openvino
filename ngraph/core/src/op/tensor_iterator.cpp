@@ -227,18 +227,19 @@ namespace ngraph
     }
 
     constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>::type_info;
+        AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::InputDescription>>::type_info;
 
     constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::type_info;
+        std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>>::type_info;
 
-    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& ref)
+    AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>>::
+        AttributeAdapter(
+            std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>& ref)
         : m_ref(ref)
     {
     }
 
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>>::
         visit_attributes(AttributeVisitor& visitor)
     {
         int64_t size = m_ref.size();
@@ -277,18 +278,19 @@ namespace ngraph
     }
 
     constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::type_info;
+        std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>>::type_info;
 
     constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>::type_info;
+        AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>::type_info;
 
-    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& ref)
+    AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>>::
+        AttributeAdapter(
+            std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>& ref)
         : m_ref(ref)
     {
     }
 
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>>::
         visit_attributes(AttributeVisitor& visitor)
     {
         int64_t size = m_ref.size();
@@ -329,13 +331,14 @@ Input<Node> op::v0::TensorIterator::input_for_value(const Output<Node>& value)
     return Input<Node>(this, input_index);
 }
 
-void op::v0::TensorIterator::set_sliced_input(const std::shared_ptr<op::Parameter>& body_parameter,
-                                              const Output<Node>& value,
-                                              int64_t start,
-                                              int64_t stride,
-                                              int64_t part_size,
-                                              int64_t end,
-                                              int64_t axis)
+void op::v0::TensorIterator::set_sliced_input(
+    const std::shared_ptr<op::v0::Parameter>& body_parameter,
+    const Output<Node>& value,
+    int64_t start,
+    int64_t stride,
+    int64_t part_size,
+    int64_t end,
+    int64_t axis)
 {
     m_input_descriptions.push_back(
         make_shared<SliceInputDescription>(input_for_value(value).get_index(),

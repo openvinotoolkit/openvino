@@ -88,7 +88,7 @@ OutputVector op::Unsqueeze::decompose_op() const
     auto data_shape = data.get_shape();
     auto output_shape = get_output_shape(0);
     AxisVector input_order{ngraph::get_default_order(data_shape.size())};
-    return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
+    return {make_shared<ngraph::op::v0::Reshape>(data, input_order, output_shape)};
 }
 
 bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)

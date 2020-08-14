@@ -48,7 +48,7 @@ OutputVector op::SquaredDifference::decompose_op() const
     const auto x1 = input_value(0);
     const auto x2 = input_value(1);
 
-    const auto difference = make_shared<op::Subtract>(x1, x2, m_autobroadcast);
+    const auto difference = make_shared<op::v0::Subtract>(x1, x2, m_autobroadcast);
 
     return {difference * difference};
 }

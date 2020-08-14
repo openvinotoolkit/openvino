@@ -128,14 +128,14 @@ shared_ptr<Node> op::v0::Pad::clone_with_new_inputs(const OutputVector& new_args
         new_args.at(0), new_args.at(1), m_padding_below, m_padding_above, m_pad_mode);
 }
 
-std::shared_ptr<Node> op::Pad::get_default_value() const
+std::shared_ptr<Node> op::v0::Pad::get_default_value() const
 {
     AxisSet axes{};
     for (size_t i = 0; i < get_shape().size(); i++)
     {
         axes.insert(i);
     }
-    return std::make_shared<op::Broadcast>(input_value(1), get_shape(), axes);
+    return std::make_shared<op::v0::Broadcast>(input_value(1), get_shape(), axes);
 }
 
 constexpr NodeTypeInfo op::v1::Pad::type_info;
@@ -165,7 +165,7 @@ CoordinateDiff op::v1::Pad::get_pads_begin() const
 {
     auto pads_begin_node = input_value(1).get_node_shared_ptr();
     CoordinateDiff pads_begin_coord{};
-    if (auto pads_begin_const = as_type_ptr<op::Constant>(pads_begin_node))
+    if (auto pads_begin_const = as_type_ptr<op::v0::Constant>(pads_begin_node))
     {
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
@@ -176,7 +176,7 @@ CoordinateDiff op::v1::Pad::get_pads_end() const
 {
     auto pads_end_node = input_value(2).get_node_shared_ptr();
     CoordinateDiff pads_end_coord{};
-    if (auto pads_end_const = as_type_ptr<op::Constant>(pads_end_node))
+    if (auto pads_end_const = as_type_ptr<op::v0::Constant>(pads_end_node))
     {
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }

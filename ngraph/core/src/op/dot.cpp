@@ -27,17 +27,17 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Dot::type_info;
+constexpr NodeTypeInfo op::v0::Dot::type_info;
 
-op::Dot::Dot(const Output<Node>& arg0, const Output<Node>& arg1)
+op::v0::Dot::Dot(const Output<Node>& arg0, const Output<Node>& arg1)
     : Dot(arg0, arg1, 0, false)
 {
 }
 
-op::Dot::Dot(const Output<Node>& arg0,
-             const Output<Node>& arg1,
-             size_t reduction_axes_count,
-             bool has_reduction_axes_count)
+op::v0::Dot::Dot(const Output<Node>& arg0,
+                 const Output<Node>& arg1,
+                 size_t reduction_axes_count,
+                 bool has_reduction_axes_count)
     : Op({arg0, arg1})
     , m_reduction_axes_count(reduction_axes_count)
     , m_has_reduction_axes_count(has_reduction_axes_count)
@@ -45,7 +45,7 @@ op::Dot::Dot(const Output<Node>& arg0,
     constructor_validate_and_infer_types();
 }
 
-void op::Dot::validate_and_infer_types()
+void op::v0::Dot::validate_and_infer_types()
 {
     element::Type result_et;
 
@@ -155,9 +155,9 @@ void op::Dot::validate_and_infer_types()
     set_output_type(0, result_et, result_shape);
 }
 
-shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,
-                                                   const Shape& front_shape,
-                                                   const Shape& back_shape)
+shared_ptr<op::v0::Reshape> make_reshape_axes_to_front(const Output<Node>& n,
+                                                       const Shape& front_shape,
+                                                       const Shape& back_shape)
 {
     AxisVector input_order;
     Shape output_shape;
@@ -174,10 +174,10 @@ shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,
         output_shape.push_back(front_shape[i]);
     }
 
-    return make_shared<op::Reshape>(n, input_order, output_shape);
+    return make_shared<op::v0::Reshape>(n, input_order, output_shape);
 }
 
-shared_ptr<Node> op::Dot::get_default_value() const
+shared_ptr<Node> op::v0::Dot::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }

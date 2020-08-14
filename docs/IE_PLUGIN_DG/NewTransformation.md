@@ -48,7 +48,7 @@ After you decided where to store your transformation code you can start develop 
 
 ## ngraph::Function and graph representation <a name="ngraph_function"></a>
 
-nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph. 
+nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::v0::Result` and `ngraph::op::v0::Parameter` operations that are inputs and outputs of the graph. 
 All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result operation
 (shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 

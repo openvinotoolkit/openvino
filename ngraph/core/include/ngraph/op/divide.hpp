@@ -117,7 +117,6 @@ namespace ngraph
             };
         } // namespace v1
 
-        using v0::Divide;
     } // namespace op
 
     NGRAPH_API

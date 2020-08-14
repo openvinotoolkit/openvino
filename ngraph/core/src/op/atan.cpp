@@ -35,15 +35,15 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Atan::type_info;
+constexpr NodeTypeInfo op::v0::Atan::type_info;
 
-op::Atan::Atan(const Output<Node>& arg)
+op::v0::Atan::Atan(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Atan::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Atan>(new_args.at(0));
@@ -86,8 +86,8 @@ namespace
     }
 }
 
-bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Atan::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Atan::evaluate");
     return evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

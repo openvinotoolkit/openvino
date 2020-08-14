@@ -24,17 +24,17 @@
 using namespace testing;
 
 TEST(TransformationTests, FQTransposeTest1) {
-    auto data1 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
-    auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
-    auto data3 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data4 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto data5 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
-    auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
+    auto data1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
+    auto data2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
+    auto data3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
+    auto data4 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
+    auto data5 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});
+    auto transpose_order = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
 
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto fq = std::make_shared<ngraph::op::FakeQuantize>(data1, data2, data3, data4, data5, 1);
-        auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
+        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(fq, transpose_order);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
 
@@ -49,7 +49,7 @@ TEST(TransformationTests, FQTransposeTest1) {
     }
     std::vector<size_t> ref_shape{1, 3, 1};
     for (auto op : f->get_ops()) {
-        if (auto constant = ngraph::as_type_ptr<ngraph::op::Constant>(op)) {
+        if (auto constant = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op)) {
             auto shape = constant->get_shape();
             ASSERT_EQ(shape, ref_shape);
         }

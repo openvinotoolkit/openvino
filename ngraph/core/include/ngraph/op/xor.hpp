@@ -88,8 +88,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v0
-
-        // default opset version
-        using v0::Xor;
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

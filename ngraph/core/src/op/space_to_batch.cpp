@@ -81,13 +81,14 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
+        auto block_val = std::dynamic_pointer_cast<op::v0::Constant>(block.get_node_shared_ptr())
                              ->cast_vector<int64_t>();
         auto pads_begin_val =
-            std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
+            std::dynamic_pointer_cast<op::v0::Constant>(pads_begin.get_node_shared_ptr())
                 ->cast_vector<int64_t>();
-        auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
-                                ->cast_vector<int64_t>();
+        auto pads_end_val =
+            std::dynamic_pointer_cast<op::v0::Constant>(pads_end.get_node_shared_ptr())
+                ->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long idx : block_val)

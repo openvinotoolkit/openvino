@@ -35,7 +35,7 @@ Lambda::Lambda(const ResultVector& results, const ParameterVector& parameters)
 {
 }
 
-int64_t Lambda::get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const
+int64_t Lambda::get_parameter_index(const std::shared_ptr<op::v0::Parameter>& parameter) const
 {
     int64_t pos = 0;
     for (auto p : get_parameters())
@@ -52,7 +52,7 @@ int64_t Lambda::get_parameter_index(const std::shared_ptr<op::Parameter>& parame
 int64_t Lambda::get_result_index(const Output<Node>& value) const
 {
     int64_t pos = 0;
-    if (is_type<op::Result>(value.get_node_shared_ptr()))
+    if (is_type<op::v0::Result>(value.get_node_shared_ptr()))
     {
         auto result = value.get_node_shared_ptr();
         for (auto r : get_results())

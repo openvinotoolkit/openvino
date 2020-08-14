@@ -52,6 +52,5 @@ namespace ngraph
                 double m_alpha;
             };
         }
-        using v0::Elu;
     } // namespace op
 } // namespace ngraph

@@ -20,27 +20,27 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Any::type_info;
+constexpr NodeTypeInfo op::v0::Any::type_info;
 
-op::Any::Any(const Output<Node>& arg, const AxisSet& reduction_axes)
+op::v0::Any::Any(const Output<Node>& arg, const AxisSet& reduction_axes)
     : LogicalReduction(arg, reduction_axes)
 {
     constructor_validate_and_infer_types();
 }
 
-op::Any::Any(const Output<Node>& arg, const Output<Node>& reduction_axes)
+op::v0::Any::Any(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : LogicalReduction(arg, reduction_axes)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Any::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Any::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Any>(new_args.at(0), new_args.at(1));
 }
 
-shared_ptr<Node> op::Any::get_default_value() const
+shared_ptr<Node> op::v0::Any::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }

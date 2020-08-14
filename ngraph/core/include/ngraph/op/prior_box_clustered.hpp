@@ -71,7 +71,6 @@ namespace ngraph
                 PriorBoxClusteredAttrs m_attrs;
             };
         }
-        using v0::PriorBoxClustered;
     }
 
     template <>

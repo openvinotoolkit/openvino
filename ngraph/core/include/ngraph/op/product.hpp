@@ -55,7 +55,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         }
-        // default opset version
-        using v0::Product;
     }
 }

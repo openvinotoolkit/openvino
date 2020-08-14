@@ -200,8 +200,6 @@ namespace ngraph
                 InterpolateAttrs m_attrs;
             };
         }
-        using v0::InterpolateAttrs;
-        using v0::Interpolate;
     }
 
     //---------------------------------------- v0 --------------------------------------------------

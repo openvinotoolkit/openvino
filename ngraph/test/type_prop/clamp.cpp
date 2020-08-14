@@ -23,11 +23,11 @@ using namespace ngraph;
 
 TEST(type_prop, fused_clamp)
 {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{2, 2});
+    const auto data = make_shared<op::v0::Parameter>(element::f64, Shape{2, 2});
 
     try
     {
-        const auto clamp = make_shared<op::Clamp>(data, 2.0, 1.0);
+        const auto clamp = make_shared<op::v0::Clamp>(data, 2.0, 1.0);
         EXPECT_FALSE(clamp.get())
             << "Clamp validation did not work. Op node was created with incorrect params.";
     }
@@ -37,7 +37,7 @@ TEST(type_prop, fused_clamp)
             error.what(), std::string("The 'min' parameter needs to be less than 'max' for Clamp"));
     }
 
-    const auto clamp = make_shared<op::Clamp>(data, 1.0, 2.0);
+    const auto clamp = make_shared<op::v0::Clamp>(data, 1.0, 2.0);
     EXPECT_EQ(clamp->get_element_type(), element::f64);
     EXPECT_EQ(clamp->get_shape(), (Shape{2, 2}));
 }

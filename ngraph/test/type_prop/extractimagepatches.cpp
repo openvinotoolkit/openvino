@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, extractimagepatches_i32)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -37,7 +37,7 @@ TEST(type_prop, extractimagepatches_i32)
 
 TEST(type_prop, extractimagepatches_i64)
 {
-    auto data = make_shared<op::Parameter>(element::i64, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i64, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -51,7 +51,7 @@ TEST(type_prop, extractimagepatches_i64)
 
 TEST(type_prop, extractimagepatches_rates_change)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{2, 2};
@@ -65,7 +65,7 @@ TEST(type_prop, extractimagepatches_rates_change)
 
 TEST(type_prop, extractimagepatches_input_shape_change)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 9, 9});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 9, 9});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{2, 2};
@@ -79,7 +79,7 @@ TEST(type_prop, extractimagepatches_input_shape_change)
 
 TEST(type_prop, extractimagepatches_dynamic_shape)
 {
-    auto data = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
+    auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(4));
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{2, 2};
@@ -95,7 +95,7 @@ TEST(type_prop, extractimagepatches_dynamic_shape)
 TEST(type_prop, extractimagepatches_dynamic_batch_shape)
 {
     auto data =
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 3, 10, 10});
+        make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic(), 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -110,7 +110,7 @@ TEST(type_prop, extractimagepatches_dynamic_batch_shape)
 
 TEST(type_prop, extractimagepatches_padding_same_lower1)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -124,7 +124,7 @@ TEST(type_prop, extractimagepatches_padding_same_lower1)
 
 TEST(type_prop, extractimagepatches_padding_same_lower2)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 9, 9});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 9, 9});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -137,7 +137,7 @@ TEST(type_prop, extractimagepatches_padding_same_lower2)
 }
 TEST(type_prop, extractimagepatches_padding_same_upper)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 11, 11});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 11, 11});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -151,7 +151,7 @@ TEST(type_prop, extractimagepatches_padding_same_upper)
 
 TEST(type_prop, extractimagepatches_padding_same_upper2)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 6, 11});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 6, 11});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -165,7 +165,7 @@ TEST(type_prop, extractimagepatches_padding_same_upper2)
 
 TEST(type_prop, extractimagepatches_zero_dim_inputs)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 0, 0, 0});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 0, 0, 0});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
@@ -179,7 +179,7 @@ TEST(type_prop, extractimagepatches_zero_dim_inputs)
 
 TEST(type_prop, extractimagepatches_large_stride_valid_padding)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{15, 15};
     auto rates = Shape{1, 1};
@@ -193,7 +193,7 @@ TEST(type_prop, extractimagepatches_large_stride_valid_padding)
 
 TEST(type_prop, extractimagepatches_large_stride_same_padding)
 {
-    auto data = make_shared<op::Parameter>(element::i32, Shape{64, 3, 10, 10});
+    auto data = make_shared<op::v0::Parameter>(element::i32, Shape{64, 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{15, 15};
     auto rates = Shape{1, 1};

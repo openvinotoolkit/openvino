@@ -199,7 +199,8 @@ namespace ngraph
                                                          const element::Type& k_element_type) const;
 
                 template <typename T>
-                size_t validate_and_get_k(const std::shared_ptr<op::Constant>& k_constant) const;
+                size_t
+                    validate_and_get_k(const std::shared_ptr<op::v0::Constant>& k_constant) const;
                 Shape compute_output_shape(const std::string& node_description,
                                            const PartialShape input_partial_shape,
                                            const int64_t k) const;
@@ -258,6 +259,5 @@ namespace ngraph
             };
         } // namespace v3
 
-        using v0::TopK;
     } // op
 } // ngraph

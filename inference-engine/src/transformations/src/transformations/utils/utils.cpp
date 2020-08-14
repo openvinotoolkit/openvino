@@ -17,7 +17,7 @@ namespace ngraph {
 namespace op {
 namespace util {
 
-bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& value) {
+bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
         return util::normalize_single_value(const_node->get_vector<float16>(), value);
@@ -48,7 +48,7 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
     }
 }
 
-std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
+std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>& constant,
                                          const PartialShape& shape) {
     auto const_shape = constant->get_shape();
     if (const_shape.size() == shape.rank().get_length()) {
@@ -69,14 +69,14 @@ std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape
         if (input.get_shape()[i] != 1 && input.get_shape()[i] != shape[i])
             throw ngraph_error("Shape mismatch");
     }
-    return std::make_shared<op::v1::Broadcast>(input, op::Constant::create(ngraph::element::i64, Shape {shape.size()}, shape));
+    return std::make_shared<op::v1::Broadcast>(input, op::v0::Constant::create(ngraph::element::i64, Shape {shape.size()}, shape));
 }
 
 std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape) {
-    return std::make_shared<op::v1::Reshape>(input, op::Constant::create(element::i64, Shape{shape.size()}, shape), true);
+    return std::make_shared<op::v1::Reshape>(input, op::v0::Constant::create(element::i64, Shape{shape.size()}, shape), true);
 }
 
-bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps) {
+bool constantIsEqualTo(const std::shared_ptr<ngraph::op::v0::Constant>& const_node, float value, float eps) {
     float res(0);
     if (!get_single_value(const_node, res)) {
         return false;
@@ -87,7 +87,7 @@ bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, 
 
 bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function) {
     for (auto & layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
+        if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
             return true;
         }
     }

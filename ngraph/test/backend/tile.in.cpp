@@ -39,9 +39,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
 {
     Shape shape_a{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_re{3};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 2, 1});
+    auto repeats = make_shared<op::v0::Constant>(element::i64, shape_re, vector<int>{2, 2, 1});
     Shape shape_r{2, 2, 3};
 
     auto tile = make_shared<op::v0::Tile>(A, repeats);
@@ -66,9 +66,9 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
 NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats)
 {
     Shape shape_a{2, 1, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_re{2};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 1});
+    auto repeats = make_shared<op::v0::Constant>(element::i64, shape_re, vector<int>{2, 1});
     Shape shape_r{2, 2, 3};
 
     auto tile = make_shared<op::v0::Tile>(A, repeats);

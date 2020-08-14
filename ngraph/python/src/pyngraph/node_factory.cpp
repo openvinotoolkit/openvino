@@ -64,7 +64,7 @@ namespace
             {
                 // XXX: How to differentiate opsets?
                 return util::TensorIteratorBuilder(arguments, attributes)
-                    .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
+                    .configure(std::static_pointer_cast<ngraph::op::v0::TensorIterator>(op_node));
             }
 
             util::DictAttributeDeserializer visitor(attributes);

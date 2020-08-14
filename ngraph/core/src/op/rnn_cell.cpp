@@ -182,9 +182,9 @@ OutputVector op::RNNCell::decompose_op() const
     Output<Node> bias = input_value(4);
 
     // Xt*(W^T)
-    auto Xt_W = std::make_shared<op::Dot>(X, builder::opset1::transpose(W));
+    auto Xt_W = std::make_shared<op::v0::Dot>(X, builder::opset1::transpose(W));
     // Ht-1*(R^T)
-    auto Ht_R = std::make_shared<op::Dot>(H_t, builder::opset1::transpose(R));
+    auto Ht_R = std::make_shared<op::v0::Dot>(H_t, builder::opset1::transpose(R));
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
     auto i_t = add(Xt_W, add(Ht_R, bias));
 
@@ -197,9 +197,9 @@ OutputVector op::RNNCell::decompose_op() const
 Output<Node> op::RNNCell::get_default_bias_input() const
 {
     return Output<Node>{
-        op::Constant::create(get_input_element_type(0),
-                             Shape{s_gates_count * get_hidden_size()},
-                             vector<float>(s_gates_count * get_hidden_size(), 0.f))};
+        op::v0::Constant::create(get_input_element_type(0),
+                                 Shape{s_gates_count * get_hidden_size()},
+                                 vector<float>(s_gates_count * get_hidden_size(), 0.f))};
 }
 
 shared_ptr<Node> op::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const

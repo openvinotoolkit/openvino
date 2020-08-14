@@ -22,11 +22,11 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Parameter::type_info;
+constexpr NodeTypeInfo op::v0::Parameter::type_info;
 
-op::Parameter::Parameter(const element::Type& element_type,
-                         const PartialShape& pshape,
-                         const bool cacheable)
+op::v0::Parameter::Parameter(const element::Type& element_type,
+                             const PartialShape& pshape,
+                             const bool cacheable)
     : m_cacheable(cacheable)
     , m_partial_shape(pshape)
     , m_element_type(element_type)
@@ -35,7 +35,7 @@ op::Parameter::Parameter(const element::Type& element_type,
     constructor_validate_and_infer_types();
 }
 
-bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Parameter::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("cacheable", m_cacheable);
     visitor.on_attribute("shape", m_partial_shape);
@@ -43,24 +43,24 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::Parameter::validate_and_infer_types()
+void op::v0::Parameter::validate_and_infer_types()
 {
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
-shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
 
-bool op::Parameter::is_relevant_to_shapes() const
+bool op::v0::Parameter::is_relevant_to_shapes() const
 {
     return m_is_relevant_to_shapes;
 }
 
-void op::Parameter::set_is_relevant_to_shapes(bool is_relevant)
+void op::v0::Parameter::set_is_relevant_to_shapes(bool is_relevant)
 {
     m_is_relevant_to_shapes = is_relevant;
 }

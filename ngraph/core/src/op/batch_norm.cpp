@@ -23,27 +23,27 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::BatchNormInference::type_info;
+constexpr NodeTypeInfo op::v0::BatchNormInference::type_info;
 
-op::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                           const Output<Node>& gamma,
-                                           const Output<Node>& beta,
-                                           const Output<Node>& mean,
-                                           const Output<Node>& variance,
-                                           double epsilon)
+op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
+                                               const Output<Node>& gamma,
+                                               const Output<Node>& beta,
+                                               const Output<Node>& mean,
+                                               const Output<Node>& variance,
+                                               double epsilon)
     : Op({gamma, beta, input, mean, variance})
     , m_epsilon(epsilon)
 {
     constructor_validate_and_infer_types();
 }
 
-bool op::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::BatchNormInference::validate_and_infer_types()
+void op::v0::BatchNormInference::validate_and_infer_types()
 {
     element::Type result_et;
     PartialShape result_batch_shape;
@@ -67,7 +67,7 @@ void op::BatchNormInference::validate_and_infer_types()
 }
 
 std::shared_ptr<Node>
-    op::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const
+    op::v0::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(

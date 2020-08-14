@@ -39,14 +39,14 @@ protected:
 
     std::shared_ptr<ngraph::Function> getNgraphModel() {
         std::vector<std::size_t> split_desc_vector({first_split_output, second_split_output});
-        auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
         auto split = std::make_shared<ngraph::op::v1::VariadicSplit>(input,
-                ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}),
-                ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{split_desc_vector.size()}, split_desc_vector));
-        auto concat = std::make_shared<ngraph::op::Concat>(split->outputs(), 1);
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{split_desc_vector.size()}, split_desc_vector));
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(split->outputs(), 1);
 
-        auto weights = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape {1}, std::vector<float> {MUL_VALUE});
-        auto biases = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape {1}, std::vector<float> {0.0f});
+        auto weights = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape {1}, std::vector<float> {MUL_VALUE});
+        auto biases = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape {1}, std::vector<float> {0.0f});
 
         auto mul = std::make_shared<ngraph::op::v1::Multiply>(concat, weights);
         auto add = std::make_shared<ngraph::op::v1::Add>(mul, biases);

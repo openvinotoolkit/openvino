@@ -25,18 +25,18 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBox::type_info;
+constexpr NodeTypeInfo op::v0::PriorBox::type_info;
 
-op::PriorBox::PriorBox(const Output<Node>& layer_shape,
-                       const Output<Node>& image_shape,
-                       const PriorBoxAttrs& attrs)
+op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
+                           const Output<Node>& image_shape,
+                           const PriorBoxAttrs& attrs)
     : Op({layer_shape, image_shape})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::PriorBox::validate_and_infer_types()
+void op::v0::PriorBox::validate_and_infer_types()
 {
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -62,7 +62,7 @@ void op::PriorBox::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+    if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(0).get_node_shared_ptr()))
     {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
@@ -83,13 +83,13 @@ void op::PriorBox::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
+int64_t op::v0::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
 {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
@@ -120,8 +120,8 @@ int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
     return num_priors;
 }
 
-std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio,
-                                                         bool flip)
+std::vector<float> op::v0::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio,
+                                                             bool flip)
 {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio)
@@ -134,7 +134,7 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("attrs", m_attrs);
     return true;

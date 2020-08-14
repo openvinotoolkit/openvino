@@ -23,8 +23,8 @@
 using namespace testing;
 
 TEST(TransformationTests, ModDecompositionTests) {
-    auto data1 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
-    auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
+    auto data1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
+    auto data2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
 
     std::shared_ptr<ngraph::Function> f(nullptr);
     {

@@ -64,23 +64,23 @@ TEST(BF16TransformerTest, KeepMemoryPrecision) {
      */
     Shape shape = {3, 2};
     Type type = ngraph::element::f32;
-    auto input = make_shared<Parameter>(type, shape);
-    auto mem_i = make_shared<Constant>(type, shape, 0);
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");
+    auto input = make_shared<v0::Parameter>(type, shape);
+    auto mem_i = make_shared<v0::Constant>(type, shape, 0);
+    auto mem_r = make_shared<v3::ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
-    auto sig = make_shared<Sigmoid>(mul);
+    auto mul = make_shared<v0::Multiply>(mem_r, input);
+    auto sig = make_shared<v0::Sigmoid>(mul);
 
-    auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);
-    auto fc1_b = make_shared<Constant>(type, Shape{2}, 1);
+    auto fc1_w = make_shared<v0::Constant>(type, Shape{2, 2}, 1);
+    auto fc1_b = make_shared<v0::Constant>(type, Shape{2}, 1);
     auto fc1 = make_shared<FullyConnected>(sig, fc1_w, fc1_b, shape);
 
-    auto fc2_w = make_shared<Constant>(type, Shape{2, 2}, 1);
-    auto fc2_b = make_shared<Constant>(type, Shape{2}, 1);
+    auto fc2_w = make_shared<v0::Constant>(type, Shape{2, 2}, 1);
+    auto fc2_b = make_shared<v0::Constant>(type, Shape{2}, 1);
     auto fc2 = make_shared<FullyConnected>(fc1, fc2_w, fc2_b, shape);
 
-    auto mem_w = make_shared<Assign>(fc1, "id");
+    auto mem_w = make_shared<v3::Assign>(fc1, "id");
     mem_w->set_friendly_name("mem_w");
 
     // WA. Limitation of ngraph. control_dependency are required.
@@ -127,21 +127,21 @@ TEST(BF16TransformerTest, DISABLED_KeepMemoryPrecisionWithGEMM) {
      */
     Shape shape = {3, 2};
     Type type = ngraph::element::f32;
-    auto input = make_shared<Parameter>(type, shape);
-    auto mem_i = make_shared<Constant>(type, shape, 0);
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");
+    auto input = make_shared<v0::Parameter>(type, shape);
+    auto mem_i = make_shared<v0::Constant>(type, shape, 0);
+    auto mem_r = make_shared<v3::ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
-    auto sig = make_shared<Sigmoid>(mul);
+    auto mul = make_shared<v0::Multiply>(mem_r, input);
+    auto sig = make_shared<v0::Sigmoid>(mul);
 
-    auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);
-    auto fc1 = make_shared<MatMul>(sig, fc1_w);
+    auto fc1_w = make_shared<v0::Constant>(type, Shape{2, 2}, 1);
+    auto fc1 = make_shared<v0::MatMul>(sig, fc1_w);
 
-    auto fc2_w = make_shared<Constant>(type, Shape{2, 2}, 1);
-    auto fc2 = make_shared<MatMul>(fc1, fc2_w);
+    auto fc2_w = make_shared<v0::Constant>(type, Shape{2, 2}, 1);
+    auto fc2 = make_shared<v0::MatMul>(fc1, fc2_w);
 
-    auto mem_w = make_shared<Assign>(fc1, "id");
+    auto mem_w = make_shared<v3::Assign>(fc1, "id");
     mem_w->set_friendly_name("mem_w");
 
     // WA. Limitation of ngraph. control_dependency are required.

@@ -23,9 +23,9 @@ using namespace ngraph;
 
 TEST(type_prop, squared_difference)
 {
-    const auto x1 = make_shared<op::Parameter>(element::f64, Shape{2, 2});
-    const auto x2 = make_shared<op::Parameter>(element::f64, Shape{3, 2});
-    const auto x3 = make_shared<op::Parameter>(element::f64, Shape{1, 2});
+    const auto x1 = make_shared<op::v0::Parameter>(element::f64, Shape{2, 2});
+    const auto x2 = make_shared<op::v0::Parameter>(element::f64, Shape{3, 2});
+    const auto x3 = make_shared<op::v0::Parameter>(element::f64, Shape{1, 2});
 
     try
     {

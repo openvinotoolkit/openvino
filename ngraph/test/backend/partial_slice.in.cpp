@@ -49,7 +49,7 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, partial_slice_static)
 {
     Shape shape_x{2, 3, 2};
-    auto x = make_shared<op::Parameter>(element::f32, shape_x);
+    auto x = make_shared<op::v0::Parameter>(element::f32, shape_x);
     AxisVector axes{0, 1};
     vector<int64_t> lower_bounds{1, 0};
     vector<int64_t> upper_bounds{2, 2};
@@ -76,7 +76,7 @@ NGRAPH_TEST(${BACKEND_NAME}, partial_slice_static)
 NGRAPH_TEST(${BACKEND_NAME}, partial_slice_partial_shape)
 {
     auto pshape_x = PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()};
-    auto x = make_shared<op::Parameter>(element::f32, pshape_x);
+    auto x = make_shared<op::v0::Parameter>(element::f32, pshape_x);
     AxisVector axes{0, 1};
     vector<int64_t> lower_bounds{1, 0};
     vector<int64_t> upper_bounds{2, 2};
@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, partial_slice_partial_shape)
 NGRAPH_TEST(${BACKEND_NAME}, partial_slice_unkown_rank)
 {
     auto pshape_x = PartialShape::dynamic();
-    auto x = make_shared<op::Parameter>(element::f32, pshape_x);
+    auto x = make_shared<op::v0::Parameter>(element::f32, pshape_x);
     AxisVector axes{0, 1};
     vector<int64_t> lower_bounds{1, 0};
     vector<int64_t> upper_bounds{2, 2};

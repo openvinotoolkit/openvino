@@ -33,7 +33,7 @@ namespace LayerTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
         auto input = ngraph::builder::makeParams(ngPrc, {shape_input});
-        auto reshape1_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        auto reshape1_pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{inputs[0].size()},
                                                                        inputs[0]);
         auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(input[0], reshape1_pattern, false);
@@ -41,7 +41,7 @@ namespace LayerTestsDefinitions {
                                                                          ngraph::Shape{inputs[1].size()},
                                                                          inputs[1]);
         auto permute = std::make_shared<ngraph::opset1::Transpose>(reshape1, permute_params);
-        auto reshape2_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        auto reshape2_pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{2},
                                                                        std::vector<size_t>{1, input_dim});
         auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(permute, reshape2_pattern, false);

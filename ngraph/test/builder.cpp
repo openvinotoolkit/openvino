@@ -26,7 +26,7 @@ shared_ptr<runtime::Tensor>
     make_reduce_result(function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&)> func)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
     auto f = make_shared<Function>(func(A, {0}), ParameterVector{A});
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -44,7 +44,7 @@ shared_ptr<runtime::Tensor> make_reduce_result_true(
     function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
     auto f = make_shared<Function>(func(A, {0}, true), ParameterVector{A});
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -62,7 +62,7 @@ shared_ptr<runtime::Tensor> make_reduce_result_false(
     function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
     auto f = make_shared<Function>(func(A, {0}, false), ParameterVector{A});
     auto backend = runtime::Backend::create("INTERPRETER");

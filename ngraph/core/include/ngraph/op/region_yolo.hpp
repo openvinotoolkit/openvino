@@ -80,6 +80,5 @@ namespace ngraph
                 int m_end_axis;
             };
         }
-        using v0::RegionYolo;
     }
 }

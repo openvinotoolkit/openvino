@@ -60,12 +60,12 @@ void NormalizeTransformation::SetUp() {
         paramNode->output(0), ngPrc, 256, { 1ul },
         { low / k }, { high / k }, { low / k }, { high / k });
 
-    const auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 1 }, std::vector<int64_t>{ 1ul });
+    const auto axes = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 1 }, std::vector<int64_t>{ 1ul });
     const auto normL2 = std::make_shared<ngraph::opset1::NormalizeL2>(fakeQuantize->output(0), axes, 1e-6, ngraph::op::EpsMode::ADD);
 
     ngraph::ResultVector results;
     if (fuseMultiply) {
-        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(
+        const auto multiplyConst = std::make_shared<ngraph::op::v0::Constant>(
             ngPrc, ngraph::Shape{ inputShape[0], inputShape[1], 1ul, 1ul }, std::vector<float>{ 2.f });
         const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normL2->output(0), multiplyConst);
         results = { std::make_shared<ngraph::opset1::Result>(multiply) };

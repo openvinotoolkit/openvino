@@ -20,13 +20,13 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Dequantize::type_info;
+constexpr NodeTypeInfo op::v0::Dequantize::type_info;
 
-op::Dequantize::Dequantize(const Output<Node>& input,
-                           const Output<Node>& scale,
-                           const Output<Node>& zero_point,
-                           const element::Type& type,
-                           const AxisSet& axes)
+op::v0::Dequantize::Dequantize(const Output<Node>& input,
+                               const Output<Node>& scale,
+                               const Output<Node>& zero_point,
+                               const element::Type& type,
+                               const AxisSet& axes)
 
     : Op({input, scale, zero_point})
     , m_type(type)
@@ -35,7 +35,7 @@ op::Dequantize::Dequantize(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-void op::Dequantize::validate_and_infer_types()
+void op::v0::Dequantize::validate_and_infer_types()
 {
     enum
     {
@@ -151,7 +151,7 @@ void op::Dequantize::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::Dequantize::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Dequantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Dequantize>(new_args.at(0), new_args.at(1), new_args.at(2), m_type, m_axes);

@@ -54,7 +54,7 @@ void op::v0::Tile::validate_and_infer_types()
 
     auto out_shape = PartialShape::dynamic();
 
-    if (auto const_repeats = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (auto const_repeats = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         if (arg_shape.is_static())
         {

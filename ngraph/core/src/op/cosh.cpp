@@ -26,20 +26,20 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Cosh::type_info;
+constexpr NodeTypeInfo op::v0::Cosh::type_info;
 
-op::Cosh::Cosh(const Output<Node>& arg)
+op::v0::Cosh::Cosh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-bool op::Cosh::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Cosh::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
 
-shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Cosh::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Cosh>(new_args.at(0));
@@ -82,8 +82,8 @@ namespace
     }
 }
 
-bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Cosh::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Cosh::evaluate");
     return evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

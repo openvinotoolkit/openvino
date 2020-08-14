@@ -38,7 +38,7 @@ namespace
         case op::BroadcastType::BIDIRECTIONAL:
         {
             const auto const_filled_with_ones = make_shared<op::v1::Broadcast>(
-                op::Constant::create(data->get_element_type(), {}, {1}), target_shape);
+                op::v0::Constant::create(data->get_element_type(), {}, {1}), target_shape);
             replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
             break;
         }

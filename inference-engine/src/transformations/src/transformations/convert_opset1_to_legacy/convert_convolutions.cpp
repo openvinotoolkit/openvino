@@ -64,7 +64,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
             weights = w_input->input_value(0);
         } else {
             weights = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
-                                                                op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
+                                                                op::v0::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
         }
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,
@@ -134,7 +134,7 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         }
 
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
-                                                                 op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
+                                                                 op::v0::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
         auto conv_ie = std::make_shared<ngraph::op::DeconvolutionIE>(gconv->input_value(0),
                                                                      reshape,
                                                                      gconv->get_strides(),

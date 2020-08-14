@@ -44,13 +44,13 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::i32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("relu");
-        auto convert = std::make_shared<ngraph::op::Convert>(relu, ngraph::element::Type_t::i64);
+        auto convert = std::make_shared<ngraph::op::v0::Convert>(relu, ngraph::element::Type_t::i64);
         convert->set_friendly_name("convert");
-        auto result = std::make_shared<ngraph::op::Result>(convert);
+        auto result = std::make_shared<ngraph::op::v0::Result>(convert);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -70,10 +70,10 @@ TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("test_layer_name");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
         result->set_friendly_name("test_layer_name");
 
         ngraph::ParameterVector params = {param};
@@ -92,12 +92,12 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name(testLayerName);
-        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(relu);
         relu2->set_friendly_name("relu2");
-        auto result = std::make_shared<ngraph::op::Result>(relu2);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu2);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -121,9 +121,9 @@ TEST(CNNNGraphImplTests, TestSetCurrentBatch) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -143,9 +143,9 @@ TEST(CNNNGraphImplTests, TestSetBatch) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -166,12 +166,12 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         auto& rtInfo = relu->get_rt_info();
         rtInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>> (testAffinity);
         relu->set_friendly_name("testReLU");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -192,12 +192,12 @@ TEST(CNNNGraphImplTests, TestAddOutput) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name(testLayerName);
-        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(relu);
         relu2->set_friendly_name("relu2");
-        auto result = std::make_shared<ngraph::op::Result>(relu2);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu2);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -224,12 +224,12 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name(testLayerName);
-        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(relu);
         relu2->set_friendly_name("relu2");
-        auto result = std::make_shared<ngraph::op::Result>(relu2);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu2);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -257,11 +257,11 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto constant = ngraph::op::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
         auto prelu = std::make_shared<ngraph::op::PRelu>(param, constant);
         auto add = std::make_shared<ngraph::op::v1::Maximum>(prelu, constant);
-        auto result = std::make_shared<ngraph::op::Result>(add);
+        auto result = std::make_shared<ngraph::op::v0::Result>(add);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -280,12 +280,12 @@ TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name(name);
-        auto constant = ngraph::op::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
         auto prelu = std::make_shared<ngraph::op::PRelu>(param, constant);
         auto add = std::make_shared<ngraph::op::v1::Maximum>(prelu, constant);
-        auto result = std::make_shared<ngraph::op::Result>(add);
+        auto result = std::make_shared<ngraph::op::v0::Result>(add);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -426,11 +426,11 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
         ngraph::element::Type type(ngraph::element::Type_t::f16);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name("input");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("output");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -475,11 +475,11 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
         ngraph::element::Type type(ngraph::element::Type_t::f16);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name("input");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("output");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -524,11 +524,11 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
         ngraph::element::Type type(ngraph::element::Type_t::f16);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name("input");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("output");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -573,11 +573,11 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
         ngraph::element::Type type(ngraph::element::Type_t::f16);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         param->set_friendly_name("input");
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
         relu->set_friendly_name("output");
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
         ngraph = std::make_shared<ngraph::Function>(results, params);
@@ -622,9 +622,9 @@ TEST(CNNNGraphImplTests, TestCheckStats) {
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
+        auto result = std::make_shared<ngraph::op::v0::Result>(relu);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};
@@ -644,7 +644,7 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
 
         auto read_value = std::make_shared<ngraph::opset3::ReadValue>(constant, "variable_id");
         auto add = std::make_shared<ngraph::opset3::Add>(input, read_value);
-        auto result = std::make_shared<ngraph::op::Result>(add);
+        auto result = std::make_shared<ngraph::op::v0::Result>(add);
 
         ngraph::ParameterVector params = {input};
         ngraph::ResultVector results = {result};

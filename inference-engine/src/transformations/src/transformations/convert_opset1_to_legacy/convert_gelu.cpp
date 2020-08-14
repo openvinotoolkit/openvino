@@ -22,11 +22,11 @@ void ngraph::pass::ConvertGELU::convert_gelu() {
         auto input_type = input.get_element_type();
 
         // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(input, ngraph::op::Constant::create(input_type, Shape{}, {0.5}));
-        auto sq2 = std::make_shared<ngraph::opset1::Sqrt>(ngraph::op::Constant::create(input_type, Shape{}, {2.0}));
+        auto mul = std::make_shared<ngraph::opset1::Multiply>(input, ngraph::op::v0::Constant::create(input_type, Shape{}, {0.5}));
+        auto sq2 = std::make_shared<ngraph::opset1::Sqrt>(ngraph::op::v0::Constant::create(input_type, Shape{}, {2.0}));
         auto div = std::make_shared<ngraph::opset1::Divide>(input, sq2);
         auto erf = std::make_shared<ngraph::opset1::Erf>(div);
-        auto add = std::make_shared<ngraph::opset1::Add>(erf, ngraph::op::Constant::create(input_type, Shape{}, {1.0}));
+        auto add = std::make_shared<ngraph::opset1::Add>(erf, ngraph::op::v0::Constant::create(input_type, Shape{}, {1.0}));
         auto res = std::make_shared<ngraph::opset1::Multiply>(mul, add);
 
         res->set_friendly_name(gelu->get_friendly_name());

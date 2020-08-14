@@ -81,7 +81,6 @@ target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH
 target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/builder
                                           ${NGRAPH_INCLUDE_DIR}/op
-                                          ${NGRAPH_INCLUDE_DIR}/op/fused
                                           ${NGRAPH_INCLUDE_DIR}/op/util
                                           ${NGRAPH_INCLUDE_DIR}/pass
                                           ${NGRAPH_INCLUDE_DIR}/pattern

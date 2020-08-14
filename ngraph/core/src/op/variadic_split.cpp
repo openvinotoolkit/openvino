@@ -66,14 +66,14 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
         if (data_shape.rank().is_static() && op::is_constant(axis_input) &&
             op::is_constant(split_lengths_input))
         {
-            const auto axis_input_constant = as_type_ptr<op::Constant>(axis_input);
+            const auto axis_input_constant = as_type_ptr<op::v0::Constant>(axis_input);
             auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
 
             // Adjust split axis in case of negatives
             int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
 
             auto split_lengths =
-                as_type_ptr<op::Constant>(split_lengths_input)->cast_vector<int64_t>();
+                as_type_ptr<op::v0::Constant>(split_lengths_input)->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
             size_t sum_of_splits = 0;
             int64_t negative_one = -1;

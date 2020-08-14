@@ -242,7 +242,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
     {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
-        if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
+        if (is_type<ngraph::op::v0::Constant>(arg) || is_type<ngraph::op::v0::Parameter>(arg))
         {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
@@ -355,7 +355,7 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
         return ss.str();
 
     ss << "\nvalue: ";
-    const auto constant = as_type_ptr<op::Constant>(node);
+    const auto constant = as_type_ptr<op::v0::Constant>(node);
     switch (constant->get_output_element_type(0))
     {
     case element::Type_t::undefined: ss << "[ undefined value ]"; break;

@@ -110,7 +110,5 @@ namespace ngraph
                 int64_t m_axis;
             };
         }
-        // default opset version
-        using v0::OneHot;
     }
 }

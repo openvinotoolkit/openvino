@@ -82,10 +82,10 @@ OutputVector op::HardSigmoid::decompose_op() const
     const auto data = input_value(0);
 
     const auto one_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
+        ngraph::op::v0::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
 
     const auto zero_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
+        ngraph::op::v0::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
 
     const auto alpha_node = input_value(1).get_node_shared_ptr();
     const auto beta_node = input_value(2).get_node_shared_ptr();

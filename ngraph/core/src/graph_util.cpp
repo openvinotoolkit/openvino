@@ -222,7 +222,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> re
 
 void ngraph::replace_nodes(
     const std::shared_ptr<Function>& f,
-    const unordered_map<shared_ptr<op::Parameter>, shared_ptr<op::Parameter>>&
+    const unordered_map<shared_ptr<op::v0::Parameter>, shared_ptr<op::v0::Parameter>>&
         parameter_replacement_map,
     const unordered_map<shared_ptr<Node>, shared_ptr<Node>>& body_replacement_map)
 {
@@ -309,7 +309,7 @@ std::vector<std::shared_ptr<ngraph::Node>>
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             //  TODO: workaround for shape inference, delete it after fix
-            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+            if (ngraph::as_type_ptr<ngraph::op::v0::TensorIterator>(cloned_node))
             {
                 cloned_node->validate_and_infer_types();
             }
@@ -377,7 +377,7 @@ std::list<std::shared_ptr<ngraph::Node>>
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 //  TODO: workaround for shape inference, delete it after fix
-                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+                if (ngraph::as_type_ptr<ngraph::op::v0::TensorIterator>(cloned_node))
                 {
                     cloned_node->validate_and_infer_types();
                 }
@@ -420,17 +420,17 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results())
     {
-        auto result = as_type_ptr<op::Result>(node_map.at(node.get()));
+        auto result = as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result)
         {
-            throw ngraph_error("Results should be of type op::Result");
+            throw ngraph_error("Results should be of type op::v0::Result");
         }
         cloned_results.push_back(result);
     }
-    std::vector<std::shared_ptr<op::Parameter>> cloned_params;
+    std::vector<std::shared_ptr<op::v0::Parameter>> cloned_params;
     for (auto param : func.get_parameters())
     {
-        cloned_params.push_back(as_type_ptr<op::Parameter>(node_map.at(param.get())));
+        cloned_params.push_back(as_type_ptr<op::v0::Parameter>(node_map.at(param.get())));
     }
 
     // create and return cloned function
@@ -441,7 +441,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
 
 bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant)
 {
-    if (auto rc = as_type_ptr<ngraph::op::Constant>(reduce_constant.get_node_shared_ptr()))
+    if (auto rc = as_type_ptr<ngraph::op::v0::Constant>(reduce_constant.get_node_shared_ptr()))
     {
         return (rc->get_all_data_elements_bitwise_identical() &&
                 rc->convert_value_to_string(0) == const_value);
@@ -465,7 +465,7 @@ bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>
 // |     +------[2]------>     |  |  |     +------[6]------>     |  |     +------[10]----->     |
 // |     <------[3]------+     |  |  |     <------[7]------+     |  |     <------[11]-----+     |
 // +-----+               +-----+  |  +-----+               +-----+  +-----+               +-----+
-pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
+pair<shared_ptr<op::v0::Result>, shared_ptr<op::v0::Parameter>>
     ngraph::insert_result_parameter_split(const shared_ptr<Node>& src_node,
                                           const shared_ptr<Node>& dst_node)
 {
@@ -475,7 +475,7 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
     }
 
     // Make parameter node
-    shared_ptr<op::Parameter> par_node = make_shared<op::Parameter>(
+    shared_ptr<op::v0::Parameter> par_node = make_shared<op::v0::Parameter>(
         src_node->get_output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
@@ -499,7 +499,7 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
 
     // Add res node
     // Add [4], [5], [6], [7]
-    shared_ptr<op::Result> res_node = make_shared<op::Result>(src_node);
+    shared_ptr<op::v0::Result> res_node = make_shared<op::v0::Result>(src_node);
 
     return make_pair(res_node, par_node);
 }
@@ -568,7 +568,7 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
 
 std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape)
 {
-    std::shared_ptr<Node> zero = op::Constant::create(element_type, Shape{}, {0.0});
+    std::shared_ptr<Node> zero = op::v0::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0)
     {
         AxisSet axes;
@@ -576,7 +576,7 @@ std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const
         {
             axes.insert(i);
         }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
+        zero = std::make_shared<op::v0::Broadcast>(zero, shape, axes);
     }
     return zero;
 }
@@ -586,7 +586,7 @@ std::shared_ptr<Node> ngraph::make_constant_from_string(std::string val,
                                                         const Shape& shape)
 {
     auto cvals = std::vector<std::string>(shape_size(shape), val);
-    return std::make_shared<op::Constant>(element_type, shape, cvals);
+    return std::make_shared<op::v0::Constant>(element_type, shape, cvals);
 }
 
 bool ngraph::is_zero(const Output<Node>& reduce_constant)
@@ -729,8 +729,8 @@ bool ngraph::compare_constants(const std::shared_ptr<Node>& n1, const std::share
         return false;
     }
 
-    if (static_pointer_cast<op::Constant>(n1)->get_value_strings() !=
-        static_pointer_cast<op::Constant>(n2)->get_value_strings())
+    if (static_pointer_cast<op::v0::Constant>(n1)->get_value_strings() !=
+        static_pointer_cast<op::v0::Constant>(n2)->get_value_strings())
     {
         return false;
     }
@@ -884,11 +884,11 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
     bool has_result_output = false;
     for (auto& target_input : output.get_target_inputs())
     {
-        if (is_type<op::Result>(target_input.get_node()))
+        if (is_type<op::v0::Result>(target_input.get_node()))
         {
             // ignore trivial elimination
             has_result_output = true;
-            if (is_type<ngraph::op::Parameter>(replacement.get_node()))
+            if (is_type<ngraph::op::v0::Parameter>(replacement.get_node()))
             {
                 return false;
             }
@@ -897,7 +897,7 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
     }
     if (!has_result_output || replacement.get_node()->get_users().size() == 1)
     {
-        if (has_result_output && !is_type<ngraph::op::Parameter>(replacement.get_node()))
+        if (has_result_output && !is_type<ngraph::op::v0::Parameter>(replacement.get_node()))
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
             copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
@@ -914,8 +914,8 @@ bool ngraph::replace_node_update_name(std::shared_ptr<Node> target,
 {
     for (auto& output : target->output(0).get_target_inputs())
     {
-        if (as_type<ngraph::op::Parameter>(replacement->input_value(0).get_node()) &&
-            as_type<op::Result>(output.get_node()))
+        if (as_type<ngraph::op::v0::Parameter>(replacement->input_value(0).get_node()) &&
+            as_type<op::v0::Result>(output.get_node()))
         {
             return false;
         }

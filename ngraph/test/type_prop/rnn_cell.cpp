@@ -27,10 +27,10 @@ TEST(type_prop, rnn_cell)
     const size_t input_size = 3;
     const size_t hidden_size = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, input_size});
+    const auto R = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, hidden_size});
 
     const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
@@ -43,12 +43,12 @@ TEST(type_prop, rnn_cell_invalid_input)
     const size_t input_size = 3;
     const size_t hidden_size = 3;
 
-    auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
+    auto R = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     // Invalid W tensor shape.
-    auto W = make_shared<op::Parameter>(element::f32, Shape{2 * hidden_size, input_size});
+    auto W = make_shared<op::v0::Parameter>(element::f32, Shape{2 * hidden_size, input_size});
     try
     {
         const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
@@ -60,8 +60,8 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
 
     // Invalid R tensor shape.
-    W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, 1});
+    W = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, input_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, 1});
     try
     {
         const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
@@ -73,8 +73,8 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
 
     // Invalid H_t tensor shape.
-    R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
-    H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{4, hidden_size});
     try
     {
         const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
@@ -87,8 +87,8 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
 
     // Invalid B tensor shape.
-    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{2 * hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{2 * hidden_size});
     try
     {
         const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, B, hidden_size);

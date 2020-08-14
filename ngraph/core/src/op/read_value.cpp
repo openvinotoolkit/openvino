@@ -19,16 +19,16 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReadValue::type_info;
+constexpr NodeTypeInfo op::v3::ReadValue::type_info;
 
-op::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
+op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
     : Op({init_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::ReadValue::validate_and_infer_types()
+void op::v3::ReadValue::validate_and_infer_types()
 {
     auto arg_t = get_input_element_type(0);
     auto output_shape = get_input_partial_shape(0);
@@ -41,7 +41,7 @@ void op::ReadValue::validate_and_infer_types()
     set_output_type(0, arg_t, output_shape);
 }
 
-shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v3::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<ReadValue>(new_args.at(0), m_variable_id);

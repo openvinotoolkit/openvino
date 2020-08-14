@@ -47,13 +47,13 @@ std::shared_ptr<Function>
         if (parameter_values[i] != nullptr && parameter_shapes[i].is_static() &&
             parameter_element_types[i].is_static())
         {
-            m[f->get_parameters()[i].get()] = std::make_shared<op::Constant>(
+            m[f->get_parameters()[i].get()] = std::make_shared<op::v0::Constant>(
                 parameter_element_types[i], parameter_shapes[i].to_shape(), parameter_values[i]);
         }
         else
         {
-            m[f->get_parameters()[i].get()] =
-                std::make_shared<op::Parameter>(parameter_element_types[i], parameter_shapes[i]);
+            m[f->get_parameters()[i].get()] = std::make_shared<op::v0::Parameter>(
+                parameter_element_types[i], parameter_shapes[i]);
         }
         auto rt_info = f->get_parameters()[i]->get_rt_info();
         m[f->get_parameters()[i].get()]->get_rt_info() = rt_info;
@@ -86,7 +86,7 @@ std::shared_ptr<Function>
         m[old_node.get()] = old_node->copy_with_new_inputs(new_args, cloned_dependencies);
 
         //  TODO: workaround for shape inference, delete it after fix
-        if (::ngraph::as_type_ptr<ngraph::op::TensorIterator>(m[old_node.get()]))
+        if (::ngraph::as_type_ptr<ngraph::op::v0::TensorIterator>(m[old_node.get()]))
         {
             m[old_node.get()]->validate_and_infer_types();
         }
@@ -100,15 +100,15 @@ std::shared_ptr<Function>
     for (size_t i = 0; i < new_parameters.size(); i++)
     {
         auto name = new_parameters[i]->get_friendly_name();
-        new_parameters[i] = as_type_ptr<op::Parameter>(m[new_parameters[i].get()]);
+        new_parameters[i] = as_type_ptr<op::v0::Parameter>(m[new_parameters[i].get()]);
 
         // If the replacement for a Parameter is not itself a Parameter, we must have replaced it
         // with a constant. We will insert a dead Parameter into the clone's parameters, in order
         // to maintain the arity of the original function.
         if (new_parameters[i] == nullptr)
         {
-            new_parameters[i] =
-                std::make_shared<op::Parameter>(parameter_element_types[i], parameter_shapes[i]);
+            new_parameters[i] = std::make_shared<op::v0::Parameter>(parameter_element_types[i],
+                                                                    parameter_shapes[i]);
         }
         new_parameters[i]->set_friendly_name(name);
     }
@@ -117,7 +117,7 @@ std::shared_ptr<Function>
     for (size_t i = 0; i < new_results.size(); i++)
     {
         auto name = new_results[i]->get_friendly_name();
-        new_results[i] = std::static_pointer_cast<op::Result>(m[new_results[i].get()]);
+        new_results[i] = std::static_pointer_cast<op::v0::Result>(m[new_results[i].get()]);
         new_results[i]->set_friendly_name(name);
     }
 

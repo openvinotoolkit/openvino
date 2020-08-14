@@ -92,19 +92,20 @@ op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size
 
 shared_ptr<Node> op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs)
 {
-    return {make_shared<op::Add>(lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
+    return {
+        make_shared<op::v0::Add>(lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs)
 {
-    return {
-        make_shared<op::Subtract>(lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
+    return {make_shared<op::v0::Subtract>(
+        lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs)
 {
-    return {
-        make_shared<op::Multiply>(lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
+    return {make_shared<op::v0::Multiply>(
+        lhs, rhs, op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY))};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const
@@ -114,5 +115,5 @@ shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const
         return data.get_node_shared_ptr();
     }
 
-    return make_shared<op::Clamp>(data, -m_clip, m_clip);
+    return make_shared<op::v0::Clamp>(data, -m_clip, m_clip);
 }

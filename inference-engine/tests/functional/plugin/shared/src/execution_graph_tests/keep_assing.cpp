@@ -27,12 +27,12 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     using namespace ngraph::op;
 
     // Some simple graph with Memory(Assign) node            //    in   read     //
-    auto input = make_shared<Parameter>(type, shape);        //    | \  /        //
-    auto mem_i = make_shared<Constant>(type, shape, 0);      //    |  mul        //
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");        //    | /  \        //
-    auto mul   = make_shared<Multiply>(mem_r, input);        //    sum  assign   //
-    auto mem_w = make_shared<Assign>(mul, "id");             //     |            //
-    auto sum   = make_shared<Add>(mul, input);               //    out           //
+    auto input = make_shared<v0::Parameter>(type, shape);        //    | \  /        //
+    auto mem_i = make_shared<v0::Constant>(type, shape, 0);      //    |  mul        //
+    auto mem_r = make_shared<v3::ReadValue>(mem_i, "id");        //    | /  \        //
+    auto mul   = make_shared<v0::Multiply>(mem_r, input);        //    sum  assign   //
+    auto mem_w = make_shared<v3::Assign>(mul, "id");             //     |            //
+    auto sum   = make_shared<v0::Add>(mul, input);               //    out           //
 
     mem_w->add_control_dependency(mem_r);
     sum->add_control_dependency(mem_w);

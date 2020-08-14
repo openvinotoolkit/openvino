@@ -109,6 +109,5 @@ namespace ngraph
                 RoundMode m_round_mode;
             };
         }
-        using v0::Quantize;
     }
 }

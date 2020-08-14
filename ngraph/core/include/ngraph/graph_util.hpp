@@ -96,7 +96,7 @@ namespace ngraph
     ///
     /// (Step 1: Construct replacement)
     ///
-    ///    shared_ptr<Node> new_N1 = make_shared<op::Concat>({A,B,C},3);
+    ///    shared_ptr<Node> new_N1 = make_shared<op::v0::Concat>({A,B,C},3);
     ///
     ///   A----------------------------------------.
     ///   |                                        |
@@ -406,7 +406,7 @@ namespace ngraph
     std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func);
 
     NGRAPH_API
-    std::pair<std::shared_ptr<op::Result>, std::shared_ptr<op::v0::Parameter>>
+    std::pair<std::shared_ptr<op::v0::Result>, std::shared_ptr<op::v0::Parameter>>
         insert_result_parameter_split(const std::shared_ptr<Node>& src_node,
                                       const std::shared_ptr<Node>& dst_node);
 

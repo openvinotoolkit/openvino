@@ -24,11 +24,12 @@ using namespace std;
 using namespace ngraph;
 
 template <class INDICES_TYPE, class OUTPUT_TYPE>
-shared_ptr<op::Constant> fold_constant_one_hot_ref(const shared_ptr<op::Constant>& indices,
-                                                   const shared_ptr<op::Constant>& on_value,
-                                                   const shared_ptr<op::Constant>& off_value,
-                                                   const Shape& output_shape,
-                                                   size_t axis)
+shared_ptr<op::v0::Constant>
+    fold_constant_one_hot_ref(const shared_ptr<op::v0::Constant>& indices,
+                              const shared_ptr<op::v0::Constant>& on_value,
+                              const shared_ptr<op::v0::Constant>& off_value,
+                              const Shape& output_shape,
+                              size_t axis)
 {
     std::vector<OUTPUT_TYPE> out_vec(shape_size(output_shape));
     runtime::reference::one_hot<INDICES_TYPE, OUTPUT_TYPE>(
@@ -40,17 +41,17 @@ shared_ptr<op::Constant> fold_constant_one_hot_ref(const shared_ptr<op::Constant
         on_value->get_data_ptr<OUTPUT_TYPE>()[0],
         off_value->get_data_ptr<OUTPUT_TYPE>()[0]);
 
-    return make_shared<op::Constant>(on_value->get_element_type(), output_shape, out_vec);
+    return make_shared<op::v0::Constant>(on_value->get_element_type(), output_shape, out_vec);
 }
 
 template <class OUTPUT_TYPE>
-shared_ptr<op::Constant> fold_constant_one_hot(const shared_ptr<op::Constant>& indices,
-                                               const shared_ptr<op::Constant>& on_value,
-                                               const shared_ptr<op::Constant>& off_value,
-                                               const Shape& output_shape,
-                                               size_t axis)
+shared_ptr<op::v0::Constant> fold_constant_one_hot(const shared_ptr<op::v0::Constant>& indices,
+                                                   const shared_ptr<op::v0::Constant>& on_value,
+                                                   const shared_ptr<op::v0::Constant>& off_value,
+                                                   const Shape& output_shape,
+                                                   size_t axis)
 {
-    shared_ptr<op::Constant> rc;
+    shared_ptr<op::v0::Constant> rc;
     switch (indices->get_element_type())
     {
     case element::Type_t::undefined:
@@ -102,14 +103,14 @@ shared_ptr<op::Constant> fold_constant_one_hot(const shared_ptr<op::Constant>& i
 
 void pass::ConstantFolding::construct_constant_one_hot()
 {
-    auto indices_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{3}, pattern::has_class<op::Constant>());
-    auto depth_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto on_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto off_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
+    auto indices_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{3}, pattern::has_class<op::v0::Constant>());
+    auto depth_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{}, pattern::has_class<op::v0::Constant>());
+    auto on_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{}, pattern::has_class<op::v0::Constant>());
+    auto off_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{}, pattern::has_class<op::v0::Constant>());
     int64_t axis = 0;
     auto ont_hot_pattern =
         make_shared<op::v1::OneHot>(indices_label, depth_label, on_label, off_label, axis);
@@ -119,17 +120,17 @@ void pass::ConstantFolding::construct_constant_one_hot()
                      << m.get_match_root()->get_name();
         auto pattern_map = m.get_pattern_map();
 
-        auto indices_node = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
-        const auto depth_node = static_pointer_cast<op::Constant>(pattern_map[depth_label]);
-        const auto on_node = static_pointer_cast<op::Constant>(pattern_map[on_label]);
-        const auto off_node = static_pointer_cast<op::Constant>(pattern_map[off_label]);
+        auto indices_node = static_pointer_cast<op::v0::Constant>(pattern_map[indices_label]);
+        const auto depth_node = static_pointer_cast<op::v0::Constant>(pattern_map[depth_label]);
+        const auto on_node = static_pointer_cast<op::v0::Constant>(pattern_map[on_label]);
+        const auto off_node = static_pointer_cast<op::v0::Constant>(pattern_map[off_label]);
 
         auto one_hot = static_pointer_cast<op::v1::OneHot>(m.get_match_root());
         const size_t axis = one_hot->get_axis();
         const auto output_shape = one_hot->get_output_shape(0);
         auto output_type = on_node->get_element_type();
 
-        std::shared_ptr<op::Constant> replacement =
+        std::shared_ptr<op::v0::Constant> replacement =
             fold_constant_one_hot<char>(indices_node, on_node, off_node, output_shape, axis);
         switch (output_type)
         {

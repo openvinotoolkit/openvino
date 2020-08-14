@@ -60,7 +60,7 @@ public:
                 generic->doReshape(false);
                 genericOps.emplace_back(generic);
             }
-            if (auto ti_node = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(op)) {
+            if (auto ti_node = std::dynamic_pointer_cast<ngraph::op::v0::TensorIterator>(op)) {
                 auto results = ti_node->get_body()->get_results();
                 auto params = ti_node->get_body()->get_parameters();
                 ngraph::NodeVector nResults, nParams;

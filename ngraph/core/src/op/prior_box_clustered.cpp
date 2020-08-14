@@ -25,18 +25,18 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClustered::type_info;
+constexpr NodeTypeInfo op::v0::PriorBoxClustered::type_info;
 
-op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
-                                         const Output<Node>& image_shape,
-                                         const PriorBoxClusteredAttrs& attrs)
+op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
+                                             const Output<Node>& image_shape,
+                                             const PriorBoxClusteredAttrs& attrs)
     : Op({layer_shape, image_shape})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::PriorBoxClustered::validate_and_infer_types()
+void op::v0::PriorBoxClustered::validate_and_infer_types()
 {
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -69,7 +69,7 @@ void op::PriorBoxClustered::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+    if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(0).get_node_shared_ptr()))
     {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
@@ -88,13 +88,14 @@ void op::PriorBoxClustered::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node>
+    op::v0::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxClustered>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("attrs", m_attrs);
     return true;

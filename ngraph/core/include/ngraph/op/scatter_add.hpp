@@ -78,6 +78,5 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& inputs) const override;
             };
         }
-        using v0::ScatterAdd;
     }
 }

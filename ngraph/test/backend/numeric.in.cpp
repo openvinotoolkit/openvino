@@ -32,9 +32,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, numeric_float_nan)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
-    auto B = op::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
-    auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{});
+    auto A = op::v0::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
+    auto B = op::v0::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
+    auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -48,9 +48,9 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_float_nan)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_double_nan)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
-    auto B = op::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
-    auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{});
+    auto A = op::v0::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
+    auto B = op::v0::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
+    auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -64,9 +64,9 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_double_nan)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_float_inf)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
-    auto B = op::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
-    auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{});
+    auto A = op::v0::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
+    auto B = op::v0::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
+    auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -80,9 +80,9 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_float_inf)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_double_inf)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
-    auto B = op::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
-    auto f = make_shared<Function>(make_shared<op::Equal>(A, B), ParameterVector{});
+    auto A = op::v0::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
+    auto B = op::v0::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
+    auto f = make_shared<Function>(make_shared<op::v0::Equal>(A, B), ParameterVector{});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

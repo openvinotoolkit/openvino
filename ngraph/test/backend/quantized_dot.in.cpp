@@ -36,30 +36,30 @@ NGRAPH_TEST(${BACKEND_NAME}, quantized_dot_u8u8)
     vector<uint8_t> a_data = {2, 3};
     Shape shape_b{2, 3}; // filter shape
     vector<uint8_t> b_data = {0, 2, 4, 1, 3, 5};
-    auto A = make_shared<op::Parameter>(element::u8, shape_a);
-    auto B = make_shared<op::Parameter>(element::u8, shape_b);
-    auto input_scale = op::Constant::create(element::f32, Shape{}, {2});
-    auto input_zero_point = op::Constant::create(element::u8, Shape{}, {0});
-    auto filter_scale = op::Constant::create(element::f32, Shape{}, {1});
-    auto filter_zero_point = op::Constant::create(element::u8, Shape{}, {0});
-    auto output_scale = op::Constant::create(element::f32, Shape{}, {2});
-    auto output_zero_point = op::Constant::create(element::u8, Shape{}, {0});
+    auto A = make_shared<op::v0::Parameter>(element::u8, shape_a);
+    auto B = make_shared<op::v0::Parameter>(element::u8, shape_b);
+    auto input_scale = op::v0::Constant::create(element::f32, Shape{}, {2});
+    auto input_zero_point = op::v0::Constant::create(element::u8, Shape{}, {0});
+    auto filter_scale = op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto filter_zero_point = op::v0::Constant::create(element::u8, Shape{}, {0});
+    auto output_scale = op::v0::Constant::create(element::f32, Shape{}, {2});
+    auto output_zero_point = op::v0::Constant::create(element::u8, Shape{}, {0});
     AxisSet axes{};
 
     Shape shape_r{1, 3}; // output shape
-    auto QD = make_shared<op::QuantizedDot>(A,
-                                            B,
-                                            1,
-                                            input_scale,
-                                            input_zero_point,
-                                            filter_scale,
-                                            filter_zero_point,
-                                            output_scale,
-                                            output_zero_point,
-                                            element::u8,
-                                            axes,
-                                            axes,
-                                            axes);
+    auto QD = make_shared<op::v0::QuantizedDot>(A,
+                                                B,
+                                                1,
+                                                input_scale,
+                                                input_zero_point,
+                                                filter_scale,
+                                                filter_zero_point,
+                                                output_scale,
+                                                output_zero_point,
+                                                element::u8,
+                                                axes,
+                                                axes,
+                                                axes);
     auto f = make_shared<Function>(NodeVector{QD}, ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
@@ -79,30 +79,30 @@ NGRAPH_TEST(${BACKEND_NAME}, quantized_dot_int32_output)
     vector<uint8_t> a_data = {2, 3};
     Shape shape_b{2, 3}; // filter shape
     vector<int8_t> b_data = {0, 1, 2, 3, 4, 5};
-    auto A = make_shared<op::Parameter>(element::u8, shape_a);
-    auto B = make_shared<op::Parameter>(element::i8, shape_b);
-    auto input_scale = op::Constant::create(element::f32, Shape{}, {1});
-    auto input_zero_point = op::Constant::create(element::u8, Shape{}, {0});
-    auto filter_scale = op::Constant::create(element::f32, Shape{}, {1});
-    auto filter_zero_point = op::Constant::create(element::i8, Shape{}, {0});
-    auto output_scale = op::Constant::create(element::f32, Shape{}, {1});
-    auto output_zero_point = op::Constant::create(element::i32, Shape{}, {0});
+    auto A = make_shared<op::v0::Parameter>(element::u8, shape_a);
+    auto B = make_shared<op::v0::Parameter>(element::i8, shape_b);
+    auto input_scale = op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto input_zero_point = op::v0::Constant::create(element::u8, Shape{}, {0});
+    auto filter_scale = op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto filter_zero_point = op::v0::Constant::create(element::i8, Shape{}, {0});
+    auto output_scale = op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto output_zero_point = op::v0::Constant::create(element::i32, Shape{}, {0});
     AxisSet axes{};
 
     Shape shape_r{1, 3}; // output shape
-    auto QD = make_shared<op::QuantizedDot>(A,
-                                            B,
-                                            1,
-                                            input_scale,
-                                            input_zero_point,
-                                            filter_scale,
-                                            filter_zero_point,
-                                            output_scale,
-                                            output_zero_point,
-                                            element::i32,
-                                            axes,
-                                            axes,
-                                            axes);
+    auto QD = make_shared<op::v0::QuantizedDot>(A,
+                                                B,
+                                                1,
+                                                input_scale,
+                                                input_zero_point,
+                                                filter_scale,
+                                                filter_zero_point,
+                                                output_scale,
+                                                output_zero_point,
+                                                element::i32,
+                                                axes,
+                                                axes,
+                                                axes);
     auto f = make_shared<Function>(NodeVector{QD}, ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output

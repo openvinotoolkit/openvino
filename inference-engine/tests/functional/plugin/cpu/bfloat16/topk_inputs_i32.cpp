@@ -90,7 +90,7 @@ protected:
         convNode->set_friendly_name("Convolution_1");
 
         // TopK
-        const auto k = make_shared<op::Constant>(element::i32, Shape{}, vector<int>{1});
+        const auto k = make_shared<op::v0::Constant>(element::i32, Shape{}, vector<int>{1});
         size_t axis = 1;
         ngraph::op::v1::TopK::Mode mode = ngraph::op::v1::TopK::Mode::MAX;
         ngraph::op::v1::TopK::SortType sort = ngraph::op::v1::TopK::SortType::NONE;

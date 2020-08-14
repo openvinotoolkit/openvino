@@ -148,8 +148,8 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
-    std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
+    std::shared_ptr<ngraph::op::v0::Parameter> get_parameter(size_t index) const;
+    std::shared_ptr<ngraph::op::v0::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
     bool m_is_compiled = false;
     bool m_nan_check_enabled = false;
@@ -200,7 +200,7 @@ protected:
         }
         case OP_TYPEID::Any:
         {
-            const op::Any* any = static_cast<const op::Any*>(&node);
+            const op::v0::Any* any = static_cast<const op::v0::Any*>(&node);
             reference::any(args[0]->get_data_ptr<const char>(),
                            out[0]->get_data_ptr<char>(),
                            node.get_input_shape(0),
@@ -224,7 +224,7 @@ protected:
         }
         case OP_TYPEID::Elu:
         {
-            const op::Elu* elu_node = static_cast<const op::Elu*>(&node);
+            const op::v0::Elu* elu_node = static_cast<const op::v0::Elu*>(&node);
 
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::elu<T>(args[0]->get_data_ptr<const T>(),
@@ -250,8 +250,8 @@ protected:
         }
         case OP_TYPEID::BatchNormInference:
         {
-            const ngraph::op::BatchNormInference* bn =
-                static_cast<const ngraph::op::BatchNormInference*>(&node);
+            const ngraph::op::v0::BatchNormInference* bn =
+                static_cast<const ngraph::op::v0::BatchNormInference*>(&node);
             reference::batch_norm_inference<T>(bn->get_eps_value(),
                                                args[0]->get_data_ptr<const T>(),
                                                args[1]->get_data_ptr<const T>(),
@@ -272,7 +272,7 @@ protected:
         }
         case OP_TYPEID::Convert:
         {
-            // const op::Convert* c = static_cast<const op::Convert*>(&node);
+            // const op::v0::Convert* c = static_cast<const op::v0::Convert*>(&node);
             element::Type type = node.get_element_type();
             std::stringstream ss;
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -426,7 +426,7 @@ protected:
         }
         case OP_TYPEID::CumSum:
         {
-            const op::CumSum* cumsum = static_cast<const op::CumSum*>(&node);
+            const op::v0::CumSum* cumsum = static_cast<const op::v0::CumSum*>(&node);
             auto axis_et = node.get_input_element_type(1);
             if (axis_et == element::i32)
             {
@@ -450,7 +450,7 @@ protected:
         }
         case OP_TYPEID::Dequantize:
         {
-            const op::Dequantize* dequantize = static_cast<const op::Dequantize*>(&node);
+            const op::v0::Dequantize* dequantize = static_cast<const op::v0::Dequantize*>(&node);
             auto type = dequantize->get_element_type();
 
             if (type == element::f32)
@@ -484,7 +484,7 @@ protected:
         }
         case OP_TYPEID::Dot:
         {
-            const op::Dot* dot = static_cast<const op::Dot*>(&node);
+            const op::v0::Dot* dot = static_cast<const op::v0::Dot*>(&node);
 
             reference::dot(args[0]->get_data_ptr<const T>(),
                            args[1]->get_data_ptr<const T>(),
@@ -497,8 +497,8 @@ protected:
         }
         case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
         {
-            const op::EmbeddingBagOffsetsSum* embed =
-                static_cast<const op::EmbeddingBagOffsetsSum*>(&node);
+            const op::v3::EmbeddingBagOffsetsSum* embed =
+                static_cast<const op::v3::EmbeddingBagOffsetsSum*>(&node);
             auto indicesType = embed->input(1).get_element_type();
             size_t indices_num = shape_size(embed->get_input_shape(1));
 
@@ -536,8 +536,8 @@ protected:
         }
         case OP_TYPEID::EmbeddingBagPackedSum_v3:
         {
-            const op::EmbeddingBagPackedSum* embed =
-                static_cast<const op::EmbeddingBagPackedSum*>(&node);
+            const op::v3::EmbeddingBagPackedSum* embed =
+                static_cast<const op::v3::EmbeddingBagPackedSum*>(&node);
             auto indicesType = embed->input(1).get_element_type();
 
             if (indicesType == element::u64 || indicesType == element::i64)
@@ -570,8 +570,8 @@ protected:
         }
         case OP_TYPEID::EmbeddingSegmentsSum_v3:
         {
-            const op::EmbeddingSegmentsSum* embed =
-                static_cast<const op::EmbeddingSegmentsSum*>(&node);
+            const op::v3::EmbeddingSegmentsSum* embed =
+                static_cast<const op::v3::EmbeddingSegmentsSum*>(&node);
             auto indicesType = embed->input(1).get_element_type();
             size_t indices_num = shape_size(embed->get_input_shape(1));
 
@@ -618,8 +618,8 @@ protected:
         }
         case OP_TYPEID::ExtractImagePatches_v3:
         {
-            const op::ExtractImagePatches* extImgPatches =
-                static_cast<const op::ExtractImagePatches*>(&node);
+            const op::v3::ExtractImagePatches* extImgPatches =
+                static_cast<const op::v3::ExtractImagePatches*>(&node);
             reference::extractImagePatches<T, size_t>(extImgPatches,
                                                       args[0]->get_data_ptr<const T>(),
                                                       out[0]->get_data_ptr<T>(),
@@ -701,7 +701,7 @@ protected:
         }
         case OP_TYPEID::LRN:
         {
-            const op::LRN* lrn = static_cast<const op::LRN*>(&node);
+            const op::v0::LRN* lrn = static_cast<const op::v0::LRN*>(&node);
             reference::lrn<T>(args[0]->get_data_ptr<const T>(),
                               lrn->get_reduction_axes(),
                               out[0]->get_data_ptr<T>(),
@@ -729,7 +729,7 @@ protected:
         }
         case OP_TYPEID::OneHot:
         {
-            const op::OneHot* oh = static_cast<const op::OneHot*>(&node);
+            const op::v0::OneHot* oh = static_cast<const op::v0::OneHot*>(&node);
             reference::one_hot<T>(args[0]->get_data_ptr<const T>(),
                                   out[0]->get_data_ptr<T>(),
                                   node.get_input_shape(0),
@@ -740,7 +740,7 @@ protected:
         case OP_TYPEID::Parameter: break;
         case OP_TYPEID::Pad:
         {
-            const op::Pad* pad = static_cast<const op::Pad*>(&node);
+            const op::v0::Pad* pad = static_cast<const op::v0::Pad*>(&node);
 
             reference::pad(args[0]->get_data_ptr<const T>(),
                            args[1]->get_data_ptr<const T>(),
@@ -754,7 +754,7 @@ protected:
         }
         case OP_TYPEID::Quantize:
         {
-            const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
+            const op::v0::Quantize* quantize = static_cast<const op::v0::Quantize*>(&node);
             auto type = quantize->get_element_type();
 
             if (type == element::u8)
@@ -802,8 +802,8 @@ protected:
 
         case OP_TYPEID::QuantizedConvolution:
         {
-            const op::QuantizedConvolution* qc =
-                static_cast<const op::QuantizedConvolution*>(&node);
+            const op::v0::QuantizedConvolution* qc =
+                static_cast<const op::v0::QuantizedConvolution*>(&node);
 
             auto input_element_type = qc->get_input_element_type(0);
             auto filter_element_type = qc->get_input_element_type(1);
@@ -909,7 +909,7 @@ protected:
 
         case OP_TYPEID::QuantizedDot:
         {
-            const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);
+            const op::v0::QuantizedDot* qd = static_cast<const op::v0::QuantizedDot*>(&node);
 
             auto input0_element_type = qd->get_input_element_type(0);
             auto input1_element_type = qd->get_input_element_type(1);
@@ -1005,7 +1005,7 @@ protected:
         }
         case OP_TYPEID::ReplaceSlice:
         {
-            const op::ReplaceSlice* slice = static_cast<const op::ReplaceSlice*>(&node);
+            const op::v0::ReplaceSlice* slice = static_cast<const op::v0::ReplaceSlice*>(&node);
             reference::replace_slice<T>(args[0]->get_data_ptr<const T>(),
                                         args[1]->get_data_ptr<const T>(),
                                         out[0]->get_data_ptr<T>(),
@@ -1018,7 +1018,7 @@ protected:
         }
         case OP_TYPEID::Reverse:
         {
-            const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
+            const op::v0::Reverse* reverse = static_cast<const op::v0::Reverse*>(&node);
             reference::reverse(args[0]->get_data_ptr<const char>(),
                                out[0]->get_data_ptr<char>(),
                                node.get_input_shape(0),
@@ -1029,7 +1029,8 @@ protected:
         }
         case OP_TYPEID::ReverseSequence:
         {
-            const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
+            const op::v0::ReverseSequence* reverse =
+                static_cast<const op::v0::ReverseSequence*>(&node);
 
             if (node.get_input_element_type(1) == element::i32)
             {
@@ -1114,7 +1115,7 @@ protected:
         }
         case OP_TYPEID::TopK:
         {
-            const op::TopK* topk = static_cast<const op::TopK*>(&node);
+            const op::v0::TopK* topk = static_cast<const op::v0::TopK*>(&node);
             if (node.get_output_element_type(0) == element::i64)
             {
                 reference::topk<T, int64_t>(args[0]->get_data_ptr<const T>(),
@@ -1147,7 +1148,8 @@ protected:
         }
         case OP_TYPEID::DetectionOutput_v0:
         {
-            const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
+            const op::v0::DetectionOutput* detOut =
+                static_cast<const op::v0::DetectionOutput*>(&node);
             reference::referenceDetectionOutput<T> refDetOut(
                 detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
             if (node.get_input_size() == 3)
@@ -1177,7 +1179,7 @@ protected:
         }
         case OP_TYPEID::ScatterNDUpdate_v3:
         {
-            const op::ScatterNDUpdate* scatterNDUpd =
+            const op::v3::ScatterNDUpdate* scatterNDUpd =
                 static_cast<const op::v3::ScatterNDUpdate*>(&node);
             auto idxType = scatterNDUpd->get_input_element_type(1);
             if (idxType == element::i32)

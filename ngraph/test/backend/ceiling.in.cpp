@@ -46,8 +46,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, ceiling)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Ceiling>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Ceiling>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-2.5f, -2.0f, 0.3f, 4.8f});
@@ -59,8 +59,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)
 {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Ceiling>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::i64, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Ceiling>(A), ParameterVector{A});
 
     vector<int64_t> expected{0, 1, 0x4000000000000001};
 

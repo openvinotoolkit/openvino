@@ -61,6 +61,5 @@ namespace ngraph
                 size_t m_normalized_seq_axis;
             };
         }
-        using v0::ReverseSequence;
     }
 }

@@ -39,8 +39,8 @@
 // #undef NGRAPH_OP
 //
 // This sample expands to a list like this:
-// ngraph::op::Abs,
-// ngraph::op::Acos,
+// ngraph::op::v0::Abs,
+// ngraph::op::v0::Acos,
 // ...
 //
 // It's that easy. You can use this for fun and profit.
@@ -63,7 +63,7 @@ NGRAPH_OP(CTCGreedyDecoder, ngraph::op::v0)
 NGRAPH_OP(Ceiling, ngraph::op::v0)
 NGRAPH_OP(Clamp, ngraph::op::v0)
 NGRAPH_OP(Concat, ngraph::op::v0)
-NGRAPH_OP(Constant, ngraph::op)
+NGRAPH_OP(Constant, ngraph::op::v0)
 NGRAPH_OP(Convert, ngraph::op::v0)
 NGRAPH_OP(ConvertLike, ngraph::op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)

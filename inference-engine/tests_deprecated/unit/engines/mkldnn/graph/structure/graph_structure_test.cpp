@@ -3787,7 +3787,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForXceptionTopology) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -4026,7 +4026,7 @@ TEST_F(MKLDNNGraphStructureTests, TestFailedPartPlateRecognitionBarrier0001) {
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -4635,7 +4635,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
     memset((float *) weights->buffer(), 0, weights->size());
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     network = core.ReadNetwork(model, weights_ptr);
@@ -5133,7 +5133,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWithConcat) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -5418,7 +5418,7 @@ TEST_F(MKLDNNGraphStructureTests, TestRefPoolingWithConcat) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -5956,7 +5956,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithSplit) {
     }
 
     const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weightsPtr));
@@ -6101,7 +6101,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithFakeOutput) {
         }
 
         const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-        
+
         InferenceEngine::Core core;
         InferenceEngine::CNNNetwork network;
         ASSERT_NO_THROW(network = core.ReadNetwork(&model[0], weightsPtr));
@@ -6272,7 +6272,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData) {
     }
 
     const InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-        
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weightsPtr));
@@ -6471,24 +6471,24 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
         ngraph::Shape shape { 1, 1, 4, 5 };
-        auto input = std::make_shared<ngraph::op::Parameter>(elementType, shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(elementType, shape);
         input->set_friendly_name("input");
 
-        auto weights1 = std::make_shared<ngraph::op::Constant>(
+        auto weights1 = std::make_shared<ngraph::op::v0::Constant>(
             elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 2.0f));
         auto conv1 = std::make_shared<ngraph::op::v1::Convolution>(
             input, weights1, ngraph::Strides { 1, 1 },
             ngraph::CoordinateDiff { 0, 0 }, ngraph::CoordinateDiff{0, 0}, ngraph::Strides { 1, 1 });
 
-        auto weights2 = std::make_shared<ngraph::op::Constant>(
+        auto weights2 = std::make_shared<ngraph::op::v0::Constant>(
             elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 3.0f));
         auto conv2 = std::make_shared<ngraph::op::v1::Convolution>(
             input, weights2, ngraph::Strides { 1, 1 },
             ngraph::CoordinateDiff { 0, 0 }, ngraph::CoordinateDiff{0, 0}, ngraph::Strides { 1, 1 });
 
-        auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2 }, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector { input, conv1, conv2 }, 1);
         concat->set_friendly_name("concat");
-        auto result = std::make_shared<ngraph::op::Result>(concat);
+        auto result = std::make_shared<ngraph::op::v0::Result>(concat);
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6532,11 +6532,11 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
-        auto input = std::make_shared<ngraph::op::Parameter>(elementType, ngraph::Shape { 1, 1, 4, 5 });
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(elementType, ngraph::Shape { 1, 1, 4, 5 });
         input->set_friendly_name("input");
-        auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, input, input }, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector { input, input, input }, 1);
         concat->set_friendly_name("concat");
-        auto result = std::make_shared<ngraph::op::Result>(concat);
+        auto result = std::make_shared<ngraph::op::v0::Result>(concat);
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6635,30 +6635,30 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
         ngraph::Shape shape { 1, 1, 4, 5 };
-        auto input = std::make_shared<ngraph::op::Parameter>(elementType, shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(elementType, shape);
         input->set_friendly_name("input");
 
-        auto weights1 = std::make_shared<ngraph::op::Constant>(
+        auto weights1 = std::make_shared<ngraph::op::v0::Constant>(
             elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 2.0f));
         auto conv1 = std::make_shared<ngraph::op::v1::Convolution>(
             input, weights1, ngraph::Strides { 1, 1 },
             ngraph::CoordinateDiff { 0, 0 }, ngraph::CoordinateDiff{0, 0}, ngraph::Strides { 1, 1 });
 
-        auto weights2 = std::make_shared<ngraph::op::Constant>(
+        auto weights2 = std::make_shared<ngraph::op::v0::Constant>(
             elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 3.0f));
         auto conv2 = std::make_shared<ngraph::op::v1::Convolution>(
             input, weights2, ngraph::Strides { 1, 1 },
             ngraph::CoordinateDiff { 0, 0 }, ngraph::CoordinateDiff{0, 0}, ngraph::Strides { 1, 1 });
 
-        auto weights3 = std::make_shared<ngraph::op::Constant>(
+        auto weights3 = std::make_shared<ngraph::op::v0::Constant>(
             elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, -1.0f));
         auto conv3 = std::make_shared<ngraph::op::v1::Convolution>(
             input, weights3, ngraph::Strides { 1, 1 },
             ngraph::CoordinateDiff { 0, 0 }, ngraph::CoordinateDiff{0, 0}, ngraph::Strides { 1, 1 });
 
-        auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2, conv3 }, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector { input, conv1, conv2, conv3 }, 1);
         concat->set_friendly_name("concat");
-        auto result = std::make_shared<ngraph::op::Result>(concat);
+        auto result = std::make_shared<ngraph::op::v0::Result>(concat);
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };

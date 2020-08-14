@@ -209,10 +209,10 @@ OutputVector op::v3::GRUCell::decompose_op() const
     Output<Node> B = input_value(4);
 
     // Xt*(W^T)
-    auto Xt_W = make_shared<op::Dot>(X, builder::opset1::transpose(W));
+    auto Xt_W = make_shared<op::v0::Dot>(X, builder::opset1::transpose(W));
     auto R_transpose = builder::opset1::transpose(R);
     // Ht-1*(R^T)
-    auto Ht_R = make_shared<op::Dot>(H_t, R_transpose);
+    auto Ht_R = make_shared<op::v0::Dot>(H_t, R_transpose);
 
     // split to gates:
     OutputVector Xt_W_zrh = builder::split(Xt_W, 3, 1);
@@ -236,14 +236,14 @@ OutputVector op::v3::GRUCell::decompose_op() const
     {
         // ht = g(Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh)
         auto rt_Ht = mul(r_t, H_t);
-        auto rt_Ht_Rh = make_shared<op::Dot>(rt_Ht, R_zrh[2]);
+        auto rt_Ht_Rh = make_shared<op::v0::Dot>(rt_Ht, R_zrh[2]);
         // Tensor shape: [batch_size, hidden_size]
         h_t = m_activation_g(clip(add(Xt_W_zrh[2], add(rt_Ht_Rh, biases_zrh[2]))));
     }
 
-    auto one = op::Constant::create(z_t->get_element_type(),
-                                    z_t->get_shape(),
-                                    vector<float>(shape_size(z_t->get_shape()), 1.f));
+    auto one = op::v0::Constant::create(z_t->get_element_type(),
+                                        z_t->get_shape(),
+                                        vector<float>(shape_size(z_t->get_shape()), 1.f));
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     H_t = add(mul(sub(one, z_t), h_t), mul(z_t, H_t));
     return {H_t.get_node_shared_ptr()};
@@ -251,7 +251,7 @@ OutputVector op::v3::GRUCell::decompose_op() const
 
 void op::v3::GRUCell::add_default_bias_input()
 {
-    Output<Node> B = op::Constant::create(
+    Output<Node> B = op::v0::Constant::create(
         get_input_element_type(0),
         Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
         vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));

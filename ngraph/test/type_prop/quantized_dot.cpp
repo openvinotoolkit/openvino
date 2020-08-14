@@ -36,25 +36,25 @@ TEST(type_prop, quantized_dot_8_bit_output)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
-    auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                   input1,
-                                                   1,
-                                                   scale,
-                                                   input0_zero_point,
-                                                   scale,
-                                                   input1_zero_point,
-                                                   scale,
-                                                   output_zero_point,
-                                                   output_type,
-                                                   axes,
-                                                   axes,
-                                                   axes);
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
+    auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                       input1,
+                                                       1,
+                                                       scale,
+                                                       input0_zero_point,
+                                                       scale,
+                                                       input1_zero_point,
+                                                       scale,
+                                                       output_zero_point,
+                                                       output_type,
+                                                       axes,
+                                                       axes,
+                                                       axes);
 
     ASSERT_EQ(quant_dot->get_element_type(), output_type);
     ASSERT_EQ(quant_dot->get_shape(), output_shape);
@@ -76,25 +76,25 @@ TEST(type_prop, quantized_dot_32_bit_output)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
-    auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                   input1,
-                                                   1,
-                                                   scale,
-                                                   input0_zero_point,
-                                                   scale,
-                                                   input1_zero_point,
-                                                   scale,
-                                                   output_zero_point,
-                                                   output_type,
-                                                   axes,
-                                                   axes,
-                                                   axes);
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
+    auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                       input1,
+                                                       1,
+                                                       scale,
+                                                       input0_zero_point,
+                                                       scale,
+                                                       input1_zero_point,
+                                                       scale,
+                                                       output_zero_point,
+                                                       output_type,
+                                                       axes,
+                                                       axes,
+                                                       axes);
 
     ASSERT_EQ(quant_dot->get_element_type(), output_type);
     ASSERT_EQ(quant_dot->get_shape(), output_shape);
@@ -115,27 +115,27 @@ TEST(type_prop, quantized_dot_non_quantized_input0_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non-quantized input0 not detected";
     }
@@ -164,27 +164,27 @@ TEST(type_prop, quantized_dot_non_quantized_input1_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non-quantized input1 not detected";
     }
@@ -213,27 +213,27 @@ TEST(type_prop, quantized_dot_dyn_output_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use dynamic output type not detected";
     }
@@ -262,27 +262,27 @@ TEST(type_prop, quantized_dot_non_floating_point_scale_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to non floating point scale not detected";
     }
@@ -311,27 +311,27 @@ TEST(type_prop, quantized_dot_input0_zero_point_type_mismatch_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use zero point type different from input0 type not detected";
     }
@@ -362,27 +362,27 @@ TEST(type_prop, quantized_dot_input1_zero_point_type_mismatch_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use zero point type different from input1 type not detected";
     }
@@ -413,27 +413,27 @@ TEST(type_prop, quantized_dot_non_scalar_input0_zero_point_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{1, 2});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{1, 2});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non scalar input0 zero point not detected";
     }
@@ -463,27 +463,27 @@ TEST(type_prop, quantized_dot_non_scalar_input1_zero_point_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{1, 2});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{1, 2});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non scalar input1 zero point not detected";
     }
@@ -513,27 +513,27 @@ TEST(type_prop, quantized_dot_non_scalar_output_zero_point_fails)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{1, 2});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{1, 2});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non scalar output zero point not detected";
     }
@@ -563,27 +563,27 @@ TEST(type_prop, quantized_dot_non_empty_input0_axes)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       AxisSet{1},
-                                                       axes,
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           AxisSet{1},
+                                                           axes,
+                                                           axes);
 
         FAIL() << "Attempt to use non empty input0 axes not detected";
     }
@@ -612,27 +612,27 @@ TEST(type_prop, quantized_dot_non_empty_input1_axes)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       AxisSet{1},
-                                                       axes);
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           AxisSet{1},
+                                                           axes);
 
         FAIL() << "Attempt to use non empty input1 axes not detected";
     }
@@ -661,27 +661,27 @@ TEST(type_prop, quantized_dot_non_empty_output_axes)
     Shape output_shape{64, 72};
     AxisSet axes{};
 
-    auto input0 = make_shared<op::Parameter>(input0_type, Shape{64, 3});
-    auto input1 = make_shared<op::Parameter>(input1_type, Shape{3, 72});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input0_zero_point = make_shared<op::Parameter>(input0_zero_point_type, Shape{});
-    auto input1_zero_point = make_shared<op::Parameter>(input1_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input0 = make_shared<op::v0::Parameter>(input0_type, Shape{64, 3});
+    auto input1 = make_shared<op::v0::Parameter>(input1_type, Shape{3, 72});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input0_zero_point = make_shared<op::v0::Parameter>(input0_zero_point_type, Shape{});
+    auto input1_zero_point = make_shared<op::v0::Parameter>(input1_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_dot = make_shared<op::QuantizedDot>(input0,
-                                                       input1,
-                                                       1,
-                                                       scale,
-                                                       input0_zero_point,
-                                                       scale,
-                                                       input1_zero_point,
-                                                       scale,
-                                                       output_zero_point,
-                                                       output_type,
-                                                       axes,
-                                                       axes,
-                                                       AxisSet{1});
+        auto quant_dot = make_shared<op::v0::QuantizedDot>(input0,
+                                                           input1,
+                                                           1,
+                                                           scale,
+                                                           input0_zero_point,
+                                                           scale,
+                                                           input1_zero_point,
+                                                           scale,
+                                                           output_zero_point,
+                                                           output_type,
+                                                           axes,
+                                                           axes,
+                                                           AxisSet{1});
 
         FAIL() << "Attempt to use non empty output axes not detected";
     }

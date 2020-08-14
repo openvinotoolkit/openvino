@@ -25,15 +25,15 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Relu, "Relu", 0);
+NGRAPH_RTTI_DEFINITION(op::v0::Relu, "Relu", 0);
 
-op::Relu::Relu(const Output<Node>& arg)
+op::v0::Relu::Relu(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Relu::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Relu>(new_args.at(0));
@@ -76,8 +76,8 @@ namespace
     }
 }
 
-bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Relu::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Relu::evaluate");
     return evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

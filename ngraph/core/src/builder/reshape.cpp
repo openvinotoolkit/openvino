@@ -48,12 +48,12 @@ shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape
         auto value_rank = value.get_shape().size();
         AxisVector axes_vector(value_rank);
         std::iota(axes_vector.begin(), axes_vector.end(), 0);
-        auto axes = op::Constant::create(element::i64, Shape{value_rank}, axes_vector);
-        return std::make_shared<op::Squeeze>(value, axes);
+        auto axes = op::v0::Constant::create(element::i64, Shape{value_rank}, axes_vector);
+        return std::make_shared<op::v0::Squeeze>(value, axes);
     }
     else
     {
-        auto out_pattern = op::Constant::create(
+        auto out_pattern = op::v0::Constant::create(
             element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
 
         return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false)
@@ -64,9 +64,9 @@ shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape
 shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector<size_t> axes_order)
 {
     const auto axes_order_const =
-        op::Constant::create(element::i64,
-                             Shape{axes_order.size()},
-                             vector<int64_t>(axes_order.begin(), axes_order.end()));
+        op::v0::Constant::create(element::i64,
+                                 Shape{axes_order.size()},
+                                 vector<int64_t>(axes_order.begin(), axes_order.end()));
     return make_shared<ngraph::opset1::Transpose>(value, axes_order_const)
         ->add_provenance_group_members_above({value});
 }

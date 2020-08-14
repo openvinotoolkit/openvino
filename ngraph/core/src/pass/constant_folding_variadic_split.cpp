@@ -25,8 +25,8 @@
 using namespace std;
 using namespace ngraph;
 
-shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
-                                             shared_ptr<op::Slice> slice)
+shared_ptr<op::v0::Constant> fold_constant_slice(shared_ptr<op::v0::Constant> constant,
+                                                 shared_ptr<op::v0::Slice> slice)
 {
     const Shape& out_shape = slice->get_shape();
     runtime::AlignedBuffer buffer(shape_size(out_shape) * constant->get_element_type().size());
@@ -41,17 +41,17 @@ shared_ptr<op::Constant> fold_constant_slice(shared_ptr<op::Constant> constant,
                               out_shape,
                               constant->get_element_type().size());
 
-    return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
+    return make_shared<op::v0::Constant>(constant->get_element_type(), out_shape, data_ptr);
 }
 
 void pass::ConstantFolding::construct_constant_variadic_split()
 {
     auto data_label = make_shared<pattern::op::Label>(
-        element::f32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto axis_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{}, pattern::has_class<op::Constant>());
-    auto lengths_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
+        element::f32, Shape{2, 3, 4}, pattern::has_class<op::v0::Constant>());
+    auto axis_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{}, pattern::has_class<op::v0::Constant>());
+    auto lengths_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{2}, pattern::has_class<op::v0::Constant>());
     auto variadic_split_pattern =
         make_shared<op::v1::VariadicSplit>(data_label, axis_label, lengths_label);
 
@@ -61,9 +61,9 @@ void pass::ConstantFolding::construct_constant_variadic_split()
                      << m.get_match_root()->get_name();
         auto pattern_map = m.get_pattern_map();
 
-        const auto data_node = static_pointer_cast<op::Constant>(pattern_map[data_label]);
-        const auto axis_node = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
-        const auto lengths_node = static_pointer_cast<op::Constant>(pattern_map[lengths_label]);
+        const auto data_node = static_pointer_cast<op::v0::Constant>(pattern_map[data_label]);
+        const auto axis_node = static_pointer_cast<op::v0::Constant>(pattern_map[axis_label]);
+        const auto lengths_node = static_pointer_cast<op::v0::Constant>(pattern_map[lengths_label]);
         const auto variadic_split = static_pointer_cast<op::v1::VariadicSplit>(m.get_match_root());
 
         const auto axis_val = axis_node->cast_vector<int64_t>()[0];
@@ -106,13 +106,13 @@ void pass::ConstantFolding::construct_constant_variadic_split()
 
         for (auto& slice : as_node_vector(slices))
         {
-            auto const_data = std::dynamic_pointer_cast<op::Constant>(
+            auto const_data = std::dynamic_pointer_cast<op::v0::Constant>(
                 slice->input_value(0).get_node_shared_ptr());
-            auto slice_node = std::dynamic_pointer_cast<op::Slice>(slice);
+            auto slice_node = std::dynamic_pointer_cast<op::v0::Slice>(slice);
             if (!const_data || !slice_node)
                 continue;
 
-            std::shared_ptr<op::Constant> replacement;
+            std::shared_ptr<op::v0::Constant> replacement;
             switch (slice->get_output_element_type(0))
             {
             case element::Type_t::undefined:

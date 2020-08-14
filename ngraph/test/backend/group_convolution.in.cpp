@@ -38,11 +38,11 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
 {
     Shape shape_filter{6, 1, 3, 3};
-    auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto filters = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_delta{2, 6, 3, 3};
-    auto deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto deltas = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_data_batch{2, 3, 5, 5};
-    auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto data_batch = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto strides = Strides{1, 1};
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{0, 0};
@@ -93,8 +93,8 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data)
     Strides dilations{1, 1};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 3});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 3, 3});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 3, 3});
+    auto filters = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1, 3, 3});
 
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, strides, pads_begin, pads_end, dilations, auto_pad, output_padding);
@@ -139,9 +139,9 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data_output_shape)
     Strides strides{1, 1};
     Strides dilations{1, 1};
 
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 10});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 1, 5});
-    auto output_shape = op::Constant::create(element::i64, Shape{2}, {1, 14});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1, 10});
+    auto filters = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1, 1, 5});
+    auto output_shape = op::v0::Constant::create(element::i64, Shape{2}, {1, 14});
 
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, strides, dilations, op::PadType::SAME_UPPER);

@@ -42,9 +42,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
 {
     Shape shape{1, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
-    auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axis = make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    auto f = make_shared<Function>(make_shared<op::v0::CumSum>(A, axis), ParameterVector{A, axis});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -63,9 +63,9 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    auto f = make_shared<Function>(make_shared<op::v0::CumSum>(A, axis), ParameterVector{A, axis});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -85,8 +85,8 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_default_axis)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::CumSum>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::CumSum>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -105,9 +105,10 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
 {
     auto test_cumsum_3d = [](const int32_t axis_val) -> void {
         Shape shape{3, 2, 4};
-        auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
-        auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+        auto axis = make_shared<op::v0::Parameter>(element::i32, Shape{1});
+        auto f =
+            make_shared<Function>(make_shared<op::v0::CumSum>(A, axis), ParameterVector{A, axis});
 
         auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -153,9 +154,9 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes)
 {
     auto test_cum_sum_allmodes = [](const int64_t axis_val, int exclusive, int reverse) {
         Shape shape{2, 4};
-        auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
-        auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis, exclusive, reverse),
+        auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+        auto axis = make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto f = make_shared<Function>(make_shared<op::v0::CumSum>(A, axis, exclusive, reverse),
                                        ParameterVector{A, axis});
 
         auto backend = runtime::Backend::create("${BACKEND_NAME}");

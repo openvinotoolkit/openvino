@@ -85,8 +85,8 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
             shape_end.push_back(block_size * input_shape[2 + i]);
         }
 
-        auto create_constant = [](std::vector<int64_t > & v) -> std::shared_ptr<op::Constant> {
-            return op::Constant::create(element::i64, Shape{v.size()}, v);
+        auto create_constant = [](std::vector<int64_t > & v) -> std::shared_ptr<op::v0::Constant> {
+            return op::v0::Constant::create(element::i64, Shape{v.size()}, v);
         };
 
         auto reshape_begin = std::make_shared<ngraph::opset1::Reshape>(input, create_constant(shape_begin), true);

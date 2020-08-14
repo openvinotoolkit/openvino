@@ -50,14 +50,14 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, gelu_f32)
 {
     Shape shape{100000};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Gelu>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     test::Uniform<float> rng(-100.0f, 100.0f);
     vector<vector<float>> args;
-    for (shared_ptr<op::Parameter> param : f->get_parameters())
+    for (shared_ptr<op::v0::Parameter> param : f->get_parameters())
     {
         auto name = param->get_name();
         vector<float> tensor_val(shape_size(param->get_shape()));
@@ -82,7 +82,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_f32)
 NGRAPH_TEST(${BACKEND_NAME}, gelu_f64)
 {
     Shape shape{8};
-    auto A = make_shared<op::Parameter>(element::f64, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f64, shape);
     auto f = make_shared<Function>(make_shared<op::Gelu>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

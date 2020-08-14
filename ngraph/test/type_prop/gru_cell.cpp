@@ -28,12 +28,12 @@ TEST(type_prop, gru_cell)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
     const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
     const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<op::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
@@ -47,13 +47,13 @@ TEST(type_prop, gru_cell_invalid_input)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
     auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     // Invalid W tensor shape.
-    auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
+    auto W = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, input_size});
     try
     {
         const auto gru_cell = make_shared<op::GRUCell>(X, H_t, W, R, hidden_size);
@@ -65,8 +65,8 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid R tensor shape.
-    W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, 1});
+    W = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size, 1});
     try
     {
         const auto gru_cell = make_shared<op::GRUCell>(X, H_t, W, R, hidden_size);
@@ -78,8 +78,8 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid H_t tensor shape.
-    R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{4, hidden_size});
     try
     {
         const auto gru_cell = make_shared<op::GRUCell>(X, H_t, W, R, hidden_size);
@@ -92,8 +92,8 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid B tensor shape.
-    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size});
     try
     {
         const auto gru_cell = make_shared<op::GRUCell>(X, H_t, W, R, B, hidden_size);

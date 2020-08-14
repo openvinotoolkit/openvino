@@ -83,7 +83,5 @@ namespace ngraph
             // DO NOT USE. Will be removed once users switch to GreaterEqual
             using GreaterEq = GreaterEqual;
         } // namespace v1
-
-        using v0::GreaterEq;
     }
 }

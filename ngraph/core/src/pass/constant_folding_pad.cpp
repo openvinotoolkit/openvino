@@ -22,14 +22,14 @@ using namespace std;
 using namespace ngraph;
 
 template <class T>
-shared_ptr<op::Constant> fold_constant_pad(shared_ptr<op::Constant> constant,
-                                           shared_ptr<op::Pad> pad,
-                                           NodeExecutorTy func)
+shared_ptr<op::v0::Constant> fold_constant_pad(shared_ptr<op::v0::Constant> constant,
+                                               shared_ptr<op::v0::Pad> pad,
+                                               NodeExecutorTy func)
 {
     const Shape& out_shape = pad->get_shape();
     runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
     T* data_ptr = buffer.get_ptr<T>();
-    auto pad_value = std::static_pointer_cast<op::Constant>(pad->get_input_node_shared_ptr(1));
+    auto pad_value = std::static_pointer_cast<op::v0::Constant>(pad->get_input_node_shared_ptr(1));
 
     if (func != nullptr)
     {
@@ -54,12 +54,12 @@ shared_ptr<op::Constant> fold_constant_pad(shared_ptr<op::Constant> constant,
                                    pad->get_pad_mode());
     }
 
-    return make_shared<op::Constant>(constant->get_element_type(), out_shape, data_ptr);
+    return make_shared<op::v0::Constant>(constant->get_element_type(), out_shape, data_ptr);
 }
 
 void pass::ConstantFolding::construct_constant_pad()
 {
-    auto is_constant = pattern::has_class<op::Constant>();
+    auto is_constant = pattern::has_class<op::v0::Constant>();
     auto constant_label = make_shared<pattern::op::Label>(element::f32, Shape{6}, is_constant);
 
     auto pad_value_label = make_shared<pattern::op::Label>(element::f32, Shape{}, is_constant);
@@ -68,7 +68,7 @@ void pass::ConstantFolding::construct_constant_pad()
     CoordinateDiff padding_above{0};
     op::PadMode pad_mode{op::PadMode::CONSTANT};
 
-    auto pad = make_shared<op::Pad>(
+    auto pad = make_shared<op::v0::Pad>(
         constant_label, pad_value_label, padding_below, padding_above, pad_mode);
 
     auto constant_pad_callback = [&, constant_label](pattern::Matcher& m) {
@@ -77,15 +77,15 @@ void pass::ConstantFolding::construct_constant_pad()
 
         auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
-        auto pad_match = static_pointer_cast<op::Pad>(m.get_match_root());
+        auto constant_match = static_pointer_cast<op::v0::Constant>(pattern_map[constant_label]);
+        auto pad_match = static_pointer_cast<op::v0::Pad>(m.get_match_root());
 
         NGRAPH_CHECK(revalidate_and_ensure_static(pad_match));
 
         NodeExecutorTy func = nullptr;
         if (!m_cfmap.empty())
         {
-            auto handler = m_cfmap.find(type_index(typeid(ngraph::op::Pad)));
+            auto handler = m_cfmap.find(type_index(typeid(ngraph::op::v0::Pad)));
             NGRAPH_CHECK(handler != m_cfmap.end(), "constant folding map should have pad entry");
             func = handler->second(pad_match.get());
         }

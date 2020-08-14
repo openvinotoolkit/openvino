@@ -77,6 +77,5 @@ namespace ngraph
                 element::Type m_output_type = element::i64;
             };
         }
-        using v3::NonZero;
     } // namespace op
 } // namespace ngraph

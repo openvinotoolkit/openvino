@@ -35,15 +35,15 @@ public:
         const auto& outShapeDescriptorTensorShape = std::get<2>(parameters);
         const auto& outShapeDescriptorTensorType = std::get<3>(parameters);
 
-        m_inDataShapeParam = std::make_shared<ngraph::op::Parameter>(
+        m_inDataShapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 inTensorShapeTensorType, inDataShapeTensorShape);
-        m_outShapeDescriptorParam = std::make_shared<ngraph::op::Parameter>(
+        m_outShapeDescriptorParam = std::make_shared<ngraph::op::v0::Parameter>(
                 outShapeDescriptorTensorType, outShapeDescriptorTensorShape);
     }
 
 protected:
-    std::shared_ptr<ngraph::op::Parameter> m_inDataShapeParam;
-    std::shared_ptr<ngraph::op::Parameter> m_outShapeDescriptorParam;
+    std::shared_ptr<ngraph::op::v0::Parameter> m_inDataShapeParam;
+    std::shared_ptr<ngraph::op::v0::Parameter> m_outShapeDescriptorParam;
 };
 
 std::vector<ngraph::PartialShape> tensorShapes {

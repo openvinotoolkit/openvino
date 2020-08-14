@@ -18,7 +18,7 @@
 #include <pybind11/stl.h>
 
 #include "ngraph/function.hpp"     // ngraph::Function
-#include "ngraph/op/parameter.hpp" // ngraph::op::Parameter
+#include "ngraph/op/parameter.hpp" // ngraph::op::v0::Parameter
 #include "pyngraph/function.hpp"
 
 namespace py = pybind11;
@@ -30,10 +30,10 @@ void regclass_pyngraph_Function(py::module m)
     py::class_<ngraph::Function, std::shared_ptr<ngraph::Function>> function(m, "Function");
     function.doc() = "ngraph.impl.Function wraps ngraph::Function";
     function.def(py::init<const std::vector<std::shared_ptr<ngraph::Node>>&,
-                          const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
+                          const std::vector<std::shared_ptr<ngraph::op::v0::Parameter>>&,
                           const std::string&>());
     function.def(py::init<const std::shared_ptr<ngraph::Node>&,
-                          const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
+                          const std::vector<std::shared_ptr<ngraph::op::v0::Parameter>>&,
                           const std::string&>());
     function.def("get_output_size", &ngraph::Function::get_output_size);
     function.def("get_ops", &ngraph::Function::get_ops);

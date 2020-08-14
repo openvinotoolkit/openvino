@@ -80,6 +80,5 @@ namespace ngraph
                 size_t m_size;
             };
         }
-        using v0::LRN;
     }
 }

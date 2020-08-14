@@ -46,9 +46,9 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     vector<float> a{1, 2, 3, 4};
     vector<float> b{5, 6, 7, 8};
@@ -62,8 +62,8 @@ NGRAPH_TEST(${BACKEND_NAME}, add)
 NGRAPH_TEST(${BACKEND_NAME}, add_overload)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(A + B, ParameterVector{A, B});
 
     vector<float> a{1, 2, 3, 4};
@@ -78,8 +78,8 @@ NGRAPH_TEST(${BACKEND_NAME}, add_overload)
 NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
     auto T = A + B;
     auto T2 = T + T;
     auto T3 = T2 + T2;

@@ -11,7 +11,7 @@ std::shared_ptr<ngraph::Node> makeCumSum(const ngraph::Output<Node> &in,
                                          const ngraph::Output<Node> &axis,
                                          bool exclusive,
                                          bool reverse) {
-    return std::make_shared<ngraph::op::CumSum>(in, axis, exclusive, reverse);
+    return std::make_shared<ngraph::op::v0::CumSum>(in, axis, exclusive, reverse);
 }
 
 }  // namespace builder

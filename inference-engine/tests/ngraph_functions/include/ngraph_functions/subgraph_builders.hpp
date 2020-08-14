@@ -137,13 +137,13 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
                                                    R_body,
                                                    H);
     inShape = {N, 1, H};
-    auto constantHo = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{3}, inShape);
+    auto constantHo = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, inShape);
     auto H_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(0), constantHo, false);
     auto C_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(1), constantHo, false);
-    auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
+    auto body = std::make_shared<ngraph::op::v0::TensorIterator::BodyLambda>(
             ngraph::OutputVector{H_o, C_o}, ngraph::ParameterVector{X, H_t, C_t});
 
-    auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
+    auto tensor_iterator = std::make_shared<ngraph::op::v0::TensorIterator>();
     tensor_iterator->set_body(body);
     // start=0, stride=1, part_size=1, end=39, axis=1
     tensor_iterator->set_sliced_input(X, SENT, 0, 1, 1, -1, 1);

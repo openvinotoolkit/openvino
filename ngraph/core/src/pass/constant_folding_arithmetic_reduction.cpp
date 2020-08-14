@@ -33,15 +33,15 @@ using namespace std;
 using namespace ngraph;
 
 template <typename T>
-static shared_ptr<op::Constant>
-    fold_constant_arithmetic_reduction_helper(shared_ptr<op::Constant> constant,
+static shared_ptr<op::v0::Constant>
+    fold_constant_arithmetic_reduction_helper(shared_ptr<op::v0::Constant> constant,
                                               shared_ptr<Node> reduction_node)
 {
     const Shape& out_shape = reduction_node->get_shape();
     runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
     T* data_ptr = buffer.get_ptr<T>();
 
-    if (auto max = as_type_ptr<op::Max>(reduction_node))
+    if (auto max = as_type_ptr<op::v0::Max>(reduction_node))
     {
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
@@ -55,7 +55,7 @@ static shared_ptr<op::Constant>
                                    constant->get_output_shape(0),
                                    reduce_max->get_reduction_axes());
     }
-    else if (auto min = as_type_ptr<op::Min>(reduction_node))
+    else if (auto min = as_type_ptr<op::v0::Min>(reduction_node))
     {
         runtime::reference::min<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
@@ -69,7 +69,7 @@ static shared_ptr<op::Constant>
                                    constant->get_output_shape(0),
                                    reduce_min->get_reduction_axes());
     }
-    else if (auto prod = as_type_ptr<op::Product>(reduction_node))
+    else if (auto prod = as_type_ptr<op::v0::Product>(reduction_node))
     {
         runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
@@ -83,7 +83,7 @@ static shared_ptr<op::Constant>
                                        constant->get_output_shape(0),
                                        reduce_prod->get_reduction_axes());
     }
-    else if (auto sum = as_type_ptr<op::Sum>(reduction_node))
+    else if (auto sum = as_type_ptr<op::v0::Sum>(reduction_node))
     {
         runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
@@ -112,12 +112,12 @@ static shared_ptr<op::Constant>
                      "matched in construct_constant_arithmetic_reduction");
     }
 
-    return make_shared<op::Constant>(
+    return make_shared<op::v0::Constant>(
         reduction_node->get_output_element_type(0), reduction_node->get_shape(), data_ptr);
 }
 
-static shared_ptr<op::Constant>
-    fold_constant_arithmetic_reduction(shared_ptr<op::Constant> constant,
+static shared_ptr<op::v0::Constant>
+    fold_constant_arithmetic_reduction(shared_ptr<op::v0::Constant> constant,
                                        shared_ptr<Node> reduction_node)
 {
     auto& input_element_type = constant->get_output_element_type(0);
@@ -169,12 +169,12 @@ static shared_ptr<op::Constant>
 void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 {
     auto constant_data_label = make_shared<pattern::op::Label>(
-        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto constant_axes_label =
-        make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
+        element::i32, Shape{2, 3, 4}, pattern::has_class<op::v0::Constant>());
+    auto constant_axes_label = make_shared<pattern::op::Label>(
+        element::i64, Shape{2}, pattern::has_class<op::v0::Constant>());
     auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<op::Max>()(n) || pattern::has_class<op::Min>()(n) ||
-                pattern::has_class<op::Product>()(n) || pattern::has_class<op::Sum>()(n) ||
+        return (pattern::has_class<op::v0::Max>()(n) || pattern::has_class<op::v0::Min>()(n) ||
+                pattern::has_class<op::v0::Product>()(n) || pattern::has_class<op::v0::Sum>()(n) ||
                 pattern::has_class<op::v1::ReduceMax>()(n) ||
                 pattern::has_class<op::v1::ReduceMin>()(n) ||
                 pattern::has_class<op::v1::ReduceProd>()(n) ||
@@ -193,7 +193,8 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 
         auto pattern_map = m.get_pattern_map();
 
-        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
+        auto constant_match =
+            static_pointer_cast<op::v0::Constant>(pattern_map[constant_data_label]);
         auto reduction_match = m.get_match_root();
 
         NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));

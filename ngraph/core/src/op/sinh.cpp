@@ -26,9 +26,9 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Sinh::type_info;
+constexpr NodeTypeInfo op::v0::Sinh::type_info;
 
-op::Sinh::Sinh(const Output<Node>& arg)
+op::v0::Sinh::Sinh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
@@ -39,7 +39,7 @@ bool ngraph::op::v0::Sinh::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Sinh::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Sinh>(new_args.at(0));
@@ -82,8 +82,8 @@ namespace
     }
 }
 
-bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sinh::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Sinh::evaluate");
     return evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

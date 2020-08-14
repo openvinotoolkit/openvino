@@ -84,7 +84,6 @@ namespace ngraph
             };
         } // namespace v1
 
-        using v0::Multiply;
     } // namespace op
 
     NGRAPH_API

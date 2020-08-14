@@ -124,8 +124,8 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<v0::Not>(new_args.at(0));
 }
 
-bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Not::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Not::evaluate");
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

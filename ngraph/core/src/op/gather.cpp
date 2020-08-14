@@ -179,7 +179,7 @@ int64_t op::v1::Gather::get_axis() const
 {
     int64_t axis = AXIS_NOT_SET_VALUE;
     auto axes_input_node = input_value(AXIS).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = as_type_ptr<op::v0::Constant>(axes_input_node))
     {
         axis = const_op->cast_vector<int64_t>()[0];
     }

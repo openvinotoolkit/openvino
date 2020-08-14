@@ -21,25 +21,25 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::QuantizedConvolution::type_info;
+constexpr NodeTypeInfo op::v0::QuantizedConvolution::type_info;
 
-op::QuantizedConvolution::QuantizedConvolution(const Output<Node>& input,
-                                               const Output<Node>& filters,
-                                               const Strides& window_movement_strides,
-                                               const Strides& window_dilation_strides,
-                                               const CoordinateDiff& padding_below,
-                                               const CoordinateDiff& padding_above,
-                                               const Strides& data_dilation_strides,
-                                               const Output<Node>& input_scale,
-                                               const Output<Node>& input_zero_point,
-                                               const Output<Node>& filter_scale,
-                                               const Output<Node>& filter_zero_point,
-                                               const Output<Node>& output_scale,
-                                               const Output<Node>& output_zero_point,
-                                               const element::Type& output_type,
-                                               const AxisSet& input_axes,
-                                               const AxisSet& filter_axes,
-                                               const AxisSet& output_axes)
+op::v0::QuantizedConvolution::QuantizedConvolution(const Output<Node>& input,
+                                                   const Output<Node>& filters,
+                                                   const Strides& window_movement_strides,
+                                                   const Strides& window_dilation_strides,
+                                                   const CoordinateDiff& padding_below,
+                                                   const CoordinateDiff& padding_above,
+                                                   const Strides& data_dilation_strides,
+                                                   const Output<Node>& input_scale,
+                                                   const Output<Node>& input_zero_point,
+                                                   const Output<Node>& filter_scale,
+                                                   const Output<Node>& filter_zero_point,
+                                                   const Output<Node>& output_scale,
+                                                   const Output<Node>& output_zero_point,
+                                                   const element::Type& output_type,
+                                                   const AxisSet& input_axes,
+                                                   const AxisSet& filter_axes,
+                                                   const AxisSet& output_axes)
     : Op({input,
           filters,
           input_scale,
@@ -61,7 +61,7 @@ op::QuantizedConvolution::QuantizedConvolution(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-void op::QuantizedConvolution::validate_and_infer_types()
+void op::v0::QuantizedConvolution::validate_and_infer_types()
 {
     enum
     {
@@ -171,7 +171,8 @@ void op::QuantizedConvolution::validate_and_infer_types()
     set_output_type(0, m_output_type, result_shape);
 }
 
-shared_ptr<Node> op::QuantizedConvolution::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node>
+    op::v0::QuantizedConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return shared_ptr<Node>(new QuantizedConvolution(new_args.at(0),

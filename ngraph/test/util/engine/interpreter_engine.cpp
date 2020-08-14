@@ -22,7 +22,7 @@ namespace
 {
     template <typename T>
     typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+        compare_values(const std::shared_ptr<ngraph::op::v0::Constant>& expected_results,
                        const std::shared_ptr<ngraph::runtime::Tensor>& results,
                        const size_t tolerance_bits)
     {
@@ -34,7 +34,7 @@ namespace
 
     template <typename T>
     typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+        compare_values(const std::shared_ptr<ngraph::op::v0::Constant>& expected_results,
                        const std::shared_ptr<ngraph::runtime::Tensor>& results,
                        const size_t)
     {
@@ -47,7 +47,7 @@ namespace
     // used for float16 and bfloat 16 comparisons
     template <typename T>
     typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+        compare_values(const std::shared_ptr<ngraph::op::v0::Constant>& expected_results,
                        const std::shared_ptr<ngraph::runtime::Tensor>& results,
                        const size_t tolerance_bits)
     {

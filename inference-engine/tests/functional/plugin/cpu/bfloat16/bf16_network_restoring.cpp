@@ -138,7 +138,7 @@ protected:
 
         // Norm1
         // normalize
-        const auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2});
+        const auto axes = make_shared<op::v0::Constant>(element::i64, Shape{2}, vector<int64_t>{2});
         float eps{1e-6f};
         auto eps_mode = op::EpsMode::ADD;
 

@@ -287,9 +287,9 @@ OutputVector op::LSTMCell::decompose_op() const
     const auto& p_f = p_iof.at(2);
 
     // Xt*(W^T) -- for [iofc] gates.
-    auto Xt_W = make_shared<op::Dot>(X, builder::opset1::transpose(W));
+    auto Xt_W = make_shared<op::v0::Dot>(X, builder::opset1::transpose(W));
     // Ht-1*(R^T)  -- for [iofc] gates.
-    auto Ht_R = make_shared<op::Dot>(H_t, builder::opset1::transpose(R));
+    auto Ht_R = make_shared<op::v0::Dot>(H_t, builder::opset1::transpose(R));
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb  -- for [iofc] gates.
     auto gates = add(Xt_W, add(Ht_R, bias));
 
@@ -304,9 +304,9 @@ OutputVector op::LSTMCell::decompose_op() const
     if (m_input_forget)
     {
         // Couple input with forget gate: 1 - i_t
-        f_t = sub(op::Constant::create(i_t.get_element_type(),
-                                       i_t.get_shape(),
-                                       vector<float>(shape_size(i_t.get_shape()), 1.f)),
+        f_t = sub(op::v0::Constant::create(i_t.get_element_type(),
+                                           i_t.get_shape(),
+                                           vector<float>(shape_size(i_t.get_shape()), 1.f)),
                   i_t);
     }
     else
@@ -326,15 +326,15 @@ OutputVector op::LSTMCell::decompose_op() const
 
 Output<Node> op::LSTMCell::get_default_bias_input() const
 {
-    return Output<Node>{op::Constant::create(
+    return Output<Node>{op::v0::Constant::create(
         get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
 }
 
 Output<Node> op::LSTMCell::get_default_peepholes_input() const
 {
-    return Output<Node>{op::Constant::create(get_input_element_type(0),
-                                             Shape{s_peepholes_count * get_hidden_size()},
-                                             vector<float>{0.f})};
+    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+                                                 Shape{s_peepholes_count * get_hidden_size()},
+                                                 vector<float>{0.f})};
 }
 
 shared_ptr<Node> op::LSTMCell::convert_node_format(const Output<Node>& node) const
@@ -353,7 +353,7 @@ shared_ptr<Node> op::LSTMCell::convert_node_format(const Output<Node>& node) con
     {
         nodes_in_new_format.push_back(splitted_node.at(axis));
     }
-    return make_shared<op::Concat>(nodes_in_new_format, 0);
+    return make_shared<op::v0::Concat>(nodes_in_new_format, 0);
 }
 
 shared_ptr<Node> op::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const

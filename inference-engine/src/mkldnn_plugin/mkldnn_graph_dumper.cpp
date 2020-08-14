@@ -93,13 +93,13 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
             auto desc = node->getChildEdgeAt(0)->getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(
+            auto param = std::make_shared<ngraph::op::v0::Parameter>(
                 details::convertPrecision(desc.getPrecision()),
                 ngraph::PartialShape(desc.getDims()));
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
-            results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
+            results.emplace_back(std::make_shared<ngraph::op::v0::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(

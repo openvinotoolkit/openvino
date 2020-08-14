@@ -83,7 +83,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         }
-
-        using v0::Max;
     }
 }

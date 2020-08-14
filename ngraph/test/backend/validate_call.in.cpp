@@ -36,9 +36,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_count)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::f32, shape);
     auto b = backend->create_tensor(element::f32, shape);
@@ -53,9 +53,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_type)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::i32, shape);
     auto b = backend->create_tensor(element::f32, shape);
@@ -70,9 +70,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_shape)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::f32, {2, 3});
     auto b = backend->create_tensor(element::f32, shape);
@@ -87,9 +87,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_count)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::f32, shape);
     auto b = backend->create_tensor(element::f32, shape);
@@ -105,9 +105,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_type)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::i32, shape);
     auto b = backend->create_tensor(element::f32, shape);
@@ -122,9 +122,9 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_shape)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     auto a = backend->create_tensor(element::f32, {2, 3});
     auto b = backend->create_tensor(element::f32, shape);

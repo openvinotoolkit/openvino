@@ -79,7 +79,7 @@ namespace ngraph
         /// std::pair will have the same value as \p args.
         ///
         /// If \p args.first and \p args.second produce different shapes, then this function creates
-        /// new ngraph::op::Reshape and/or ngraph::op::Broadcast nodes, as needed, to wrap
+        /// new ngraph::op::v0::Reshape and/or ngraph::op::v0::Broadcast nodes, as needed, to wrap
         /// \p args.first and/or \p args.second in a manner that yields values with the same shape.
         ///
         /// There are some shape combinations which the autobroadcast algoritm cannot handle.
@@ -244,7 +244,7 @@ namespace ngraph
         inline std::shared_ptr<Node> make_broadcast_node(const Output<Node>& output,
                                                          Shape new_shape)
         {
-            return std::make_shared<op::Broadcast>(
+            return std::make_shared<op::v0::Broadcast>(
                 output, new_shape, calculate_broadcast_axes(new_shape, output.get_shape()));
         }
 
@@ -252,7 +252,7 @@ namespace ngraph
                                                          const Shape& new_shape,
                                                          std::size_t start_match_axis)
         {
-            return std::make_shared<op::Broadcast>(
+            return std::make_shared<op::v0::Broadcast>(
                 value,
                 new_shape,
                 calculate_broadcast_axes(new_shape, value.get_shape(), start_match_axis));

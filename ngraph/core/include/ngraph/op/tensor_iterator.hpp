@@ -381,18 +381,17 @@ namespace ngraph
                 int64_t m_num_iterations = -1;
             };
         }
-        using v0::TensorIterator;
     }
     template class NGRAPH_API FactoryRegistry<op::v0::TensorIterator::InputDescription>;
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>
-        : public FactoryAttributeAdapter<op::TensorIterator::InputDescription>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::InputDescription>>
+        : public FactoryAttributeAdapter<op::v0::TensorIterator::InputDescription>
     {
     public:
         using FactoryAttributeAdapter::FactoryAttributeAdapter;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>"
+            "AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::InputDescription>>"
             ">>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
@@ -400,32 +399,34 @@ namespace ngraph
 
     template <>
     class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>
+        AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>>
         : public VisitorAdapter
     {
     public:
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& ref);
+        AttributeAdapter(
+            std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>& ref);
 
         bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>"
+            "AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>"
+            ">"
             ">>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     protected:
-        std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& m_ref;
+        std::vector<std::shared_ptr<op::v0::TensorIterator::InputDescription>>& m_ref;
     };
 
     template class NGRAPH_API FactoryRegistry<op::v0::TensorIterator::OutputDescription>;
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>
-        : public FactoryAttributeAdapter<op::TensorIterator::OutputDescription>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>
+        : public FactoryAttributeAdapter<op::v0::TensorIterator::OutputDescription>
     {
     public:
         using FactoryAttributeAdapter::FactoryAttributeAdapter;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>"
+            "AttributeAdapter<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>"
             ">>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
@@ -433,20 +434,22 @@ namespace ngraph
 
     template <>
     class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>
+        AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>>
         : public VisitorAdapter
     {
     public:
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& ref);
+        AttributeAdapter(
+            std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>& ref);
 
         bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>"
+            "AttributeAdapter<std::vector<std::shared_ptr<op::v0::TensorIterator::"
+            "OutputDescription>>"
             ">>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     protected:
-        std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& m_ref;
+        std::vector<std::shared_ptr<op::v0::TensorIterator::OutputDescription>>& m_ref;
     };
 }
 

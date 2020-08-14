@@ -36,8 +36,8 @@ namespace ng = ngraph;
 TEST(liveness, constant)
 {
     Shape shape{1};
-    auto c = op::Constant::create(element::i32, shape, {5});
-    auto f = make_shared<Function>(make_shared<op::Negative>(c), ParameterVector{});
+    auto c = op::v0::Constant::create(element::i32, shape, {5});
+    auto f = make_shared<Function>(make_shared<op::v0::Negative>(c), ParameterVector{});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::Liveness>();
@@ -49,13 +49,13 @@ TEST(liveness, constant)
     EXPECT_EQ(0, sorted[0]->liveness_new_list.size());
     EXPECT_EQ(0, sorted[0]->liveness_free_list.size());
 
-    // op::Negative is live on output to op::Result
-    // op::Negative is new
+    // op::v0::Negative is live on output to op::v0::Result
+    // op::v0::Negative is new
     EXPECT_EQ(1, sorted[1]->liveness_new_list.size());
     EXPECT_EQ(0, sorted[1]->liveness_free_list.size());
 
-    // op::Negative is live on input to op::Result
+    // op::v0::Negative is live on input to op::v0::Result
     EXPECT_EQ(0, sorted[2]->liveness_new_list.size());
-    // op::Negative is freed
+    // op::v0::Negative is freed
     EXPECT_EQ(1, sorted[2]->liveness_free_list.size());
 }

@@ -30,8 +30,8 @@ using namespace ngraph;
 
 TEST(op_eval, swish_with_beta1)
 {
-    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
+    auto p = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+    auto beta = make_shared<op::v0::Parameter>(element::f32, Shape{});
     auto swish = make_shared<op::v4::Swish>(p, beta);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p, beta});
 
@@ -51,8 +51,8 @@ TEST(op_eval, swish_with_beta1)
 
 TEST(op_eval, swish_with_beta0_75)
 {
-    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
+    auto p = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+    auto beta = make_shared<op::v0::Parameter>(element::f32, Shape{});
     auto swish = make_shared<op::v4::Swish>(p, beta);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p, beta});
 
@@ -72,7 +72,7 @@ TEST(op_eval, swish_with_beta0_75)
 
 TEST(op_eval, swish_without_beta)
 {
-    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto p = make_shared<op::v0::Parameter>(element::f32, Shape{3});
     auto swish = make_shared<op::v4::Swish>(p);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p});
 

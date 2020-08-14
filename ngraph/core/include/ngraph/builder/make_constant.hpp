@@ -39,55 +39,55 @@ namespace ngraph
             switch (type)
             {
             case element::Type_t::f32:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<float>{static_cast<float>(num)});
                 break;
             case element::Type_t::f64:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<double>{static_cast<double>(num)});
                 break;
             case element::Type_t::f16:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type,
                     ngraph::Shape{},
                     std::vector<ngraph::float16>{ngraph::float16(static_cast<float>(num))});
                 break;
             case element::Type_t::bf16:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type,
                     ngraph::Shape{},
                     std::vector<ngraph::bfloat16>{ngraph::bfloat16(static_cast<float>(num))});
                 break;
             case element::Type_t::i64:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(num)});
                 break;
             case element::Type_t::i32:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<int32_t>{static_cast<int32_t>(num)});
                 break;
             case element::Type_t::i16:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<int16_t>{static_cast<int16_t>(num)});
                 break;
             case element::Type_t::i8:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<int8_t>{static_cast<int8_t>(num)});
                 break;
             case element::Type_t::u64:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<uint64_t>{static_cast<uint64_t>(num)});
                 break;
             case element::Type_t::u32:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<uint32_t>{static_cast<uint32_t>(num)});
                 break;
             case element::Type_t::u16:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<uint16_t>{static_cast<uint16_t>(num)});
                 break;
             case element::Type_t::u8:
-                val = std::make_shared<ngraph::op::Constant>(
+                val = std::make_shared<ngraph::op::v0::Constant>(
                     type, ngraph::Shape{}, std::vector<uint8_t>{static_cast<uint8_t>(num)});
                 break;
             case element::Type_t::dynamic:
@@ -110,7 +110,7 @@ namespace ngraph
                 {
                     axes.insert(i);
                 }
-                val = std::make_shared<ngraph::op::Broadcast>(val, shape, axes);
+                val = std::make_shared<ngraph::op::v0::Broadcast>(val, shape, axes);
             }
 
             return val->add_provenance_group_members_above({});

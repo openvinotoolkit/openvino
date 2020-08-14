@@ -28,13 +28,13 @@ TEST(type_prop, lstm_cell)
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
     const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
     const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto C_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
     EXPECT_EQ(lstm_cell->get_hidden_size(), hidden_size);
@@ -59,14 +59,14 @@ TEST(type_prop, lstm_cell_invalid_input)
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
     auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    auto H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto C_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     // Invalid W tensor shape.
-    auto W = make_shared<op::Parameter>(element::f32, Shape{1 * hidden_size, input_size});
+    auto W = make_shared<op::v0::Parameter>(element::f32, Shape{1 * hidden_size, input_size});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
@@ -78,8 +78,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
 
     // Invalid R tensor shape.
-    W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, 1});
+    W = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, 1});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
@@ -91,8 +91,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
 
     // Invalid H_t tensor shape.
-    R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
+    R = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{4, hidden_size});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
@@ -105,8 +105,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
 
     // Invalid C_t tensor shape.
-    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    C_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
+    H_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    C_t = make_shared<op::v0::Parameter>(element::f32, Shape{4, hidden_size});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
@@ -119,9 +119,9 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
 
     // Invalid B tensor shape.
-    C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{2 * gates_count * hidden_size});
-    auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
+    C_t = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{2 * gates_count * hidden_size});
+    auto P = make_shared<op::v0::Parameter>(element::f32, Shape{3 * hidden_size});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
@@ -133,8 +133,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
 
     // Invalid P tensor shape.
-    B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    P = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
+    B = make_shared<op::v0::Parameter>(element::f32, Shape{gates_count * hidden_size});
+    P = make_shared<op::v0::Parameter>(element::f32, Shape{hidden_size});
     try
     {
         const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);

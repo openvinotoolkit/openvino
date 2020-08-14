@@ -125,6 +125,5 @@ namespace ngraph
             };
         } // namespace v1
 
-        using v1::AvgPool;
     } // namespace op
 } // namespace ngraph

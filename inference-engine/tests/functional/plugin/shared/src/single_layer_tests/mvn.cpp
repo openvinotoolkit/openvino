@@ -52,7 +52,7 @@ void MvnLayerTest::SetUp() {
     std::tie(inputShapes, inputPrecision, acrossChanels, normalizeVariance, eps, targetDevice, configuration) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto param = ngraph::builder::makeParams(inType, {inputShapes});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(param));
     auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "mvn");

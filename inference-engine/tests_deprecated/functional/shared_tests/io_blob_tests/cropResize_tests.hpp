@@ -137,11 +137,11 @@ public:
     std::shared_ptr<ngraph::Function> createSubgraph(const SizeVector &dims, InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
         ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
 
-        auto param0 = std::make_shared<ngraph::op::Parameter>(type, ngraph::PartialShape{dims});
+        auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::PartialShape{dims});
         auto relu1 = std::make_shared<ngraph::opset1::Relu>(param0);
 
         ngraph::ParameterVector params = {param0};
-        ngraph::ResultVector results = {std::make_shared<ngraph::op::Result>(relu1)};
+        ngraph::ResultVector results = {std::make_shared<ngraph::op::v0::Result>(relu1)};
 
         auto fn_ptr = std::make_shared<ngraph::Function>(results, params);
         return fn_ptr;

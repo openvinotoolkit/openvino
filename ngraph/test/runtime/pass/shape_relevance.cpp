@@ -94,7 +94,7 @@ bool pass::ShapeRelevance::run_on_function(std::shared_ptr<Function> f)
 
             if (op::is_parameter(node))
             {
-                auto node_as_param = static_cast<op::Parameter*>(node);
+                auto node_as_param = static_cast<op::v0::Parameter*>(node);
                 if (!node_as_param->is_relevant_to_shapes())
                 {
                     node_as_param->set_is_relevant_to_shapes(true);

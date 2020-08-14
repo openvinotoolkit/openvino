@@ -81,13 +81,13 @@ std::shared_ptr<Function> createNgraphFunction() {
     std::vector<ptrdiff_t> padBegin{ 0, 0 };
     std::vector<ptrdiff_t> padEnd{ 0, 0 };
 
-    auto paramNode = std::make_shared<op::Parameter>(
+    auto paramNode = std::make_shared<op::v0::Parameter>(
         element::Type_t::f32, Shape(std::vector<size_t>{ {64, 1, 28, 28}}));
     paramNode->set_friendly_name("Parameter");
 
     // -------convolution 1----
     auto convFirstShape = Shape{ 20, 1, 5, 5 };
-    std::shared_ptr<Node> convolutionFirstConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> convolutionFirstConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, convFirstShape, weightsPtr->cbuffer().as<uint8_t*>());
 
     std::shared_ptr<Node> convolutionNodeFirst = std::make_shared<op::v1::Convolution>(
@@ -97,7 +97,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------Add--------------
     auto addFirstShape = Shape{ 1, 20, 1, 1 };
     auto offset = shape_size(convFirstShape) * sizeof(float);
-    std::shared_ptr<Node> addFirstConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> addFirstConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, addFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> addNodeFirst =
@@ -114,7 +114,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------convolution 2----
     auto convSecondShape = Shape{ 50, 20, 5, 5 };
     offset += shape_size(addFirstShape) * sizeof(float);
-    std::shared_ptr<Node> convolutionSecondConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> convolutionSecondConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, convSecondShape,
         (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
@@ -125,7 +125,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------Add 2------------
     auto addSecondShape = Shape{ 1, 50, 1, 1 };
     offset += shape_size(convSecondShape) * sizeof(float);
-    std::shared_ptr<Node> addSecondConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> addSecondConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, addSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> addNodeSecond =
@@ -139,7 +139,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------Reshape----------
     auto reshapeFirstShape = Shape{ 2 };
     auto reshapeOffset = shape_size(addSecondShape) * sizeof(float) + offset;
-    std::shared_ptr<Node> reshapeFirstConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> reshapeFirstConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::i64, reshapeFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
 
     std::shared_ptr<Node> reshapeFirstNode =
@@ -148,7 +148,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------MatMul 1---------
     auto matMulFirstShape = Shape{ 500, 800 };
     offset = shape_size(reshapeFirstShape) * sizeof(int64_t) + reshapeOffset;
-    std::shared_ptr<Node> matMulFirstConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> matMulFirstConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, matMulFirstShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> matMulFirstNode =
@@ -157,18 +157,18 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------Add 3------------
     auto addThirdShape = Shape{1, 500};
     offset += shape_size(matMulFirstShape) * sizeof(float);
-    std::shared_ptr<Node> addThirdConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> addThirdConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, addThirdShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> addThirdNode =
         std::make_shared<op::v1::Add>(matMulFirstNode->output(0), addThirdConstantNode->output(0));
 
     // -------Relu-------------
-    std::shared_ptr<Node> reluNode = std::make_shared<op::Relu>(addThirdNode->output(0));
+    std::shared_ptr<Node> reluNode = std::make_shared<op::v0::Relu>(addThirdNode->output(0));
 
     // -------Reshape 2--------
     auto reshapeSecondShape = Shape{ 2 };
-    std::shared_ptr<Node> reshapeSecondConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> reshapeSecondConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::i64, reshapeSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + reshapeOffset));
 
     std::shared_ptr<Node> reshapeSecondNode =
@@ -177,7 +177,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------MatMul 2---------
     auto matMulSecondShape = Shape{ 10, 500 };
     offset += shape_size(addThirdShape) * sizeof(float);
-    std::shared_ptr<Node> matMulSecondConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> matMulSecondConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, matMulSecondShape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> matMulSecondNode =
@@ -186,7 +186,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     // -------Add 4------------
     auto add4Shape = Shape{ 1, 10 };
     offset += shape_size(matMulSecondShape) * sizeof(float);
-    std::shared_ptr<Node> add4ConstantNode = std::make_shared<op::Constant>(
+    std::shared_ptr<Node> add4ConstantNode = std::make_shared<op::v0::Constant>(
         element::Type_t::f32, add4Shape, (weightsPtr->cbuffer().as<uint8_t*>() + offset));
 
     std::shared_ptr<Node> add4Node = std::make_shared<op::v1::Add>(matMulSecondNode->output(0), add4ConstantNode->output(0));
@@ -195,7 +195,7 @@ std::shared_ptr<Function> createNgraphFunction() {
     std::shared_ptr<Node> softMaxNode = std::make_shared<op::v1::Softmax>(add4Node->output(0), 1);
 
     // -------ngraph function--
-    auto result_full = std::make_shared<op::Result>(softMaxNode->output(0));
+    auto result_full = std::make_shared<op::v0::Result>(softMaxNode->output(0));
 
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(
         result_full, ngraph::ParameterVector{ paramNode }, "lenet");

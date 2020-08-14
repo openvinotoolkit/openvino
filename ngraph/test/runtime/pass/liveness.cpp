@@ -39,7 +39,7 @@ bool pass::Liveness::run_on_function(shared_ptr<Function> function)
 
     unordered_set<descriptor::Tensor*> persistent_tensors;
     unordered_set<descriptor::Tensor*> output_tensors;
-    for (const shared_ptr<op::Parameter>& node : function->get_parameters())
+    for (const shared_ptr<op::v0::Parameter>& node : function->get_parameters())
     {
         for (auto& output : node->outputs())
         {
@@ -47,7 +47,7 @@ bool pass::Liveness::run_on_function(shared_ptr<Function> function)
             persistent_tensors.insert(&tensor);
         }
     }
-    for (const shared_ptr<op::Result>& node : function->get_results())
+    for (const shared_ptr<op::v0::Result>& node : function->get_results())
     {
         for (auto& output : node->outputs())
         {
@@ -58,7 +58,7 @@ bool pass::Liveness::run_on_function(shared_ptr<Function> function)
     }
     for (const shared_ptr<Node>& node : ops)
     {
-        if (auto constant_node = as_type_ptr<op::Constant>(node))
+        if (auto constant_node = as_type_ptr<op::v0::Constant>(node))
         {
             for (auto& output : constant_node->outputs())
             {

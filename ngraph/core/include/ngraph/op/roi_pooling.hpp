@@ -59,6 +59,5 @@ namespace ngraph
                 std::string m_method;
             };
         }
-        using v0::ROIPooling;
     }
 }

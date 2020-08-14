@@ -44,4 +44,4 @@ enum class CONVERSION_RESULT {
  */
 
 TRANSFORMATIONS_API CONVERSION_RESULT
-check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);
+check_constant(const std::shared_ptr<ngraph::op::v0::Constant> & constant, const ngraph::PartialShape & shape);

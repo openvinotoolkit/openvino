@@ -48,9 +48,9 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, layer_norm_affine_stats)
 {
-    auto p_data = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto p_scale = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto p_bias = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto p_data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto p_scale = make_shared<op::v0::Parameter>(element::f32, Shape{4});
+    auto p_bias = make_shared<op::v0::Parameter>(element::f32, Shape{4});
     auto ln = make_shared<op::LayerNorm>(p_data, p_scale, p_bias);
     auto f = make_shared<Function>(ln->outputs(), ParameterVector{p_data, p_scale, p_bias});
 

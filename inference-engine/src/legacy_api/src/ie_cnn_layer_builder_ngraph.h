@@ -68,7 +68,7 @@ public:
 private:
     class ConstAllocatorWrapper : public IAllocator {
     public:
-        explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
+        explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::v0::Constant> constOp): _constOp(std::move(constOp)) {}
 
         void Release() noexcept override {
             delete this;
@@ -89,10 +89,10 @@ private:
         }
 
     private:
-        std::shared_ptr<ngraph::op::Constant> _constOp;
+        std::shared_ptr<ngraph::op::v0::Constant> _constOp;
     };
 
-    Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) const {
+    Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::v0::Constant>& constLayer) const {
         if (!constLayer) THROW_IE_EXCEPTION << "Cannot share weights! Constant operation is empty!";
         auto dataPrecision = details::convertPrecision(constLayer->get_element_type());
 

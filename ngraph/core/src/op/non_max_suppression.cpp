@@ -48,9 +48,9 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
     const bool sort_result_descending)
     : Op({boxes,
           scores,
-          op::Constant::create(element::i64, Shape{}, {0}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+          op::v0::Constant::create(element::i64, Shape{}, {0}),
+          op::v0::Constant::create(element::f32, Shape{}, {.0f}),
+          op::v0::Constant::create(element::f32, Shape{}, {.0f})})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
 {
@@ -67,13 +67,13 @@ shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                           : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v1::NonMaxSuppression>(
         new_args.at(0), new_args.at(1), arg2, arg3, arg4, m_box_encoding, m_sort_result_descending);
@@ -187,7 +187,7 @@ int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
     int64_t max_output_boxes{0};
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -245,9 +245,9 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
     const element::Type& output_type)
     : Op({boxes,
           scores,
-          op::Constant::create(element::i64, Shape{}, {0}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+          op::v0::Constant::create(element::i64, Shape{}, {0}),
+          op::v0::Constant::create(element::f32, Shape{}, {.0f}),
+          op::v0::Constant::create(element::f32, Shape{}, {.0f})})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -265,13 +265,13 @@ shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                           : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -402,7 +402,7 @@ int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
     int64_t max_output_boxes{0};
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -464,9 +464,9 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     const element::Type& output_type)
     : op::v3::NonMaxSuppression(boxes,
                                 scores,
-                                op::Constant::create(element::i64, Shape{}, {0}),
-                                op::Constant::create(element::f32, Shape{}, {.0f}),
-                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::v0::Constant::create(element::i64, Shape{}, {0}),
+                                op::v0::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::v0::Constant::create(element::f32, Shape{}, {.0f}),
                                 box_encoding,
                                 sort_result_descending,
                                 output_type)
@@ -484,13 +484,13 @@ shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                           : ngraph::op::v0::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           : ngraph::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),

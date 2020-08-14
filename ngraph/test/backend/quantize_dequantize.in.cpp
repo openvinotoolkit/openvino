@@ -42,13 +42,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize)
     typedef float input_c_type;
     typedef uint8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {1});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {1});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -79,10 +79,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize)
     typedef uint8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {1});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -114,13 +115,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
     typedef float input_c_type;
     typedef uint8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -151,10 +152,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_zero_offset)
     typedef uint8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {0});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -186,13 +188,14 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
     typedef float input_c_type;
     typedef uint8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
+    op::v0::Quantize::RoundMode round_mode =
+        op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2, 3, 4, 5});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {10, 20, 30, 40});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2, 3, 4, 5});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {10, 20, 30, 40});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -223,10 +226,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_axes)
     typedef uint8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2, 3, 4, 5});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {10, 20, 30, 40});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2, 3, 4, 5});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {10, 20, 30, 40});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -258,13 +262,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {1});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {1});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -295,10 +299,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8)
     typedef int8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {1});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -331,13 +336,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -368,10 +373,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8_zero_offset)
     typedef int8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {0});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -404,13 +410,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
     typedef float input_c_type;
     typedef int32_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {1});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {1});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -441,10 +447,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32)
     typedef int32_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {1});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -477,13 +484,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
     typedef float input_c_type;
     typedef int32_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -514,10 +521,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32_zero_offset)
     typedef int32_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(output_type, scale_offset_shape, {2});
+    auto offset = op::v0::Constant::create(input_type, scale_offset_shape, {0});
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -550,15 +558,15 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_uint8)
     typedef float input_c_type;
     typedef uint8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
     auto max = std::numeric_limits<uint8_t>::max();
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -585,16 +593,16 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int8)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
     auto min = std::numeric_limits<int8_t>::min();
     auto max = std::numeric_limits<int8_t>::max();
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -622,16 +630,16 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int32)
     typedef double input_c_type;
     typedef int32_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
     auto min = std::numeric_limits<int32_t>::min();
     auto max = std::numeric_limits<int32_t>::max();
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {1.0 / (max + 1.0)});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -658,13 +666,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_ZERO)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_ZERO;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_ZERO;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -693,13 +701,14 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_INFINITY)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
+    op::v0::Quantize::RoundMode round_mode =
+        op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -728,13 +737,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_UPWARD)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_UPWARD;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_UPWARD;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -763,13 +772,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_DOWNWARD)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_DOWNWARD;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_DOWNWARD;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -798,13 +807,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_EVEN)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -833,18 +842,18 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_INFINITY)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_TOWARD_INFINITY;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_TOWARD_INFINITY;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
-    auto quantize = make_shared<op::Quantize>(
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
+    auto quantize = make_shared<op::v0::Quantize>(
         X,
         scale,
         offset,
         output_type,
         quantization_axes,
-        static_cast<op::Quantize::RoundMode>(static_cast<int>(round_mode)));
+        static_cast<op::v0::Quantize::RoundMode>(static_cast<int>(round_mode)));
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -873,18 +882,18 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_ZERO)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_TOWARD_ZERO;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_TOWARD_ZERO;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
-    auto quantize = make_shared<op::Quantize>(
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
+    auto quantize = make_shared<op::v0::Quantize>(
         X,
         scale,
         offset,
         output_type,
         quantization_axes,
-        static_cast<op::Quantize::RoundMode>(static_cast<int>(round_mode)));
+        static_cast<op::v0::Quantize::RoundMode>(static_cast<int>(round_mode)));
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -913,13 +922,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_UP)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_UP;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_UP;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -948,13 +957,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
     typedef float input_c_type;
     typedef int8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_DOWN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_DOWN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(input_type, scale_offset_shape, {4});
-    auto offset = op::Constant::create(output_type, scale_offset_shape, {0});
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = op::v0::Constant::create(input_type, scale_offset_shape, {4});
+    auto offset = op::v0::Constant::create(output_type, scale_offset_shape, {0});
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -983,10 +992,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_dynamic_offset)
     typedef uint8_t input_c_type;
     typedef float output_c_type;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = make_shared<op::Parameter>(output_type, scale_offset_shape);
-    auto offset = make_shared<op::Parameter>(input_type, scale_offset_shape);
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = make_shared<op::v0::Parameter>(output_type, scale_offset_shape);
+    auto offset = make_shared<op::v0::Parameter>(input_type, scale_offset_shape);
+    auto dequantize =
+        make_shared<op::v0::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X, scale, offset});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -1018,13 +1028,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)
     typedef float input_c_type;
     typedef uint8_t output_c_type;
 
-    op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+    op::v0::Quantize::RoundMode round_mode = op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
 
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = make_shared<op::Parameter>(input_type, scale_offset_shape);
-    auto offset = make_shared<op::Parameter>(output_type, scale_offset_shape);
+    auto X = make_shared<op::v0::Parameter>(input_type, input_shape);
+    auto scale = make_shared<op::v0::Parameter>(input_type, scale_offset_shape);
+    auto offset = make_shared<op::v0::Parameter>(output_type, scale_offset_shape);
     auto quantize =
-        make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
+        make_shared<op::v0::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X, scale, offset});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

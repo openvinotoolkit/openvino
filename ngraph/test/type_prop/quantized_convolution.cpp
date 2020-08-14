@@ -40,28 +40,28 @@ TEST(type_prop, quantized_conv_8_bit_output)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
-    auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                            filter,
-                                                            strides,
-                                                            dilation,
-                                                            padding_below,
-                                                            padding_above,
-                                                            dilation,
-                                                            scale,
-                                                            u8_zero_point,
-                                                            scale,
-                                                            i8_zero_point,
-                                                            scale,
-                                                            i8_zero_point,
-                                                            output_type,
-                                                            axes,
-                                                            axes,
-                                                            axes);
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
+    auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                filter,
+                                                                strides,
+                                                                dilation,
+                                                                padding_below,
+                                                                padding_above,
+                                                                dilation,
+                                                                scale,
+                                                                u8_zero_point,
+                                                                scale,
+                                                                i8_zero_point,
+                                                                scale,
+                                                                i8_zero_point,
+                                                                output_type,
+                                                                axes,
+                                                                axes,
+                                                                axes);
 
     ASSERT_EQ(quant_conv->get_element_type(), output_type);
     ASSERT_EQ(quant_conv->get_shape(), output_shape);
@@ -87,28 +87,28 @@ TEST(type_prop, quantized_conv_32_bit_output)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
-    auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                            filter,
-                                                            strides,
-                                                            dilation,
-                                                            padding_below,
-                                                            padding_above,
-                                                            dilation,
-                                                            scale,
-                                                            u8_zero_point,
-                                                            scale,
-                                                            i8_zero_point,
-                                                            scale,
-                                                            i8_zero_point,
-                                                            output_type,
-                                                            axes,
-                                                            axes,
-                                                            axes);
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
+    auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                filter,
+                                                                strides,
+                                                                dilation,
+                                                                padding_below,
+                                                                padding_above,
+                                                                dilation,
+                                                                scale,
+                                                                u8_zero_point,
+                                                                scale,
+                                                                i8_zero_point,
+                                                                scale,
+                                                                i8_zero_point,
+                                                                output_type,
+                                                                axes,
+                                                                axes,
+                                                                axes);
 
     ASSERT_EQ(quant_conv->get_element_type(), output_type);
     ASSERT_EQ(quant_conv->get_shape(), output_shape);
@@ -133,30 +133,30 @@ TEST(type_prop, quantized_conv_non_quantized_input_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                u8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    u8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non-quantized input not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -188,30 +188,30 @@ TEST(type_prop, quantized_conv_non_quantized_filter_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                u8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    u8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non-quantized filter not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -243,30 +243,30 @@ TEST(type_prop, quantized_conv_dyn_output_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                u8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    u8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use dynamic output type not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -298,30 +298,30 @@ TEST(type_prop, quantized_conv_non_floating_point_scale_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto i8_zero_point = make_shared<op::Parameter>(element::i8, Shape{});
-    auto u8_zero_point = make_shared<op::Parameter>(element::u8, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto i8_zero_point = make_shared<op::v0::Parameter>(element::i8, Shape{});
+    auto u8_zero_point = make_shared<op::v0::Parameter>(element::u8, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                u8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                scale,
-                                                                i8_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    u8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    scale,
+                                                                    i8_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non floating point scale not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -353,31 +353,31 @@ TEST(type_prop, quantized_conv_input_zero_point_type_mismatch_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use zero point type different from input type not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -410,31 +410,31 @@ TEST(type_prop, quantized_conv_filter_zero_point_type_mismatch_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use zero point type different from filter type not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -468,31 +468,31 @@ TEST(type_prop, quantized_conv_non_scalar_input_zero_point_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{1, 2});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{1, 2});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non scalar input zero point not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -525,31 +525,31 @@ TEST(type_prop, quantized_conv_non_scalar_filter_zero_point_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{1, 2});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{1, 2});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non scalar filter zero point not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -582,31 +582,31 @@ TEST(type_prop, quantized_conv_non_scalar_output_zero_point_fails)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{1, 2});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{1, 2});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non scalar output zero point not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -639,31 +639,31 @@ TEST(type_prop, quantized_conv_non_empty_input_axes)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                AxisSet{1},
-                                                                axes,
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    AxisSet{1},
+                                                                    axes,
+                                                                    axes);
         FAIL() << "Attempt to use non empty input axes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -695,31 +695,31 @@ TEST(type_prop, quantized_conv_non_empty_filter_axes)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                AxisSet{1},
-                                                                axes);
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    AxisSet{1},
+                                                                    axes);
         FAIL() << "Attempt to use non empty filter axes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -751,31 +751,31 @@ TEST(type_prop, quantized_conv_non_empty_output_axes)
     Shape output_shape{64, 64, 220, 220};
     AxisSet axes{};
 
-    auto input = make_shared<op::Parameter>(input_type, Shape{64, 3, 224, 224});
-    auto filter = make_shared<op::Parameter>(filter_type, Shape{64, 3, 7, 7});
-    auto scale = make_shared<op::Parameter>(scale_type, Shape{});
-    auto input_zero_point = make_shared<op::Parameter>(input_zero_point_type, Shape{});
-    auto filter_zero_point = make_shared<op::Parameter>(filter_zero_point_type, Shape{});
-    auto output_zero_point = make_shared<op::Parameter>(output_zero_point_type, Shape{});
+    auto input = make_shared<op::v0::Parameter>(input_type, Shape{64, 3, 224, 224});
+    auto filter = make_shared<op::v0::Parameter>(filter_type, Shape{64, 3, 7, 7});
+    auto scale = make_shared<op::v0::Parameter>(scale_type, Shape{});
+    auto input_zero_point = make_shared<op::v0::Parameter>(input_zero_point_type, Shape{});
+    auto filter_zero_point = make_shared<op::v0::Parameter>(filter_zero_point_type, Shape{});
+    auto output_zero_point = make_shared<op::v0::Parameter>(output_zero_point_type, Shape{});
     try
     {
-        auto quant_conv = make_shared<op::QuantizedConvolution>(input,
-                                                                filter,
-                                                                strides,
-                                                                dilation,
-                                                                padding_below,
-                                                                padding_above,
-                                                                dilation,
-                                                                scale,
-                                                                input_zero_point,
-                                                                scale,
-                                                                filter_zero_point,
-                                                                scale,
-                                                                output_zero_point,
-                                                                output_type,
-                                                                axes,
-                                                                axes,
-                                                                AxisSet{1});
+        auto quant_conv = make_shared<op::v0::QuantizedConvolution>(input,
+                                                                    filter,
+                                                                    strides,
+                                                                    dilation,
+                                                                    padding_below,
+                                                                    padding_above,
+                                                                    dilation,
+                                                                    scale,
+                                                                    input_zero_point,
+                                                                    scale,
+                                                                    filter_zero_point,
+                                                                    scale,
+                                                                    output_zero_point,
+                                                                    output_type,
+                                                                    axes,
+                                                                    axes,
+                                                                    AxisSet{1});
         FAIL() << "Attempt to use non empty output axes not detected";
     }
     catch (const NodeValidationFailure& error)

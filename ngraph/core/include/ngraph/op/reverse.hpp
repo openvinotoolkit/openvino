@@ -132,8 +132,6 @@ namespace ngraph
                 Mode m_mode;
             };
         }
-        // default opset version
-        using v0::Reverse;
     }
 
     NGRAPH_API

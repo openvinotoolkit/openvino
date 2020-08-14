@@ -32,8 +32,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, reverse_0d)
 {
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -51,8 +51,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_0d)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_1d_nochange)
 {
     Shape shape{8};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -71,8 +71,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_1d_nochange)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_1d_0)
 {
     Shape shape{8};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -91,8 +91,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_1d_0)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_nochange)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -113,8 +113,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_nochange)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_0)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -135,8 +135,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_0)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -157,8 +157,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f =
+        make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -179,8 +180,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_nochange)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -205,8 +206,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_nochange)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_0)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -231,8 +232,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_0)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_1)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -257,8 +258,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_1)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_2)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -283,8 +284,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_01)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f =
+        make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -309,8 +311,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_01)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_02)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f =
+        make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0, 2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -335,8 +338,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_02)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_12)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{1, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f =
+        make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{1, 2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -361,9 +365,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_12)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::Reverse>(A, AxisSet{0, 1, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Reverse>(A, AxisSet{0, 1, 2}),
+                                   ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -387,8 +391,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 {
-    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = make_shared<op::Parameter>(element::i64, Shape{1, 1}); // correct: 1D
+    const auto Data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = make_shared<op::v0::Parameter>(element::i64, Shape{1, 1}); // correct: 1D
 
     EXPECT_THROW(make_shared<Function>(
                      make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
@@ -398,8 +402,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
 {
-    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = make_shared<op::Parameter>(element::boolean, Shape{2}); // correct: 3
+    const auto Data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = make_shared<op::v0::Parameter>(element::boolean, Shape{2}); // correct: 3
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
                  ngraph::NodeValidationFailure);
@@ -407,8 +411,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
 {
-    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::Constant::create(element::i64, Shape{2}, {1, 10});
+    const auto Data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 10});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);
@@ -416,8 +420,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_too_many_axes)
 {
-    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+    const auto Data = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);

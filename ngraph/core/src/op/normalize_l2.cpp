@@ -90,7 +90,7 @@ AxisSet op::NormalizeL2::get_reduction_axes() const
 {
     AxisSet axes;
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = as_type_ptr<op::v0::Constant>(axes_input_node))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -108,7 +108,7 @@ OutputVector op::NormalizeL2::decompose_op() const
     const auto axes = input_value(1);
     Output<Node> norm = builder::opset1::l2_norm(data, axes, m_eps, builder_bias_mode, true);
 
-    data = make_shared<op::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+    data = make_shared<op::v0::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     return OutputVector{data};
 }

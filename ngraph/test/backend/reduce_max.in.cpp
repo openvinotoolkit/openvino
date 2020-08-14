@@ -31,8 +31,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -48,8 +48,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::i8, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -65,9 +65,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -83,9 +83,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -101,9 +101,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -119,9 +119,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -140,9 +140,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero_int32)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -168,9 +168,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_cols_zero)
 {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -192,9 +192,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_cols_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_vector_zero)
 {
     Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -214,9 +214,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_vector_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_to_scalar_zero_by_zero)
 {
     Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -236,9 +236,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_to_scalar_zero_by_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -255,9 +255,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_most_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_least_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 2);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 2);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -274,9 +274,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_least_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_vector)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -293,9 +293,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_vector)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -312,9 +312,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -334,9 +334,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar_double)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f64, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -356,9 +356,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar_double)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_eliminate_zero_dim)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -385,8 +385,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_eliminate_zero_dim)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -405,8 +405,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::i8, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -425,9 +425,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -446,9 +446,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -467,9 +467,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -488,9 +488,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_zero)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -513,9 +513,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_zero_int32)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -541,9 +541,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_cols_zero)
 {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -565,9 +565,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_cols_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_vector_zero)
 {
     Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -587,9 +587,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_vector_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_to_scalar_zero_by_zero)
 {
     Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -609,9 +609,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_to_scalar_zero_by_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -633,9 +633,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_matrix_most_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_matrix_least_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 2);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 2);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -657,9 +657,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_matrix_least_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_vector)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 1, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -681,9 +681,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_vector)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -704,9 +704,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -726,9 +726,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar_double)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f64, shape_a);
     Shape shape_rt{1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -748,9 +748,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_to_scalar_double)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_eliminate_zero_dim)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -776,8 +776,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_3d_eliminate_zero_dim)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -796,8 +796,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
@@ -816,8 +816,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 
@@ -836,8 +836,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_keep_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, true), ParameterVector{A});
 

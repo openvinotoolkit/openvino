@@ -33,8 +33,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -54,8 +54,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::i8, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -74,9 +74,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -96,9 +96,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -118,9 +118,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -141,8 +141,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -162,8 +162,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::v0::Parameter>(element::i8, shape);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -182,9 +182,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -204,9 +204,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -226,9 +226,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -248,8 +248,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_int32)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -269,8 +269,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -290,8 +290,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -311,8 +311,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 

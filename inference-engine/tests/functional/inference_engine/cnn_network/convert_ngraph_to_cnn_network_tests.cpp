@@ -22,7 +22,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
         auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
         auto prelu = std::make_shared<ngraph::opset1::PRelu>(param1, param2);
         prelu->set_friendly_name("prelu");
-        auto result = std::make_shared<ngraph::op::Result>(prelu);
+        auto result = std::make_shared<ngraph::op::v0::Result>(prelu);
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
@@ -51,7 +51,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
                                                                   ngraph::CoordinateDiff{0, 0},
                                                                   ngraph::CoordinateDiff{0, 0});
         convolution->set_friendly_name("convolution");
-        auto result = std::make_shared<ngraph::op::Result>(convolution);
+        auto result = std::make_shared<ngraph::op::v0::Result>(convolution);
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});

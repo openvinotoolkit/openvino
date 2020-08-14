@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, space_to_depth_output_shape_block_first_4D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
 
@@ -33,7 +33,7 @@ TEST(type_prop, space_to_depth_output_shape_block_first_4D)
 
 TEST(type_prop, space_to_depth_output_shape_block_first_4D_2)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
@@ -43,7 +43,7 @@ TEST(type_prop, space_to_depth_output_shape_block_first_4D_2)
 
 TEST(type_prop, space_to_depth_output_shape_depth_first_4D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
@@ -53,7 +53,7 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_4D)
 
 TEST(type_prop, space_to_depth_output_shape_depth_first_5D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 4, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 4, 1080, 1616});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
@@ -63,7 +63,7 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_5D)
 
 TEST(type_prop, space_to_depth_input_rank_not_supported)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 8});
     try
     {
         auto space_to_depth =
@@ -84,7 +84,7 @@ TEST(type_prop, space_to_depth_input_rank_not_supported)
 
 TEST(type_prop, space_to_depth_blocksize_not_matched)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 3, 8, 7});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 8, 7});
     try
     {
         auto space_to_depth =

@@ -37,28 +37,28 @@ NGRAPH_TEST(${BACKEND_NAME}, quantized_conv_int32_output)
     Shape shape_r{1, 1, 3, 4};
     vector<uint8_t> a_data = {1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4};
     vector<uint8_t> b_data = {1, 2, 3, 4, 5, 0, 0, 1, 2};
-    auto A = make_shared<op::Parameter>(element::u8, shape_a);
-    auto B = make_shared<op::Parameter>(element::u8, shape_b);
-    auto C = make_shared<op::Parameter>(element::f32, Shape{});
-    auto D = op::Constant::create(element::u8, Shape{}, {0});
-    auto E = make_shared<op::Parameter>(element::f32, Shape{});
-    auto F = op::Constant::create(element::u8, Shape{}, {0});
-    auto G = make_shared<op::Parameter>(element::f32, Shape{});
-    auto H = op::Constant::create(element::i32, Shape{}, {0});
-    auto CV = make_shared<op::QuantizedConvolution>(A,
-                                                    B,
-                                                    Strides{1, 1},
-                                                    Strides{1, 1},
-                                                    CoordinateDiff{1, 1},
-                                                    CoordinateDiff{1, 1},
-                                                    Strides{1, 1},
-                                                    C,
-                                                    D,
-                                                    E,
-                                                    F,
-                                                    G,
-                                                    H,
-                                                    element::i32);
+    auto A = make_shared<op::v0::Parameter>(element::u8, shape_a);
+    auto B = make_shared<op::v0::Parameter>(element::u8, shape_b);
+    auto C = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto D = op::v0::Constant::create(element::u8, Shape{}, {0});
+    auto E = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto F = op::v0::Constant::create(element::u8, Shape{}, {0});
+    auto G = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto H = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto CV = make_shared<op::v0::QuantizedConvolution>(A,
+                                                        B,
+                                                        Strides{1, 1},
+                                                        Strides{1, 1},
+                                                        CoordinateDiff{1, 1},
+                                                        CoordinateDiff{1, 1},
+                                                        Strides{1, 1},
+                                                        C,
+                                                        D,
+                                                        E,
+                                                        F,
+                                                        G,
+                                                        H,
+                                                        element::i32);
     auto f = make_shared<Function>(NodeVector{CV}, ParameterVector{A, B, C, E, G});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

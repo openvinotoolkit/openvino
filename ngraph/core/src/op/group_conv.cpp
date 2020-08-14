@@ -39,7 +39,7 @@ NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const
 {
-    return op::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }
 
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
@@ -269,7 +269,7 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic)
     {
-        return !is_type<op::Constant>(input_value(2).get_node());
+        return !is_type<op::v0::Constant>(input_value(2).get_node());
     }
     return is_dynamic;
 }
@@ -290,7 +290,7 @@ const PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
+        if (auto const_op = as_type<op::v0::Constant>(input_value(2).get_node()))
         {
             shape = const_op->get_shape_val();
         }
@@ -305,7 +305,7 @@ const PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_
 void op::v1::GroupConvolutionBackpropData::set_output_shape(const Shape& shape)
 {
     this->input(2).replace_source_output(
-        op::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)
+        op::v0::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)
             ->output(0));
 }
 
@@ -547,7 +547,7 @@ OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
     }
 
     size_t concatenation_axis = 1;
-    return {std::make_shared<ngraph::op::Concat>(conv_groups, concatenation_axis)};
+    return {std::make_shared<ngraph::op::v0::Concat>(conv_groups, concatenation_axis)};
 }
 
 shared_ptr<Node>

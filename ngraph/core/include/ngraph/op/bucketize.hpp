@@ -65,6 +65,5 @@ namespace ngraph
                 bool m_with_right_bound;
             };
         }
-        using v3::Bucketize;
     }
 }

@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, swish)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6});
     auto swish_func = make_shared<op::v4::Swish>(data);
     EXPECT_EQ(swish_func->get_element_type(), element::f32);
     EXPECT_EQ(swish_func->get_shape(), data->get_output_shape(0));
@@ -31,7 +31,8 @@ TEST(type_prop, swish)
 
 TEST(type_prop, swish_partial)
 {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto swish_func = make_shared<op::v4::Swish>(data);
     EXPECT_EQ(swish_func->get_element_type(), element::f32);
     ASSERT_TRUE(
@@ -39,13 +40,14 @@ TEST(type_prop, swish_partial)
 
     // rank unknown
     auto swish_partial = make_shared<op::v4::Swish>(
-        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+        make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(swish_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, swish_partial_static_rank)
 {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto swish_func = make_shared<op::v4::Swish>(data);
     EXPECT_EQ(swish_func->get_element_type(), element::f32);
     ASSERT_TRUE(
@@ -55,8 +57,8 @@ TEST(type_prop, swish_partial_static_rank)
 
 TEST(type_prop, swish_incompatible_types)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
-    auto beta = make_shared<op::Parameter>(element::f16, Shape{});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6});
+    auto beta = make_shared<op::v0::Parameter>(element::f16, Shape{});
     try
     {
         const auto swish_func = make_shared<op::v4::Swish>(data, beta);
@@ -70,8 +72,8 @@ TEST(type_prop, swish_incompatible_types)
 
 TEST(type_prop, swish_beta_not_scalar)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
-    auto beta = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6});
+    auto beta = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     try
     {
         const auto swish_func = make_shared<op::v4::Swish>(data, beta);
@@ -85,8 +87,8 @@ TEST(type_prop, swish_beta_not_scalar)
 
 TEST(type_prop, swish_2_inputs)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
-    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6});
+    auto beta = make_shared<op::v0::Parameter>(element::f32, Shape{});
     const auto swish_func = make_shared<op::v4::Swish>(data, beta);
 
     EXPECT_EQ(swish_func->get_element_type(), element::f32);

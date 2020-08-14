@@ -206,12 +206,12 @@ protected:
 
         const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
-        const auto& tensor = std::make_shared<ngraph::op::Parameter>(inPrecision, ngraph::Shape{inputData.size()});
-        const auto& nonZero = std::make_shared<ngraph::op::NonZero>(tensor);
-        const auto& gatherIndices = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        const auto& tensor = std::make_shared<ngraph::op::v0::Parameter>(inPrecision, ngraph::Shape{inputData.size()});
+        const auto& nonZero = std::make_shared<ngraph::op::v3::NonZero>(tensor);
+        const auto& gatherIndices = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                                ngraph::Shape{1},
                                                                                std::vector<int64_t>{0});
-        const auto& gatherAxis = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        const auto& gatherAxis = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{1},
                                                                             std::vector<int64_t>{1});
         const auto& gather = std::make_shared<ngraph::opset1::Gather>(nonZero->output(0), gatherIndices, gatherAxis);

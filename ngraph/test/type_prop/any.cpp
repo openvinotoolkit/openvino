@@ -23,53 +23,53 @@ using namespace ngraph;
 
 TEST(type_prop, any_deduce)
 {
-    auto param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto param_0 = make_shared<op::v0::Parameter>(element::boolean, Shape{2, 4});
 
-    auto r0 = make_shared<op::Any>(param_0, AxisSet{0});
+    auto r0 = make_shared<op::v0::Any>(param_0, AxisSet{0});
     ASSERT_EQ(r0->get_element_type(), element::boolean);
     ASSERT_EQ(r0->get_shape(), (Shape{4}));
 
-    auto r1 = make_shared<op::Any>(param_0, AxisSet{1});
+    auto r1 = make_shared<op::v0::Any>(param_0, AxisSet{1});
     ASSERT_EQ(r1->get_element_type(), element::boolean);
     ASSERT_EQ(r1->get_shape(), (Shape{2}));
 
-    auto r01 = make_shared<op::Any>(param_0, AxisSet{0, 1});
+    auto r01 = make_shared<op::v0::Any>(param_0, AxisSet{0, 1});
     ASSERT_EQ(r01->get_element_type(), element::boolean);
     ASSERT_EQ(r01->get_shape(), (Shape{}));
 
-    auto r_none = make_shared<op::Any>(param_0, AxisSet{});
+    auto r_none = make_shared<op::v0::Any>(param_0, AxisSet{});
     ASSERT_EQ(r_none->get_element_type(), element::boolean);
     ASSERT_EQ(r_none->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, any_deduce_et_dynamic)
 {
-    auto param_0 = make_shared<op::Parameter>(element::dynamic, Shape{2, 4});
+    auto param_0 = make_shared<op::v0::Parameter>(element::dynamic, Shape{2, 4});
 
-    auto r0 = make_shared<op::Any>(param_0, AxisSet{0});
+    auto r0 = make_shared<op::v0::Any>(param_0, AxisSet{0});
     ASSERT_EQ(r0->get_element_type(), element::boolean);
     ASSERT_EQ(r0->get_shape(), (Shape{4}));
 
-    auto r1 = make_shared<op::Any>(param_0, AxisSet{1});
+    auto r1 = make_shared<op::v0::Any>(param_0, AxisSet{1});
     ASSERT_EQ(r1->get_element_type(), element::boolean);
     ASSERT_EQ(r1->get_shape(), (Shape{2}));
 
-    auto r01 = make_shared<op::Any>(param_0, AxisSet{0, 1});
+    auto r01 = make_shared<op::v0::Any>(param_0, AxisSet{0, 1});
     ASSERT_EQ(r01->get_element_type(), element::boolean);
     ASSERT_EQ(r01->get_shape(), (Shape{}));
 
-    auto r_none = make_shared<op::Any>(param_0, AxisSet{});
+    auto r_none = make_shared<op::v0::Any>(param_0, AxisSet{});
     ASSERT_EQ(r_none->get_element_type(), element::boolean);
     ASSERT_EQ(r_none->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, any_et_non_boolean)
 {
-    auto param_0 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto param_0 = make_shared<op::v0::Parameter>(element::i32, Shape{2, 4});
 
     try
     {
-        auto r = make_shared<op::Any>(param_0, AxisSet{0, 1});
+        auto r = make_shared<op::v0::Any>(param_0, AxisSet{0, 1});
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect invalid element type for Any";
     }
@@ -85,11 +85,11 @@ TEST(type_prop, any_et_non_boolean)
 
 TEST(type_prop, any_axis_oob)
 {
-    auto param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto param_0 = make_shared<op::v0::Parameter>(element::boolean, Shape{2, 4});
 
     try
     {
-        auto r = make_shared<op::Any>(param_0, AxisSet{0, 2, 1});
+        auto r = make_shared<op::v0::Any>(param_0, AxisSet{0, 2, 1});
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect out-of-bound axis for Any";
     }
@@ -105,9 +105,9 @@ TEST(type_prop, any_axis_oob)
 
 TEST(type_prop, any_partial_rank_dynamic)
 {
-    auto param = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
+    auto param = make_shared<op::v0::Parameter>(element::boolean, PartialShape::dynamic());
     auto axes = AxisSet{2385, 0, 4404}; // arbitrary
-    auto any = make_shared<op::Any>(param, axes);
+    auto any = make_shared<op::v0::Any>(param, axes);
 
     EXPECT_EQ(any->get_output_element_type(0), element::boolean);
     EXPECT_TRUE(any->get_output_partial_shape(0).is_dynamic());
@@ -115,10 +115,10 @@ TEST(type_prop, any_partial_rank_dynamic)
 
 TEST(type_prop, any_partial_rank_static_dynamic_ok_result_static)
 {
-    auto param = make_shared<op::Parameter>(element::boolean,
-                                            PartialShape{1, 2, Dimension::dynamic(), 4, 5});
+    auto param = make_shared<op::v0::Parameter>(element::boolean,
+                                                PartialShape{1, 2, Dimension::dynamic(), 4, 5});
     auto axes = AxisSet{2, 3};
-    auto any = make_shared<op::Any>(param, axes);
+    auto any = make_shared<op::v0::Any>(param, axes);
 
     EXPECT_EQ(any->get_output_element_type(0), element::boolean);
     EXPECT_EQ(any->get_shape(), (Shape{1, 2, 5}));
@@ -126,10 +126,10 @@ TEST(type_prop, any_partial_rank_static_dynamic_ok_result_static)
 
 TEST(type_prop, any_partial_rank_static_dynamic_ok_result_dynamic)
 {
-    auto param = make_shared<op::Parameter>(
+    auto param = make_shared<op::v0::Parameter>(
         element::boolean, PartialShape{1, 2, Dimension::dynamic(), 4, Dimension::dynamic()});
     auto axes = AxisSet{2, 3};
-    auto any = make_shared<op::Any>(param, axes);
+    auto any = make_shared<op::v0::Any>(param, axes);
 
     EXPECT_EQ(any->get_output_element_type(0), element::boolean);
     EXPECT_TRUE(
@@ -138,13 +138,13 @@ TEST(type_prop, any_partial_rank_static_dynamic_ok_result_dynamic)
 
 TEST(type_prop, any_partial_rank_static_dynamic_axes_oob)
 {
-    auto param = make_shared<op::Parameter>(
+    auto param = make_shared<op::v0::Parameter>(
         element::boolean, PartialShape{1, 2, Dimension::dynamic(), 4, Dimension::dynamic()});
     auto axes = AxisSet{2, 5, 1};
 
     try
     {
-        auto any = make_shared<op::Any>(param, axes);
+        auto any = make_shared<op::v0::Any>(param, axes);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect out-of-bound axis for Any (rank-static dynamic input)";
     }

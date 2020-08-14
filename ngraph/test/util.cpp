@@ -169,9 +169,9 @@ class CloneTest : public ::testing::Test
 public:
     // (A + B) * C
     Shape shape = Shape{2, 2};
-    std::shared_ptr<op::Parameter> A = make_shared<op::Parameter>(element::f32, shape);
-    std::shared_ptr<op::Parameter> B = make_shared<op::Parameter>(element::f32, shape);
-    std::shared_ptr<op::Parameter> C = make_shared<op::Parameter>(element::f32, shape);
+    std::shared_ptr<op::v0::Parameter> A = make_shared<op::v0::Parameter>(element::f32, shape);
+    std::shared_ptr<op::v0::Parameter> B = make_shared<op::v0::Parameter>(element::f32, shape);
+    std::shared_ptr<op::v0::Parameter> C = make_shared<op::v0::Parameter>(element::f32, shape);
     std::shared_ptr<Node> AplusB = A + B;
     std::shared_ptr<Node> AplusBtimesC = AplusB * C;
 
@@ -217,11 +217,11 @@ TEST_F(CloneTest, clone_nodes_full)
     auto cloned_nodes = clone_nodes(nodes, node_map);
     ASSERT_TRUE(CompareNodeVector(nodes, cloned_nodes, node_map));
 
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(A.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(B.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(C.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Add>(node_map.at(AplusB.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Multiply>(node_map.at(AplusBtimesC.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v0::Parameter>(node_map.at(A.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v0::Parameter>(node_map.at(B.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v0::Parameter>(node_map.at(C.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v0::Add>(node_map.at(AplusB.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v0::Multiply>(node_map.at(AplusBtimesC.get())));
 
     auto sorted_nodes = topological_sort(nodes);
     auto sorted_cloned_nodes = topological_sort(cloned_nodes);
@@ -231,7 +231,7 @@ TEST_F(CloneTest, clone_nodes_full)
 TEST_F(CloneTest, clone_nodes_partial)
 {
     // map A -> A' prior to clone
-    auto Aprime = make_shared<op::Parameter>(element::f32, shape);
+    auto Aprime = make_shared<op::v0::Parameter>(element::f32, shape);
     node_map[A.get()] = Aprime;
 
     auto cloned_nodes = clone_nodes(nodes, node_map);
@@ -250,11 +250,11 @@ TEST_F(CloneTest, clone_function_full)
 TEST(graph_util, clone_multiple_results)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto A_add_B = make_shared<op::Add>(A, B);
-    auto A_add_B_mul_C = make_shared<op::Multiply>(A_add_B, C);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto C = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto A_add_B = make_shared<op::v0::Add>(A, B);
+    auto A_add_B_mul_C = make_shared<op::v0::Multiply>(A_add_B, C);
 
     auto f = make_shared<Function>(NodeVector{A_add_B, A_add_B_mul_C}, ParameterVector{A, B, C});
 
@@ -294,9 +294,9 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     ASSERT_EQ(outputs.size(), 0);
 
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto absn = make_shared<op::Abs>(A);
-    auto neg_absn = make_shared<op::Negative>(absn);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto absn = make_shared<op::v0::Abs>(A);
+    auto neg_absn = make_shared<op::v0::Negative>(absn);
     outputs = ngraph::get_subgraph_outputs(NodeVector{A}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{A}));
 
@@ -306,10 +306,10 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     outputs = ngraph::get_subgraph_outputs(NodeVector{A, absn}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{absn}));
 
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto abs_b = make_shared<op::Abs>(B);
-    auto neg_b = make_shared<op::Negative>(B);
-    auto abs_b_neg = make_shared<op::Negative>(abs_b);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto abs_b = make_shared<op::v0::Abs>(B);
+    auto neg_b = make_shared<op::v0::Negative>(B);
+    auto abs_b_neg = make_shared<op::v0::Negative>(abs_b);
     outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B, abs_b}));
 
@@ -319,7 +319,7 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B}));
 
-    auto add_b = make_shared<op::Add>(neg_b, abs_b_neg);
+    auto add_b = make_shared<op::v0::Add>(neg_b, abs_b_neg);
     outputs =
         ngraph::get_subgraph_outputs(NodeVector{B, abs_b, neg_b, abs_b_neg, add_b}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{}));
@@ -332,12 +332,12 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
 TEST(graph_util, test_subgraph_topological_sort)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto C = make_shared<op::v0::Parameter>(element::f32, shape);
     auto add = A + B;
     auto mul = C * add;
-    auto result = make_shared<op::Result>(mul);
+    auto result = make_shared<op::v0::Result>(mul);
     auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A});
     std::vector<std::shared_ptr<Node>> expected{A, add, mul};
     ASSERT_EQ(expected, sorted);
@@ -346,16 +346,16 @@ TEST(graph_util, test_subgraph_topological_sort)
 TEST(graph_util, test_subgraph_topological_sort_control_dependencies)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto D = make_shared<op::Abs>(A);
-    auto E = make_shared<op::Abs>(B);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto C = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto D = make_shared<op::v0::Abs>(A);
+    auto E = make_shared<op::v0::Abs>(B);
     auto add = A + B;
     add->add_control_dependency(D);
     add->add_control_dependency(E);
     auto mul = C * add;
-    auto result = make_shared<op::Result>(mul);
+    auto result = make_shared<op::v0::Result>(mul);
     auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A, D});
     std::vector<std::shared_ptr<Node>> expected{A, D, add, mul};
     ASSERT_EQ(expected, sorted);
@@ -509,12 +509,12 @@ TEST(graph, huge)
 {
     std::vector<std::weak_ptr<Node>> weak_nodes;
     {
-        auto param = make_shared<op::Parameter>(element::f32, Shape{3, 3});
+        auto param = make_shared<op::v0::Parameter>(element::f32, Shape{3, 3});
         std::shared_ptr<Node> n = param;
         weak_nodes.push_back(n);
         for (size_t i = 0; i < 1000000; i++)
         {
-            n = make_shared<op::Negative>(n);
+            n = make_shared<op::v0::Negative>(n);
             weak_nodes.push_back(n);
         }
         auto f = make_shared<Function>(NodeVector{n}, ParameterVector{param});
@@ -600,9 +600,9 @@ TEST(util, apply_permutation_pshape_rank_dynamic_inviable_permutation_fails)
 TEST(util, clone_function_friendly_name)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Add>(A, B), ParameterVector{A, B});
 
     A->set_friendly_name("A");
     B->set_friendly_name("B");
@@ -623,9 +623,9 @@ TEST(util, clone_function_friendly_name)
 TEST(util, clone_function_op_annotations)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto C = make_shared<op::v0::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
 
     auto cacheable_op_annotation = std::make_shared<op::util::OpAnnotations>();
@@ -661,9 +661,9 @@ TEST(util, clone_function_op_annotations)
 TEST(util, topological_sort_replace)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto C = make_shared<op::v0::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
     bool custom_sorter_used = false;
 

@@ -22,20 +22,20 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::LRN::type_info;
+constexpr NodeTypeInfo op::v0::LRN::type_info;
 
-op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
-    : LRN(arg, op::Constant::create(element::i64, Shape{1}, {1}), alpha, beta, bias, size)
+op::v0::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
+    : LRN(arg, op::v0::Constant::create(element::i64, Shape{1}, {1}), alpha, beta, bias, size)
 {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
 
-op::LRN::LRN(const Output<Node>& arg,
-             const Output<Node>& axes,
-             double alpha,
-             double beta,
-             double bias,
-             size_t size)
+op::v0::LRN::LRN(const Output<Node>& arg,
+                 const Output<Node>& axes,
+                 double alpha,
+                 double beta,
+                 double bias,
+                 size_t size)
     : Op({arg, axes})
     , m_alpha(alpha)
     , m_beta(beta)
@@ -45,18 +45,18 @@ op::LRN::LRN(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-AxisSet op::LRN::get_reduction_axes() const
+AxisSet op::v0::LRN::get_reduction_axes() const
 {
     AxisSet axes{1}; // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = as_type_ptr<op::v0::Constant>(axes_input_node))
     {
         axes = const_op->get_axis_set_val();
     }
     return axes;
 }
 
-void op::LRN::validate_and_infer_types()
+void op::v0::LRN::validate_and_infer_types()
 {
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
@@ -121,8 +121,9 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::LRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<op::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
+    return make_shared<op::v0::LRN>(
+        new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
 }

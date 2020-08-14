@@ -19,31 +19,31 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::DetectionOutput::type_info;
+constexpr NodeTypeInfo op::v0::DetectionOutput::type_info;
 
-op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
-                                     const Output<Node>& class_preds,
-                                     const Output<Node>& proposals,
-                                     const Output<Node>& aux_class_preds,
-                                     const Output<Node>& aux_box_preds,
-                                     const DetectionOutputAttrs& attrs)
+op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+                                         const Output<Node>& class_preds,
+                                         const Output<Node>& proposals,
+                                         const Output<Node>& aux_class_preds,
+                                         const Output<Node>& aux_box_preds,
+                                         const DetectionOutputAttrs& attrs)
     : Op({box_logits, class_preds, proposals, aux_class_preds, aux_box_preds})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
-                                     const Output<Node>& class_preds,
-                                     const Output<Node>& proposals,
-                                     const DetectionOutputAttrs& attrs)
+op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+                                         const Output<Node>& class_preds,
+                                         const Output<Node>& proposals,
+                                         const DetectionOutputAttrs& attrs)
     : Op({box_logits, class_preds, proposals})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::DetectionOutput::validate_and_infer_types()
+void op::v0::DetectionOutput::validate_and_infer_types()
 {
     if (get_input_partial_shape(0).is_static())
     {
@@ -57,7 +57,7 @@ void op::DetectionOutput::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
 
@@ -82,7 +82,7 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
     }
 }
 
-bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("attrs", m_attrs);
     return true;

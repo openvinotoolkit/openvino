@@ -154,6 +154,5 @@ namespace ngraph
         }
 
         // latest stable opset version
-        using v0::Pad;
     }
 }

@@ -77,8 +77,8 @@ void FillXmlDocWithExecutionNGraph(const InferenceEngine::ICNNNetwork& network,
             }
         }
         if (node->get_output_size() > 0 &&
-            // ngraph::op::Result still have single output while we should not print it
-            !std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
+            // ngraph::op::v0::Result still have single output while we should not print it
+            !std::dynamic_pointer_cast<ngraph::op::v0::Result>(node)) {
             pugi::xml_node output = layer.append_child("output");
 
             for (size_t oport = 0; oport < node->get_output_size(); oport++) {

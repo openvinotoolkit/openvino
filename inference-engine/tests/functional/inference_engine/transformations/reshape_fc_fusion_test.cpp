@@ -25,10 +25,10 @@ using namespace testing;
 TEST(TransformationTests, ReshapeFCFusiuonTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
-        auto reshape_shape = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 3 * 64 * 64});
-        auto fc_weights = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3 * 64 * 64}, {1});
-        auto fc_biases = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+        auto input = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
+        auto reshape_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 3 * 64 * 64});
+        auto fc_weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3 * 64 * 64}, {1});
+        auto fc_biases = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
 
         auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, reshape_shape, true);
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
@@ -44,10 +44,10 @@ TEST(TransformationTests, ReshapeFCFusiuonTest1) {
 TEST(TransformationTests, ReshapeFCFusiuonTest2) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
-        auto reshape_shape = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 64, 64});
-        auto fc_weights = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3 * 64 * 64}, {1});
-        auto fc_biases = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+        auto input = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
+        auto reshape_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 64, 64});
+        auto fc_weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3 * 64 * 64}, {1});
+        auto fc_biases = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
 
         auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, reshape_shape, true);
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
@@ -63,10 +63,10 @@ TEST(TransformationTests, ReshapeFCFusiuonTest2) {
 TEST(TransformationTests, ReshapeFCFusiuonTest3) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{2, 3, 64, 64}, {1});
-        auto reshape_shape = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 2 * 3 * 64 * 64});
-        auto fc_weights = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 2 * 3 * 64 * 64}, {1});
-        auto fc_biases = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+        auto input = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 3, 64, 64}, {1});
+        auto reshape_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 2 * 3 * 64 * 64});
+        auto fc_weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 2 * 3 * 64 * 64}, {1});
+        auto fc_biases = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
 
         auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, reshape_shape, true);
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{2, 6});

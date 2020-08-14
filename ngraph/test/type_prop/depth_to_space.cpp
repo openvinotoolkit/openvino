@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, depth_to_space_output_shape_block_first_4D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 128, 8, 8});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 128, 8, 8});
     auto space_to_depth =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 8);
 
@@ -33,7 +33,7 @@ TEST(type_prop, depth_to_space_output_shape_block_first_4D)
 
 TEST(type_prop, depth_to_space_output_shape_block_first_4D_2)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
     auto space_to_depth =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
 
@@ -43,7 +43,7 @@ TEST(type_prop, depth_to_space_output_shape_block_first_4D_2)
 
 TEST(type_prop, depth_to_space_output_shape_block_first_5D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 16, 3, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 16, 3, 1080, 1616});
     auto space_to_depth =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
 
@@ -53,7 +53,7 @@ TEST(type_prop, depth_to_space_output_shape_block_first_5D)
 
 TEST(type_prop, depth_to_space_output_shape_depth_first_4D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
     auto space_to_depth =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
 
@@ -63,7 +63,7 @@ TEST(type_prop, depth_to_space_output_shape_depth_first_4D)
 
 TEST(type_prop, depth_to_space_output_shape_depth_first_5D)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 16, 3, 1080, 1616});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 16, 3, 1080, 1616});
     auto space_to_depth =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
 
@@ -73,7 +73,7 @@ TEST(type_prop, depth_to_space_output_shape_depth_first_5D)
 
 TEST(type_prop, depth_to_space_input_rank_not_supported)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 8});
     try
     {
         auto space_to_depth =
@@ -94,7 +94,7 @@ TEST(type_prop, depth_to_space_input_rank_not_supported)
 
 TEST(type_prop, depth_to_space_blocksize_not_matched)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 7, 4, 4});
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{1, 7, 4, 4});
     try
     {
         auto space_to_depth =

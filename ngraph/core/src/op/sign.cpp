@@ -24,9 +24,9 @@ using namespace ngraph;
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 
-constexpr NodeTypeInfo op::Sign::type_info;
+constexpr NodeTypeInfo op::v0::Sign::type_info;
 
-op::Sign::Sign(const Output<Node>& arg)
+op::v0::Sign::Sign(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
@@ -37,7 +37,7 @@ bool ngraph::op::v0::Sign::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Sign::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Sign>(new_args.at(0));
@@ -80,8 +80,8 @@ namespace
     }
 }
 
-bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sign::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Sign::evaluate");
     return evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

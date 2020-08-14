@@ -33,11 +33,11 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose)
     // Create a graph for f(x,perm) = Transpose(x,Convert<i64>(perm)). We'll do the permutation in
     // i32 and cast it to i64, just for fun (and to mirror the TensorFlow test I am porting here).
     //
-    auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto perm = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto perm_i64 = make_shared<op::Convert>(perm, element::i64);
+    auto x = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto perm = make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto perm_i64 = make_shared<op::v0::Convert>(perm, element::i64);
 
-    auto x_transpose = make_shared<op::Transpose>(x, perm_i64);
+    auto x_transpose = make_shared<op::v1::Transpose>(x, perm_i64);
 
     auto f = make_shared<Function>(NodeVector{x_transpose}, ParameterVector{x, perm});
 

@@ -139,21 +139,21 @@ OutputVector op::FakeQuantize::decompose_op() const
     const auto axes = get_default_order(input_data_shape);
 
     // clip the input data to the range <input_low;input_high>
-    data =
-        std::make_shared<op::Minimum>(input_high, std::make_shared<op::Maximum>(input_low, data));
+    data = std::make_shared<op::v0::Minimum>(input_high,
+                                             std::make_shared<op::v0::Maximum>(input_low, data));
 
     // shift the input data so that it contains only positive values (and zeros)
     data = data - input_low;
 
     shared_ptr<Node> quantized_data =
-        make_shared<op::Quantize>(data,
-                                  quant_scale,
-                                  zero_point,
-                                  element::i32,
-                                  axes,
-                                  op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
+        make_shared<op::v0::Quantize>(data,
+                                      quant_scale,
+                                      zero_point,
+                                      element::i32,
+                                      axes,
+                                      op::v0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
 
-    quantized_data = make_shared<op::Convert>(quantized_data, input_data_type);
+    quantized_data = make_shared<op::v0::Convert>(quantized_data, input_data_type);
 
     // dequantization without using the Dequantize op (just a multiplication by the dequant_scale)
     const auto dequantized_data = quantized_data * dequant_scale;

@@ -42,11 +42,11 @@ struct RangeTest
 NGRAPH_TEST(${BACKEND_NAME}, range)
 {
     // Create a graph for f(start,stop,step) = Range(start,stop,step).
-    auto start = make_shared<op::Parameter>(element::i32, Shape{});
-    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
-    auto step = make_shared<op::Parameter>(element::i32, Shape{});
+    auto start = make_shared<op::v0::Parameter>(element::i32, Shape{});
+    auto stop = make_shared<op::v0::Parameter>(element::i32, Shape{});
+    auto step = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
-    auto range = make_shared<op::Range>(start, stop, step);
+    auto range = make_shared<op::v0::Range>(start, stop, step);
     ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 
     auto f = make_shared<Function>(NodeVector{range}, ParameterVector{start, stop, step});

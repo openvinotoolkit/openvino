@@ -47,14 +47,14 @@ protected:
     }
 
     std::shared_ptr<ngraph::Function> getNgraphModel() {
-        auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, input_dim});
 
         std::vector<int> shape {1, 1};
         shape.push_back(input_dim);
-        auto input_reshaped = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape {shape.size()}, shape);
+        auto input_reshaped = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape {shape.size()}, shape);
         auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, input_reshaped, false);
 
-        auto filters = std::make_shared<ngraph::op::Constant>(
+        auto filters = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32,
                 ngraph::Shape {output_channels, kernel.y, kernel.x},
                 std::vector<float> {1.0f});
@@ -70,7 +70,7 @@ protected:
                 pads_end,
                 dilations);
 
-        auto weights = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape {}, std::vector<float> {2.0f});
+        auto weights = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape {}, std::vector<float> {2.0f});
         auto mul = std::make_shared<ngraph::op::v1::Multiply>(convolution, weights);
 
         auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});

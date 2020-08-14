@@ -54,7 +54,7 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
         {
             AxisSet reduction_axes;
             auto reduction_axes_val =
-                as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+                as_type<op::v0::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
             for (auto axis : reduction_axes_val)
             {
                 try

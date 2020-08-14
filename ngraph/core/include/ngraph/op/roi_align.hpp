@@ -87,7 +87,6 @@ namespace ngraph
                 PoolingMode m_mode;
             };
         }
-        using v3::ROIAlign;
     }
 
     std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& mode);

@@ -114,7 +114,7 @@ namespace ngraph
         /// \param parameter_index The index of the parameter to replace.
         /// \param parameter The parameter to substitute for the `parameter_index`th parameter.
         void replace_parameter(size_t parameter_index,
-                               const std::shared_ptr<op::Parameter>& parameter);
+                               const std::shared_ptr<op::v0::Parameter>& parameter);
 
         using topological_sort_t = std::function<std::vector<std::shared_ptr<Node>>(
             const std::vector<std::shared_ptr<Node>>& root_nodes)>;

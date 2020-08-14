@@ -41,12 +41,13 @@ public:
     {
         Shape channel_shape{input_shape.at(1)};
 
-        auto Input = make_shared<op::Parameter>(etype, input_shape);
-        auto Gamma = make_shared<op::Parameter>(etype, channel_shape);
-        auto Beta = make_shared<op::Parameter>(etype, channel_shape);
-        auto Mean = make_shared<op::Parameter>(etype, channel_shape);
-        auto Variance = make_shared<op::Parameter>(etype, channel_shape);
-        auto BN = make_shared<op::BatchNormInference>(Input, Gamma, Beta, Mean, Variance, epsilon);
+        auto Input = make_shared<op::v0::Parameter>(etype, input_shape);
+        auto Gamma = make_shared<op::v0::Parameter>(etype, channel_shape);
+        auto Beta = make_shared<op::v0::Parameter>(etype, channel_shape);
+        auto Mean = make_shared<op::v0::Parameter>(etype, channel_shape);
+        auto Variance = make_shared<op::v0::Parameter>(etype, channel_shape);
+        auto BN =
+            make_shared<op::v0::BatchNormInference>(Input, Gamma, Beta, Mean, Variance, epsilon);
         m_function = make_shared<Function>(BN, ParameterVector{Input, Gamma, Beta, Mean, Variance});
 
         m_input = backend->create_tensor(etype, input_shape);
@@ -278,14 +279,14 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f32)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    auto input = make_shared<op::v0::Parameter>(element::f32, input_shape);
 
     auto mvgb_shape = Shape{2};
-    auto mvgb = make_shared<op::Parameter>(element::f32, mvgb_shape);
+    auto mvgb = make_shared<op::v0::Parameter>(element::f32, mvgb_shape);
 
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
-    auto bn = make_shared<op::BatchNormInference>(input, mvgb, mvgb, mvgb, mvgb, eps);
+    auto bn = make_shared<op::v0::BatchNormInference>(input, mvgb, mvgb, mvgb, mvgb, eps);
 
     auto f = make_shared<Function>(bn, ParameterVector{input, mvgb, mvgb, mvgb, mvgb});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -323,18 +324,18 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    auto input = make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto gamma_shape = Shape{2};
-    auto gamma = make_shared<op::Parameter>(element::f32, gamma_shape);
+    auto gamma = make_shared<op::v0::Parameter>(element::f32, gamma_shape);
     auto beta_shape = Shape{2};
-    auto beta = make_shared<op::Parameter>(element::f32, beta_shape);
+    auto beta = make_shared<op::v0::Parameter>(element::f32, beta_shape);
     auto mean_shape = Shape{2};
-    auto mean = make_shared<op::Parameter>(element::f32, mean_shape);
+    auto mean = make_shared<op::v0::Parameter>(element::f32, mean_shape);
     auto var_shape = Shape{2};
-    auto var = make_shared<op::Parameter>(element::f32, var_shape);
+    auto var = make_shared<op::v0::Parameter>(element::f32, var_shape);
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
-    auto bn = make_shared<op::BatchNormInference>(input, gamma, beta, mean, var, eps);
+    auto bn = make_shared<op::v0::BatchNormInference>(input, gamma, beta, mean, var, eps);
 
     auto f = make_shared<Function>(bn, ParameterVector{input, gamma, beta, mean, var});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

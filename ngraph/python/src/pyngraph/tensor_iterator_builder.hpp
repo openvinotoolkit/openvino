@@ -52,8 +52,8 @@ namespace util
         ///
         /// \return     TensorIterator node.
         ///
-        std::shared_ptr<ngraph::op::TensorIterator>
-            configure(std::shared_ptr<ngraph::op::TensorIterator>&& ti_node);
+        std::shared_ptr<ngraph::op::v0::TensorIterator>
+            configure(std::shared_ptr<ngraph::op::v0::TensorIterator>&& ti_node);
 
     private:
         ///
@@ -78,7 +78,7 @@ namespace util
         /// \param      ti_node  The TI node we will set input to.
         ///
         void set_tensor_iterator_sliced_inputs(
-            std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+            std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         ///
         /// \brief      Sets the tensor iterator merged inputs.
@@ -86,7 +86,7 @@ namespace util
         /// \param      ti_node  The TI node we will set inputs to.
         ///
         void set_tensor_iterator_merged_inputs(
-            std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+            std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         ///
         /// \brief      Sets the tensor iterator invariant inputs.
@@ -94,15 +94,15 @@ namespace util
         /// \param      ti_node  The TI node we will set inputs to.
         ///
         void set_tensor_iterator_invariant_inputs(
-            std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+            std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         ///
         /// \brief      Sets the tensor iterator outputs.
         ///
         /// \param      ti_node  The TI node we will set outputs to.
         ///
-        void
-            set_tensor_iterator_outputs(std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+        void set_tensor_iterator_outputs(
+            std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         ///
         /// \brief      Sets the tensor iterator body output.
@@ -111,7 +111,7 @@ namespace util
         /// \param      ti_node  The TI node we will set output to.
         ///
         void set_tensor_iterator_body_output(
-            const py::dict& desc, std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+            const py::dict& desc, std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         ///
         /// \brief      Sets the tensor iterator concatenated body output.
@@ -120,13 +120,13 @@ namespace util
         /// \param      ti_node  The TI node we will set output to.
         ///
         void set_tensor_iterator_concatenated_body_output(
-            const py::dict& desc, std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const;
+            const py::dict& desc, std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const;
 
         const ngraph::NodeVector& m_arguments;
         const py::dict& m_attributes;
         ngraph::OutputVector m_body_outputs;
         ngraph::ParameterVector m_body_parameters;
-        std::shared_ptr<ngraph::op::TensorIterator::BodyLambda> m_body;
+        std::shared_ptr<ngraph::op::v0::TensorIterator::BodyLambda> m_body;
         py::list m_slice_input_desc;
         py::list m_merged_input_desc;
         py::list m_invariant_input_desc;

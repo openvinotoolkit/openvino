@@ -54,7 +54,7 @@ void QuantMatMulTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape0, inputShape1});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
 
     auto makeFakeQuantizeNode = [ngPrc, quantLevels, quantGranularity](const ngraph::Output<ngraph::Node> &in,
             std::vector<size_t> inputShape, InferenceEngine::Precision prec) -> std::shared_ptr<ngraph::Node> {

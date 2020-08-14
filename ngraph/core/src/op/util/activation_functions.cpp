@@ -31,23 +31,25 @@ using namespace ngraph;
 
 static shared_ptr<Node> sigmoid(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */)
 {
-    return make_shared<op::Sigmoid>(arg);
+    return make_shared<op::v0::Sigmoid>(arg);
 }
 
 static shared_ptr<Node> tanh(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */)
 {
-    return make_shared<op::Tanh>(arg);
+    return make_shared<op::v0::Tanh>(arg);
 }
 
 static shared_ptr<Node> relu(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */)
 {
-    return make_shared<op::Relu>(arg);
+    return make_shared<op::v0::Relu>(arg);
 }
 
 static shared_ptr<Node> hardsigmoid(const shared_ptr<Node>& arg, float alpha, float beta)
 {
-    const auto alpha_node = op::Constant::create<float>(arg->get_element_type(), Shape{}, {alpha});
-    const auto beta_node = op::Constant::create<float>(arg->get_element_type(), Shape{}, {beta});
+    const auto alpha_node =
+        op::v0::Constant::create<float>(arg->get_element_type(), Shape{}, {alpha});
+    const auto beta_node =
+        op::v0::Constant::create<float>(arg->get_element_type(), Shape{}, {beta});
 
     return make_shared<op::HardSigmoid>(arg, alpha_node, beta_node);
 }

@@ -24,15 +24,15 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Round::type_info;
+constexpr NodeTypeInfo op::v0::Round::type_info;
 
-op::Round::Round(const Output<Node>& arg)
+op::v0::Round::Round(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Round>(new_args.at(0));
@@ -92,8 +92,8 @@ namespace
     }
 }
 
-bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Round::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
     return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

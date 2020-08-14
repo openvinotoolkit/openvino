@@ -29,8 +29,8 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, reshape_v1)
 {
-    auto arg = std::make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    auto pattern = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    auto pattern = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
 
     auto f = std::make_shared<Function>(NodeVector{reshape_v1}, ParameterVector{arg, pattern});

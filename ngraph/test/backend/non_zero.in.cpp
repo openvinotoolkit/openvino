@@ -29,7 +29,7 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, non_zero)
 {
     PartialShape p_shape = PartialShape::dynamic();
-    auto p = make_shared<op::Parameter>(element::f32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::f32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero)
 NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
 {
     PartialShape p_shape = PartialShape::dynamic();
-    auto p = make_shared<op::Parameter>(element::i32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 
@@ -81,7 +81,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
 NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_0s)
 {
     PartialShape p_shape = PartialShape::dynamic();
-    auto p = make_shared<op::Parameter>(element::i32, p_shape);
+    auto p = make_shared<op::v0::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
     auto fun = make_shared<Function>(OutputVector{non_zero}, ParameterVector{p});
 

@@ -62,6 +62,5 @@ namespace ngraph
                 std::shared_ptr<ngraph::Variable> m_variable;
             };
         }
-        using v3::Assign;
     }
 }

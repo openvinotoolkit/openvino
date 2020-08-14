@@ -27,10 +27,10 @@ namespace
         return std::min(idx, axis_size);
     }
 
-    std::shared_ptr<op::Slice> make_ng_slice(const Output<Node>& output,
-                                             const std::vector<size_t>& axes,
-                                             const std::vector<size_t>& starts,
-                                             const std::vector<size_t>& ends)
+    std::shared_ptr<op::v0::Slice> make_ng_slice(const Output<Node>& output,
+                                                 const std::vector<size_t>& axes,
+                                                 const std::vector<size_t>& starts,
+                                                 const std::vector<size_t>& ends)
     {
         std::vector<size_t> upper_bounds{output.get_shape()};
         std::vector<size_t> lower_bounds(upper_bounds.size());
@@ -42,8 +42,8 @@ namespace
             upper_bounds.at(axis) =
                 get_valid_array_index(ends.at(index), output.get_shape().at(axis));
         }
-        return std::static_pointer_cast<op::Slice>(
-            std::make_shared<op::Slice>(output, lower_bounds, upper_bounds)
+        return std::static_pointer_cast<op::v0::Slice>(
+            std::make_shared<op::v0::Slice>(output, lower_bounds, upper_bounds)
                 ->add_provenance_group_members_above({output}));
     }
 }

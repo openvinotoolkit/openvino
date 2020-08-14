@@ -77,17 +77,17 @@ bool ngraph::op::is_op(const ngraph::Node* node)
 
 bool ngraph::op::is_parameter(const ngraph::Node* node)
 {
-    return dynamic_cast<const ngraph::op::Parameter*>(node) != nullptr;
+    return dynamic_cast<const ngraph::op::v0::Parameter*>(node) != nullptr;
 }
 
 bool ngraph::op::is_output(const ngraph::Node* node)
 {
-    return dynamic_cast<const ngraph::op::Result*>(node) != nullptr;
+    return dynamic_cast<const ngraph::op::v0::Result*>(node) != nullptr;
 }
 
 bool ngraph::op::is_constant(const ngraph::Node* node)
 {
-    return dynamic_cast<const ngraph::op::Constant*>(node) != nullptr;
+    return dynamic_cast<const ngraph::op::v0::Constant*>(node) != nullptr;
 }
 
 bool ngraph::op::is_commutative(const ngraph::Node* node)

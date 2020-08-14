@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, topk_invalid_rank)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{});
 
     try
     {
@@ -42,7 +42,7 @@ TEST(type_prop, topk_invalid_rank)
 
 TEST(type_prop, topk_invalid_top_k)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
 
     try
     {
@@ -61,7 +61,7 @@ TEST(type_prop, topk_invalid_top_k)
 
 TEST(type_prop, topk_invalid_index_type)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
 
     try
     {
@@ -80,7 +80,7 @@ TEST(type_prop, topk_invalid_index_type)
 
 TEST(type_prop, topk_invalid_k)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto a = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
 
     try
     {
@@ -107,7 +107,7 @@ TEST(type_prop, topk_rank_dynamic_ok)
     element::Type result_et{element::i32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     auto topk = make_shared<op::v0::TopK>(param, top_k_axis, result_et, k, compute_max);
 
@@ -135,7 +135,7 @@ TEST(type_prop, topk_rank_dynamic_result_et_dynamic)
     element::Type result_et{element::dynamic};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     try
     {
@@ -161,7 +161,7 @@ TEST(type_prop, topk_rank_dynamic_result_et_invalid)
     element::Type result_et{element::f32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     try
     {
@@ -187,7 +187,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_known_topk_dim_dynamic_ok)
     element::Type result_et{element::i32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     auto topk = make_shared<op::v0::TopK>(param, top_k_axis, result_et, k, compute_max);
 
@@ -208,7 +208,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_unknown_topk_dim_dynamic_ok)
     element::Type result_et{element::i32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     auto topk = make_shared<op::v0::TopK>(param, top_k_axis, result_et, k, compute_max);
 
@@ -229,7 +229,7 @@ TEST(type_prop, topk_rank_static_dynamic_axis_oob)
     element::Type result_et{element::f32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     try
     {
@@ -255,7 +255,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_unknown_axis_oob)
     element::Type result_et{element::f32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     try
     {
@@ -281,7 +281,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_known_too_big)
     element::Type result_et{element::f32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     try
     {
@@ -307,7 +307,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_unknown_ok)
     element::Type result_et{element::i32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     auto topk = make_shared<op::v0::TopK>(param, top_k_axis, result_et, k, compute_max);
 
@@ -328,7 +328,7 @@ TEST(type_prop, topk_rank_static_dynamic_k_known_ok)
     element::Type result_et{element::i32};
     bool compute_max = true;
 
-    auto param = make_shared<op::Parameter>(arg_et, arg_shape);
+    auto param = make_shared<op::v0::Parameter>(arg_et, arg_shape);
 
     auto topk = make_shared<op::v0::TopK>(param, top_k_axis, result_et, k, compute_max);
 
@@ -350,8 +350,8 @@ TYPED_TEST_CASE_P(topk_type_prop);
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 {
     const auto data_shape = Shape{1, 2, 3, 4};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto k = op::Constant::create(element::i64, Shape{}, {2});
+    const auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
 
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
@@ -363,8 +363,8 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
 {
     const auto data_shape = PartialShape::dynamic();
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto k = op::Constant::create(element::i64, Shape{}, {2});
+    const auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
@@ -385,14 +385,14 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
 TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
 {
     auto data_shape = PartialShape{2, 10};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
     {
-        auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
+        auto k = make_shared<op::v0::Parameter>(element::i32, PartialShape({}));
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
         EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, -1}));
     }
     {
-        auto k = make_shared<op::Constant>(element::i32, Shape{}, 3);
+        auto k = make_shared<op::v0::Constant>(element::i32, Shape{}, 3);
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
         EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, 3}));
     }

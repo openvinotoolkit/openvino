@@ -20,15 +20,15 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::StopGradient::type_info;
+constexpr NodeTypeInfo op::v0::StopGradient::type_info;
 
-op::StopGradient::StopGradient(const Output<Node>& arg)
+op::v0::StopGradient::StopGradient(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::StopGradient::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::StopGradient::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<StopGradient>(new_args.at(0));

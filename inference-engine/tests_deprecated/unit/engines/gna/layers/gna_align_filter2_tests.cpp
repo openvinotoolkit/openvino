@@ -41,13 +41,13 @@ class GNAAlignFilterTest : public GNATest<>,
     }
 
     std::shared_ptr<ngraph::Function> getNgraphModel() {
-        auto input0 = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, concat_inputs[0]});
-        auto input1 = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, concat_inputs[1]});
+        auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, concat_inputs[0]});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, concat_inputs[1]});
 
         auto relu0 = std::make_shared<ngraph::op::v0::Relu>(input0);
         auto relu1 = std::make_shared<ngraph::op::v0::Relu>(input1);
 
-        auto concat = std::make_shared<ngraph::op::Concat>(ngraph::NodeVector{relu0, relu1}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::NodeVector{relu0, relu1}, 1);
 
         auto relu3 = std::make_shared<ngraph::op::v0::Relu>(concat);
 

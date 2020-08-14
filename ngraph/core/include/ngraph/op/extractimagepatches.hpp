@@ -66,6 +66,5 @@ namespace ngraph
                 PadType m_padding;
             };
         } // namespace v3
-        using v3::ExtractImagePatches;
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

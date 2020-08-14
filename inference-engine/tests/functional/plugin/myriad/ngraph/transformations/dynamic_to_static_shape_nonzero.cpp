@@ -39,7 +39,7 @@ public:
         const auto& inputShape = std::get<1>(parameters);
         const auto& resultType = std::get<2>(parameters);
 
-        // Create a function with only op::NonZero
+        // Create a function with only op::v3::NonZero
         // And then run conversion pass
         {
             const auto input = std::make_shared<ngraph::opset3::Parameter>(inputType, inputShape);

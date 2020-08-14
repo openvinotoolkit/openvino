@@ -37,12 +37,12 @@ namespace LayerTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
         auto input = ngraph::builder::makeParams(ngPrc, {shape_input});
-        auto reshape1_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        auto reshape1_pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{squeezeShape.first.size()},
                                                                        squeezeShape.first);
         auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(input[0], reshape1_pattern, false);
         auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(reshape1, ngPrc, squeezeShape.second, opType);
-        auto reshape2_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        auto reshape2_pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{2},
                                                                        std::vector<size_t>{1, input_dim});
         auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(squeeze, reshape2_pattern, false);

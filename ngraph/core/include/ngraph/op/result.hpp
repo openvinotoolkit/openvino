@@ -55,10 +55,8 @@ namespace ngraph
                 bool m_needs_default_layout{false};
             };
         }
-
-        using v0::Result;
     }
-    using ResultVector = std::vector<std::shared_ptr<op::Result>>;
+    using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
 
     template <>
     class NGRAPH_API AttributeAdapter<ResultVector> : public VisitorAdapter

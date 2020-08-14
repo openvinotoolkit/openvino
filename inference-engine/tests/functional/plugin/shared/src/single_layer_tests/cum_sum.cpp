@@ -48,10 +48,10 @@ void CumSumLayerTest::SetUp() {
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
+    auto axisNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto cumSum = std::dynamic_pointer_cast<ngraph::op::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, exclusive, reverse));
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(paramVector));
+    auto cumSum = std::dynamic_pointer_cast<ngraph::op::v0::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, exclusive, reverse));
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "cumsum");

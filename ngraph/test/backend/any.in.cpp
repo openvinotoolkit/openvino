@@ -40,8 +40,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, any_trivial)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -58,8 +58,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_trivial)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2_to_scalar_true)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -76,8 +76,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2_to_scalar_true)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2_to_scalar_false)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -94,8 +94,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2_to_scalar_false)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x0_to_scalar)
 {
     Shape shape{2, 0};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -111,8 +111,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x0_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x3_eliminate_col_dim)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -129,8 +129,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x3_eliminate_col_dim)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x3_eliminate_row_dim)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -147,8 +147,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x3_eliminate_row_dim)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_0)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -166,8 +166,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_0)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_1)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -185,8 +185,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_1)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_2)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -204,8 +204,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dim_2)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_0_1)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 1}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 1}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -223,8 +223,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_0_1)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_0_2)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -242,8 +242,8 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_0_2)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_1_2)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{1, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{1, 2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -261,8 +261,9 @@ NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_1_2)
 NGRAPH_TEST(${BACKEND_NAME}, any_2x2x3_eliminate_dims_0_1_2)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Any>(A, AxisSet{0, 1, 2}), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::boolean, shape);
+    auto f =
+        make_shared<Function>(make_shared<op::v0::Any>(A, AxisSet{0, 1, 2}), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

@@ -36,7 +36,7 @@ class GNAActivationTest : public GNATest<>,
     std::shared_ptr<ngraph::Function> buildNgraphFunction(const ActivationCaseParam& param) {
 
         auto shape = ngraph::Shape{1, param.input_shape};
-        auto inputN = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, shape);
+        auto inputN = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, shape);
 
         auto absN = std::make_shared<ngraph::op::v0::Abs>(inputN);
 

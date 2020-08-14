@@ -33,7 +33,7 @@ namespace ngraph
         virtual bool visit_attributes(AttributeVisitor& visitor);
         const ParameterVector& get_parameters() const { return m_parameters; };
         /// Index for parameter, or -1
-        int64_t get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const;
+        int64_t get_parameter_index(const std::shared_ptr<op::v0::Parameter>& parameter) const;
         /// Return a list of function's outputs
         const ResultVector& get_results() const { return m_results; };
         /// Index for value or result referencing it, or -1

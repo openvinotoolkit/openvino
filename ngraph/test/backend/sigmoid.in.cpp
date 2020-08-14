@@ -42,8 +42,8 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-    auto sigmoid_node = make_shared<op::Sigmoid>(input);
+    auto input = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 2, 2});
+    auto sigmoid_node = make_shared<op::v0::Sigmoid>(input);
     auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -67,8 +67,8 @@ NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
 
 NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h4)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
-    auto sigmoid_node = make_shared<op::Sigmoid>(input);
+    auto input = make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 4});
+    auto sigmoid_node = make_shared<op::v0::Sigmoid>(input);
     auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

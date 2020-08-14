@@ -23,13 +23,13 @@ using namespace ngraph;
 
 TEST(type_prop, split)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::v0::Parameter>(element::i32, Shape{2, 6});
 
     try
     {
         const std::vector<size_t> splits = {1, 6}; // should sum up to 6
-        const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});
+        const auto split = make_shared<op::v0::Split>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const NodeValidationFailure& error)
@@ -41,8 +41,8 @@ TEST(type_prop, split)
     try
     {
         const std::vector<size_t> splits = {4, 2};
-        const auto axis = op::Constant::create(element::i64, Shape{}, {-5});
-        const auto split = make_shared<op::Split>(data, axis, splits); // invalid axis
+        const auto axis = op::v0::Constant::create(element::i64, Shape{}, {-5});
+        const auto split = make_shared<op::v0::Split>(data, axis, splits); // invalid axis
         FAIL() << "Split node was created with incorrect data.";
     }
     catch (const ngraph_error& error)
@@ -50,8 +50,8 @@ TEST(type_prop, split)
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis -5 out of the tensor rank"));
     }
 
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
+    const auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});
+    const auto split = make_shared<op::v0::Split>(data, axis, 2);
     EXPECT_EQ(split->outputs().size(), 2);
     EXPECT_EQ(split->get_output_shape(0), (Shape{2, 3}));
     EXPECT_EQ(split->get_output_shape(1), (Shape{2, 3}));
@@ -61,13 +61,13 @@ TEST(type_prop, split)
 
 TEST(type_prop, split_axis_must_be_scalar)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::v0::Parameter>(element::i32, Shape{2, 6});
     const std::vector<size_t> splits = {1, 6};
-    const auto axis = op::Constant::create(element::i64, Shape{2}, {0, 1});
+    const auto axis = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
 
     try
     {
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v0::Split>(data, axis, splits);
         FAIL() << "Incorrect axis of Split not detected.";
     }
     catch (const NodeValidationFailure& error)
@@ -82,13 +82,13 @@ TEST(type_prop, split_axis_must_be_scalar)
 
 TEST(type_prop, split_axis_must_be_constant)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::v0::Parameter>(element::i32, Shape{2, 6});
     const std::vector<size_t> splits = {1, 6};
-    const auto axis = make_shared<op::Parameter>(element::i32, Shape{});
+    const auto axis = make_shared<op::v0::Parameter>(element::i32, Shape{});
 
     try
     {
-        const auto split = make_shared<op::Split>(data, axis, splits);
+        const auto split = make_shared<op::v0::Split>(data, axis, splits);
         FAIL() << "Not constant axis of Split not detected.";
     }
     catch (const NodeValidationFailure& error)

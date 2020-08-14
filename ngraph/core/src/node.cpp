@@ -777,8 +777,8 @@ ResultVector ngraph::as_result_vector(const OutputVector& values)
     for (auto value : values)
     {
         shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(is_type<op::Result>(node) ? as_type_ptr<op::Result>(node)
-                                                   : make_shared<op::Result>(value));
+        result.push_back(is_type<op::v0::Result>(node) ? as_type_ptr<op::v0::Result>(node)
+                                                       : make_shared<op::v0::Result>(value));
     }
     return result;
 }
@@ -975,7 +975,7 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     {
         for (size_t i = 0; i < output_tensors.size(); ++i)
         {
-            output_values[i] = make_shared<op::Constant>(output_tensors[i]);
+            output_values[i] = make_shared<op::v0::Constant>(output_tensors[i]);
         }
         return true;
     }

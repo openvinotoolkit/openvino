@@ -32,8 +32,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, round)
 {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Round>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -51,8 +51,8 @@ NGRAPH_TEST(${BACKEND_NAME}, round)
 NGRAPH_TEST(${BACKEND_NAME}, round_2D)
 {
     Shape shape{3, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Round>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -88,8 +88,8 @@ NGRAPH_TEST(${BACKEND_NAME}, round_int64)
 {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto A = make_shared<op::v0::Parameter>(element::i64, shape);
+    auto f = make_shared<Function>(make_shared<op::v0::Round>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

@@ -78,9 +78,9 @@ constexpr NodeTypeInfo ControlDependencyOp::type_info;
 
 TEST(control_dependencies, cdep_ops)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn = make_shared<op::v0::Abs>(A);
     auto cdop =
         make_shared<ControlDependencyOp>(OutputVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
@@ -90,11 +90,11 @@ TEST(control_dependencies, cdep_ops)
 
 TEST(control_dependencies, two_cdep_ops)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
-    auto C = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn_c = make_shared<op::Abs>(C);
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn = make_shared<op::v0::Abs>(A);
+    auto C = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn_c = make_shared<op::v0::Abs>(C);
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A},
                                                  std::set<std::shared_ptr<Node>>{absn, absn_c});
 
@@ -104,13 +104,13 @@ TEST(control_dependencies, two_cdep_ops)
 
 TEST(control_dependencies, two_cdep_ops_op_on_top)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
-    auto B = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn_b = make_shared<op::Abs>(B);
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn = make_shared<op::v0::Abs>(A);
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn_b = make_shared<op::v0::Abs>(B);
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A},
                                                  std::set<std::shared_ptr<Node>>{absn, absn_b});
-    auto absn_cdop = make_shared<op::Abs>(cdop);
+    auto absn_cdop = make_shared<op::v0::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
     test_ordered_ops(f, NodeVector{absn, absn_b});
@@ -118,8 +118,8 @@ TEST(control_dependencies, two_cdep_ops_op_on_top)
 
 TEST(control_dependencies, clone_function_cdop)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn = make_shared<op::v0::Abs>(A);
     auto cdop =
         make_shared<ControlDependencyOp>(OutputVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
@@ -132,18 +132,18 @@ TEST(control_dependencies, clone_function_cdop)
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 1);
     auto cloned_abs = *begin(cloned_deps);
-    ASSERT_TRUE(is_type<op::Abs>(cloned_abs));
+    ASSERT_TRUE(is_type<op::v0::Abs>(cloned_abs));
 }
 
 TEST(control_dependencies, clone_function_cdop_abs)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
-    auto B = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn_b = make_shared<op::Abs>(B);
+    auto A = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn = make_shared<op::v0::Abs>(A);
+    auto B = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    auto absn_b = make_shared<op::v0::Abs>(B);
     auto cdop = make_shared<ControlDependencyOp>(OutputVector{A},
                                                  std::set<std::shared_ptr<Node>>{absn, absn_b});
-    auto absn_cdop = make_shared<op::Abs>(cdop);
+    auto absn_cdop = make_shared<op::v0::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
     auto clone = ngraph::clone_function(*f.get());
@@ -159,7 +159,7 @@ TEST(control_dependencies, clone_function_cdop_abs)
     ASSERT_EQ(cloned_deps.size(), 2);
     for (auto ccdep : cloned_deps)
     {
-        ASSERT_TRUE(is_type<op::Abs>(ccdep));
+        ASSERT_TRUE(is_type<op::v0::Abs>(ccdep));
     }
 }
 
@@ -173,8 +173,8 @@ static size_t count_control_dependencies(const shared_ptr<Node>& node,
 TEST(control_dependencies, replace_node)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::f32, shape);
     auto MUL_AB = A * B;
     auto MUL_BA = B * A;
     auto ADD = A + B;

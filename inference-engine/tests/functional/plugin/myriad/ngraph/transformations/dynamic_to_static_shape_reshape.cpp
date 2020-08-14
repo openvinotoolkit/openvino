@@ -74,8 +74,8 @@ protected:
 
 private:
     std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> generateInputSubgraph() const {
-        const auto inDataParam = std::make_shared<ngraph::op::Parameter>(m_inDataType, m_inDataShape);
-        const auto inDataDimsParam = std::make_shared<ngraph::op::Parameter>(ngraph::element::i64, ngraph::Shape{m_inDataShape.size()});
+        const auto inDataParam = std::make_shared<ngraph::op::v0::Parameter>(m_inDataType, m_inDataShape);
+        const auto inDataDimsParam = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{m_inDataShape.size()});
         return std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(inDataParam, inDataDimsParam);
     }
 
@@ -100,7 +100,7 @@ TEST_P(DynamicToStaticShapeReshapeTests, compareFunctions) {}
 std::shared_ptr<ngraph::op::Op> generateStaticReshapePattern(std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dsr) {
     const auto& inDataShape = dsr->input_value(0).get_shape();
     std::vector<std::int64_t> pattern(inDataShape.rbegin(), inDataShape.rend());
-    return std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{pattern.size()}, pattern);
+    return std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{pattern.size()}, pattern);
 }
 
 std::shared_ptr<ngraph::op::Op> generateDynamicReshapePattern(std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dsr) {

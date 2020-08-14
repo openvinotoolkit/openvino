@@ -77,11 +77,12 @@ namespace
         {
             NGRAPH_CHECK(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
                          "Begin input must be 1D");
-            return std::make_shared<op::v1::Broadcast>(op::Constant::create(element::i64, {}, {1}),
-                                                       std::make_shared<op::ShapeOf>(begin));
+            return std::make_shared<op::v1::Broadcast>(
+                op::v0::Constant::create(element::i64, {}, {1}),
+                std::make_shared<op::v0::ShapeOf>(begin));
         }
 
-        return op::Constant::create(
+        return op::v0::Constant::create(
             element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
     }
 }
@@ -176,9 +177,9 @@ void op::v1::StridedSlice::validate_and_infer_types()
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+    auto begin_const = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+    auto end_const = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+    auto strides = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
 
     if (begin_const && end_const && strides)
     {

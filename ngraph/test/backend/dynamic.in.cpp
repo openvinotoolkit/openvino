@@ -46,9 +46,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
     //
     // Create a graph for f(a,b,c) = (a+b)*c, where a, b, c all have shape {2,?,3}.
     //
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto c = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto a = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto b = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto c = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
 
     auto a_plus_b_times_c = (a + b) * c;
 
@@ -110,9 +110,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
 
 static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>& input_shapes)
 {
-    auto a = make_shared<op::Parameter>(element::f32, input_pshape);
-    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
-    auto y = make_shared<op::Parameter>(element::f32, input_pshape);
+    auto a = make_shared<op::v0::Parameter>(element::f32, input_pshape);
+    auto x = make_shared<op::v0::Parameter>(element::f32, input_pshape);
+    auto y = make_shared<op::v0::Parameter>(element::f32, input_pshape);
 
     auto axpy = a * x + y;
 
@@ -177,11 +177,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_axpy)
 
 static void to_vector_test(const PartialShape& input_pshape, const std::vector<Shape>& input_shapes)
 {
-    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
+    auto x = make_shared<op::v0::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::Product>(x_new_shape, AxisSet{0});
-    x_new_shape = make_shared<op::Reshape>(x_new_shape, AxisVector{}, Shape{1});
+    x_new_shape = make_shared<op::v0::Product>(x_new_shape, AxisSet{0});
+    x_new_shape = make_shared<op::v0::Reshape>(x_new_shape, AxisVector{}, Shape{1});
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -237,10 +237,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_to_vector)
 static void reverse_shape_test(const PartialShape& input_pshape,
                                const std::vector<Shape>& input_shapes)
 {
-    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
+    auto x = make_shared<op::v0::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::Reverse>(x_new_shape, AxisSet{0});
+    x_new_shape = make_shared<op::v0::Reverse>(x_new_shape, AxisSet{0});
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 

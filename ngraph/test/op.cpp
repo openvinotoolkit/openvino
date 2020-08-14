@@ -31,23 +31,23 @@ using namespace ngraph;
 
 TEST(op, is_op)
 {
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
     EXPECT_TRUE(op::is_parameter(arg0));
 }
 
 TEST(op, is_parameter)
 {
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
-    auto t0 = make_shared<op::Add>(arg0, arg0);
+    auto t0 = make_shared<op::v0::Add>(arg0, arg0);
     ASSERT_NE(nullptr, t0);
     EXPECT_FALSE(op::is_parameter(t0));
 }
 
 TEST(op, provenance_tag)
 {
-    auto node = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto node = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     auto tag1 = "parameter node";
     auto tag2 = "f32 node";
     node->add_provenance_tag(tag1);
@@ -107,7 +107,7 @@ TEST(op, variant)
     EXPECT_EQ(ship.x, 3);
     EXPECT_EQ(ship.y, 4);
 
-    auto node = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto node = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     node->get_rt_info()["A"] = var_ship;
     auto node_var_ship = node->get_rt_info().at("A");
     ASSERT_TRUE((is_type<VariantWrapper<Ship>>(node_var_ship)));

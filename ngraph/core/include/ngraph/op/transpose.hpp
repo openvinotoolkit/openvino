@@ -54,6 +54,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         }
-        using v1::Transpose;
     }
 }

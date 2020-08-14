@@ -55,7 +55,7 @@ void op::v1::Transpose::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(1);
 
-    if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (auto input_const = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         auto permutation = input_const->get_axis_vector_val();
         NODE_VALIDATION_CHECK(this,

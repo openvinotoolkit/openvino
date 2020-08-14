@@ -255,7 +255,8 @@ bool Function::is_dynamic() const
     return false;
 }
 
-void Function::replace_parameter(size_t parameter_index, const shared_ptr<op::Parameter>& parameter)
+void Function::replace_parameter(size_t parameter_index,
+                                 const shared_ptr<op::v0::Parameter>& parameter)
 {
     NGRAPH_CHECK(parameter_index < m_parameters.size(),
                  "replace_parameter(): Tried to replace parameter at index ",

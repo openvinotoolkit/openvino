@@ -40,16 +40,16 @@ protected:
         ngraph::OutputVector outputs_from_inputs;
 
         for (std::size_t i = 0; i < number_of_inputs; i++) {
-            auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, dims_pre_input });
+            auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, dims_pre_input });
             inputs.push_back(input);
             inputs_names.push_back(input->get_name());
             outputs_from_inputs.push_back(input->outputs()[0]);
         }
 
-        auto concat = std::make_shared<ngraph::op::Concat>(outputs_from_inputs, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(outputs_from_inputs, 1);
 
-        auto weights = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float> {MUL_VALUE});
-        auto biases = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float> {0.0f});
+        auto weights = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float> {MUL_VALUE});
+        auto biases = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float> {0.0f});
 
         auto mul = std::make_shared<ngraph::op::v1::Multiply>(concat, weights);
         auto add = std::make_shared<ngraph::op::v1::Add>(mul, biases);

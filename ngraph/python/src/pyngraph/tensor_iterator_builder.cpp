@@ -66,8 +66,8 @@ util::TensorIteratorBuilder::TensorIteratorBuilder(const ngraph::NodeVector& arg
     }
 }
 
-std::shared_ptr<ngraph::op::TensorIterator>
-    util::TensorIteratorBuilder::configure(std::shared_ptr<ngraph::op::TensorIterator>&& ti_node)
+std::shared_ptr<ngraph::op::v0::TensorIterator> util::TensorIteratorBuilder::configure(
+    std::shared_ptr<ngraph::op::v0::TensorIterator>&& ti_node)
 {
     ti_node->set_body(m_body);
     set_tensor_iterator_sliced_inputs(ti_node);
@@ -108,12 +108,12 @@ void util::TensorIteratorBuilder::get_graph_body()
 
     m_body_outputs = as_output_vector(body_attrs["results"].cast<ngraph::NodeVector>());
     m_body_parameters = body_attrs["parameters"].cast<ngraph::ParameterVector>();
-    m_body =
-        std::make_shared<ngraph::op::TensorIterator::BodyLambda>(m_body_outputs, m_body_parameters);
+    m_body = std::make_shared<ngraph::op::v0::TensorIterator::BodyLambda>(m_body_outputs,
+                                                                          m_body_parameters);
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_sliced_inputs(
-    std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     for (py::handle h : m_slice_input_desc)
     {
@@ -137,7 +137,7 @@ void util::TensorIteratorBuilder::set_tensor_iterator_sliced_inputs(
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_merged_inputs(
-    std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     for (py::handle h : m_merged_input_desc)
     {
@@ -153,7 +153,7 @@ void util::TensorIteratorBuilder::set_tensor_iterator_merged_inputs(
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_invariant_inputs(
-    std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     for (py::handle h : m_invariant_input_desc)
     {
@@ -168,7 +168,7 @@ void util::TensorIteratorBuilder::set_tensor_iterator_invariant_inputs(
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_outputs(
-    std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     for (const auto& elem : m_outputs)
     {
@@ -189,7 +189,7 @@ void util::TensorIteratorBuilder::set_tensor_iterator_outputs(
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_body_output(
-    const py::dict& desc, std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    const py::dict& desc, std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     check_attribute(desc, "body_value_idx", "BodyOutputDesc");
     check_attribute(desc, "iteration", "BodyOutputDesc");
@@ -203,7 +203,7 @@ void util::TensorIteratorBuilder::set_tensor_iterator_body_output(
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_concatenated_body_output(
-    const py::dict& desc, std::shared_ptr<ngraph::op::TensorIterator>& ti_node) const
+    const py::dict& desc, std::shared_ptr<ngraph::op::v0::TensorIterator>& ti_node) const
 {
     check_attribute(desc, "body_value_idx", "ConcatOutputDesc");
     check_attribute(desc, "start", "ConcatOutputDesc");

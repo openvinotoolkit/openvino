@@ -27,7 +27,7 @@ op::util::LogicalReduction::LogicalReduction()
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : Op({arg,
-          op::Constant::create(
+          op::v0::Constant::create(
               element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)})
 {
@@ -42,13 +42,13 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg,
 
 bool op::util::LogicalReduction::reduction_axes_constant() const
 {
-    return is_type<op::Constant>(input_value(1).get_node());
+    return is_type<op::v0::Constant>(input_value(1).get_node());
 }
 
 const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 {
     AxisSet axes;
-    if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
+    if (auto const_op = as_type<op::v0::Constant>(input_value(1).get_node()))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -57,9 +57,10 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes)
 {
-    this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
-            ->output(0));
+    this->input(1).replace_source_output(op::v0::Constant::create(element::i64,
+                                                                  Shape{reduction_axes.size()},
+                                                                  reduction_axes.to_vector())
+                                             ->output(0));
 }
 
 void op::util::LogicalReduction::validate_and_infer_types()
@@ -73,7 +74,7 @@ void op::util::LogicalReduction::validate_and_infer_types()
     {
         AxisSet reduction_axes;
         auto reduction_axes_val =
-            as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+            as_type<op::v0::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try

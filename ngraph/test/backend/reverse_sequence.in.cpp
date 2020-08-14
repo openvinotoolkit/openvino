@@ -34,12 +34,12 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
 {
     Shape shape{2, 3, 4, 2};
     Shape seq_len_shape{4};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 2;
     size_t sequence_axis = 1;
-    auto rs = std::make_shared<op::ReverseSequence>(A, B, batch_axis, sequence_axis);
+    auto rs = std::make_shared<op::v0::ReverseSequence>(A, B, batch_axis, sequence_axis);
 
     auto f = make_shared<Function>(rs, ParameterVector{A, B});
 
@@ -74,14 +74,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
 {
     Shape shape{4, 3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
     Shape seq_len_shape{4};
-    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto B = make_shared<op::v0::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 0;
     size_t sequence_axis = 1;
 
-    auto rs = std::make_shared<op::ReverseSequence>(A, B, batch_axis, sequence_axis);
+    auto rs = std::make_shared<op::v0::ReverseSequence>(A, B, batch_axis, sequence_axis);
 
     auto f = make_shared<Function>(rs, ParameterVector{A, B});
 
@@ -114,14 +114,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4d2c3h2w2)
 {
     Shape shape{4, 2, 3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
     Shape seq_len_shape{4};
-    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto B = make_shared<op::v0::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 0;
     size_t sequence_axis = 2;
 
-    auto rs = std::make_shared<op::ReverseSequence>(A, B, batch_axis, sequence_axis);
+    auto rs = std::make_shared<op::v0::ReverseSequence>(A, B, batch_axis, sequence_axis);
 
     auto f = make_shared<Function>(rs, ParameterVector{A, B});
 
@@ -161,12 +161,12 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_negative_axes)
 {
     Shape shape{2, 3, 4, 2};
     Shape seq_len_shape{4};
-    auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto A = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto B = make_shared<op::v0::Parameter>(element::i32, seq_len_shape);
 
     int64_t batch_axis = -2;
     int64_t sequence_axis = -3;
-    auto rs = std::make_shared<op::ReverseSequence>(A, B, batch_axis, sequence_axis);
+    auto rs = std::make_shared<op::v0::ReverseSequence>(A, B, batch_axis, sequence_axis);
 
     auto f = make_shared<Function>(rs, ParameterVector{A, B});
 

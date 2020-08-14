@@ -26,27 +26,27 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Concat, "Concat", 0);
+NGRAPH_RTTI_DEFINITION(op::v0::Concat, "Concat", 0);
 
-op::Concat::Concat(const OutputVector& args, int64_t axis)
+op::v0::Concat::Concat(const OutputVector& args, int64_t axis)
     : Op(args)
     , m_axis(axis)
 {
     constructor_validate_and_infer_types();
 }
 
-op::Concat::Concat(const NodeVector& args, int64_t axis)
+op::v0::Concat::Concat(const NodeVector& args, int64_t axis)
     : Concat(as_output_vector(args), axis)
 {
 }
 
-bool op::Concat::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Concat::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
-void op::Concat::validate_and_infer_types()
+void op::v0::Concat::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
@@ -109,7 +109,7 @@ void op::Concat::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Concat::clone_with_new_inputs(const OutputVector& new_args) const
 {
     // TODO(amprocte): Should we check the new_args count here?
     return make_shared<Concat>(new_args, m_axis);
@@ -164,9 +164,9 @@ namespace
     }
 }
 
-bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Concat::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Concat::evaluate");
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }

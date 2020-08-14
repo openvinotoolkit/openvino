@@ -24,7 +24,7 @@ public:
     bool virtual match_value(const ngraph::Output<ngraph::Node>& pattern_value,
                              const ngraph::Output<ngraph::Node>& graph_value) override
     {
-        if (ngraph::is_type<::ngraph::op::Parameter>(pattern_value.get_node_shared_ptr()))
+        if (ngraph::is_type<::ngraph::op::v0::Parameter>(pattern_value.get_node_shared_ptr()))
         {
             bool result = pattern_value == graph_value;
             if (result)

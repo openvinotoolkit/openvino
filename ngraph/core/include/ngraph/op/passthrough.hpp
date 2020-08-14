@@ -35,7 +35,6 @@ namespace ngraph
             /// operation language in certain modes.
             class Passthrough;
         }
-        using v0::Passthrough;
     }
 }
 

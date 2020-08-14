@@ -40,7 +40,7 @@ void ExecGraphInputsFusingBinConv::SetUp() {
     auto conv = ngraph::builder::makeGroupConvolution(binConv, ngraph::element::f32, convKernelSize, strides, padsBegin, padsEnd, dilations, paddingType,
                                                       numOutChannels, numGroups);
 
-    auto biasNode = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, std::vector<size_t>{16, 1, 1});
+    auto biasNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, std::vector<size_t>{16, 1, 1});
     auto add = std::make_shared<ngraph::opset1::Add>(conv, biasNode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
     fnPtr = std::make_shared<ngraph::Function>(results, params, "BinConvFuseConv");
