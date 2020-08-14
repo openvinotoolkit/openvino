@@ -9,7 +9,6 @@
 #include "mkldnn_itt.h"
 
 #include <legacy/net_pass.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
