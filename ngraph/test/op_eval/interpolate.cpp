@@ -38,16 +38,6 @@ using Nearest_mode = op::v4::Interpolate::NearestMode;
 using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 
-template <typename T>
-void print_vector(const std::vector<T>& v)
-{
-    for (auto x : v)
-    {
-        std::cout << x << " ";
-    }
-    std::cout << "\n";
-}
-
 // All examples are from ONNX Resize-11 documentation
 // (see https://github.com/onnx/onnx/blob/master/docs/Operators.md).
 TEST(op_eval, interpolate_v4_cubic)
@@ -154,20 +144,14 @@ TEST(op_eval, interpolate_v4_cubic)
         ASSERT_TRUE(fun->evaluate(
             {result},
             {make_host_tensor<element::Type_t::f32>(data_shape, input_data)}));
-        std::cout << "Shape of result is " << result->get_shape() << "\n";
         EXPECT_EQ(result->get_element_type(), element::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
-        std::cout << "Result: ";
-        print_vector(result_vector);
-        std::cout << "Expected result: ";
-        print_vector(expected_results[i]);
         std::size_t num_of_elems = shape_size(s.out_shape);
         for (std::size_t j = 0; j < num_of_elems; ++j)
         {
             EXPECT_NEAR(result_vector[j], expected_results[i][j], 0.00001);
         }
-        // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
 }
@@ -300,7 +284,6 @@ TEST(op_eval, interpolate_v4_nearest)
         ASSERT_TRUE(fun->evaluate(
             {result},
             {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        std::cout << "Shape of result is " << result->get_shape() << "\n";
         EXPECT_EQ(result->get_element_type(), element::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
@@ -309,7 +292,6 @@ TEST(op_eval, interpolate_v4_nearest)
         {
             EXPECT_NEAR(result_vector[j], expected_results[i][j], 0.0000002);
         }
-        // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
 }
@@ -368,8 +350,6 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         {1.0f, 1.33333333f, 1.66666667f, 2.0f, 1.66666667f, 2.0f, 2.33333333f, 2.66666667f, 2.33333333f, 2.66666667f,
          3.0f, 3.33333333f, 3.0f, 3.33333333f, 3.66666667f, 4.0f}};
 
-    std::cout << std::setprecision(10);
-
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
@@ -396,20 +376,14 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         ASSERT_TRUE(fun->evaluate(
             {result},
             {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        std::cout << "Shape of result is " << result->get_shape() << "\n";
         EXPECT_EQ(result->get_element_type(), element::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
-        std::cout << "Result: ";
-        print_vector(result_vector);
-        std::cout << "Expected result: ";
-        print_vector(expected_results[i]);
         std::size_t num_of_elems = shape_size(s.out_shape);
         for (std::size_t j = 0; j < num_of_elems; ++j)
         {
             EXPECT_NEAR(result_vector[j], expected_results[i][j], 0.00001);
         }
-        // ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_results[i]));
         ++i;
     }
 }
