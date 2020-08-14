@@ -24,6 +24,8 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace op
@@ -447,3 +449,5 @@ namespace ngraph
         std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& m_ref;
     };
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END

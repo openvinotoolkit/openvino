@@ -19,7 +19,7 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/op/fused/matmul.hpp"
+#include "ngraph/op/matmul.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "util/all_close_f.hpp"
 

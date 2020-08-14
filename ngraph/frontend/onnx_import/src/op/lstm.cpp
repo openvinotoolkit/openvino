@@ -27,7 +27,7 @@
 #include "ngraph/enum_names.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/fused/lstm_sequence.hpp"
+#include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"

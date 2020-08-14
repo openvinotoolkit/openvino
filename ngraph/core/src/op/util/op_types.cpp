@@ -65,7 +65,9 @@ bool ngraph::op::supports_auto_broadcast(const ngraph::Node* node)
 
 bool ngraph::op::supports_decompose(const ngraph::Node* node)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     return dynamic_cast<const ngraph::op::util::FusedOp*>(node) != nullptr;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool ngraph::op::is_op(const ngraph::Node* node)

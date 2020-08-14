@@ -21,6 +21,8 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace op
@@ -250,3 +252,5 @@ namespace ngraph
         } // namespace v1
     }     // namespace op
 } // namespace ngraph
+
+NGRAPH_SUPPRESS_DEPRECATED_END

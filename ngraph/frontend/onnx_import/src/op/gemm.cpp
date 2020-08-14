@@ -20,7 +20,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/fused/matmul.hpp"
+#include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "onnx_import/default_opset.hpp"
 

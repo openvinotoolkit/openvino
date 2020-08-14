@@ -27,7 +27,10 @@ namespace ngraph
             /// \brief Abstract base class for fused ops, i.e ops that can be broken down into core
             ///        ngraph ops
             ///
-            class NGRAPH_API FusedOp : public Op
+            class NGRAPH_DEPRECATED(
+                "FusedOp approach was deprecated! "
+                "Please use inheritance from usual Op instead of FusedOp") NGRAPH_API FusedOp
+                : public Op
             {
             public:
                 // Fused op decomposition can be performed in the presence of

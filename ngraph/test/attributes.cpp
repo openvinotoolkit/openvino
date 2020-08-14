@@ -28,6 +28,8 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 TEST(attributes, value_map)
 {
     ValueMap value_map;

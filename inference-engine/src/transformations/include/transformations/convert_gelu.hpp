@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "ngraph/op/fused/gelu.hpp"
+#include "ngraph/op/gelu.hpp"
 
 namespace ngraph {
 namespace pass {
