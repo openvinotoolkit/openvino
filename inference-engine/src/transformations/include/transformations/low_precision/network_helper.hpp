@@ -157,6 +157,8 @@ public:
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues = true);
+
 private:
     // 1  - on weights
     // 0  - weightable layer was not found
@@ -236,26 +238,6 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
                     node->get_input_element_type(0),
                     Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
                     as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
-        }
-    }
-    return node;
-}
-
-template <typename T, typename... Args>
-std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
-    std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
-    if (node->get_output_size() == 1) {
-        OutputVector folded;
-        if (is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(2).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(3).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(4).get_node_shared_ptr()) &&
-            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr()), 0) &&
-            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(2).get_node_shared_ptr()), 254) &&
-            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr()), -127) &&
-            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr()), 127)) {
-            return fold<opset1::Add>(node->input_value(0), node->input_value(3));
         }
     }
     return node;
