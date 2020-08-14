@@ -16,7 +16,9 @@ namespace LayerTestsDefinitions {
 class ConvolutionTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    bool asymmetricQuantizationOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    bool asymmetricQuantizationOnWeights;
 };
 
 typedef std::tuple<

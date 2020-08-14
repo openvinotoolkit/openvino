@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
@@ -26,9 +26,35 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 
 const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-    }
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        {},
+        false
+    },
+    {
+        {},
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    // {
+    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 1.f }, { 25.5f } },
+    //    true,
+    //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+    //    false
+    // },
+    // {
+    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+    //    false,
+    //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.f }, { 12.7f } },
+    //    true
+    // }
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, ConvolutionTransformation,

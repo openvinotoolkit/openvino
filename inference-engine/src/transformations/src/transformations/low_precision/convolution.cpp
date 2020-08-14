@@ -26,8 +26,6 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
 }
 
-size_t handledCount = 0;
-
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
@@ -103,13 +101,19 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     outputScales);
             }
         } else {
-            // workaround: constant is cloning because it's used twice and can not be fused below
-            newMultiplyAfterConst = dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
+            std::shared_ptr<opset1::Constant> reducedConstant = as_type_ptr<opset1::Constant>(
+                dequantization.multiply->input_value(1).get_node_shared_ptr());
+            newMultiplyAfterConst = std::make_shared<opset1::Constant>(
+                reducedConstant->get_output_element_type(0),
+                Shape{ 1 },
+                reducedConstant->cast_vector<float>()[0]);
         }
 
-        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
-            convolution->copy_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) }),
-            newMultiplyAfterConst);
+        auto newConvolution = convolution->copy_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) });
+        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+            std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{ element::f32 },
+            ngraph::op::TemporaryReplaceOutputType(newConvolution, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, element::f32).get());
 
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();

@@ -31,8 +31,8 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
-        (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
-        (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
+        param.fakeQuantizeOnData <<
+        param.fakeQuantizeOnWeights;
     return result.str();
 }
 
@@ -88,7 +88,9 @@ void ConvolutionTransformation::validate() {
             checkPrecisions(
                 *layer,
                 { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-                { getDeviceInternalPrecision(netPrecision) });
+                { getDeviceInternalPrecision(netPrecision) },
+                param.asymmetricQuantizationOnData,
+                param.asymmetricQuantizationOnWeights);
         } else {
             checkPrecisions(*layer, netPrecision);
         }
