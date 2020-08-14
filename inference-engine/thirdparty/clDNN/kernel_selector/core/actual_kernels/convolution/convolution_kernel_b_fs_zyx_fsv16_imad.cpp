@@ -251,7 +251,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolut
     bytes_used += weights_block_elements * BytesPerElement(params.weights.GetDType());
 
     // Experimentally selected number of registers needed for extra variables (eg. out_x, out_y, out_z, filter_idx, etc.)
-    constexpr size_t experimental_extra_regs = 8 * 32; // TODO: adjust to take into account Z dimension, group support, in/out features not divisable by 16 etc.
+    constexpr size_t experimental_extra_regs = 8 * 32;
     bytes_used += experimental_extra_regs;
 
     // Experimentally selected number of registers needed for slm handling
