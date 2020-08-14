@@ -73,9 +73,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
