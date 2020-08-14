@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <transformations/convert_opset4_to_opset3/convert_tensor_iterator_to_sequence.hpp>
+#include "transformations/convert_opset4_to_opset3/convert_tensor_iterator_to_sequence.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -153,6 +154,7 @@ void ngraph::pass::ConvertTensorIteratorToLSTMSequence::convert_ti_to_lstm_seque
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
             }
         }
 
@@ -293,6 +295,7 @@ void ngraph::pass::ConvertTensorIteratorToRNNSequence::convert_ti_to_rnn_sequenc
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
             }
         }
 
@@ -437,6 +440,7 @@ void ngraph::pass::ConvertTensorIteratorToGRUSequence::convert_ti_to_gru_sequenc
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
             }
         }
 
