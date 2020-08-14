@@ -8,8 +8,9 @@ jobs:
     system.debug: true
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
-    REPO_DIR: $(Build.Repository.LocalPath)/openvino
-    BUILD_DIR: $(Build.Repository.LocalPath)/build
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(REPO_DIR)/..
+    BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
   steps:
   - checkout: self
@@ -42,6 +43,7 @@ jobs:
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
+    workingDirectory: $(WORK_DIR)
     displayName: 'Install Ninja'
   - script: |
       mkdir $(BUILD_DIR)
@@ -87,22 +89,23 @@ jobs:
   - script: |
       git clone https://github.com/openvinotoolkit/testdata.git
       git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(WORK_DIR)
     displayName: 'Clone testdata & gtest-parallel'
   - script: |
-      export DATA_PATH=$(Build.Repository.LocalPath)/testdata
-      export MODELS_PATH=$(Build.Repository.LocalPath)/testdata
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
       python3 gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
-      export DATA_PATH=$(Build.Repository.LocalPath)/testdata
-      export MODELS_PATH=$(Build.Repository.LocalPath)/testdata
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
       $(BIN_DIR)/InferenceEngineCAPITests
     displayName: 'IE CAPITests'
     continueOnError: false
   - script: |
-      export DATA_PATH=$(Build.Repository.LocalPath)/testdata
-      export MODELS_PATH=$(Build.Repository.LocalPath)/testdata
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
       export LD_LIBRARY_PATH=$(BIN_DIR)/lib
       export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
       env
@@ -121,8 +124,9 @@ jobs:
     system.debug: true
     WORKERS_NUMBER: 3
     BUILD_TYPE: Release
-    REPO_DIR: $(Build.Repository.LocalPath)/openvino
-    BUILD_DIR: $(Build.Repository.LocalPath)/build
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(REPO_DIR)/..
+    BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
   steps:
   - checkout: self
@@ -196,16 +200,17 @@ jobs:
   - script: |
       git clone https://github.com/openvinotoolkit/testdata.git
       git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(WORK_DIR)
     displayName: 'Clone testdata & gtest-parallel'
   - script: |
-      export DATA_PATH=$(Build.Repository.LocalPath)/testdata
-      export MODELS_PATH=$(Build.Repository.LocalPath)/testdata
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
       python3 gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
-      export DATA_PATH=$(Build.Repository.LocalPath)/testdata
-      export MODELS_PATH=$(Build.Repository.LocalPath)/testdata
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
       $(BIN_DIR)/InferenceEngineCAPITests
     displayName: 'IE CAPITests'
     continueOnError: false
@@ -219,7 +224,8 @@ jobs:
     system.debug: true
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
-    REPO_DIR: $(Build.Repository.LocalPath)\openvino
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(REPO_DIR)\..
     BUILD_DIR: D:\build
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
@@ -245,6 +251,7 @@ jobs:
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
+    workingDirectory: $(WORK_DIR)
     displayName: Install Ninja
   - script: |
       certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
@@ -252,6 +259,7 @@ jobs:
       echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
       reg add HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder /f /v LastEnabled /d 0
       echo Start IncrediBuild_Agent && net start IncrediBuild_Agent
+    workingDirectory: $(WORK_DIR)
     displayName: Install IncrediBuild
   - script: |
       echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
@@ -262,14 +270,14 @@ jobs:
       mkdir $(BUILD_DIR)\bin
     displayName: 'Make build dir'
   - script: |
-      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
   - script: |
-      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
-      workingDirectory: $(BUILD_DIR)
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
     displayName: Stop IncrediBuild
