@@ -65,3 +65,8 @@ std::shared_ptr<Node> pattern::any_input()
 {
     return std::make_shared<pattern::op::Label>();
 }
+
+std::shared_ptr<Node> pattern::any_input(const pattern::op::ValuePredicate& pred)
+{
+    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
+}

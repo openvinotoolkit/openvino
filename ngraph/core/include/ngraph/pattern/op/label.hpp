@@ -145,5 +145,8 @@ namespace ngraph
 
         NGRAPH_API
         std::shared_ptr<Node> any_input();
+
+        NGRAPH_API
+        std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
     }
 }
