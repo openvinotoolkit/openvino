@@ -174,16 +174,15 @@ All links in content should follow these guidelines:
 
 Use following examples to write links in your documentation:
 
-* To add a cross-reference to another documentation page stored in current repository, use the file path relative to the file you are working in
+* To add a cross-reference to another documentation page stored in current repository, use the file path relative to the file you are working in, for example:
 ```
 [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
 ```
 
-* To add a cross-reference to another documentation page from different repository, use `url` from the [docs/doxygen/ie_docs.xml](./docs/doxygen/ie_docs.xml) file
-> **NOTE**: If the documentation page isn't presented there, search *ie_docs.xml* in https://github.com/openvinotoolkit/ repositories. Do not use direct links from docs.openvinotoolkit.org.
+* To add a cross-reference to another documentation page from a different repository, use `url` from the [docs/doxygen/ie_docs.xml](./docs/doxygen/ie_docs.xml) file, for example:
+> **NOTE**: Do not use direct links from docs.openvinotoolkit.org.
 
   ```
-  - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision  
   - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
   ```
 
