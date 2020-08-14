@@ -7,15 +7,13 @@
 #include "details/ie_so_loader.h"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
-#include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
-
-IE_SUPPRESS_DEPRECATED_START
 
 class PluginTest: public ::testing::Test {
 protected:
@@ -39,11 +37,12 @@ protected:
         return ptr;
     }
 
-    MockIInferencePlugin engine;
+    MockInferencePluginInternal2 engine;
 };
 
 TEST_F(PluginTest, canCreatePlugin) {
-    auto ptr = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
+    auto ptr = make_std_function<IInferencePlugin*
+        (IInferencePlugin*)>("CreatePluginEngineProxy");
 
     unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
         p->Release();
@@ -65,16 +64,13 @@ InferenceEnginePluginPtr PluginTest::getPtr() {
 
 TEST_F(PluginTest, canSetConfiguration) {
     InferenceEnginePluginPtr ptr = getPtr();
-    // TODO: dynamic->reinterpret because of calng/gcc cannot
+    // TODO: dynamic->reinterpret because of clang/gcc cannot
     // dynamically cast this MOCK object
     ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
 
-    ResponseDesc resp;
     std::map<std::string, std::string> config = { { "key", "value" } };
-    ASSERT_EQ(ptr->SetConfig(config, &resp), OK);
+    ASSERT_NO_THROW(ptr->SetConfig(config));
     config.clear();
 
     ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
 }
-
-IE_SUPPRESS_DEPRECATED_END
