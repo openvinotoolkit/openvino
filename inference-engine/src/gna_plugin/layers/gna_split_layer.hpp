@@ -7,7 +7,6 @@
 #include <vector>
 
 #include <legacy/ie_layers.h>
-#include "cpp_interfaces/base/ie_plugin_base.hpp"
 
 namespace GNAPluginNS {
 // Split, Slice

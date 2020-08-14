@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::v0::Split::type_info;
 
 op::v0::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_split)

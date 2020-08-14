@@ -171,7 +171,7 @@ namespace ngraph
 
             if (squeezed_shape != value.get_shape())
             {
-                broadcasted_node = builder::reshape(value, squeezed_shape);
+                broadcasted_node = builder::opset1::reshape(value, squeezed_shape);
             }
 
             if (!broadcast_axes.empty())
