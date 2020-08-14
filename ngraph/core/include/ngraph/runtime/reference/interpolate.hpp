@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <list>
 #include <map>
 #include "ngraph/shape_util.hpp"
 
@@ -477,15 +478,31 @@ namespace ngraph
             }
 
             template <typename T>
+            void print_vector(const std::vector<T>& v)
+            {
+                for (auto x : v)
+                {
+                    std::cout << x << " ";
+                }
+                std::cout << "\n";
+            }
+
+            template <typename T>
             void InterpolateEval<T>::cubic_func(const T* input_data, T* out)
             {
+                std::cout << "Starting cubic_func\n";
                 std::size_t input_rank = m_input_data_shape.size();
+                std::cout << "input rank: " << input_rank << "\n";
+                std::cout << "Axes to interpolate: ";
+                print_vector(m_axes);
                 std::size_t num_of_axes = m_axes.size();
                 std::vector<int64_t> coords_limits_vector(input_rank);
                 for (std::size_t i = 0; i < input_rank; ++i)
                 {
                     coords_limits_vector[i] = m_out_shape[i] - 1;
                 }
+                std::cout << "coords_limit_vector: ";
+                print_vector(coords_limits_vector);
                 runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
                 runtime::NDimRange coords_range{out_limits};
                 runtime::NDimArrayView<T> result{out};
@@ -493,6 +510,11 @@ namespace ngraph
 
                 std::vector<int64_t> maximal_indices_vector(num_of_axes, 3);
                 runtime::NDimIndex maximal_indices{maximal_indices_vector, maximal_indices_vector};
+                std::cout << "Maximal  indeces vector: ";
+                print_vector(maximal_indices_vector);
+                std::cout <<"Maximal  indeces: " << maximal_indices << "\n";
+
+                std::cout << "Starting calculation loop.\n";
 
                 for (const auto& coordinates : coords_range)
                 {
@@ -520,7 +542,7 @@ namespace ngraph
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
-                                clip_coord(input_coords[axis] + index[i] - 1, axis);
+                                clip_coord(input_coords[axis] + index[i] - 1, static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][index[i]];
                         }
                         summa += coeffs_prod * input_view[coords_for_sum];
