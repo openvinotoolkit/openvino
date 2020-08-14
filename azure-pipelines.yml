@@ -17,7 +17,7 @@ jobs:
     fetchDepth: 1
     lfs: false
     submodules: true
-    path: $(REPO_DIR)
+    path: openvino
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -130,7 +130,7 @@ jobs:
     fetchDepth: 1
     lfs: false
     submodules: true
-    path: $(REPO_DIR)
+    path: openvino
   - script: |
       whoami
       uname -a
@@ -153,7 +153,7 @@ jobs:
   - script: |
       mkdir $(BUILD_DIR)
       cd $(BUILD_DIR)
-    displayName: 'Make  build dir'
+    displayName: 'Make build dir'
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
@@ -230,7 +230,7 @@ jobs:
     fetchDepth: 1
     lfs: false
     submodules: true
-    path: $(REPO_DIR)
+    path: openvino
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python3
