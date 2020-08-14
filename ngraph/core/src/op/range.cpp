@@ -134,14 +134,8 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val)
     case element::Type_t::f32:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f32>());
         break;
-    case element::Type_t::f64:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f64>());
-        break;
     case element::Type_t::i8:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i8>());
-        break;
-    case element::Type_t::i16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i16>());
         break;
     case element::Type_t::i32:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i32>());
@@ -151,9 +145,6 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val)
         break;
     case element::Type_t::u8:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u8>());
-        break;
-    case element::Type_t::u16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u16>());
         break;
     case element::Type_t::u32:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u32>());
@@ -212,14 +203,8 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     case element::Type_t::f32:
         return evaluate_v4_range<element::Type_t::f32>(out, start, stop, step);
         break;
-    case element::Type_t::f64:
-        return evaluate_v4_range<element::Type_t::f64>(out, start, stop, step);
-        break;
     case element::Type_t::i8:
         return evaluate_v4_range<element::Type_t::i8>(out, start, stop, step);
-        break;
-    case element::Type_t::i16:
-        return evaluate_v4_range<element::Type_t::i16>(out, start, stop, step);
         break;
     case element::Type_t::i32:
         return evaluate_v4_range<element::Type_t::i32>(out, start, stop, step);
@@ -230,15 +215,15 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     case element::Type_t::u8:
         return evaluate_v4_range<element::Type_t::u8>(out, start, stop, step);
         break;
-    case element::Type_t::u16:
-        return evaluate_v4_range<element::Type_t::u16>(out, start, stop, step);
-        break;
     case element::Type_t::u32:
         return evaluate_v4_range<element::Type_t::u32>(out, start, stop, step);
         break;
     case element::Type_t::u64:
         return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
         break;
+    case element::Type_t::f64:
+    case element::Type_t::i16:
+    case element::Type_t::u16:
     case element::Type_t::dynamic:
     case element::Type_t::u1:
     case element::Type_t::undefined:
