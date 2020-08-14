@@ -271,7 +271,7 @@ class EltwiseOnlyTest : public TestsCommon,
                 if (p.op != eltwise_test_params::Pow)
                     CommonTestUtils::fill_data_sine(inputBlob->buffer().as<float*>(), inputBlob->size(), 100, 10, 10);
                 else
-                    CommonTestUtils::fill_data_const(inputBlob->buffer().as<float*>(), inputBlob->size(), 2);
+                    CommonTestUtils::fill_data_const(inputBlob, 2);
 
                 srcs_vec.push_back(inputBlob);
             }
