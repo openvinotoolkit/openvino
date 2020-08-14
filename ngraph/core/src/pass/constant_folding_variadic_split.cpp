@@ -66,6 +66,9 @@ void pass::ConstantFolding::construct_constant_variadic_split()
         const auto lengths_node = static_pointer_cast<op::Constant>(pattern_map[lengths_label]);
         const auto variadic_split = static_pointer_cast<op::v1::VariadicSplit>(m.get_match_root());
 
+        if (cf_is_disabled(variadic_split))
+            return false;
+
         const auto axis_val = axis_node->cast_vector<int64_t>()[0];
         const auto norm_axis_val = ngraph::normalize_axis(
             variadic_split.get(), axis_val, data_node->get_output_partial_shape(0).rank());

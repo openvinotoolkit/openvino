@@ -33,7 +33,8 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
         make_shared<pattern::op::Label>(element::i64, Shape{1}, pattern::has_class<op::Constant>());
     auto gather_v1 = make_shared<op::v1::Gather>(concat_label, indices_label, axis_label);
 
-    auto concat_gather_callback = [concat_label, indices_label, axis_label](pattern::Matcher& m) {
+    auto concat_gather_callback = [this, concat_label, indices_label, axis_label](
+        pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for construct_constant_gather_with_subgraph against node = "
                      << m.get_match_root();
 
@@ -44,6 +45,9 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
         const auto indices = static_pointer_cast<op::Constant>(pattern_map[indices_label]);
         const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
         const auto gather = m.get_match_root();
+
+        if (cf_is_disabled(gather))
+            return false;
 
         // only along axis=0
         if (axis->cast_vector<int64_t>()[0] != 0 || concat->get_axis() != 0)
