@@ -17,7 +17,7 @@
 #include "ngraph/op/less.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/less.hpp"
+#include "runtime/reference/less.hpp"
 
 using namespace std;
 using namespace ngraph;

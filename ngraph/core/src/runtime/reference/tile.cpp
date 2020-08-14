@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/tile.hpp"
+#include "runtime/reference/tile.hpp"
 
 using namespace ngraph;
 

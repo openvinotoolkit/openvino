@@ -19,8 +19,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/maximum.hpp"
 #include "ngraph/op/minimum.hpp"
-#include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
+#include "runtime/reference/clamp.hpp"
 
 using namespace std;
 using namespace ngraph;

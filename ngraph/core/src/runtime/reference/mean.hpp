@@ -21,10 +21,10 @@
 #include <vector>
 
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "runtime/reference/sum.hpp"
 
 namespace ngraph
 {

@@ -16,12 +16,12 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
-
 #include "ngraph/shape.hpp"
+#include "runtime/reference/autobroadcast_binop.hpp"
 
 namespace ngraph
 {
@@ -30,25 +30,25 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void logical_or(const T* arg0, const T* arg1, T* out, size_t count)
+            void power(const T* arg0, const T* arg1, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = static_cast<T>(arg0[i] || arg1[i]);
+                    out[i] = std::pow(arg0[i], arg1[i]);
                 }
             }
 
             template <typename T>
-            void logical_or(const T* arg0,
-                            const T* arg1,
-                            T* out,
-                            const Shape& arg0_shape,
-                            const Shape& arg1_shape,
-                            const op::AutoBroadcastSpec& broadcast_spec)
+            void power(const T* arg0,
+                       const T* arg1,
+                       T* out,
+                       const Shape& arg0_shape,
+                       const Shape& arg1_shape,
+                       const op::AutoBroadcastSpec& broadcast_spec)
             {
                 autobroadcast_binop(
                     arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
-                        return static_cast<T>(x || y);
+                        return std::pow(x, y);
                     });
             }
         }

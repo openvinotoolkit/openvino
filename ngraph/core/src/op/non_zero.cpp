@@ -18,8 +18,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/non_zero.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "runtime/reference/non_zero.hpp"
 
 using namespace ngraph;
 using namespace std;

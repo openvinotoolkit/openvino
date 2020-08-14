@@ -18,8 +18,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
+#include "runtime/reference/gather.hpp"
 
 #include <limits>
 

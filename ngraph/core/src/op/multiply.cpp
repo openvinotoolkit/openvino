@@ -17,7 +17,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/multiply.hpp"
+#include "runtime/reference/multiply.hpp"
 
 using namespace std;
 using namespace ngraph;

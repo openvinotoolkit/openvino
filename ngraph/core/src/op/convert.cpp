@@ -18,7 +18,7 @@
 
 #include "ngraph/itt.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
+#include "runtime/reference/convert.hpp"
 
 using namespace std;
 using namespace ngraph;

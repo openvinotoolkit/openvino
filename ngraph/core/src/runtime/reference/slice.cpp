@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
+#include "runtime/reference/slice.hpp"
 
 namespace ngraph
 {

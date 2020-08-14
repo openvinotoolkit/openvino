@@ -21,7 +21,7 @@
 #include "ngraph/op/tanh.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/tanh.hpp"
+#include "runtime/reference/tanh.hpp"
 
 using namespace std;
 using namespace ngraph;

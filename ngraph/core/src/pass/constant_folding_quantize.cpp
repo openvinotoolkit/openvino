@@ -16,7 +16,7 @@
 
 #include "constant_folding.hpp"
 #include "ngraph/op/quantize.hpp"
-#include "ngraph/runtime/reference/quantize.hpp"
+#include "runtime/reference/quantize.hpp"
 
 using namespace std;
 using namespace ngraph;

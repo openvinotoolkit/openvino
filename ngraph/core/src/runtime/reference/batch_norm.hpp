@@ -21,13 +21,13 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/add.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/divide.hpp"
-#include "ngraph/runtime/reference/multiply.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/util.hpp"
+#include "runtime/reference/add.hpp"
+#include "runtime/reference/broadcast.hpp"
+#include "runtime/reference/divide.hpp"
+#include "runtime/reference/multiply.hpp"
+#include "runtime/reference/sum.hpp"
 
 namespace ngraph
 {

@@ -16,8 +16,8 @@
 
 #include "constant_folding.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
-#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "ngraph/validation_util.hpp"
+#include "runtime/reference/scatter_elements_update.hpp"
 
 using namespace std;
 using namespace ngraph;

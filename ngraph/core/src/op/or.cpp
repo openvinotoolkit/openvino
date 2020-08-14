@@ -17,7 +17,7 @@
 #include "ngraph/op/or.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/or.hpp"
+#include "runtime/reference/or.hpp"
 
 using namespace std;
 using namespace ngraph;

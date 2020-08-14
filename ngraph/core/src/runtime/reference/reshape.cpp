@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
+#include "runtime/reference/reshape.hpp"
 
 using namespace ngraph;
 

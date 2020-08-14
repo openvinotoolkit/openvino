@@ -23,10 +23,10 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/shape_util.hpp"
+#include "runtime/opt_kernel/reshape.hpp"
+#include "runtime/reference/broadcast.hpp"
+#include "runtime/reference/dot.hpp"
 
 using namespace std;
 

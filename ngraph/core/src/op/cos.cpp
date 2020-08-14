@@ -22,7 +22,7 @@
 #include "ngraph/op/sin.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/cos.hpp"
+#include "runtime/reference/cos.hpp"
 
 using namespace std;
 using namespace ngraph;

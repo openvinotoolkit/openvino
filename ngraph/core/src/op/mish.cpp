@@ -20,7 +20,7 @@
 #include "ngraph/op/mish.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/mish.hpp"
+#include "runtime/reference/mish.hpp"
 
 using namespace std;
 using namespace ngraph;

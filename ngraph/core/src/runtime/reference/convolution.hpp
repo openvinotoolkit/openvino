@@ -22,8 +22,8 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/util.hpp"
+#include "runtime/reference/reverse.hpp"
 
 namespace ngraph
 {

@@ -18,8 +18,8 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
+#include "runtime/reference/max.hpp"
 
 using namespace std;
 using namespace ngraph;

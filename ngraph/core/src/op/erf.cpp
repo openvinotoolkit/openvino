@@ -20,7 +20,7 @@
 #include "ngraph/util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/erf.hpp"
+#include "runtime/reference/erf.hpp"
 
 using namespace std;
 using namespace ngraph;

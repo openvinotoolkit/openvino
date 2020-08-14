@@ -18,8 +18,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/eval_helpers.hpp"
-#include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "runtime/reference/eval_helpers.hpp"
+#include "runtime/reference/logical_reduction.hpp"
 
 using namespace ngraph;
 using namespace std;

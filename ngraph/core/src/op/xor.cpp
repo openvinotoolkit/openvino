@@ -17,7 +17,7 @@
 #include "ngraph/op/xor.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/xor.hpp"
+#include "runtime/reference/xor.hpp"
 
 using namespace std;
 using namespace ngraph;
