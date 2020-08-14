@@ -16,8 +16,8 @@
 
 #include "constant_folding.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/op/fused/squeeze.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/squeeze.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 
 using namespace std;

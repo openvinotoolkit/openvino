@@ -76,7 +76,7 @@ xfail_issue_36481 = xfail_test(reason="TypeError: _get_node_factory() takes from
 xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
                                "Ceiling name: Ceiling_22669")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
-                               "/openvino/ngraph/src/ngraph/op/fused/shuffle_channels.cpp:77:")
+                               "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
