@@ -1198,7 +1198,9 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -1714,7 +1716,9 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -1864,7 +1868,9 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2045,7 +2051,9 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2377,7 +2385,9 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2525,7 +2535,9 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
+    // in the POC impl, the networks are reshaped/cached by the specific dim (1th)
+    const int seq = network.getInputsInfo().cbegin()->second->getTensorDesc().getDims()[1];
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork({{seq, network}}, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);

@@ -16,7 +16,7 @@ using namespace mkldnn;
 class MKLDNNTestExecNetwork: public MKLDNNPlugin::MKLDNNExecNetwork {
 public:
     MKLDNNPlugin::MKLDNNGraph& getGraph() {
-        return *(_graphs.begin()->get());
+        return *(_graphs.begin()->begin()->second);
     }
 };
 
