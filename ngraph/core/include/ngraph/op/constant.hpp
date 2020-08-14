@@ -560,5 +560,6 @@ namespace ngraph
                 bool are_all_data_elements_bitwise_identical() const;
             };
         }
+        using v0::Constant;
     }
 }
