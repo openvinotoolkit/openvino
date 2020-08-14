@@ -34,8 +34,8 @@ jobs:
       df
     displayName: 'System properties'
   - script: |
-      rm -rf $(WORK_DIR) || mkdir $(WORK_DIR)
-      rm -rf $(BUILD_DIR) || mkdir $(BUILD_DIR)
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
@@ -147,9 +147,9 @@ jobs:
       sysctl -a
     displayName: 'System properties'
   - script: |
-      rm -rf $(WORK_DIR) || mkdir $(WORK_DIR)
-      rm -rf $(BUILD_DIR) || mkdir $(BUILD_DIR)
-    displayName: 'Make build dir'
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+    displayName: 'Make dir'
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.7'
@@ -251,8 +251,8 @@ jobs:
       set
     displayName: 'System properties'
   - script: |
-      rd /Q /S $(WORK_DIR) || mkdir $(WORK_DIR)
-      rd /Q /S $(BUILD_DIR) || mkdir $(BUILD_DIR)
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
     displayName: 'Make dir'
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
@@ -265,7 +265,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: Install IncrediBuild
   - script: |
-      echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent || cd .
+      echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
       reg add HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder /f /v LastEnabled /d 0 && echo Start IncrediBuild_Agent && net start IncrediBuild_Agent
     displayName: Start IncrediBuild
   - script: |
