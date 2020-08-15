@@ -11,7 +11,8 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    // InferenceEngine::Precision::FP16
 };
 
 const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
@@ -25,12 +26,38 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 
 const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
     {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        {},
+        false
     },
+    {
+        {},
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false
+    },
+    // {
+    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 1.f }, { 25.5f } },
+    //    true,
+    //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+    //    false
+    // },
+    // {
+    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+    //    false,
+    //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.f }, { 12.7f } },
+    //    true
+    // }
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
@@ -40,7 +67,3 @@ INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
         ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
 }  // namespace
-
-
-
-
