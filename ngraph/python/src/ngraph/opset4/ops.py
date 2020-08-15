@@ -163,3 +163,36 @@ def swish(
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
     return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})
+
+
+@nameable_op
+def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply hyperbolic inverse cosine function on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: Optional new name for output node.
+    :return: New node with arccosh operation applied on it.
+    """
+    return _get_node_factory_opset4().create("Acosh", [node])
+
+
+@nameable_op
+def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply hyperbolic inverse sinus function on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: Optional new name for output node.
+    :return: New node with arcsinh operation applied on it.
+    """
+    return _get_node_factory_opset4().create("Asinh", [node])
+
+
+@nameable_op
+def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply hyperbolic inverse tangent function on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: Optional new name for output node.
+    :return: New node with arctanh operation applied on it.
+    """
+    return _get_node_factory_opset4().create("Atanh", [node])

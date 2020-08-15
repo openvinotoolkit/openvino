@@ -3,7 +3,6 @@
 //
 
 #include <memory>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "myriad_plugin.h"
 #include "myriad_mvnc_wraper.h"
 
