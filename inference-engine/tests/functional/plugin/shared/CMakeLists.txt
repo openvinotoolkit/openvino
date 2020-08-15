@@ -24,7 +24,6 @@ addIeTarget(
             mock_engine
             HeteroPlugin
             MultiDevicePlugin
-            mock_engine
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )
