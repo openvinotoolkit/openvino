@@ -15,8 +15,8 @@
 
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/fused/squeeze.hpp"
-#include "ngraph/op/fused/unsqueeze.hpp"
+#include "ngraph/op/squeeze.hpp"
+#include "ngraph/op/unsqueeze.hpp"
 
 
 namespace ngraph {
