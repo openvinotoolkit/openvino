@@ -139,6 +139,7 @@ class Interpolate(Op):
         if node.shape_calculation_mode == 'sizes':
             dst_shape = node.in_port(1).data.get_value()
             assert dst_shape is not None
+            correct_scales_using_dst_shape(node, dst_shape, src_shape, axes)
             for i, axis in enumerate(axes):
                 output_shape[axis] = dst_shape[i]
         else:
@@ -162,3 +163,11 @@ def correct_pad(pad, rank):
         return np.array(pad[: rank]).astype(np.int64)
     else:
         return np.array(pad, dtype=np.int64)
+
+
+def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
+    scales_value = node.in_port(2).data.get_value()
+    if scales_value is None or len(scales_value) != len(dst_shape):
+        corrected_scales = np.zeros(len(dst_shape))
+        for i, axis in enumerate(list(axes)):
+            corrected_scales[i] =math.floor((dst_shape[i] / src_shape[axis]) + 10e-5)
