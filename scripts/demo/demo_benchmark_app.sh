@@ -122,6 +122,8 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
     if [ $system_ver = "18.04" ]; then
         sudo -E apt-get install -y libpng-dev
+    elif [ $system_ver = "20.04" ]; then
+        sudo -E apt-get install -y libpng-dev
     else
         sudo -E apt-get install -y libpng12-dev
     fi
