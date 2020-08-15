@@ -28,8 +28,8 @@
 
 **Types**
 
-* *T1*: any supported numeric type.
-* *T2*: any supported integer type.
+* *T1*: floating point type.
+* *T2*: `int64` or `int32`.
 
 **Detailed Description**
 
