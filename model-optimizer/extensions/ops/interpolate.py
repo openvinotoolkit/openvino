@@ -14,6 +14,7 @@
  limitations under the License.
 """
 
+import math
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
@@ -104,17 +105,18 @@ class Interpolate(Op):
         assert src_shape is not None
         input_rank = len(src_shape)
 
-        if len(node.in_ports()) == 2:
+        if len(node.in_ports()) == 3:
             axes = list(range(0, input_rank))
         else:
-            axes = node.in_port(2).get_source().data.get_value()
+            axes = node.in_port(3).get_source().data.get_value()
         return int64_array(axes)
 
     @staticmethod
     def infer_for_opset4(node: Node):
-        assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [2, 3], \
-            "Interpolate node {} must have 2 or 3 inputs".format(node.soft_get(node.name, node.id))
+        assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [3, 4], \
+            "Interpolate-4 node {} must have 3 or 4 inputs".format(node.soft_get(node.name, node.id))
         assert node.has_valid('mode')
+        assert node.has_valid('shape_calculation_mode')
         src_shape = node.in_port(0).data.get_shape()
         assert src_shape is not None
 
@@ -125,21 +127,25 @@ class Interpolate(Op):
         node['pads_begin'] = pads_begin
         node['pads_end'] = pads_end
 
-        if len(node.in_ports()) == 2:
+        if len(node.in_ports()) == 3:
             axes = list(range(0, input_rank))
         else:
-            axes = node.in_port(2).get_source().data.get_value()
+            axes = node.in_port(3).get_source().data.get_value()
             assert axes is not None, \
-                "Interpolate node with name {} has None as 'axes' input".format(node.soft_get('name', node.id))
-
+                "Interpolate-4 node with name {} has None as 'axes' input".format(node.soft_get('name', node.id))
 
         axes = int64_array(axes)
-        dst_shape = node.in_port(1).data.get_value()
-        assert dst_shape is not None
-
         output_shape = src_shape + pads_begin + pads_end
-        for i in range(0, len(axes)):
-            output_shape[axes[i]] = dst_shape[i]
+        if node.shape_calculation_mode == 'sizes':
+            dst_shape = node.in_port(1).data.get_value()
+            assert dst_shape is not None
+            for i, axis in enumerate(axes):
+                output_shape[axis] = dst_shape[i]
+        else:
+            scales = node.in_port(2).data.get_value()
+            assert scales is not None
+            for i, axis in enumerate(axes):
+                output_shape[axis] = math.floor(scales[i] * output_shape[axis])
 
         node.out_port(0).data.set_shape(output_shape)
 
