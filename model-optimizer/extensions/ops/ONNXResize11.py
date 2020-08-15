@@ -35,7 +35,7 @@ class ONNXResize11Op(Op):
     def supported_attrs(self):
         return [
             'coordinate_transformation_mode',
-            'cubic_coeff_a',
+            'cubic_coeff',
             'exclude_outside',
             'extrapolation_value',
             'mode',
