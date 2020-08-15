@@ -75,7 +75,7 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                                   {'mode': 'nearest', 'antialias': 0, 'pads_begin': int64_array([0]),
                                    'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
                                    'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75, 'version': 'opset4',
-                                   'name': reshape2_name + '/Resample_','shape_calculation_mode': 'scales',
+                                   'name': reshape2_name + '/Resample_', 'shape_calculation_mode': 'scales',
                                    'in_ports_count': 4})
         resample_node = resample_op.create_node([match['op']])
         axes_node = Const(graph,

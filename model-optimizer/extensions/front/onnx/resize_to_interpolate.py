@@ -87,7 +87,8 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
                                             coordinate_transformation_mode='half_pixel',
                                             nearest_mode='round_prefer_floor', cube_coeff=-0.75,
                                             version='opset4', name=resize_node_name + '/Interpolate',
-                                            mode=resize_node.mode, in_ports_count=3)).create_node()
+                                            shape_calculation_mode='scales',
+                                            mode=resize_node.mode, in_ports_count=4)).create_node()
 
         height_scale = match['mul_1'].in_node(1).value
         width_scale = match['mul_2'].in_node(1).value
@@ -97,11 +98,11 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
         match['slice'].out_port(0).connect(interpolated_shape.in_port(0))
-        scale_const.out_port(0).connect(interpolated_shape.in_port(1))
+        scale_const.out_port(0).connect(interpolated_shape.in_port(2))
 
         resize_node.in_port(0).get_connection().set_destination(interpolate_node.in_port(0))
         interpolated_shape.out_port(0).connect(interpolate_node.in_port(1))
-        axes_node.out_port(0).connect(interpolate_node.in_port(2))
+        axes_node.out_port(0).connect(interpolate_node.in_port(3))
         resize_node.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
 
@@ -199,9 +200,9 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
         match['slice'].out_port(0).connect(interpolated_shape.in_port(0))
-        scale_const.out_port(0).connect(interpolated_shape.in_port(1))
+        scale_const.out_port(0).connect(interpolated_shape.in_port(2))
 
         resize_node.in_port(0).get_connection().set_destination(interpolate_node.in_port(0))
         interpolated_shape.out_port(0).connect(interpolate_node.in_port(1))
-        axes_node.out_port(0).connect(interpolate_node.in_port(2))
+        axes_node.out_port(0).connect(interpolate_node.in_port(3))
         resize_node.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
