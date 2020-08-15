@@ -51,7 +51,7 @@ void SplitLayerTest::SetUp() {
                                                                                              ngPrc, numSplits, axis));
     ngraph::ResultVector results;
     for (int i = 0; i < numSplits; i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(split));
+        results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "split");
 }
