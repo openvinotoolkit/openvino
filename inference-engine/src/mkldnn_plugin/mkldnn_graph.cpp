@@ -19,14 +19,15 @@
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_memory_solver.hpp"
+#include "mkldnn_itt.h"
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
-#include <net_pass.h>
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/net_pass.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <ie_memcpy.h>
 
 #include "precision_utils.h"
@@ -63,6 +64,8 @@ using namespace InferenceEngine::details;
 
 template<typename NET>
 void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::ApplyUnrollPasses");
+
     NetPass::CombineRNNSeq(net);
     bool ti_proc_ok = NetPass::UnrollRNN_if(net, [] (const RNNCellBase &rnn) -> bool {
         if (rnn.clip != 0.0f)
@@ -631,10 +634,6 @@ void MKLDNNGraph::AllocateWithReuse() {
             isConst  |= isConstOutput(edge);
             isOutput |= edge->getChild()->getType() == Output;
             isInput  |= edge->getParent()->getType() == Input;
-
-            // WA. MemoryOutput will keep data in that edge
-            // So need to make it immortal..
-            isConst |= edge->getParent()->getType() == MemoryInput;
         }
 
         if (reuse_io_tensors) {
@@ -695,7 +694,8 @@ void MKLDNNGraph::Allocate() {
     for (auto& edge : graphEdges) edge->validate();
 }
 
-void MKLDNNGraph::CreatePrimitives() { IE_PROFILING_AUTO_SCOPE(MKLDNNGraph::CreatePrimitives)
+void MKLDNNGraph::CreatePrimitives() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::CreatePrimitives");
     for (auto& node : graphNodes) {
         node->createPrimitive();
     }
@@ -794,7 +794,7 @@ void MKLDNNGraph::Infer(int batch) {
         ENABLE_DUMP(do_before(DUMP_DIR, graphNodes[i]));
 
         if (!graphNodes[i]->isConstant()) {
-            IE_PROFILING_AUTO_SCOPE_TASK(graphNodes[i]->profilingTask)
+            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profilingTask);
             graphNodes[i]->execute(stream);
         }
 

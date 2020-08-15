@@ -22,7 +22,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockExecutableNetworkInternal : public ExecutableNetworkInternal {
 public:
     MOCK_METHOD1(setNetworkInputs, void(InputsDataMap));
@@ -38,5 +37,3 @@ public:
         networkModel << exportString << std::endl;
     }
 };
-IE_SUPPRESS_DEPRECATED_END
-

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <transformations/convert_batch_to_space.hpp>
+#include <transformations/convert_space_to_batch.hpp>
+
 #include "layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
@@ -47,6 +50,32 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
         bufferSize = (actual->size() * halfBatchSize / batchSize);
     }
     const auto &size = bufferSize;
+    switch (precision) {
+        case InferenceEngine::Precision::FP32:
+            Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
+                    size, threshold);
+            break;
+        case InferenceEngine::Precision::I32:
+            Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
+                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
+            break;
+        default:
+            FAIL() << "Comparator for " << precision << " precision isn't supported";
+    }
+}
+
+void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
+    auto get_raw_buffer = [] (const InferenceEngine::Blob::Ptr &blob) {
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        return lockedMemory.as<const std::uint8_t *>();
+    };
+    const auto expectedBuffer = get_raw_buffer(expected);
+    const auto actualBuffer = get_raw_buffer(actual);
+
+    const auto &precision = actual->getTensorDesc().getPrecision();
+    const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
             Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
@@ -146,6 +175,17 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         }
         case IE: {
             // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+        case INTERPRETER_TRANSFORMATIONS: {
+            auto cloned_function = ngraph::clone_function(*function);
+
+            // todo: add functionality to configure the necessary transformations for each test separately
+            ngraph::pass::Manager m;
+            m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
+            m.register_pass<ngraph::pass::ConvertBatchToSpace>();
+            m.run_passes(cloned_function);
+            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
             break;
         }
     }

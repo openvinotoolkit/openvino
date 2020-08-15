@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_crop_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <algorithm>
 #include <mkldnn_types.h>

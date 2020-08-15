@@ -72,3 +72,11 @@ def run_op_numeric_data(input_data, op_fun, *args):
     node = op_fun(input_data, *args)
     computation = runtime.computation(node)
     return computation()
+
+
+def count_ops_of_type(func, op_type):
+    count = 0
+    for op in func.get_ops():
+        if (type(op) is type(op_type)):
+            count += 1
+    return count

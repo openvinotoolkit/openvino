@@ -5,6 +5,7 @@
 #include "transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp"
 
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -13,6 +14,23 @@
 
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
+
+template <class A, class B>
+std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
+    auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());
+    auto constant = std::dynamic_pointer_cast<B>(node->input(1).get_source_output().get_node_shared_ptr());
+
+    if (!eltwise) {
+        eltwise = std::dynamic_pointer_cast<A>(node->input(1).get_source_output().get_node_shared_ptr());
+        constant = std::dynamic_pointer_cast<B>(node->input(0).get_source_output().get_node_shared_ptr());
+    }
+
+    if (!eltwise || !constant) {
+        return {nullptr, nullptr};
+    }
+
+    return {eltwise, constant};
+}
 
 template <class Conv>
 ngraph::graph_rewrite_callback get_callback() {
@@ -35,7 +53,7 @@ ngraph::graph_rewrite_callback get_callback() {
             return false;
         }
 
-        const auto channel_dim = output_pshape[1].get_length();
+        const int64_t channel_dim = output_pshape[1].get_length();
 
         size_t constant_size = std::accumulate(constant_shape.begin(), constant_shape.end(), 1, std::multiplies<size_t>());
         if (constant_size != channel_dim) {
