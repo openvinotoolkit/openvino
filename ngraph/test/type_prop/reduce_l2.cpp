@@ -31,7 +31,7 @@ TEST(type_prop, reduce_l2_v4_axis_out_of_range)
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect axes values exception not thrown";
     }
-    catch (const NodeValidationFailure &error)
+    catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Reduction axis ("));
     }

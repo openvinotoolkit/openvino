@@ -28,7 +28,10 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void reduce_l1(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
+            void reduce_l1(const T* arg,
+                           T* out,
+                           const Shape& in_shape,
+                           const AxisSet& reduction_axes)
             {
                 auto out_shape = reduce(in_shape, reduction_axes);
                 CoordinateTransform output_transform(out_shape);
@@ -46,7 +49,8 @@ namespace ngraph
 
                     size_t output_index = output_transform.index(output_coord);
 
-                    out[output_index] = out[output_index] + abs(arg[input_transform.index(input_coord)]);
+                    out[output_index] =
+                        out[output_index] + abs(arg[input_transform.index(input_coord)]);
                 }
             }
         }

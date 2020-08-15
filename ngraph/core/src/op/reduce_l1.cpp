@@ -29,7 +29,7 @@ constexpr NodeTypeInfo op::v4::ReduceL1::type_info;
 op::v4::ReduceL1::ReduceL1(const Output<Node>& arg,
                            const Output<Node>& reduction_axes,
                            bool keep_dims)
-        : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims)
+    : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims)
 {
     constructor_validate_and_infer_types();
 }
@@ -52,7 +52,7 @@ namespace
     {
         out->set_shape(reduce(arg->get_shape(), axes));
         runtime::reference::reduce_l1(
-                arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
@@ -62,23 +62,23 @@ namespace
         switch (arg->get_element_type())
         {
             TYPE_CASE(i32)(arg, out, axes);
-                break;
+            break;
             TYPE_CASE(i64)(arg, out, axes);
-                break;
+            break;
             TYPE_CASE(bf16)(arg, out, axes);
-                break;
+            break;
             TYPE_CASE(f16)(arg, out, axes);
-                break;
+            break;
             TYPE_CASE(f32)(arg, out, axes);
-                break;
-            default: rc = false; break;
+            break;
+        default: rc = false; break;
         }
         return rc;
     }
 }
 
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) const
+                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL1::evaluate");
     return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());

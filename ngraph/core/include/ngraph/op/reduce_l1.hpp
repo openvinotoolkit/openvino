@@ -24,7 +24,8 @@ namespace ngraph
     {
         namespace v4
         {
-            /// \brief Reduction operation using L1 norm: L1(x) = sum(abs(x)) if all dimensions are specified for the normalisation.
+            /// \brief Reduction operation using L1 norm: L1(x) = sum(abs(x)) if all dimensions are
+            /// specified for the normalisation.
             ///
             /// Reduces the tensor, eliminating the specified reduction axes by taking the L1-norm.
             class NGRAPH_API ReduceL1 : public util::ArithmeticReductionKeepDims
@@ -49,7 +50,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
                 virtual std::shared_ptr<Node>
-                clone_with_new_inputs(const OutputVector& new_args) const override;
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
