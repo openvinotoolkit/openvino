@@ -38,7 +38,6 @@ extensions/back/PackBinaryWeights.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
 extensions/back/ProposalMutation.py
-extensions/back/ReduceL1L2ToReduceLp.py
 extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
@@ -63,7 +62,6 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
-extensions/front/AttributedReduceLpToReduceLp.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
