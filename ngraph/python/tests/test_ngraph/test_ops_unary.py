@@ -18,16 +18,21 @@ import pytest
 
 import ngraph as ng
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
+from tests import xfail_issue_35929, xfail_issue_34323
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
         (ng.absolute, np.abs, -1, 1),
         (ng.abs, np.abs, -1, 1),
         (ng.acos, np.arccos, -1, 1),
+        (ng.acosh, np.arccosh, -1, 1),
         (ng.asin, np.arcsin, -1, 1),
+        (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
+        (ng.atanh, np.arctanh, -100.0, 100.0),
         (ng.ceiling, np.ceil, -100.0, 100.0),
         (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
@@ -56,14 +61,18 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     assert np.allclose(result, expected, rtol=0.001)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
         (ng.absolute, np.abs, np.float32(-3)),
         (ng.abs, np.abs, np.float32(-3)),
         (ng.acos, np.arccos, np.float32(-0.5)),
+        (ng.acosh, np.arccosh, np.float32(-0.5)),
         (ng.asin, np.arcsin, np.float32(-0.5)),
+        (ng.asinh, np.arcsinh, np.float32(-0.5)),
         (ng.atan, np.arctan, np.float32(-0.5)),
+        (ng.atanh, np.arctanh, np.float32(-0.5)),
         (ng.ceiling, np.ceil, np.float32(1.5)),
         (ng.ceil, np.ceil, np.float32(1.5)),
         (ng.cos, np.cos, np.float32(np.pi / 4.0)),
@@ -90,6 +99,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array(True)), (np.array(False))]
 )
@@ -103,6 +113,7 @@ def test_logical_not(input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_sigmoid():
     input_data = np.array([-3.14, -1.0, 0.0, 2.71001, 1000.0], dtype=np.float32)
     result = run_op_node([input_data], ng.sigmoid)
@@ -115,6 +126,7 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
@@ -126,6 +138,7 @@ def test_softmax():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_erf():
     input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
     expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]

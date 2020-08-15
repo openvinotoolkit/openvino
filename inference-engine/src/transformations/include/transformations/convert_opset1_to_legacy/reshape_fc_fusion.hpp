@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+#include <numeric>
 
 #include <ngraph_ops/fully_connected.hpp>
 #include <ngraph/builder/make_constant.hpp>

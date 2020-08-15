@@ -14,34 +14,12 @@
 #include <string>
 #include <vector>
 
-#include <cpp/ie_executable_network.hpp>
-#include "details/os/os_filesystem.hpp"
+#include "ie_version.hpp"
 #include "ie_extension.h"
 #include "ie_remote_context.hpp"
+#include "cpp/ie_executable_network.hpp"
 
 namespace InferenceEngine {
-
-/**
- * @brief Responce structure encapsulating information about supported layer
- */
-struct QueryNetworkResult {
-    /**
-     * @brief A map of supported layers:
-     * - key - a layer name
-     * - value - a device name on which layer is assigned
-     */
-    std::map<std::string, std::string> supportedLayersMap;
-
-    /**
-     * @brief A status code
-     */
-    StatusCode rc = OK;
-
-    /**
-     * @brief Response message
-     */
-    ResponseDesc resp;
-};
 
 /**
  * @brief This class represents Inference Engine Core entity.
@@ -82,9 +60,7 @@ public:
      * ONNX models with data files are not supported
      * @return CNNNetwork
      */
-    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const {
-        return ReadNetwork(details::wStringtoMBCSstringChar(modelPath), details::wStringtoMBCSstringChar(binPath));
-    }
+    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
 #endif
 
     /**
@@ -197,7 +173,7 @@ public:
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     QueryNetworkResult QueryNetwork(
-        const ICNNNetwork& network, const std::string& deviceName,
+        const CNNNetwork& network, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {}) const;
 
     /**

@@ -15,15 +15,15 @@
 #include <limits>
 #include <iomanip>
 
-#include <graph_transformer.h>
+#include <legacy/graph_transformer.h>
 #include <gna-api.h>
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
-#include <net_pass.h>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
+#include <legacy/net_pass.h>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -561,6 +561,56 @@ void ReversePermutationsPass::run() {
 
         // TODO : make new permute
         CNNNetworkInsertLayer(l, directPrev, CNNLayerPtr(nullptr));
+    }
+}
+
+void RemovePermutationsNHWCToNCHWPass::run() {
+    std::list<CNNLayerPtr> permutationsToRemove;
+
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConvolution()) {
+            continue;
+        }
+
+        if (getInputTo(l->outData.front()).empty()) {
+            continue;
+        }
+        auto next = getInputTo(l->outData.front()).begin()->second;
+        auto prev = CNNNetPrevLayer(l);
+
+        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+            continue;
+        }
+
+        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutationsToRemove.push_back(prev);
+        }
+        permutationsToRemove.push_back(next);
+    }
+
+    for (auto&& toRemove : permutationsToRemove) {
+        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+
+        auto next = getInputTo(toRemove->outData.front()).begin()->second;
+        if (LayerInfo(next).isConvolution()) {
+            next->input()->setDims(toRemove->input()->getDims());
+            next->input()->setLayout(Layout::NHWC);
+            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+            if (convolution._kernel_y != 1) {
+                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+            }
+            auto in_channels = next->input()->getDims()[3];
+            convolution._kernel_y = in_channels;
+        }
+        auto prev = CNNNetPrevLayer(toRemove);
+        if (LayerInfo(prev).isConvolution()) {
+            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
+            prev->outData[0]->setLayout(Layout::NHWC);
+        }
+        CNNNetworkRemoveLayer(toRemove, false);
     }
 }
 

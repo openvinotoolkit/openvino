@@ -13,12 +13,11 @@
 #include <string>
 #include <type_traits>
 
+#include "ie_common.h"
+#include "ie_so_loader.h"
 #include "details/ie_exception.hpp"
 #include "details/ie_no_release.hpp"
 #include "details/ie_irelease.hpp"
-#include "details/os/os_filesystem.hpp"
-#include "ie_common.h"
-#include "ie_so_loader.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -77,6 +76,13 @@ private:
  */
 template <class T>
 class SOCreatorTrait {};
+
+/**
+ * @brief Enables only `char` or `wchar_t` template specializations
+ * @tparam C A char type
+ */
+template <typename C>
+using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
  * @brief This class instantiate object using shared library
@@ -210,6 +216,9 @@ protected:
  * @return A created object
  */
 template <class T>
-inline std::shared_ptr<T> make_so_pointer(const file_name_t& name) = delete;
+inline std::shared_ptr<T> make_so_pointer(const std::string & name) = delete;
+
+template <class T>
+inline std::shared_ptr<T> make_so_pointer(const std::wstring & name) = delete;
 
 }  // namespace InferenceEngine

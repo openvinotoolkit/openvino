@@ -21,7 +21,6 @@
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/reverse.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -83,7 +82,9 @@ void pass::DynElimination::construct_transpose()
     };
 
     auto transpose_matcher = make_shared<pattern::Matcher>(transpose, "DynElimination.Transpose");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     add_matcher(transpose_matcher, transpose_callback, all_pass_property_off);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -188,5 +189,7 @@ void pass::DynElimination::construct_range()
     };
 
     auto range_matcher = make_shared<pattern::Matcher>(range_pat, "DynElimination.Range");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     add_matcher(range_matcher, range_callback, all_pass_property_off);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

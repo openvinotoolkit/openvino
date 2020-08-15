@@ -6,7 +6,7 @@
 
 #include "details/ie_exception.hpp"
 #include <string>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 
 /**
 * @def THROW_IE_EXCEPTION_LPT

@@ -20,7 +20,7 @@
 
 #include "hetero_infer_request.hpp"
 #include "ie_icore.hpp"
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include "hetero_async_infer_request.hpp"
 
 namespace HeteroPlugin {

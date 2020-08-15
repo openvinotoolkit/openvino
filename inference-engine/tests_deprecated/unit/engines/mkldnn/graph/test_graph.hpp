@@ -18,7 +18,7 @@
 #endif
 
 #include <gtest/gtest.h>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <nodes/list.hpp>
 #include <mkldnn_graph.h>
 #include <mkldnn_memory.h>
@@ -26,6 +26,7 @@
 #include <mkldnn_graph_optimizer.h>
 #include <nodes/mkldnn_input_node.h>
 #include <functional>
+#include <cmath>
 
 #define GARB_VAL(x) ((x + 100.0f + sin(x)) / (x + 150.f))
 

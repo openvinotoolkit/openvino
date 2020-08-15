@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <description_buffer.hpp>
 #include <limits>

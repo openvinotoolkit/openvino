@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "details/ie_exception.hpp"
-#include "ie_layers_property.hpp"
+#include <legacy/ie_layers_property.hpp>
 #include "ie_blob.h"
 
 namespace CommonTestUtils {
@@ -95,5 +95,11 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimy,
                      int32_t &dimz,
                      int32_t &dimn);
+
+enum class OpType {
+    SCALAR,
+    VECTOR
+};
+std::ostream& operator<<(std::ostream & os, OpType type);
 
 }  // namespace CommonTestUtils

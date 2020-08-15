@@ -21,7 +21,7 @@ typedef std::tuple<
 
 class MultioutputEltwiseReshapeEltwise
         : public testing::WithParamInterface<MultioutputEltwiseReshapeEltwiseTuple>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MultioutputEltwiseReshapeEltwiseTuple> &obj);
 protected:

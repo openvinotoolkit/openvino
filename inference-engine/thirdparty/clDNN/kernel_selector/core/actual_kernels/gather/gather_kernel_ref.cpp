@@ -23,10 +23,16 @@ namespace kernel_selector {
 static size_t GetGatherChannelIndex(const gather_params& params) {
     Tensor::DataChannelName name = Tensor::DataChannelName::X;
 
+    size_t inputSize = params.inputs[0].GetDims().size();
+
     switch (params.axis) {
         case GatherAxis::X:
-            return 3;
+            return inputSize - 1;
         case GatherAxis::Y:
+            return inputSize - 2;
+        case GatherAxis::Z:
+            return inputSize - 3;
+        case GatherAxis::W:
             return 2;
         case GatherAxis::FEATURE:
             return 1;
@@ -51,6 +57,10 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -78,12 +88,26 @@ static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
         order_str += ", " + order[i];
-    
+
     return order_str;
 }
 
+static inline std::vector<std::string> GetOrder(size_t size) {
+    std::vector<std::string> idx_order;
+    if (size <= 4) {
+        idx_order = {"b", "f", "y", "x"};
+    } else if (size == 5) {
+        idx_order = {"b", "f", "z", "y", "x"};
+    } else if (size == 6) {
+        idx_order = {"b", "f", "w", "z", "y", "x"};
+    }
+    
+    return idx_order;
+}
+
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
-    std::vector<std::string> default_order = { "b", "f", "y", "x" };
+    std::vector<std::string> idx_order = GetOrder(params.output.GetDims().size());
+
     const std::string input_axis_index_macro = "INPUT_AXIS_INDEX";
     const std::string zeroVal = "0";
 
@@ -92,38 +116,57 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 
     // Shift indices of Gather dictionary input related to output dims
     for (size_t i = axis + 1; i < dictionary_dims_num; i++)
-        default_order[i] = default_order[i + indices_dims_num - 1];
+        idx_order[i] = idx_order[i + indices_dims_num - 1];
 
-    for (size_t i = dictionary_dims_num; i < default_order.size(); i++)
-        default_order[i] = zeroVal;
+    for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
+        idx_order[i] = zeroVal;
+    
+    // Fix size to inputs[0] dims size
+    for (size_t i = 0; i < params.output.GetDims().size() - params.inputs[0].GetDims().size(); i++)
+        idx_order.pop_back();
 
-    default_order[axis] = input_axis_index_macro;
+    idx_order[axis] = input_axis_index_macro;
 
-    return GetOrderString(default_order);
+    return GetOrderString(idx_order);
 }
 
 static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis) {
-    std::vector<std::string> default_order = { "b", "f", "y", "x" };
+    std::vector<std::string> idx_order = GetOrder(params.output.GetDims().size());
+
     const std::string zero_val = "0";
 
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
     // Shift indices of Gather indices input related to output dims
     for (size_t i = 0; i < indices_dims_num; i++)
-        default_order[i] = default_order[axis + i];
+        idx_order[i] = idx_order[axis + i];
 
-    for (size_t i = indices_dims_num; i < default_order.size(); i++)
-        default_order[i] = zero_val;
+    for (size_t i = indices_dims_num; i < idx_order.size(); i++)
+        idx_order[i] = zero_val;
 
-    return GetOrderString(default_order);
+    // Fix size to inputs[1] dims size
+    for (size_t i = 0; i < params.output.GetDims().size() - params.inputs[1].GetDims().size(); i++)
+        idx_order.pop_back();
+
+    return GetOrderString(idx_order);
 }
 
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, const optional_params&) const {
     CommonDispatchData runInfo;
     const auto& output = params.output;
 
-    std::vector<size_t> global = {output.Batch().v, output.Feature().v,output.X().v * output.Y().v};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    std::vector<size_t> global;
+    std::vector<size_t> local;
+
+    if (output.GetLayout() == DataLayout::bfyx) {
+        global = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+    } else if (output.GetLayout() == DataLayout::bfzyx) {
+        global = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+    } else {
+        global = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+    }
+
+    local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
@@ -145,7 +188,9 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params))));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "val", params.inputs[0].GetDType() };
+        std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
+
+        FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

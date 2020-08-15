@@ -25,8 +25,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/ngraph.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
@@ -219,11 +219,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space.prototxt"));
 
-    std::vector<float> input{
-        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
-        0.f, 4.f, 1.f, 5.f, 8.f, 12.f, 9.f, 13.f, 2.f, 6.f, 3.f, 7.f, 10.f, 14.f, 11.f, 15.f};
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
@@ -231,16 +232,36 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_chw)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_chw.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_v1.prototxt"));
 
-    std::vector<float> input{
-        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
-        0.f, 4.f, 1.f, 5.f, 8.f, 12.f, 9.f, 13.f, 2.f, 6.f, 3.f, 7.f, 10.f, 14.f, 11.f, 15.f};
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_crd.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{0.f,  4.f,  1.f,  5.f,  8.f,  12.f, 9.f,  13.f,
+                                       2.f,  6.f,  3.f,  7.f,  10.f, 14.f, 11.f, 15.f,
+                                       16.f, 20.f, 17.f, 21.f, 24.f, 28.f, 25.f, 29.f,
+                                       18.f, 22.f, 19.f, 23.f, 26.f, 30.f, 27.f, 31.f};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
@@ -265,14 +286,51 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize)
                  std::runtime_error);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode)
+{
+    try
+    {
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_mode.prototxt"));
+        FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape)
+{
+    try
+    {
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_input_shape.prototxt"));
+        FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception";
+    }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth.prototxt"));
 
-    std::vector<float> input{0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                             22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
@@ -285,24 +343,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_chw)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_chw.prototxt"));
-
-    std::vector<float> input{0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                             22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f};
-
-    std::vector<float> expected_output{
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    };
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input(input);
-    test_case.add_expected_output(expected_output);
-    test_case.run();
+    try
+    {
+        onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.prototxt"));
+        FAIL() << "Expected ngraph_error exception, but no exception was thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
+            << "Could not find \"Input must be 4-dimensional\" in exception message: \"" << msg
+            << "\"";
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception, got another type of exception";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize)

@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_util_internal.hpp"
-#include "details/ie_cnn_network_iterator.hpp"
-
-#include <ie_layers.h>
-
 #include <cassert>
 #include <deque>
 #include <iomanip>
@@ -17,14 +12,17 @@
 #include <utility>
 #include <vector>
 
-#include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "details/os/os_filesystem.hpp"
-#include "file_utils.h"
-#include "graph_tools.hpp"
-#include "net_pass.h"
+#include "caseless.hpp"
 #include "precision_utils.h"
 #include "cnn_network_ngraph_impl.hpp"
+
+#include "legacy/ie_util_internal.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <legacy/ie_layers.h>
+#include "ie_legacy_itt.hpp"
 
 using std::string;
 
@@ -149,6 +147,8 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 }
 
 std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
+
     if (network.getFunction()) {
         return std::make_shared<details::CNNNetworkNGraphImpl>(network);
     }
@@ -157,6 +157,7 @@ std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
 }
 
 details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
     std::shared_ptr<ICNNNetwork> clonedNetwork;
     // Call conversion only on the copy of nGraph function
     if (auto func = origin_network.getFunction()) {
@@ -209,6 +210,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
 }
 
 details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(std::vector<CNNLayerPtr>)");
     auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
 
     // Src to cloned data map

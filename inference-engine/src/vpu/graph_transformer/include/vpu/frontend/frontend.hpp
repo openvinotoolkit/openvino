@@ -14,7 +14,6 @@
 
 #include <ie_icore.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
 
 #include <vpu/stage_builder.hpp>
 #include <vpu/frontend/ie_parsed_network.hpp>
@@ -65,9 +64,6 @@ private:
             const Model& model);
 
     void removeConstLayers(
-            ie::ICNNNetwork& network);
-
-    void moveConstInputsToBlobs(
             ie::ICNNNetwork& network);
 
     //
@@ -157,6 +153,8 @@ public:
     void parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseMish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseGelu(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSoftPlus(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
