@@ -137,7 +137,23 @@ const std::vector<TransposeTransformationTestValues> testValues = {
                 {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
             }
         }
-    }
+    },
+    // empty
+    {
+        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 0, 1, 3, 2},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {}
+        }
+    },
 };
 
 TEST_P(TransposeTransformation, CompareFunctions) {

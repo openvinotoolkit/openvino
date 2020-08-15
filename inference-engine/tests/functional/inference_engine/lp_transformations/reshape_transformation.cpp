@@ -242,6 +242,38 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{}, {}, {}}
         }
     },
+    // empty: FP32
+    {
+        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 12, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+    // empty: U8
+    {
+        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 12, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {}
+        }
+    },
 };
 
 TEST_P(ReshapeTransformation, CompareFunctions) {

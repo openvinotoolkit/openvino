@@ -171,6 +171,36 @@ const std::vector<ReluTransformationTestValues> testValues = {
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }
+    },
+    // U8: empty
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {}
+        }
+    },
+    // FP32: empty
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {}
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {}
+        }
     }
 };
 

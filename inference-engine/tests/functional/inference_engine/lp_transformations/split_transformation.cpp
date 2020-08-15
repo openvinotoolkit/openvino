@@ -243,6 +243,15 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // empty
+    {
+        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsI8I8(),
+        // ActualValues
+        { },
+        // ExpectedValues
+        { }
+    },
 };
 INSTANTIATE_TEST_CASE_P(
     LPT,

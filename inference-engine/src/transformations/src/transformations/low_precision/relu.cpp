@@ -43,6 +43,10 @@ bool ReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const no
 
 bool ReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    if (dequantization.empty()) {
+        return false;
+    }
+
     const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr());
     const auto scales = constant->cast_vector<float>();
     if (std::all_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {

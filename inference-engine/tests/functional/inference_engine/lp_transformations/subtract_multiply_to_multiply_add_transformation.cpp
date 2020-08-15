@@ -163,6 +163,23 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {{-12.8f, -12.8f, -12.8f}, {ngraph::element::f32}}
         },
     },
+    // empty
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {},
+            {}
+        },
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

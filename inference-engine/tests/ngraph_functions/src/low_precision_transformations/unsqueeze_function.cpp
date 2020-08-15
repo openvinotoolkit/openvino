@@ -31,10 +31,12 @@ std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
         parent = subtract;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, values.mutliply.shape, values.mutliply.values));
-    parent = multiply;
+    if (!values.mutliply.values.empty()) {
+        const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
+            parent,
+            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, values.mutliply.shape, values.mutliply.values));
+        parent = multiply;
+    }
 
     const std::shared_ptr<ngraph::Node> unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
         parent,

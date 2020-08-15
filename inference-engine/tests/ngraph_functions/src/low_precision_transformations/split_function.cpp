@@ -82,9 +82,8 @@ std::shared_ptr<ngraph::Function> SplitFunction::getReference(
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < numSplit; ++i) {
-        const std::shared_ptr<Node> quantizationOpAfter =
-            makeDequantization(split->output(i).get_node_shared_ptr(), dequantizationAfter[i]);
-        results.push_back(std::make_shared<ngraph::opset1::Result>(quantizationOpAfter));
+        results.push_back(std::make_shared<ngraph::opset1::Result>(
+            dequantizationAfter.empty() ? split->output(i) : makeDequantization(split->output(i).get_node_shared_ptr(), dequantizationAfter[i])));
     }
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SplitTransformation");
 }

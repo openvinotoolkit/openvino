@@ -268,6 +268,20 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
             }
         }
     },
+    {
+        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, std::vector<size_t>{ 2, 2 },
+        LayerTransformation::createParamsI8I8(),
+        // ActualValues
+        {
+            ngraph::element::i8,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::i8,
+            {}
+        }
+    },
 };
 INSTANTIATE_TEST_CASE_P(
     LPT,

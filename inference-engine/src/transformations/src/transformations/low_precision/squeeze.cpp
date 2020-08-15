@@ -25,7 +25,7 @@ void SqueezeTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void SqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    if (!LayerTransformation::canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(context, m.get_match_root())) {
         return;
     }
 
@@ -57,6 +57,10 @@ void SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
 
 bool SqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return true;
+}
+
+bool SqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
 }
 
 } // namespace low_precision

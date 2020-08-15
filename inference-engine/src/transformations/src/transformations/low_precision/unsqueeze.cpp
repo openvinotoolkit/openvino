@@ -25,7 +25,7 @@ void UnsqueezeTransformation::registerMatcherIn(GraphRewrite &pass, Transformati
 }
 
 void UnsqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    if (!LayerTransformation::canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(context, m.get_match_root())) {
         return;
     }
 
@@ -57,6 +57,10 @@ void UnsqueezeTransformation::transform(TransformationContext& context, ngraph::
 
 bool UnsqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return true;
+}
+
+bool UnsqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
 }
 
 
