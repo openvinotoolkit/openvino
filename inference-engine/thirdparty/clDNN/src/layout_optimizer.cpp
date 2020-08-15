@@ -375,15 +375,14 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         auto ks_x = weights_layout.size.spatial[0];
         auto ks_y = weights_layout.size.spatial[1];
 
-        size_t out_f_per_group = weights_layout.size.batch[0] / conv->groups;
-        size_t in_f_per_group = input_layout.size.feature[0] / conv->groups;
+        size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
+        size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
         if (weights_layout.format.group_num() > 0) {
-            out_f_per_group = weights_layout.size.batch[0];
+            out_features_per_group = weights_layout.size.batch[0];
         }
 
         // Check for non-grouped or depthwise convolution
         if (input_layout.size.spatial[2] == 1 &&
-            input_layout.size.batch[0] < 16 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
@@ -394,16 +393,16 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
             return true;
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
-                 out_f_per_group >= 16 &&
+                 out_features_per_group >= 16 &&
                 // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
-                ((in_f_per_group) % 4 == 0) &&
+                ((in_features_per_group) % 4 == 0) &&
                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
                     return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
-                (!((conv->groups > 1) && (out_f_per_group == 1))))
+                (!((conv->groups > 1) && (in_features_per_group == 1)&& (out_features_per_group == 1))))
                 return true;
 
         return false;
@@ -472,9 +471,10 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         conv->dilation == tensor(1))
         return true;
 
-    size_t out_f_per_group = weights_layout.size.batch[0] / conv->groups;
+    size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
+    size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
     if (weights_layout.format.group_num() > 0) {
-        out_f_per_group = weights_layout.size.batch[0];
+        out_features_per_group = weights_layout.size.batch[0];
     }
 
     // Check for fsv16 imad kernel
@@ -482,7 +482,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
-        (!((conv->groups > 1) && (out_f_per_group == 1))))
+        (!((conv->groups > 1) && (in_features_per_group == 1)&& (out_features_per_group == 1))))
         return true;
     return false;
 }
