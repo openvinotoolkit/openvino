@@ -144,6 +144,8 @@ set(SRC
     type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
+    type_prop/reduce_l1.cpp
+    type_prop/reduce_l2.cpp
     type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
