@@ -57,7 +57,7 @@ new_ref_graph_node_attr = {
     'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float},
     'cast_to_float_d': {'kind': 'data', 'value': None, 'shape': None},
     'factor': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
-    'factor_data': {'kind': 'data', 'value': None, 'shape': None},
+    'factor_data': {'kind': 'data', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
     'shapeof': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
     'shapeof_data': {'kind': 'data', 'shape': None, 'value': None},
     'mul': {'type': 'Multiply', 'kind': 'op', 'op': 'Multiply'},
@@ -66,6 +66,8 @@ new_ref_graph_node_attr = {
     'cast_to_int_d': {'kind': 'data', 'shape': None, 'value': None},
     'axes_const': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': None, 'shape': None},
     'axes_const_data': {'kind': 'data', 'value': None, 'shape': None},
+    'scales': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
+    'scales_data': {'kind': 'data', 'value': None, 'shape': None},
     'interpolate': {'type': 'Interpolate', 'kind': 'op', 'op': 'Interpolate', 'axes': None},
     'interpolate_data': {'kind': 'data', 'shape': None, 'value': None},
     'output': {'kind': 'op', 'op': 'Result', 'type': 'Result'},
@@ -94,7 +96,9 @@ new_ref_graph_edges = [
     ('cast_to_int', 'cast_to_int_d'),
     ('cast_to_int_d', 'interpolate', {'in': 1, 'out': 0}),
     ('axes_const', 'axes_const_data'),
-    ('axes_const_data', 'interpolate', {'in': 2, 'out': 0}),
+    ('axes_const_data', 'interpolate', {'in': 3, 'out': 0}),
+    ('scales', 'scales_data'),
+    ('scales_data', 'interpolate', {'in': 2, 'out': 0}),
     ('interpolate', 'interpolate_data'),
     ('interpolate_data', 'output')
 ]
