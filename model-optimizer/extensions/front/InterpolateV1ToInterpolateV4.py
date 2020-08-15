@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
@@ -41,6 +43,7 @@ class InterpolateV1ToInterpolateV4(FrontReplacementPattern):
             input_node = node.in_port(0).get_source().node
             sizes = node.in_port(1).get_source().node
             axes_node = Const(graph, {'name': node.name + '/axis_', 'value': int64_array(node.axes)}).create_node()
+            fictive_scales = Const(graph, {'value': np.array([1.0, 1.0])}).create_node()
             interpolate4 = Interpolate(graph,
                                        {
                                            'mode': node.mode,
@@ -50,7 +53,9 @@ class InterpolateV1ToInterpolateV4(FrontReplacementPattern):
                                            'pads_end': correct_pad(node.soft_get('pads_end', 0)),
                                            'nearest_mode': 'round_prefer_floor',
                                            'cube_coeff': -0.75,
+                                           'shape_calculation_mode': 'sizes',
                                            'version': 'opset4',
-                                           'in_ports_count': 3,
-                                       }).create_node([input_node, sizes, axes_node])
+                                           'in_ports_count': 4,
+                                       }).create_node([input_node, sizes, fictive_scales, axes_node])
+
             node.replace_node(interpolate4)
