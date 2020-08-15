@@ -145,7 +145,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
             auto fc_bias = opset1::Constant::create(matmul->get_input_element_type(0), Shape {O}, bias_value);
 
 #ifdef LPT_SUPPORT
-            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, element::f32);
+            auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, matmul->output(0).get_element_type());
 #else
             auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape);
 #endif
