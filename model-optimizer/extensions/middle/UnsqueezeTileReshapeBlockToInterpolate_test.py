@@ -112,7 +112,7 @@ graph_edges = [
 ]
 
 
-ref_graph_node_attrs_with_3_inputs_interpolate = {
+ref_graph_node_attrs_with_4_inputs_interpolate = {
     'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_data': {
         'value': None,
@@ -211,7 +211,7 @@ ref_graph_node_attrs_with_3_inputs_interpolate = {
 }
 
 
-ref_graph_edges_attrs_with_3_inputs_interpolate = [
+ref_graph_edges_attrs_with_4_inputs_interpolate = [
     ('placeholder', 'placeholder_data'),
     ('placeholder_data', 'shapeof'),
     ('shapeof', 'shapeof_data'),
@@ -223,12 +223,13 @@ ref_graph_edges_attrs_with_3_inputs_interpolate = [
     ('end_data', 'strided_slice', {'in': 2}),
     ('scales', 'scales_data'),
     ('strided_slice_data', 'mul', {'in': 0}),
-    ('scales_data', 'mul', {'in': 1}),
+    ('scales_data', 'mul', {'out': 0, 'in': 1}),
+    ('scales_data', 'interpolate', {'out': 0, 'in': 2}),
     ('mul', 'mul_data'),
     ('mul_data', 'interpolate', {'in': 1}),
     ('placeholder_data', 'interpolate', {'in': 0}),
     ('axes', 'axes_data'),
-    ('axes_data', 'interpolate', {'in': 2}),
+    ('axes_data', 'interpolate', {'in': 3}),
     ('interpolate', 'interpolate_data'),
     ('interpolate_data', 'abs'),
     ('abs', 'abs_data'),
@@ -313,8 +314,8 @@ graph_edges_when_transformation_is_not_applicable = graph_edges
 class UnsqueezeTileReshapeBlockToInterpolateTest(unittest.TestCase):
     def test_5d(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges)
-        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs_with_3_inputs_interpolate,
-                                edges=ref_graph_edges_attrs_with_3_inputs_interpolate)
+        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs_with_4_inputs_interpolate,
+                                edges=ref_graph_edges_attrs_with_4_inputs_interpolate)
         UnsqueezeTileReshapeBlockToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
@@ -336,8 +337,8 @@ class UnsqueezeTileReshapeBlockToInterpolateTest(unittest.TestCase):
             }
         )
         ref_graph = build_graph(
-            nodes_attrs=ref_graph_node_attrs_with_3_inputs_interpolate,
-            edges=ref_graph_edges_attrs_with_3_inputs_interpolate,
+            nodes_attrs=ref_graph_node_attrs_with_4_inputs_interpolate,
+            edges=ref_graph_edges_attrs_with_4_inputs_interpolate,
             update_attributes={
                 'placeholder_data': {'shape': int64_array([1, 8, 32, 32])},
                 'interpolate_data': {'shape': int64_array([1, 16, 32, 32])},
