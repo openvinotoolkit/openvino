@@ -394,17 +394,16 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
                  out_features_per_group >= 16 &&
-                // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
-                ((in_features_per_group) % 4 == 0) &&
-                ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
-                (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
-                    return true;
+                 // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
+                 (in_features_per_group % 4 == 0) &&
+                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
+                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
+                return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
-                (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
-                (!((conv->groups > 1) && (in_features_per_group == 1)&& (out_features_per_group == 1))))
+                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
+                 (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
                 return true;
-
         return false;
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
@@ -482,7 +481,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
-        (!((conv->groups > 1) && (in_features_per_group == 1)&& (out_features_per_group == 1))))
+        (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
         return true;
     return false;
 }
