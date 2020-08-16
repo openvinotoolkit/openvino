@@ -54,6 +54,7 @@ class CanBeFused:
         self.accumulated_axes = set()
         self.default_values_for_opset4 = {
             'mode': None,
+            'shape_calculation_mode': None,
             'coordinate_transformation_mode': 'half_pixel',
             'nearest_mode': 'round_prefer_floor',
             'antialias': 0,
@@ -187,13 +188,14 @@ def get_interpolate_attributes(node: Node) -> dict:
         },
         'opset4': {
             'mode': None,
+            'shape_calculation_mode': None,
             'antialias': 0,
             'pads_begin': int64_array([0]),
             'pads_end': int64_array([0]),
             'coordinate_transformation_mode': 'half_pixel',
             'nearest_mode': 'round_prefer_floor',
             'cube_coeff': -0.75,
-            'version': 'opset3'
+            'version': 'opset4'
         },
     }
     opset = node.get_opset()
@@ -227,14 +229,28 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
     dims_and_scales_ = []
     # Each element of the list dims_and_scales_ is a pair
-    #      (axis, output size for this axis)
-    for interp in seq:
-        dims_and_scales_.extend(zip(Interpolate.get_axes(interp),
-                                    interp.in_port(1).get_connection().get_source().node.value))
+    #      (axis, output size for this axis) (opset1)
+    # or
+    #      (axis, output size for this axis, output scales for this axis) (opset4)
+    if seq[0].get_opset() == 'opset1':
+        for interp in seq:
+            dims_and_scales_.extend(zip(Interpolate.get_axes(interp),
+                                        interp.in_port(1).get_connection().get_source().node.value))
 
-    axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
-    axes_of_node = int64_array([z[0] for z in axis_to_size])
-    sizes = int64_array([z[1] for z in axis_to_size])
+        axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
+        axes_of_node = int64_array([z[0] for z in axis_to_size])
+        sizes = int64_array([z[1] for z in axis_to_size])
+        scales = np.ones(len(axis_to_size))
+    else:
+        for interp in seq:
+            dims_and_scales_.extend(zip(Interpolate.get_axes(interp),
+                                        interp.in_port(1).get_connection().get_source().node.value,
+                                        interp.in_port(2).get_connection().get_source().node.value))
+
+        axis_to_size = sorted(dims_and_scales_, key=lambda x: x[0])
+        axes_of_node = int64_array([z[0] for z in axis_to_size])
+        sizes = int64_array([z[1] for z in axis_to_size])
+        scales = np.array([z[2] for z in axis_to_size])
 
     fst_interp_node = seq[0]
     last_interp_node = seq[-1]
@@ -247,25 +263,28 @@ def replace_sequence(seq: List[Node], graph: Graph):
         attributes['axes'] = axes_of_node
         interp_node = Interpolate(graph, attributes).create_node()
 
-        scales_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=sizes)).create_node()
-        scales_node.out_port(0).connect(interp_node.in_port(1))
+        sizes_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=sizes)).create_node()
+        sizes_node.out_port(0).connect(interp_node.in_port(1))
 
         fst_interp_connection = fst_interp_node.in_port(0).get_connection()
         fst_interp_connection.set_destination(interp_node.in_port(0))
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
     else:
-        attributes['in_ports_count'] = 3
+        attributes['in_ports_count'] = 4
         interp_node = Interpolate(graph, attributes).create_node()
 
-        scales_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=sizes)).create_node()
-        scales_node.out_port(0).connect(interp_node.in_port(1))
+        sizes_node = Const(graph, dict(name=fst_interp_node_name + '/sizes_', value=sizes)).create_node()
+        sizes_node.out_port(0).connect(interp_node.in_port(1))
+
+        scales_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=scales)).create_node()
+        scales_node.out_port(0).connect(interp_node.in_port(2))
 
         fst_interp_connection = fst_interp_node.in_port(0).get_connection()
         fst_interp_connection.set_destination(interp_node.in_port(0))
 
         axes_node = Const(graph, {'name': fst_interp_node_name + '/axis_', 'value': axes_of_node}).create_node()
-        axes_node.out_port(0).connect(interp_node.in_port(2))
+        axes_node.out_port(0).connect(interp_node.in_port(3))
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
 
