@@ -8,9 +8,7 @@
 #include <memory>
 
 #include <transformations_visibility.hpp>
-
-#include <ngraph/ngraph.hpp>
-#include "ngraph/pattern/matcher.hpp"
+#include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -25,7 +23,7 @@ class TRANSFORMATIONS_API SoftPlusFusion;
  * @brief SoftPlusFusion transformation replaces group of
  * operations: log(exp(x) + 1) to SoftPlus op.
  */
-class ngraph::pass::SoftPlusFusion : public ngraph::pass::MatcherPass {
+class ngraph::pass::SoftPlusFusion: public ngraph::pass::MatcherPass {
 public:
     SoftPlusFusion();
 };

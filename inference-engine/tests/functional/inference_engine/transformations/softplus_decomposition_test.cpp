@@ -6,7 +6,6 @@
 
 #include <string>
 #include <memory>
-#include <queue>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>

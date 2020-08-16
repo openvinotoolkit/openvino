@@ -18,12 +18,11 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
-        auto & pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-
         if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
             auto data = constant->cast_vector<float>();
             if (data.size() != 1 || data[0] != 1.0) {
@@ -45,5 +44,5 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(log, "SoftPlusFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
