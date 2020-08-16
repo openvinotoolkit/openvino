@@ -283,7 +283,8 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth * block.output_block_features * (block.feature_slm_split - 1);
+    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth * 
+                          block.output_block_features * (block.feature_slm_split - 1);
     size_t slm_bytes = slm_elements * BytesPerElement(GetAccumulatorType(params));
 
     // TODO:  Actual maximum slm should also depend on number of work-groups, but this is device specific

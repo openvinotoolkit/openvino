@@ -122,7 +122,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         if (v + in_f_offset < FSV) {
                                             input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
                                         } else {
-                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v + ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * FSV];
+                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v + 
+                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
+                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
+                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
+                                                                           FSV];
                                         }
                                     }
                                 }
@@ -142,7 +146,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         if (v + in_f_offset < FSV) {
                                             input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
                                         } else {
-                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v + ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * FSV];
+                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v + 
+                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
+                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
+                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
+                                                                           FSV];
                                         }
                                     }
                                 }
@@ -184,7 +192,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(
                                                     IMAD(dotProd[ofb][od][oh][ow],
-                                                    AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive], shuffle_wi)),
+                                                    AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive], 
+                                                                                             shuffle_wi)),
                                                     AS_FILTER_TYPE_4(weights_val[ofb][ive])));
                                             }
                                         }
@@ -216,7 +225,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint sgid_start_idx = get_sub_group_id();
     sgid_start_idx = sgid_start_idx == 0 ? 0 : sgid_start_idx - 1;
-    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH + get_sub_group_local_id();
+    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH + 
+                                                get_sub_group_local_id();
 
     if (get_sub_group_id() < OFM_BLOCKS_PER_SIMD) {
         __attribute__((opencl_unroll_hint))

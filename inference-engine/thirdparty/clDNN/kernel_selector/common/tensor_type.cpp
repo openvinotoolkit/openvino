@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -427,7 +427,7 @@ DataTensor DataTensor::FlattenEverything() const {
 NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l) {
     std::vector<size_t> newDims = d;
 
-    // TODO: it's not the right pitches. it's here in order to calculate physical size
+    // TODO: It's not the right pitches. it's here in order to calculate physical size
     switch (l) {
         case os_iyx_osv16:
         case os_iyx_osv16_rotate_180:
