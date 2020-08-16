@@ -40,7 +40,8 @@ void FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     outputHighConst = fold<opset1::Multiply>(outputHighConst, value);
 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-        opset1::FakeQuantize(fakeQuantize->get_input_node_shared_ptr(0),
+        opset1::FakeQuantize(
+            fakeQuantize->input(0).get_source_output(),
             fakeQuantize->input_value(1),
             fakeQuantize->input_value(2),
             outputLowConst,
