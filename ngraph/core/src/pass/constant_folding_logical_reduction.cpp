@@ -34,7 +34,7 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     {
         runtime::reference::any(constant->get_data_ptr<char>(),
                                 data_ptr,
-                                reduction_node->get_shape(),
+                                reduction_node->get_input_shape(0),
                                 any->get_reduction_axes(),
                                 false);
     }
