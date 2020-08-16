@@ -29,7 +29,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         return;
     }
 
-    const std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(separateInStandaloneBranch(op));
+    std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(separateInStandaloneBranch(op));
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
 
@@ -40,6 +40,10 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
             return;
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
+        add = as_type_ptr<opset1::Add>(newMultiply->get_input_node_shared_ptr(0));
+        if (add == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*newMultiply) << "not expected parent type";
+        }
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
@@ -89,6 +93,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAdd);
+        add = newAdd;
     }
 
     updateOutput(context, newMultiply, add);
