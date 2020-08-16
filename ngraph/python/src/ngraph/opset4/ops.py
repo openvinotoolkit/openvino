@@ -314,6 +314,7 @@ def proposal(
         "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
     )
 
+
 @nameable_op
 def reduce_l1(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -345,3 +346,4 @@ def reduce_l2(
     """
     return _get_node_factory_opset4().create(
         "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+    )
