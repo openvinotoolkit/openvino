@@ -210,7 +210,7 @@ def reduce_l1(
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
     """
-    return _get_node_factory_opset1().create(
+    return _get_node_factory_opset4().create(
         "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -227,6 +227,6 @@ def reduce_l2(
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
     """
-    return _get_node_factory_opset1().create(
+    return _get_node_factory_opset4().create(
         "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
