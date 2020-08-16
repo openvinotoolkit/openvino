@@ -330,7 +330,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Range>>("Range"),
         std::make_shared<LayerCreator<ngraph::op::PriorBox>>("PriorBox"),
         std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
-        std::make_shared<LayerCreator<ngraph::op::Proposal>>("Proposal"),
         std::make_shared<LayerCreator<ngraph::op::v1::ReduceMax>>("ReduceMax"),
         std::make_shared<LayerCreator<ngraph::op::v1::ReduceMin>>("ReduceMin"),
         std::make_shared<LayerCreator<ngraph::op::v1::ReduceMean>>("ReduceMean"),
@@ -714,36 +713,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBoxCluste
     attr.clip = (GetIntAttr(dn, "clip") != 0);
 
     return std::make_shared<ngraph::op::PriorBoxClustered>(inputs[0], inputs[1], attr);
-}
-
-// Proposal layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Proposal>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::ProposalAttrs attr;
-    attr.base_size = GetUIntAttr(dn, "base_size");
-    attr.pre_nms_topn = GetUIntAttr(dn, "pre_nms_topn");
-    attr.post_nms_topn = GetUIntAttr(dn, "post_nms_topn");
-    attr.nms_thresh = GetFloatAttr(dn, "nms_thresh");
-    attr.feat_stride = GetUIntAttr(dn, "feat_stride");
-    attr.min_size = GetUIntAttr(dn, "min_size");
-    attr.ratio = getParameters<float>(dn, "ratio");
-    attr.scale = getParameters<float>(dn, "scale");
-    attr.clip_after_nms = (GetIntAttr(dn, "clip_after_nms", 0) != 0);
-    attr.clip_before_nms = (GetIntAttr(dn, "clip_before_nms", 1) != 0);
-    attr.normalize = (GetIntAttr(dn, "normalize", 0) != 0);
-    attr.box_size_scale = GetFloatAttr(dn, "box_size_scale", 1.0f);
-    attr.box_coordinate_scale = GetFloatAttr(dn, "box_coordinate_scale", 1.0f);
-    attr.framework = GetStrAttr(dn, "framework", "");
-
-    return std::make_shared<ngraph::op::Proposal>(inputs[0], inputs[1], inputs[2], attr);
 }
 
 // PriorBox layer

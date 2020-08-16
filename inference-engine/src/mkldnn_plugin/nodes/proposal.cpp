@@ -147,7 +147,18 @@ public:
                 p_prob_item = outputs[1]->buffer();
 
             auto dims0 = inputs[0]->getTensorDesc().getDims();
-            size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
+            auto img_info_dims = inputs[2]->getTensorDesc().getDims();
+            if (img_info_dims.size() != 2)
+                THROW_IE_EXCEPTION << "Size of im_info tensor for Proposal is incorrect! Size of im_info must be 2. "
+                                   << "Now im_info size is " << img_info_dims.size() << ".";
+
+            if (img_info_dims[1] != 3 && img_info_dims[1] != 4)
+                THROW_IE_EXCEPTION << "Shape of im_info tensor for Proposal is incorrect! "
+                                   << "Shape of im_info must be of  [1, 3] or [1, 4]! "
+                                   << "Now shape of im_info is" << img_info_dims[0] << ", " << img_info_dims[1] << "].";
+
+            size_t img_info_size = img_info_dims[1];
+
 
             // input image height & width
             const float img_H = p_img_info_cpu[0];
@@ -155,7 +166,7 @@ public:
 
             // scale factor for height & width
             const float scale_H = p_img_info_cpu[2];
-            const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
+            const float scale_W = img_info_size == 4 ? p_img_info_cpu[3] : scale_H;
 
             XARCH::proposal_exec(p_bottom_item, p_d_anchor_item, dims0,
                     {img_H, img_W, scale_H, scale_W}, anchors.data(), roi_indices.data(), p_roi_item, p_prob_item, conf);

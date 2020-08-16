@@ -125,6 +125,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
     anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();

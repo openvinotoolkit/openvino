@@ -343,7 +343,8 @@ protected:
 
 constexpr NodeTypeInfo Oracle::type_info;
 
-TEST(attributes, user_op)
+// todo: temporary disabled until bug with AttributeVisitor is fixed #35906
+TEST(attributes, DISABLED_user_op)
 {
     FactoryRegistry<Node>::get().register_factory<Oracle>();
     auto program = make_shared<op::Parameter>(element::i32, Shape{200});

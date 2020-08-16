@@ -22,12 +22,10 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
-#include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/op/reorg_yolo.hpp"
 #include "ngraph/op/roi_pooling.hpp"
-#include "util/type_prop.hpp"
 
 #include <memory>
 using namespace std;
@@ -153,21 +151,6 @@ TEST(type_prop_layers, prior_box_clustered)
     auto pbc = make_shared<op::PriorBoxClustered>(layer_shape, image_shape, attrs);
     // Output shape - 4 * 19 * 19 * 3 (attrs.widths.size())
     ASSERT_EQ(pbc->get_shape(), (Shape{2, 4332}));
-}
-
-TEST(type_prop_layers, proposal)
-{
-    op::ProposalAttrs attrs;
-    attrs.base_size = 1;
-    attrs.pre_nms_topn = 20;
-    attrs.post_nms_topn = 200;
-    const size_t batch_size = 7;
-
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
-    auto class_logits = make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto op = make_shared<op::Proposal>(class_probs, class_logits, image_shape, attrs);
-    ASSERT_EQ(op->get_shape(), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop_layers, region_yolo1)

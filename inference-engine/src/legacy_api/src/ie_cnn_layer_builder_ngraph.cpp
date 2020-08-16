@@ -1424,7 +1424,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr NodeConverter<ngraph::op::v0::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     THROW_IE_EXCEPTION << "Proposal operation should be converted to ProposalIE";
 }
 
