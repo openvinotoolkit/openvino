@@ -31,9 +31,10 @@ namespace ngraph
             void reduce_l1(const T* arg,
                            T* out,
                            const Shape& in_shape,
-                           const AxisSet& reduction_axes)
+                           const AxisSet& reduction_axes,
+                           bool keep_dims)
             {
-                auto out_shape = reduce(in_shape, reduction_axes);
+                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
                 CoordinateTransform output_transform(out_shape);
 
                 for (const Coordinate& output_coord : output_transform)
@@ -45,7 +46,7 @@ namespace ngraph
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
 
                     size_t output_index = output_transform.index(output_coord);
 

@@ -48,28 +48,28 @@ shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
     {
-        out->set_shape(reduce(arg->get_shape(), axes));
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::reduce_l1(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
-    bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes);
+            TYPE_CASE(i32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(i64)(arg, out, axes);
+            TYPE_CASE(i64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(bf16)(arg, out, axes);
+            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f16)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes, keep_dims);
             break;
         default: rc = false; break;
         }
@@ -81,5 +81,5 @@ bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL1::evaluate");
-    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());
+    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
