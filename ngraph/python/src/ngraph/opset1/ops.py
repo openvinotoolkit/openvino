@@ -2068,7 +2068,7 @@ def prior_box(
 @nameable_op
 def proposal(
     class_probs: Node,
-    box_logits: Node,
+    bbox_deltas: Node,
     image_shape: NodeInput,
     attrs: dict,
     name: Optional[str] = None,
@@ -2076,7 +2076,7 @@ def proposal(
     """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
     :param  class_probs:        4D input floating point tensor with class prediction scores.
-    :param  box_logits:         4D input floating point tensor with box logits.
+    :param  bbox_deltas:         4D input floating point tensor with box logits.
     :param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
     :param  attrs:              The dictionary containing key, value pairs for attributes.
     :param  name:               Optional name for the output node.
@@ -2178,26 +2178,26 @@ def proposal(
     :return: Node representing Proposal operation.
     """
     requirements = [
-        ("attrs.base_size", True, np.unsignedinteger, is_positive_value),
-        ("attrs.pre_nms_topn", True, np.unsignedinteger, is_positive_value),
-        ("attrs.post_nms_topn", True, np.unsignedinteger, is_positive_value),
-        ("attrs.nms_thresh", True, np.floating, is_positive_value),
-        ("attrs.feat_stride", True, np.unsignedinteger, is_positive_value),
-        ("attrs.min_size", True, np.unsignedinteger, is_positive_value),
-        ("attrs.ratio", True, np.floating, None),
-        ("attrs.scale", True, np.floating, None),
-        ("attrs.clip_before_nms", False, np.bool_, None),
-        ("attrs.clip_after_nms", False, np.bool_, None),
-        ("attrs.normalize", False, np.bool_, None),
-        ("attrs.box_size_scale", False, np.floating, is_positive_value),
-        ("attrs.box_coordinate_scale", False, np.floating, is_positive_value),
-        ("attrs.framework", False, np.str_, None),
+        ("base_size", True, np.unsignedinteger, is_positive_value),
+        ("pre_nms_topn", True, np.unsignedinteger, is_positive_value),
+        ("post_nms_topn", True, np.unsignedinteger, is_positive_value),
+        ("nms_thresh", True, np.floating, is_positive_value),
+        ("feat_stride", True, np.unsignedinteger, is_positive_value),
+        ("min_size", True, np.unsignedinteger, is_positive_value),
+        ("ratio", True, np.floating, None),
+        ("scale", True, np.floating, None),
+        ("clip_before_nms", False, np.bool_, None),
+        ("clip_after_nms", False, np.bool_, None),
+        ("normalize", False, np.bool_, None),
+        ("box_size_scale", False, np.floating, is_positive_value),
+        ("box_coordinate_scale", False, np.floating, is_positive_value),
+        ("framework", False, np.str_, None),
     ]
 
     check_valid_attributes("Proposal", attrs, requirements)
 
     return _get_node_factory_opset1().create(
-        "Proposal", [class_probs, box_logits, as_node(image_shape)], attrs
+        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
     )
 
 
