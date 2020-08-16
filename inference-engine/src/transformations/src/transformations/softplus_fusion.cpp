@@ -28,8 +28,7 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
             if (data.size() != 1 || data[0] != 1.0) {
                 return false;
             }
-        }
-        else {
+        } else {
             return false;
         }
 
