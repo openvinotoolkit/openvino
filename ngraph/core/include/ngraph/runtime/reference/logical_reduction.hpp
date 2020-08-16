@@ -59,11 +59,7 @@ namespace ngraph
                                                  const AxisSet& reduction_axes,
                                                  bool keep_dims)
             {
-                runtime::reference::any(arg,
-                                        out,
-                                        input_shape,
-                                        reduction_axes,
-                                        keep_dims);
+                runtime::reference::any(arg, out, input_shape, reduction_axes, keep_dims);
             }
         }
     }

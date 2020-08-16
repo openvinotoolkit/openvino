@@ -44,7 +44,10 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate(const HostTensorPtr& arg,
+                  const HostTensorPtr& out,
+                  const AxisSet& axes,
+                  bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::mean(
@@ -52,7 +55,10 @@ namespace
         return true;
     }
 
-    bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate_mean(const HostTensorPtr& arg,
+                       const HostTensorPtr& out,
+                       const AxisSet& axes,
+                       bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())

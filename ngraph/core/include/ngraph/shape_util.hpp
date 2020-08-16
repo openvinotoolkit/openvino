@@ -62,7 +62,9 @@ namespace ngraph
     }
 
     template <>
-    NGRAPH_API PartialShape reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims);
+    NGRAPH_API PartialShape reduce(const PartialShape& shape,
+                                   const AxisSet& deleted_axes,
+                                   bool keep_dims);
 
     // TODO: check validity, i.e. that the new axis indices are all less than
     // axis_values.size()+num_new_axes.

@@ -36,7 +36,8 @@ TEST(op_eval, reduce_l2_one_axis_keep_dims)
     auto fun = make_shared<Function>(OutputVector{reduce}, ParameterVector{data});
 
     std::vector<float> inputs{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0};
-    std::vector<float> expected_result{2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206};
+    std::vector<float> expected_result{
+        2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206};
 
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},
@@ -57,7 +58,8 @@ TEST(op_eval, reduce_l2_one_axis_do_not_keep_dims)
     auto fun = make_shared<Function>(OutputVector{reduce}, ParameterVector{data});
 
     std::vector<float> inputs{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0};
-    std::vector<float> expected_result{2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206};
+    std::vector<float> expected_result{
+        2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206};
 
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},

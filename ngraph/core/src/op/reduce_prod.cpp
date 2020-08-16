@@ -48,7 +48,10 @@ shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& n
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate(const HostTensorPtr& arg,
+                  const HostTensorPtr& out,
+                  const AxisSet& axes,
+                  bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::product(
@@ -56,7 +59,10 @@ namespace
         return true;
     }
 
-    bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate_product(const HostTensorPtr& arg,
+                          const HostTensorPtr& out,
+                          const AxisSet& axes,
+                          bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())

@@ -33,7 +33,11 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes, bool keep_dims)
+            void mean(const T* arg,
+                      T* out,
+                      const Shape& in_shape,
+                      const AxisSet& reduction_axes,
+                      bool keep_dims)
             {
                 auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
                 CoordinateTransform output_transform(out_shape);
