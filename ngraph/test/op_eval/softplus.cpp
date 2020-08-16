@@ -37,7 +37,7 @@ TEST(op_eval, softplus)
     std::vector<float> inputs{-1.0, 0.0, 1.0, 20.0};
     std::vector<float> expected_result{0.31326166, 0.69314718, 1.3132616, 20.0};
 
-	auto result = make_shared<HostTensor>();
+    auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{4}, inputs[i])}));
     EXPECT_EQ(result->get_element_type(), element::f32);
