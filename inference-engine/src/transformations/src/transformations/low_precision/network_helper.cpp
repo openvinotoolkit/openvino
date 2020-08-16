@@ -809,9 +809,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(
 void NetworkHelper::removeConvertIfPossible(
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization) {
-    const auto convertParent = dequantization.convert->get_input_node_shared_ptr(0);
-    const size_t convertIndex = getInputIndex(convertParent, dequantization.convert);
-    const element::Type precisionBeforeConvert = convertParent->get_output_element_type(convertIndex);
+    const element::Type precisionBeforeConvert = dequantization.convert->input(0).get_element_type();
 
     if (checkConstantValuePrecision(precisionBeforeConvert, dequantization.subtract->get_input_node_shared_ptr(1))) {
         auto newSubtract = dequantization.subtract->clone_with_new_inputs({
@@ -838,20 +836,12 @@ bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrec
 }
 
 size_t NetworkHelper::getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
-    bool inputIndexWasFound = false;
-    size_t inputIndex;
     for (size_t i = 0; i < child->get_input_size(); ++i) {
         if (parent.get() == child->get_input_node_ptr(i)) {
-            inputIndex = i;
-            inputIndexWasFound = true;
-            break;
+            return i;
         }
     }
-    if (!inputIndexWasFound) {
-        THROW_IE_LPT_EXCEPTION(*child) << " input index for " << parent->get_friendly_name() << " was not found";
-    }
-
-    return inputIndex;
+    THROW_IE_LPT_EXCEPTION(*child) << " input index for " << parent->get_friendly_name() << " was not found";
 }
 
 std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {

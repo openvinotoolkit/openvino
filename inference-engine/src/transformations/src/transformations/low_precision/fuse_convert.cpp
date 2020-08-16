@@ -37,9 +37,7 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     const std::shared_ptr<opset1::Subtract>& subtract) {
     std::shared_ptr<Node> newSubtract;
 
-    const auto convertParent = convert->get_input_node_shared_ptr(0);
-    const size_t convertIndex = NetworkHelper::getInputIndex(convertParent, convert);
-    const element::Type precisionBeforeConvert = convertParent->get_output_element_type(convertIndex);
+    const element::Type precisionBeforeConvert = convert->input(0).get_element_type();
     if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->get_input_node_shared_ptr(1))) {
         newSubtract = std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},

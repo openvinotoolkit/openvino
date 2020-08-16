@@ -59,15 +59,9 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?
         (dequantization.subtract == nullptr ?
-            dequantization.multiply->get_input_node_ptr(0)->get_output_element_type(NetworkHelper::getInputIndex(
-                dequantization.multiply->get_input_node_shared_ptr(0),
-                dequantization.multiply)) :
-            dequantization.subtract->get_input_node_ptr(0)->get_output_element_type(NetworkHelper::getInputIndex(
-                dequantization.subtract->get_input_node_shared_ptr(0),
-                dequantization.subtract))) :
-        dequantization.convert->get_input_node_ptr(0)->get_output_element_type(NetworkHelper::getInputIndex(
-            dequantization.convert->get_input_node_shared_ptr(0),
-            dequantization.convert));
+            dequantization.multiply->get_input_element_type(0) :
+            dequantization.subtract->get_input_element_type(0)) :
+        dequantization.convert->get_input_element_type(0);
 
     const element::Type precisionAfterDequantization = dequantization.subtract == nullptr ?
         dequantization.multiply->get_output_element_type(0) :
@@ -85,9 +79,7 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         std::dynamic_pointer_cast<Node>(dequantization.multiply) :
         dequantization.subtract;
 
-    const Shape shape = dequantization.multiply->get_input_node_ptr(0)->get_output_shape(NetworkHelper::getInputIndex(
-        dequantization.multiply->get_input_node_shared_ptr(0),
-        dequantization.multiply));
+    const Shape shape = dequantization.multiply->get_input_shape(0);
     Shape constShape = std::vector<size_t>(shape.size(), 1ul);
     constShape[1] = shape[1];
 
