@@ -209,10 +209,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
-        add<SplitTransformation, opset1::Split>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
-        add<VariadicSplitTransformation, opset1::VariadicSplit>(params).
 
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
