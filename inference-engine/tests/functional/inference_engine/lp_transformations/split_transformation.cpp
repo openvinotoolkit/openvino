@@ -243,6 +243,34 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // no Convert
+    {
+        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsI8I8(),
+        // ActualValues
+        {
+            ngraph::element::f32,
+            {{},
+            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4, 1}},
+            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 1, 4, 1}}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::f32,
+            {
+                {
+                    {},
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                },
+                {
+                    {},
+                    {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                }
+            }
+        }
+    },
     // empty
     {
         ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
