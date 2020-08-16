@@ -145,24 +145,39 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
 {
 #ifdef LPT_SUPPORT
     // replace low precision tensor to fp32
-    std::shared_ptr<HostTensor> input0;
-    if ((inputs[1]->get_element_type() == element::f32) &&
-        (inputs[0]->get_element_type() == element::i8))
-    {
-        input0 = to_float<int8_t>(inputs[0]);
-    }
-    else if ((inputs[1]->get_element_type() == element::f32) &&
-             (inputs[0]->get_element_type() == element::u8))
-    {
-        input0 = to_float<uint8_t>(inputs[0]);
-    }
-    else
-    {
-        input0 = inputs[0];
+    auto to_float_by_index = [](const HostTensorVector& inputs, const size_t targetIndex, const size_t otherIndex) -> std::shared_ptr<HostTensor> {
+        std::shared_ptr<HostTensor> input;
+        if ((inputs[otherIndex]->get_element_type() == element::f32) &&
+           (inputs[targetIndex]->get_element_type() == element::i8))
+        {
+            input = to_float<int8_t>(inputs[targetIndex]);
+        }
+		else if ((inputs[otherIndex]->get_element_type() == element::f32) &&
+            (inputs[targetIndex]->get_element_type() == element::u8))
+        {
+            input = to_float<uint8_t>(inputs[targetIndex]);
+        }
+        else
+        {
+            input = inputs[targetIndex];
+        }
+
+        return input;
+    };
+
+    auto input0 = to_float_by_index(inputs, 0, 1);
+    auto input1 = to_float_by_index(inputs, 1, 0);
+
+    auto s1 = shape_size(input0->get_shape());
+    auto s2 = shape_size(input1->get_shape());
+    if ((shape_size(input0->get_shape()) == 1ul) && (shape_size(input1->get_shape()) > 1ul)) {
+        auto tmp = input0;
+        input0 = input1;
+        input1 = tmp;
     }
 
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
-    return evaluate_multiply(input0, inputs[1], outputs[0], get_autob());
+    return evaluate_multiply(input0, input1, outputs[0], get_autob());
 #else
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
     return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
