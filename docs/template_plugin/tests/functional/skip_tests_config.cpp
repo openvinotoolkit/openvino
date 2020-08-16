@@ -12,6 +12,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ExclusiveAsyncRequests.*",
         ".*reusableCPUStreamsExecutor.*",
         ".*registerPlugin.*",
-        ".*IEClassGetAvailableDevices.*"
+        ".*IEClassGetAvailableDevices.*",
+        R"(.*SplitLayerTest.*numSplits\=30.*)"
     };
 }

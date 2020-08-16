@@ -16,38 +16,4 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            /// \brief Gaussian Error Linear Unit
-            /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
-            class NGRAPH_API Gelu : public ngraph::op::util::FusedOp
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"Gelu", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Gelu() = default;
-                /// \brief Constructs an Gelu operation.
-                ///
-                /// \param data Input tensor
-                Gelu(const Output<Node>& data);
-
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual OutputVector decompose_op() const override;
-
-                void pre_validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-            };
-        }
-        using v0::Gelu;
-    }
-}
+#include "ngraph/op/gelu.hpp"
