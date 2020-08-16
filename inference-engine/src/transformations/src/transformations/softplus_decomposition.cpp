@@ -19,9 +19,9 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
 
-        auto exp = std::make_shared<ngraph::opset4::Exp>(input);
+        auto exp = std::make_shared<ngraph::opset4::Exp>(softplus_input);
         auto add = std::make_shared<ngraph::opset4::Add>(exp,
-            opset4::Constant::create(ngraph::element::f64, ngraph::Shape{1}, {1}));
+            opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0}));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
         log->set_friendly_name(m.get_match_root()->get_friendly_name());
