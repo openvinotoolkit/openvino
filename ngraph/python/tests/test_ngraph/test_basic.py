@@ -18,6 +18,8 @@ import json
 import numpy as np
 import pytest
 
+from _pyngraph import VariantInt, VariantString
+
 import ngraph as ng
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, PartialShape, Shape, Type
