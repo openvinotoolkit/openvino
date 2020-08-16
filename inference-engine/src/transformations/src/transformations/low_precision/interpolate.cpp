@@ -33,7 +33,9 @@ void InterpolateTransformation::transform(TransformationContext &context, ngraph
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    return false;
+    std::shared_ptr<opset1::Interpolate> interpolate = as_type_ptr<opset1::Interpolate>(layer);
+    const auto attrs = interpolate->get_attrs();
+    return attrs.mode == "nearest";
 }
 
 bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
