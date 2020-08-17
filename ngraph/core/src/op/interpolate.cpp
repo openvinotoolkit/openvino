@@ -18,9 +18,6 @@
 #include <algorithm>
 #include <cmath>
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/ndim_array_view.hpp"
-#include "ngraph/runtime/ndimindex.hpp"
-#include "ngraph/runtime/ndimrange.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
 using namespace std;
