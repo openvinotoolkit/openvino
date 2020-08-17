@@ -154,7 +154,7 @@ class ExpDetectionOutputTest: public myriadLayerTestBaseWithParam<ExpDetectionOu
 protected:
     void testExpDetectionOutput()
         {
-            _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+            _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
             const auto testParams = GetParam();
             const auto sizeParams = std::get<0>(testParams);

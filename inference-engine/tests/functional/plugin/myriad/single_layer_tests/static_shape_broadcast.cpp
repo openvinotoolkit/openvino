@@ -56,7 +56,7 @@ public:
 protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
-        configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         StaticShapeBroadcastParam shapes;
         std::tie(shapes, inPrc, targetDevice) = this->GetParam();

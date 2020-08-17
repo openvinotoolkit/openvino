@@ -239,9 +239,9 @@ TEST_P(myriadLayers_IR3_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);
@@ -354,9 +354,9 @@ TEST_P(myriadLayers_BatchTest_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);
@@ -605,9 +605,9 @@ TEST_P(myriadLayers_BatchTest2_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);

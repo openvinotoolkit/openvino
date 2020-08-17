@@ -33,7 +33,7 @@ protected:
 
 TEST_P(myriadLayersTestsSoftMax_smoke, TestsSoftMax)
 {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     SetInputTensors({_testingInput.sizes});
     SetOutputTensors({_testingInput.sizes});
 

@@ -647,7 +647,7 @@ TEST_P(myriadLayersTestsShuffleChannel_smoke, ShuffleChannel) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     SetInputTensor(dims);
     SetOutputTensor(dims);
@@ -683,7 +683,7 @@ TEST_P(myriadLayersTestsFakeQuantize_smoke, FakeQuantize) {
     if (!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     srand(42);
 
@@ -863,7 +863,7 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     int IB = dims.n;
     int IC = dims.c;
@@ -932,7 +932,7 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
     _outputsInfo["Quantize"]->setLayout(NCHW);
 
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                    {{VPU_CONFIG_KEY(CUSTOM_LAYERS), customConfig }}, &_resp));
+                                                    {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, customConfig }}, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 
@@ -1055,7 +1055,7 @@ TEST_P(myriadLayersTestsBinaryConvolution_smoke, BinaryConvolution) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     SetInputTensor(dims);
     auto dimsOutput = dims;
@@ -1127,7 +1127,7 @@ TEST_P(myriadLayersTestsExperimentalDetectronPriorGridGenerator_smoke,
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     IN_OUT_desc inputTensors = {{1, 1, 3, 4}, image_dims, {1, 3, 480, 480}};
     IN_OUT_desc outputTensors = {{1, 1,
@@ -1192,7 +1192,7 @@ TEST_P(myriadLayersTestsCorrelate_smoke, Correlate) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const int paddedbottomwidth  = dims.w + 2 * pad_size;
     const int paddedbottomheight = dims.h + 2 * pad_size;
@@ -1275,7 +1275,7 @@ TEST_P(myriadLayersTestsSpatialTransform_smoke, SpatialTransform) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     SetInputTensors({dims.asVector(), {1, 1, 2, 3}});
     SetOutputTensor(dims);

@@ -105,7 +105,7 @@ static void ref_reverse_sequence(
 }
 
 TEST_P(myriadLayerReverseSequence_smoke, ReverseSequence) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     reverse_sequence_test_params input_dims = std::get<0>(GetParam());
     _irVersion = std::get<1>(GetParam());

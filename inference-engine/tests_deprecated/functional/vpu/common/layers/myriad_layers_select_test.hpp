@@ -104,7 +104,7 @@ protected:
         SetInputTensors(inpt);
         SetOutputTensors({dims});
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Select").params(_params)));
         ASSERT_TRUE(Infer());

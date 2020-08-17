@@ -32,8 +32,6 @@ myriad_compile [OPTIONS]
                                              Example: -iop "input:FP16, output:FP16".
                                              Notice that quotes are required.
                                              Overwrites precision from ip and op options for specified layers.
-    -VPU_MYRIAD_PLATFORM         <value>     Optional. Specifies movidius platform. Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480. Overwrites value from config.
-                                             This option must be used in order to compile blob without a connected Myriad device.
     -VPU_NUMBER_OF_SHAVES        <value>     Optional. Specifies number of shaves. Should be set with "VPU_NUMBER_OF_CMX_SLICES". Overwrites value from config.
     -VPU_NUMBER_OF_CMX_SLICES    <value>     Optional. Specifies number of CMX slices. Should be set with "VPU_NUMBER_OF_SHAVES". Overwrites value from config.
     -VPU_TILING_CMX_LIMIT_KB     <value>     Optional. Specifies CMX limit for data tiling in kB. Value should be equal or greater than -1, where -1 means default value of limit. Overwrites value from config.
@@ -46,12 +44,6 @@ You can use the following command to dump blob using a trained Faster R-CNN netw
 ```sh
 ./myriad_compile -m <path_to_model>/model_name.xml
 ```
-
-## Platform option
-
-You can dump blob without a connected Myriad device.
-To do that, you must specify type of movidius platform using the parameter -VPU_MYRIAD_PLATFORM.
-Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480
 
 ## Import and Export functionality
 

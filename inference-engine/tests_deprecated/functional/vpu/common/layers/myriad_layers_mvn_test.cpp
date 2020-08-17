@@ -67,7 +67,7 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
     _outputsInfo["mvn"]->setPrecision(Precision::FP16);
 
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                      {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}}, &_resp));
+            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 

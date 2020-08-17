@@ -12,6 +12,7 @@
 #include <cpp_interfaces/exception2status.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
+#include <vpu/myriad_config.hpp>
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -20,7 +21,6 @@ const std::unordered_set<std::string>& MyriadConfig::getCompileOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getCompileOptions(), {
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
-        VPU_CONFIG_KEY(PLATFORM),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -32,19 +32,22 @@ IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
         CONFIG_KEY(DEVICE_ID),
 
+        ie::MYRIAD_ENABLE_FORCE_RESET,
+
+        ie::MYRIAD_PROTOCOL,
+        ie::MYRIAD_WATCHDOG,
+        ie::MYRIAD_THROUGHPUT_STREAMS,
+        ie::MYRIAD_POWER_MANAGEMENT,
+
+        ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
+        ie::MYRIAD_DEVICE_CONNECT_TIMEOUT,
+
+        ie::MYRIAD_DDR_TYPE,
+
+        // Deprecated
         VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         VPU_MYRIAD_CONFIG_KEY(PLATFORM),
         VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
-        VPU_MYRIAD_CONFIG_KEY(WATCHDOG),
-        VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT),
-
-        VPU_CONFIG_KEY(FORCE_RESET),
-        VPU_CONFIG_KEY(PLATFORM),
-
-        VPU_MYRIAD_CONFIG_KEY(PLUGIN_LOG_FILE_PATH),
-        VPU_MYRIAD_CONFIG_KEY(DEVICE_CONNECT_TIMEOUT),
-
         VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
@@ -55,8 +58,10 @@ IE_SUPPRESS_DEPRECATED_END
 const std::unordered_set<std::string>& MyriadConfig::getDeprecatedOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getDeprecatedOptions(), {
-        VPU_CONFIG_KEY(FORCE_RESET),
-        VPU_CONFIG_KEY(PLATFORM),
+        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
+        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -64,24 +69,32 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
-    static const std::unordered_map<std::string, ncDevicePlatform_t> platforms = {
-        { VPU_MYRIAD_CONFIG_VALUE(2450),   NC_MYRIAD_2 },
-        { VPU_MYRIAD_CONFIG_VALUE(2480),   NC_MYRIAD_X },
-        { std::string(),                   NC_ANY_PLATFORM }
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_map<std::string, ncDevicePlatform_t> platformsDeprecated = {
+        { VPU_MYRIAD_CONFIG_VALUE(2450), NC_MYRIAD_2 },
+        { VPU_MYRIAD_CONFIG_VALUE(2480), NC_MYRIAD_X },
+        { std::string(),                 NC_ANY_PLATFORM }
     };
 
-IE_SUPPRESS_DEPRECATED_START
-    static const std::unordered_map<std::string, ncDevicePlatform_t> platformsDepr = {
-        { VPU_CONFIG_VALUE(2450), NC_MYRIAD_2 },
-        { VPU_CONFIG_VALUE(2480), NC_MYRIAD_X },
-        { std::string(),          NC_ANY_PLATFORM }
+    static const std::unordered_map<std::string, ncDeviceProtocol_t> protocolsDeprecated = {
+        { VPU_MYRIAD_CONFIG_VALUE(USB),  NC_USB},
+        { VPU_MYRIAD_CONFIG_VALUE(PCIE), NC_PCIE},
+        { std::string(),                 NC_ANY_PROTOCOL}
+    };
+
+    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypesDeprecated = {
+         { VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),     MovidiusDdrType::AUTO },
+         { VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),   MovidiusDdrType::MICRON_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),  MovidiusDdrType::SAMSUNG_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),    MovidiusDdrType::HYNIX_2GB },
+         { VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),   MovidiusDdrType::MICRON_1GB }
     };
 IE_SUPPRESS_DEPRECATED_END
 
     static const std::unordered_map<std::string, ncDeviceProtocol_t> protocols = {
-        { VPU_MYRIAD_CONFIG_VALUE(USB),     NC_USB},
-        { VPU_MYRIAD_CONFIG_VALUE(PCIE),    NC_PCIE},
-        { std::string(),                    NC_ANY_PROTOCOL}
+        { ie::MYRIAD_USB,     NC_USB},
+        { ie::MYRIAD_PCIE,    NC_PCIE},
+        { std::string(),      NC_ANY_PROTOCOL}
     };
 
     static const std::unordered_map<std::string, std::chrono::milliseconds> watchdogIntervals = {
@@ -90,36 +103,37 @@ IE_SUPPRESS_DEPRECATED_END
     };
 
     static const std::unordered_map<std::string, PowerConfig> powerConfigs = {
-        { VPU_MYRIAD_CONFIG_VALUE(POWER_FULL),         PowerConfig::FULL },
-        { VPU_MYRIAD_CONFIG_VALUE(POWER_INFER),        PowerConfig::INFER },
-        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE),        PowerConfig::STAGE },
-        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_SHAVES), PowerConfig::STAGE_SHAVES },
-        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_NCES),   PowerConfig::STAGE_NCES },
+        { ie::MYRIAD_POWER_FULL,         PowerConfig::FULL },
+        { ie::MYRIAD_POWER_INFER,        PowerConfig::INFER },
+        { ie::MYRIAD_POWER_STAGE,        PowerConfig::STAGE },
+        { ie::MYRIAD_POWER_STAGE_SHAVES, PowerConfig::STAGE_SHAVES },
+        { ie::MYRIAD_POWER_STAGE_NCES,   PowerConfig::STAGE_NCES },
     };
 
     static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
-        { VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),     MovidiusDdrType::AUTO },
-        { VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),   MovidiusDdrType::MICRON_2GB },
-        { VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),  MovidiusDdrType::SAMSUNG_2GB },
-        { VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),    MovidiusDdrType::HYNIX_2GB },
-        { VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),   MovidiusDdrType::MICRON_1GB }
+        { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
+        { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
+        { ie::MYRIAD_DDR_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
+        { ie::MYRIAD_DDR_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
+        { ie::MYRIAD_DDR_MICRON_1GB,   MovidiusDdrType::MICRON_1GB }
     };
 
     ParsedConfig::parse(config);
 
-    setOption(_pluginLogFilePath, config, VPU_MYRIAD_CONFIG_KEY(PLUGIN_LOG_FILE_PATH));
-    setOption(_deviceName, config, CONFIG_KEY(DEVICE_ID));
-    setOption(_forceReset, switches, config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-    setOption(_platform, platforms, config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
-    setOption(_protocol, protocols, config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
-    setOption(_watchdogInterval, watchdogIntervals, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));
-    setOption(_deviceConnectTimeout, config, VPU_MYRIAD_CONFIG_KEY(DEVICE_CONNECT_TIMEOUT), parseSeconds);
-    setOption(_powerConfig, powerConfigs, config, VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT));
-    setOption(_memoryType, memoryTypes, config, VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
+    setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
+    setOption(_deviceName,                              config, CONFIG_KEY(DEVICE_ID));
+    setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
+    setOption(_protocol,         protocols,             config, ie::MYRIAD_PROTOCOL);
+    setOption(_watchdogInterval, watchdogIntervals,     config, ie::MYRIAD_WATCHDOG);
+    setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
+    setOption(_powerConfig,      powerConfigs,          config, ie::MYRIAD_POWER_MANAGEMENT);
+    setOption(_memoryType,       memoryTypes,           config, ie::MYRIAD_DDR_TYPE);
 
 IE_SUPPRESS_DEPRECATED_START
-    setOption(_forceReset, switches, config, VPU_CONFIG_KEY(FORCE_RESET));
-    setOption(_platform, platformsDepr, config, VPU_CONFIG_KEY(PLATFORM));
+    setOption(_forceReset,       switches,              config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
+    setOption(_platform,         platformsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
+    setOption(_protocol,         protocolsDeprecated,   config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
+    setOption(_memoryType,       memoryTypesDeprecated, config, VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG

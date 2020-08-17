@@ -29,55 +29,66 @@ IE_SUPPRESS_DEPRECATED_START
 
         CONFIG_KEY(CONFIG_FILE),
 
-        VPU_CONFIG_KEY(NETWORK_CONFIG),
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
-        VPU_CONFIG_KEY(HW_EXTRA_SPLIT),
-        VPU_CONFIG_KEY(CUSTOM_LAYERS),
+        ie::MYRIAD_ENABLE_HW_ACCELERATION,
+        ie::MYRIAD_CUSTOM_LAYERS,
+        ie::MYRIAD_THROUGHPUT_STREAMS,
 
-        VPU_CONFIG_KEY(INPUT_NORM),
-        VPU_CONFIG_KEY(INPUT_BIAS),
+        //
+        // Public deprecated
+        //
+
+        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+        VPU_CONFIG_KEY(CUSTOM_LAYERS),
 
         //
         // Private options
         //
 
-        VPU_CONFIG_KEY(NUMBER_OF_SHAVES),
-        VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES),
-        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB),
+        ie::MYRIAD_HW_EXTRA_SPLIT,
 
-        VPU_CONFIG_KEY(TENSOR_STRIDES),
+        ie::MYRIAD_NUMBER_OF_SHAVES,
+        ie::MYRIAD_NUMBER_OF_CMX_SLICES,
+        ie::MYRIAD_TILING_CMX_LIMIT_KB,
 
-        VPU_CONFIG_KEY(IR_WITH_SCALES_DIRECTORY),
-        VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
-        VPU_CONFIG_KEY(COPY_OPTIMIZATION),
-        VPU_CONFIG_KEY(HW_INJECT_STAGES),
-        VPU_CONFIG_KEY(HW_POOL_CONV_MERGE),
-        VPU_CONFIG_KEY(PACK_DATA_IN_CMX),
-        VPU_CONFIG_KEY(HW_DILATION),
-        VPU_CONFIG_KEY(FORCE_DEPRECATED_CNN_CONVERSION),
-        VPU_CONFIG_KEY(DISABLE_REORDER),
-        VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING),
-        VPU_CONFIG_KEY(ENABLE_REPL_WITH_SCRELU),
-        VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN),
-        VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING),
-        VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR),
-        VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES),
+        ie::MYRIAD_TENSOR_STRIDES,
+
+        ie::MYRIAD_IR_WITH_SCALES_DIRECTORY,
+        ie::MYRIAD_DETECT_NETWORK_BATCH,
+        ie::MYRIAD_COPY_OPTIMIZATION,
+        ie::MYRIAD_HW_INJECT_STAGES,
+        ie::MYRIAD_HW_POOL_CONV_MERGE,
+        ie::MYRIAD_PACK_DATA_IN_CMX,
+        ie::MYRIAD_HW_DILATION,
+        ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION,
+        ie::MYRIAD_DISABLE_REORDER,
+        ie::MYRIAD_ENABLE_PERMUTE_MERGING,
+        ie::MYRIAD_ENABLE_REPL_WITH_SCRELU,
+        ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN,
+        ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING,
+        ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
+        ie::MYRIAD_DISABLE_CONVERT_STAGES,
 
         //
         // Debug options
         //
 
-        VPU_CONFIG_KEY(HW_WHITE_LIST),
-        VPU_CONFIG_KEY(HW_BLACK_LIST),
+        ie::MYRIAD_HW_WHITE_LIST,
+        ie::MYRIAD_HW_BLACK_LIST,
 
-        VPU_CONFIG_KEY(NONE_LAYERS),
-        VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS),
+        ie::MYRIAD_NONE_LAYERS,
+        ie::MYRIAD_IGNORE_UNKNOWN_LAYERS,
 
-        VPU_CONFIG_KEY(COMPILER_LOG_FILE_PATH),
+        ie::MYRIAD_COMPILER_LOG_FILE_PATH,
 
-        VPU_CONFIG_KEY(DUMP_INTERNAL_GRAPH_FILE_NAME),
-        VPU_CONFIG_KEY(DUMP_INTERNAL_GRAPH_DIRECTORY),
-        VPU_CONFIG_KEY(DUMP_ALL_PASSES),
+        ie::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME,
+        ie::MYRIAD_DUMP_INTERNAL_GRAPH_DIRECTORY,
+        ie::MYRIAD_DUMP_ALL_PASSES,
+
+        //
+        // Private deprecated options
+        //
+
+        VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -85,11 +96,14 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 const std::unordered_set<std::string>& ParsedConfig::getRunTimeOptions() const {
+IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getRunTimeOptions(), {
         CONFIG_KEY(PERF_COUNT),
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
-        VPU_CONFIG_KEY(PERF_REPORT_MODE),
+        ie::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
+        ie::MYRIAD_PERF_REPORT_MODE,
     });
+IE_SUPPRESS_DEPRECATED_END
 
     return options;
 }
@@ -97,9 +111,9 @@ const std::unordered_set<std::string>& ParsedConfig::getRunTimeOptions() const {
 const std::unordered_set<std::string>& ParsedConfig::getDeprecatedOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getDeprecatedOptions(), {
-        VPU_CONFIG_KEY(INPUT_NORM),
-        VPU_CONFIG_KEY(INPUT_BIAS),
-        VPU_CONFIG_KEY(NETWORK_CONFIG),
+        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+        VPU_CONFIG_KEY(CUSTOM_LAYERS),
+        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -108,8 +122,8 @@ IE_SUPPRESS_DEPRECATED_END
 
 void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     static const std::unordered_map<std::string, PerfReport> perfReports {
-        { VPU_CONFIG_VALUE(PER_LAYER), PerfReport::PerLayer },
-        { VPU_CONFIG_VALUE(PER_STAGE), PerfReport::PerStage },
+        { ie::MYRIAD_PER_LAYER, PerfReport::PerLayer },
+        { ie::MYRIAD_PER_STAGE, PerfReport::PerStage },
     };
 
     static const auto parseStrides = [](const std::string& src) {
@@ -146,38 +160,38 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     ParsedConfigBase::parse(config);
 
-    setOption(_compilerLogFilePath, config, VPU_CONFIG_KEY(COMPILER_LOG_FILE_PATH));
-    setOption(_compileConfig.dumpInternalGraphFileName, config, VPU_CONFIG_KEY(DUMP_INTERNAL_GRAPH_FILE_NAME));
-    setOption(_compileConfig.dumpInternalGraphDirectory, config, VPU_CONFIG_KEY(DUMP_INTERNAL_GRAPH_DIRECTORY));
-    setOption(_compileConfig.dumpAllPasses, switches, config, VPU_CONFIG_KEY(DUMP_ALL_PASSES));
+    setOption(_compilerLogFilePath,                                    config, ie::MYRIAD_COMPILER_LOG_FILE_PATH);
+    setOption(_compileConfig.dumpInternalGraphFileName,                config, ie::MYRIAD_DUMP_INTERNAL_GRAPH_FILE_NAME);
+    setOption(_compileConfig.dumpInternalGraphDirectory,               config, ie::MYRIAD_DUMP_INTERNAL_GRAPH_DIRECTORY);
+    setOption(_compileConfig.dumpAllPasses,                  switches, config, ie::MYRIAD_DUMP_ALL_PASSES);
 
-    setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
-    setOption(_compileConfig.copyOptimization,               switches, config, VPU_CONFIG_KEY(COPY_OPTIMIZATION));
-    setOption(_compileConfig.packDataInCmx,                  switches, config, VPU_CONFIG_KEY(PACK_DATA_IN_CMX));
-    setOption(_compileConfig.ignoreUnknownLayers,            switches, config, VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS));
-    setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
-    setOption(_compileConfig.hwExtraSplit,                   switches, config, VPU_CONFIG_KEY(HW_EXTRA_SPLIT));
-    setOption(_compileConfig.injectSwOps,                    switches, config, VPU_CONFIG_KEY(HW_INJECT_STAGES));
-    setOption(_compileConfig.mergeHwPoolToConv,              switches, config, VPU_CONFIG_KEY(HW_POOL_CONV_MERGE));
-    setOption(_compileConfig.hwDilation,                     switches, config, VPU_CONFIG_KEY(HW_DILATION));
-    setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, VPU_CONFIG_KEY(FORCE_DEPRECATED_CNN_CONVERSION));
-    setOption(_compileConfig.disableReorder,                 switches, config, VPU_CONFIG_KEY(DISABLE_REORDER));
-    setOption(_compileConfig.enablePermuteMerging,           switches, config, VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING));
-    setOption(_compileConfig.enableReplWithSCRelu,           switches, config, VPU_CONFIG_KEY(ENABLE_REPL_WITH_SCRELU));
-    setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN));
-    setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING));
-    setOption(_compileConfig.forcePureTensorIterator,        switches, config, VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR));
-    setOption(_compileConfig.disableConvertStages,           switches, config, VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES));
+    setOption(_compileConfig.detectBatch,                    switches, config, ie::MYRIAD_DETECT_NETWORK_BATCH);
+    setOption(_compileConfig.copyOptimization,               switches, config, ie::MYRIAD_COPY_OPTIMIZATION);
+    setOption(_compileConfig.packDataInCmx,                  switches, config, ie::MYRIAD_PACK_DATA_IN_CMX);
+    setOption(_compileConfig.ignoreUnknownLayers,            switches, config, ie::MYRIAD_IGNORE_UNKNOWN_LAYERS);
+    setOption(_compileConfig.hwOptimization,                 switches, config, ie::MYRIAD_ENABLE_HW_ACCELERATION);
+    setOption(_compileConfig.hwExtraSplit,                   switches, config, ie::MYRIAD_HW_EXTRA_SPLIT);
+    setOption(_compileConfig.injectSwOps,                    switches, config, ie::MYRIAD_HW_INJECT_STAGES);
+    setOption(_compileConfig.mergeHwPoolToConv,              switches, config, ie::MYRIAD_HW_POOL_CONV_MERGE);
+    setOption(_compileConfig.hwDilation,                     switches, config, ie::MYRIAD_HW_DILATION);
+    setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, ie::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION);
+    setOption(_compileConfig.disableReorder,                 switches, config, ie::MYRIAD_DISABLE_REORDER);
+    setOption(_compileConfig.enablePermuteMerging,           switches, config, ie::MYRIAD_ENABLE_PERMUTE_MERGING);
+    setOption(_compileConfig.enableReplWithSCRelu,           switches, config, ie::MYRIAD_ENABLE_REPL_WITH_SCRELU);
+    setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, ie::MYRIAD_ENABLE_REPLACE_WITH_REDUCE_MEAN);
+    setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING);
+    setOption(_compileConfig.forcePureTensorIterator,        switches, config, ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
+    setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
 
-    setOption(_compileConfig.irWithVpuScalesDir, config, VPU_CONFIG_KEY(IR_WITH_SCALES_DIRECTORY));
-    setOption(_compileConfig.noneLayers,    config, VPU_CONFIG_KEY(NONE_LAYERS), parseStringSet);
-    setOption(_compileConfig.hwWhiteList,   config, VPU_CONFIG_KEY(HW_WHITE_LIST), parseStringSet);
-    setOption(_compileConfig.hwBlackList,   config, VPU_CONFIG_KEY(HW_BLACK_LIST), parseStringSet);
+    setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
+    setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
+    setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
+    setOption(_compileConfig.hwBlackList,                              config, ie::MYRIAD_HW_BLACK_LIST, parseStringSet);
 
     // Priority is set to VPU configuration file over plug-in config.
-    setOption(_compileConfig.customLayers, config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
+    setOption(_compileConfig.customLayers,                             config, ie::MYRIAD_CUSTOM_LAYERS);
     if (_compileConfig.customLayers.empty()) {
-        setOption(_compileConfig.customLayers, config, CONFIG_KEY(CONFIG_FILE));
+        setOption(_compileConfig.customLayers,                         config, CONFIG_KEY(CONFIG_FILE));
     }
 
     auto isPositive = [](int value) {
@@ -198,25 +212,27 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
         throw std::invalid_argument("Value must be positive or default(-1).");
     };
 
-    setOption(_compileConfig.numSHAVEs, config, VPU_CONFIG_KEY(NUMBER_OF_SHAVES), preprocessCompileOption);
-    setOption(_compileConfig.numCMXSlices, config, VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), preprocessCompileOption);
-    setOption(_compileConfig.numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), preprocessCompileOption);
-    setOption(_compileConfig.tilingCMXLimitKB, config, VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), preprocessCompileOption);
+    setOption(_compileConfig.numSHAVEs,        config, ie::MYRIAD_NUMBER_OF_SHAVES, preprocessCompileOption);
+    setOption(_compileConfig.numCMXSlices,     config, ie::MYRIAD_NUMBER_OF_CMX_SLICES, preprocessCompileOption);
+    setOption(_compileConfig.numExecutors,     config, ie::MYRIAD_THROUGHPUT_STREAMS, preprocessCompileOption);
+    setOption(_compileConfig.tilingCMXLimitKB, config, ie::MYRIAD_TILING_CMX_LIMIT_KB, preprocessCompileOption);
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
         THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 
-    setOption(_compileConfig.ioStrides, config, VPU_CONFIG_KEY(TENSOR_STRIDES), parseStrides);
+    setOption(_compileConfig.ioStrides,                                config, ie::MYRIAD_TENSOR_STRIDES, parseStrides);
 
-    setOption(_printReceiveTensorTime, switches,    config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
-    setOption(_perfCount,              switches,    config, CONFIG_KEY(PERF_COUNT));
-    setOption(_perfReport,             perfReports, config, VPU_CONFIG_KEY(PERF_REPORT_MODE));
+    setOption(_printReceiveTensorTime,                       switches, config, ie::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
+    setOption(_perfCount,                                    switches, config, CONFIG_KEY(PERF_COUNT));
+    setOption(_perfReport,                                perfReports, config, ie::MYRIAD_PERF_REPORT_MODE);
 
 IE_SUPPRESS_DEPRECATED_START
-    setOption(_compileConfig.inputScale, config, VPU_CONFIG_KEY(INPUT_NORM), parseFloatReverse);
-    setOption(_compileConfig.inputBias, config, VPU_CONFIG_KEY(INPUT_BIAS), parseFloat);
+    setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    setOption(_compileConfig.customLayers,                             config, VPU_CONFIG_KEY(CUSTOM_LAYERS));
+    setOption(_printReceiveTensorTime,                       switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
+    setOption(_compileConfig.detectBatch,                    switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
 IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG

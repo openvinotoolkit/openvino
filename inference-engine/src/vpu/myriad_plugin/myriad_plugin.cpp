@@ -130,18 +130,27 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
-        { KEY_LOG_LEVEL, "LOG_NONE" },
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
+        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
+        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
+        { MYRIAD_CUSTOM_LAYERS, "" },
+        { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
+
+        // Deprecated
+        { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
+        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
+        { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
-        { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
-        { KEY_PERF_COUNT, "OFF" },
+
+        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
+        { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
+        { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
+IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(

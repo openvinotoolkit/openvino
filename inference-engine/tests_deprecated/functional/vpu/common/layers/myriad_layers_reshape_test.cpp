@@ -13,11 +13,11 @@ TEST_F(myriadEliminateReshapeTests_smoke, SplitConvConcat) {
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork,
                                                         {
                                                             {
-                                                                VPU_CONFIG_KEY(PERF_REPORT_MODE),
-                                                                VPU_CONFIG_VALUE(PER_STAGE)
+                                                                InferenceEngine::MYRIAD_PERF_REPORT_MODE,
+                                                                InferenceEngine::MYRIAD_PER_STAGE
                                                             },
                                                             {
-                                                                VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+                                                                InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
                                                                 CONFIG_VALUE(NO)
                                                             },
                                                             {
@@ -206,9 +206,10 @@ TEST_F(myriadLayersTests_nightly, ReshapeAfterConcat_Eliminate) {
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["reshape_copy"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, { {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)},
-                                                                              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)},
-                                                                              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)} }, &_resp));
+    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+            { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)},
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)} }, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 

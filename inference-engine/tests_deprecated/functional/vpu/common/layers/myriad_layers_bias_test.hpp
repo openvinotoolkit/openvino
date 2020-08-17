@@ -93,7 +93,7 @@ class myriadLayersTestsBias_smoke: public myriadLayersTests_nightly,
 };
 
 TEST_P(myriadLayersTestsBias_smoke, TestsBias) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     auto input_dim = GetParam();
     InferenceEngine::SizeVector input_dim1;
     auto dims = input_dim.size();

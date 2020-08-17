@@ -386,7 +386,7 @@ protected:
     void testReduce()
     {
         DISABLE_IF(!CheckMyriadX());
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         const auto params = GetParam();
         const auto inputPair = std::get<0>(params);

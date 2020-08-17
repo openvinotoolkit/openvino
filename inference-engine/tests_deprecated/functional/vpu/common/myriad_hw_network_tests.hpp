@@ -73,9 +73,9 @@ public:
             const int NUM_REQUESTS = 4;
 
             std::map<std::string, std::string> config = {
-                { VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES) },
+                { InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
                 { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) },
-                { VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE) }
+                { InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE }
             };
 
             StatusCode st;

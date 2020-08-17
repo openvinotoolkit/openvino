@@ -150,7 +150,7 @@ TEST_P(myriadLayersTestsMVN_smoke, MVN)
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     SetInputTensor(dims);
     SetOutputTensor(dims);

@@ -166,9 +166,9 @@ TEST_P(myriadLayerGEMM_smoke, GEMM) {
                                               };
 
     if (MB1_D > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("GEMM").params(params), NetworkInitParams().layoutPreference(layoutPreference)));

@@ -32,7 +32,7 @@ TEST_P(myriadLayerReshape_smoke, Reshape) {
              .out({output_tensor}),
             ref_reshape_wrap);
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().useHWOpt(CheckMyriadX()).layoutPreference(vpu::LayoutPreference::ChannelMinor)));
 }
@@ -223,9 +223,9 @@ TEST_P(myriadLayersTestsReshapeBeforeFC_smoke, OptimizeReshapeIfItIsPlacedBefore
 
     InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network,
-                                                      { {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)},
-                                                        {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), HWConfigValue},
-                                                        {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}, &resp));
+            { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue},
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}, &resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 
     InferenceEngine::IInferRequest::Ptr inferRequest;

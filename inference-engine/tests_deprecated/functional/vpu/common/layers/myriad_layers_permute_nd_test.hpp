@@ -91,7 +91,7 @@ TEST_P(myriadLayersPermuteNDTests_smoke, Permute) {
 
     const std::map<std::string, std::string> layerParams{{"order", order}};
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     switch (precision)
     {

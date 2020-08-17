@@ -46,7 +46,7 @@ TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
 
         StatusCode st;
         ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork,
-        { {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), HWConfigValue } }, &_resp));
+        { {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue } }, &_resp));
         ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
         std::stringstream modelFilenameStream;
         modelFilenameStream << "spltConvConcat" << i << ".blob";
@@ -160,17 +160,12 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
     ASSERT_EQ(StatusCode::OK, _exeNetwork->Export(modelFilenameStream.str(), &_resp)) << _resp.msg;
 
 
-    std::map<std::string, std::string> config = { {VPU_CONFIG_KEY(COPY_OPTIMIZATION), CONFIG_VALUE(YES)},
-                                                  {VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS), CONFIG_VALUE(YES)},
-                                                  {VPU_CONFIG_KEY(NONE_LAYERS), CONFIG_VALUE(YES)},
-                                                  {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)},
-                                                  {VPU_CONFIG_KEY(NUMBER_OF_SHAVES), std::to_string(10)},
-                                                  {VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), std::to_string(10)} };
-
-    IE_SUPPRESS_DEPRECATED_START
-    config[VPU_CONFIG_KEY(INPUT_NORM)] = std::to_string(1.f);
-    config[VPU_CONFIG_KEY(INPUT_BIAS)] = std::to_string(1.f);
-    IE_SUPPRESS_DEPRECATED_START
+    std::map<std::string, std::string> config = { {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(YES)},
+                                                  {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, CONFIG_VALUE(YES)},
+                                                  {InferenceEngine::MYRIAD_NONE_LAYERS, CONFIG_VALUE(YES)},
+                                                  {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)},
+                                                  {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, std::to_string(10)},
+                                                  {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, std::to_string(10)} };
 
     InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
     ASSERT_EQ(StatusCode::OK, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, modelFilenameStream.str(), config, &_resp)) << _resp.msg;
@@ -197,10 +192,10 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPr
     std::map<std::string, std::string> config = { {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)},
                                                   {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)},
                                                   {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                                                  {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)} };
+                                                  {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)} };
     if (vpu::tests::deviceForceReset()) {
-        config.insert({VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)});
-        config.insert({VPU_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2480)});
+        config.insert({InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)});
+        config.insert({VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)});
     }
 
     InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;

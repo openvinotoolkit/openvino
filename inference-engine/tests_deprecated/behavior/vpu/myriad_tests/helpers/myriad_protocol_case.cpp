@@ -23,13 +23,13 @@ std::map<std::string, std::string> MyriadProtocolTests::getConfigForProtocol(con
     switch (protocol) {
         case NC_ANY_PROTOCOL :
             return {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)},
-                    {VPU_MYRIAD_CONFIG_KEY(PROTOCOL), ""}};
+                    {InferenceEngine::MYRIAD_PROTOCOL, ""}};
         case NC_USB:
             return {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)},
-                    {VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}};
+                    {InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}};
         case NC_PCIE:
             return {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)},
-                    {VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}};
+                    {InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}};
         default:
             return {};
     }

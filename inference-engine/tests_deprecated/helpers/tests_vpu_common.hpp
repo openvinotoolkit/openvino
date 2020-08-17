@@ -73,22 +73,7 @@ static bool hasAppropriateStick(const config_t &config) {
         suitsConfig = hasRequestedMyriad2 || hasRequestedMyriadX;
     }
 
-    bool suitsDeprecatedConfig;
-    // Deprecated api
-    IE_SUPPRESS_DEPRECATED_START
-    platform = config.find(VPU_CONFIG_KEY(PLATFORM));
-    if (platform == config.end() || platform->second.empty()) {
-        suitsDeprecatedConfig = hasMyriad2() || hasMyriadX();
-    } else {
-        bool hasRequestedMyriad2 =
-                platform->second == VPU_CONFIG_VALUE(2450) && hasMyriad2();
-        bool hasRequestedMyriadX =
-                platform->second == VPU_CONFIG_VALUE(2480) && hasMyriadX();
-        suitsDeprecatedConfig = hasRequestedMyriad2 || hasRequestedMyriadX;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    return suitsConfig && suitsDeprecatedConfig;
+    return suitsConfig;
 }
 
 static bool hasHDDL_R() {

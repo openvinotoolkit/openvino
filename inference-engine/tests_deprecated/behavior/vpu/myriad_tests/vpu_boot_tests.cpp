@@ -65,7 +65,7 @@ TEST_P(MYRIADBoot, DISABLED_ConnectToAlreadyBootedDevice) {
         CNNNetwork network = ie.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
         ExecutableNetwork net = ie.LoadNetwork(network, GetParam().device,
             { {KEY_LOG_LEVEL, LOG_DEBUG},
-              {KEY_VPU_MYRIAD_WATCHDOG, NO} });
+              {InferenceEngine::MYRIAD_WATCHDOG, NO} });
 
         ASSERT_EQ(getAmountOfBootedDevices(), 1);
     }
@@ -85,7 +85,7 @@ TEST_P(MYRIADBoot, DISABLED_OpenNotBootedDevice) {
         CNNNetwork network = ie.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
         ExecutableNetwork net = ie.LoadNetwork(network, GetParam().device,
             { {KEY_LOG_LEVEL, LOG_DEBUG},
-              {KEY_VPU_MYRIAD_WATCHDOG, NO} });
+              {InferenceEngine::MYRIAD_WATCHDOG, NO} });
 
         ASSERT_EQ(getAmountOfBootedDevices(), 2);
     }

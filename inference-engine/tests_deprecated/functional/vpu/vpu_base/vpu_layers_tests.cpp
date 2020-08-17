@@ -175,16 +175,16 @@ void vpuLayersTests::createInferRequest(const NetworkParams& params) {
 
     std::map<std::string, std::string> config(_config);
     if (params._useHWOpt) {
-        config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(YES);
+        config[InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION] = CONFIG_VALUE(YES);
     } else {
-        config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(NO);
+        config[InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION] = CONFIG_VALUE(NO);
     }
 #if 0
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
-    config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
-    config[VPU_CONFIG_KEY(FORCE_DEPRECATED_CNN_CONVERSION)] = CONFIG_VALUE(NO); // Make VPU plugin be able to use NGraph network.
+    config[InferenceEngine::MYRIAD_PERF_REPORT_MODE] = InferenceEngine::MYRIAD_PER_STAGE;
+    config[InferenceEngine::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION] = CONFIG_VALUE(NO); // Make VPU plugin be able to use NGraph network.
 
     InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, config, &_resp));
@@ -253,7 +253,7 @@ bool vpuLayersTests::Infer() {
     const auto st = _inferRequest->Infer(&_resp);
     EXPECT_EQ(InferenceEngine::StatusCode::OK, st) << _resp.msg;
 //    dumpPerformance();
-    if (!_config[VPU_CONFIG_KEY(CUSTOM_LAYERS)].empty()) {
+    if (!_config[InferenceEngine::MYRIAD_CUSTOM_LAYERS].empty()) {
         EXPECT_TRUE(wasCustomLayerInferred())
             << "CustomBindings.xml has been provided but Custom layer was not inferred";
     }

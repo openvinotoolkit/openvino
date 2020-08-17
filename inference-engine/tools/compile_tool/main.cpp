@@ -15,6 +15,7 @@
 #include <gflags/gflags.h>
 
 #include "inference_engine.hpp"
+#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 #include "samples/common.hpp"
@@ -28,11 +29,6 @@ static constexpr char targetDeviceMessage[] = "Required. Specify a target device
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 static constexpr char config_message[] = "Optional. Path to the configuration file. Default value: \"config\".";
-static constexpr char platform_message[] = "Optional. Specifies Movidius platform."
-                                           " Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480."
-                                           " Overwrites value from config.\n"
-"                                             This option must be used in order to compile blob"
-                                           " without a connected Myriad device.";
 static constexpr char number_of_shaves_message[] = "Optional. Specifies number of shaves."
                                                    " Should be set with \"VPU_NUMBER_OF_CMX_SLICES\"."
                                                    " Overwrites value from config.";
@@ -70,7 +66,6 @@ DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
-DEFINE_string(VPU_MYRIAD_PLATFORM, "", platform_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
@@ -92,7 +87,6 @@ static void showUsage() {
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "                                             "                                   << std::endl;
     std::cout << "    VPU options:                             "                                   << std::endl;
-    std::cout << "      -VPU_MYRIAD_PLATFORM       <value>     "   << platform_message             << std::endl;
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
     std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message << std::endl;
     std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message     << std::endl;
@@ -117,10 +111,10 @@ static bool parseCommandLine(int *argc, char ***argv, InferenceEngine::Core& ie)
         throw std::invalid_argument("Target device name is required");
     }
 
-    if (std::string::npos != FLAGS_d.find("MYRIAD") && FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
+    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
         std::vector<std::string> myriadDeviceIds = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
         if (myriadDeviceIds.empty()) {
-            throw std::runtime_error{"No available MYRIAD devices. Please specify -VPU_MYRIAD_PLATFORM option explicitly"};
+            throw std::runtime_error{"No available MYRIAD devices"};
         }
     }
 
@@ -157,20 +151,16 @@ static std::map<std::string, std::string> parseConfig(const std::string& configN
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    if (!FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
-        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_MYRIAD_PLATFORM;
-    }
-
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_SHAVES)] = FLAGS_VPU_NUMBER_OF_SHAVES;
+        config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
     }
 
     if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES)] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
+        config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
     }
 
     if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
-        config[VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB)] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
+        config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
     }
 
     if (!FLAGS_DLA_ARCH_NAME.empty()) {

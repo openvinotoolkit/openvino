@@ -224,7 +224,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         ctime = Time::now();
         ret = core.LoadNetwork(network, GetParam().device, {
             {KEY_LOG_LEVEL, LOG_INFO},
-            {KEY_VPU_MYRIAD_WATCHDOG, NO}});
+            {InferenceEngine::MYRIAD_WATCHDOG, NO}});
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
 

@@ -356,9 +356,9 @@ protected:
         SetInputTensors(inpt);
         SetOutputTensors({dims});
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         if (!CheckMyriadX()) {
-            _config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+            _config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
         }
 
         ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Eltwise").params(_params)));
