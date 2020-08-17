@@ -19,7 +19,7 @@ add_jar(inference_engine_jar ${java_source}
         OUTPUT_NAME ${PROJECT_NAME} 
         OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE inference_engine)
 target_include_directories(${PROJECT_NAME} PRIVATE ${JNI_INCLUDE_DIRS})
 
 if(ENABLE_TESTS)

@@ -1,8 +1,8 @@
 import org.opencv.core.*;
 import org.opencv.imgcodecs.*;
 import org.opencv.videoio.*;
-import org.opencv.videoio.VideoWriter;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.highgui.HighGui;
 
 import java.util.LinkedList;
 import java.util.Vector;
@@ -21,7 +21,7 @@ This is async face detection java sample.
 
 Upon the start-up the sample application reads command line parameters and loads a network 
 and an images to the Inference Engine device. When inference is done, the application 
-saves a video `result.avi` with detected objects enclosed in rectangles.
+shows the video with detected objects enclosed in rectangles in new window.
 
 To get the list of command line parameters run the application with `--help` paramether.
 */
@@ -185,9 +185,7 @@ public class Main {
         captureThread.start();
         inferThread.start();
 
-        VideoWriter out = null;
         TickMeter tm = new TickMeter();       
-
         try {
             while (inferThread.isAlive() || !detectionOutput.isEmpty()) {
 
@@ -196,10 +194,6 @@ public class Main {
                   continue;
                                 
                 Mat img = processedFramesQueue.poll(waitingTime, TimeUnit.SECONDS);   
-
-                if (out == null)
-                    out = new VideoWriter("result.avi", VideoWriter.fourcc('M','J','P','G'), 30, new Size(img.width(), img.height()));
-            
                 int maxProposalCount = detection.length / 7;
 
                 for (int curProposal = 0; curProposal < maxProposalCount; curProposal++) {
@@ -235,11 +229,14 @@ public class Main {
                     Imgproc.putText(img, "Inference fps: " + String.format("%.3f", worksFps), new Point(10, 80), 0 , 0.7, new Scalar(0, 255, 0), 1);
                 }
                 
-                out.write(img);
+                HighGui.imshow("Detection", img);
             }
            
             captureThread.join();
             inferThread.join();
+
+            HighGui.waitKey(0);
+            HighGui.destroyAllWindows();
 
         } catch (InterruptedException e) {
             e.printStackTrace();

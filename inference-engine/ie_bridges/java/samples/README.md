@@ -83,7 +83,7 @@ java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_
 
 * For OpenCV build path
 ```bash
-export LD_LIBRARY_PATH=${OpenCV_DIR}/bin/:/${IE_PATH}:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${OpenCV_DIR}/lib:/${IE_PATH}:$LD_LIBRARY_PATH
 ```
 To run sample use:
 ```bash
@@ -96,4 +96,4 @@ java -cp ".:${OpenCV_DIR}/bin/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PA
 The application will show the image with detected objects enclosed in rectangles in new window. It outputs the confidence value and the coordinates of the rectangle to the standard output stream.
 
 ### For ```face_detection_sample_async```
-The application saves a video ```result.avi``` with detected objects enclosed in rectangles.
+The application will show the video with detected objects enclosed in rectangles in new window.
