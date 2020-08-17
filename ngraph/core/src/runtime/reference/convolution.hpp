@@ -20,8 +20,8 @@
 #include <cmath>
 #include <functional>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/util.hpp"
 #include "runtime/reference/reverse.hpp"
 

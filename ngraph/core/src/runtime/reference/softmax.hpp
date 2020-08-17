@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cmath>
-#include "ngraph/coordinate_transform.hpp"
+#include "coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
 #include "runtime/reference/max.hpp"
 #include "runtime/reference/sum.hpp"

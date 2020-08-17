@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph

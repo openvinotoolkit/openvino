@@ -21,9 +21,9 @@
 #include <sstream>
 #include <vector>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"

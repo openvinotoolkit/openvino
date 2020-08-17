@@ -18,9 +18,9 @@
 
 #include <cmath>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph

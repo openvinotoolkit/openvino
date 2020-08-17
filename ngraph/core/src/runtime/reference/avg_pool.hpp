@@ -22,8 +22,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph

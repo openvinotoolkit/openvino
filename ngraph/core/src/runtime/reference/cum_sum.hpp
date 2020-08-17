@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "coordinate_transform.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 

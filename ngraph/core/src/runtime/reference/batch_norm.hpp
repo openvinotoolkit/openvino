@@ -19,8 +19,8 @@
 #include <cmath>
 #include <vector>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/util.hpp"
 #include "runtime/reference/add.hpp"

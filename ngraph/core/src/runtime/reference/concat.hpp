@@ -18,8 +18,8 @@
 
 #include <cmath>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph
 {

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <string>
-#include "ngraph/coordinate_transform.hpp"
+#include "coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace ngraph;

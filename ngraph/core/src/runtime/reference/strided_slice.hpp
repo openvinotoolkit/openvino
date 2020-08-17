@@ -18,8 +18,8 @@
 
 #include <cmath>
 
+#include "coordinate_transform.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "runtime/opt_kernel/reshape.hpp"
