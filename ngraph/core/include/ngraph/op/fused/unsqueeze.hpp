@@ -16,38 +16,4 @@
 
 #pragma once
 
-#include <memory>
-
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            class NGRAPH_API Unsqueeze : public ngraph::op::util::FusedOp
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"Unsqueeze", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Unsqueeze() = default;
-                Unsqueeze(const Output<Node>& data, const Output<Node>& axes);
-
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
-
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-            };
-        }
-        using v0::Unsqueeze;
-    }
-}
+#include "ngraph/op/unsqueeze.hpp"

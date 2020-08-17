@@ -26,6 +26,8 @@
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace onnx_import
