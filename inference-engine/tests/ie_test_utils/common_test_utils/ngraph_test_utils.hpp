@@ -23,7 +23,8 @@ bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngr
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues = false);
+    const bool compareConstValues = true,
+    const bool compareNames = true);
 
 void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
 

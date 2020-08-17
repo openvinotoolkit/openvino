@@ -24,6 +24,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
 
     const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto mvn = std::make_shared<ngraph::op::MVN>(dequantizationOp, reductionAxes, normalizeVariance);
+    mvn->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(mvn) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MVNFunction");
@@ -62,6 +63,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getReference(
     const auto mvn = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::MVN>>(
         op::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance), precisionAfterOperation);
     const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(mvn, dequantizationAfter);
+    dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MVNFunction");

@@ -43,6 +43,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         Shape{ 2, 2 },
         true,
         op::RoundingType::FLOOR);
+    avgPool->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(avgPool) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
@@ -101,6 +102,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
+    multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");

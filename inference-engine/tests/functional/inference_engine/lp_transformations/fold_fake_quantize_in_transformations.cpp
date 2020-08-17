@@ -97,7 +97,7 @@ public:
 
 TEST_P(FoldFakeQuantizeInTransformations, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

@@ -79,7 +79,7 @@ public:
 
 TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -116,7 +116,7 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
             { {}, {}, { 0.5f } },
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.5f } },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
             { {}, {}, {} },
         }
     },

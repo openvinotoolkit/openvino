@@ -71,7 +71,7 @@ public:
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations& data) {
     return out << "_" <<
-        data.convert.outPrecision << "_" <<
+        (data.convert.outPrecision != element::undefined ? data.convert.outPrecision.get_type_name() : "") << "_" <<
         data.subtract.values << "_" <<
         data.subtract.outPrecision << "_" <<
         data.multiply.values << "_" <<

@@ -45,7 +45,8 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo& info1, const ngraph::Discre
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues) {
+    const bool compareConstValues,
+    const bool compareNames) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -68,6 +69,13 @@ std::pair<bool, std::string> compare_functions(
 
     std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>> q;
     for (size_t i = 0; i < f1_results.size(); ++i) {
+        if (compareNames) {
+            if (f1_results[i]->get_input_node_shared_ptr(0)->get_friendly_name() !=
+                f2_results[i]->get_input_node_shared_ptr(0)->get_friendly_name()) {
+                return { false, "Different output names: " + f1_results[i]->get_input_node_shared_ptr(0)->get_friendly_name()
+                    + " and " + f2_results[i]->get_input_node_shared_ptr(0)->get_friendly_name() };
+            }
+        }
         q.push({ f1_results[i], f2_results[i] });
     }
 

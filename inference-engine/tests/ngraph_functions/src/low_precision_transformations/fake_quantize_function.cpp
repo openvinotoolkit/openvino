@@ -84,6 +84,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     if (multiply != nullptr) {
         parent = multiply;
     }
+    parent->set_friendly_name("fakeQuantize");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");

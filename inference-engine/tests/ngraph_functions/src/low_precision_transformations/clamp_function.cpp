@@ -28,6 +28,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     const std::shared_ptr<Node> clamp = std::make_shared<ngraph::opset1::Clamp>(dequantizationOp, 0, 10);
+    clamp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(clamp) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampFunction");
@@ -80,6 +81,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getReference(
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
     }
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(clamp, dequantizationAfter);
+    quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampFunction");

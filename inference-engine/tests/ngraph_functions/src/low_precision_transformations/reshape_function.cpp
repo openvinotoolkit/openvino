@@ -26,6 +26,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
         dequantizationOp,
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ reshapeConstValues.size() }, reshapeConstValues),
         true);
+    reshape->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
@@ -79,6 +80,7 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
     }
 
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(reshape, dequantizationAfter);
+    quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");

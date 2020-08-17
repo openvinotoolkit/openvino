@@ -91,7 +91,7 @@ public:
 
 TEST_P(FuseFakeQuantizeWithMultiInputsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction);
+    auto res = compare_functions(referenceFunction, actualFunction, false, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

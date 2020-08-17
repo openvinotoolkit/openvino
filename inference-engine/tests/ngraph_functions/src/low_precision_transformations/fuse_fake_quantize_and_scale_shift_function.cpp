@@ -32,6 +32,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOrig
     const std::shared_ptr<Node> add = std::make_shared<ngraph::opset1::Add>(
         multiply,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>({ 127.5 })));
+    add->set_friendly_name("output");
 
     const ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeAndScaleShiftFunction");

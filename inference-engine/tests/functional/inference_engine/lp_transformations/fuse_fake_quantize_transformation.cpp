@@ -111,7 +111,7 @@ public:
 
 TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -210,7 +210,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             element::f32,
-            { {128}, element::f32 },
+            { {127}, element::f32 },
             element::f32,
             { {element::f32}, { -128 }, { 0.01f } },
             element::f32,

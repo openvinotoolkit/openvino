@@ -43,6 +43,8 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getOriginal(
     const std::shared_ptr<ngraph::Node> squeeze = std::make_shared<ngraph::opset1::Squeeze>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
+    squeeze->set_friendly_name("output");
+
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(squeeze) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SqueezeTransformation");
 }
@@ -106,6 +108,7 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getReference(
             input,
             std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape))));
     }
+    parent->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SqueezeTransformation");

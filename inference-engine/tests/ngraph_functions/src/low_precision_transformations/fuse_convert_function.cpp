@@ -25,6 +25,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getOriginal(
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ transposeConstValues.size() }, transposeConstValues));
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(transpose, dequantizationWithConvert);
+    dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
@@ -77,6 +78,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::getReference(
     }
 
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(transpose, dequantizationAfter);
+    quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");

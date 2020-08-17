@@ -27,6 +27,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
         { low / inputScale }, { high / inputScale }, { low / outputScale }, { high / outputScale });
 
     auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(fakeQuantize, mode, blockSize);
+    d2s->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(d2s) };
 
@@ -63,6 +64,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
     }
 
     auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(parent, mode, blockSize);
+    d2s->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(d2s) };
 
@@ -100,6 +102,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
                 precision, Shape({ expectedValues.mutliplyValues.size() }), expectedValues.mutliplyValues));
         parent = multiply;
     }
+    parent->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(parent) };
 

@@ -105,7 +105,7 @@ public:
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction);
+    auto res = compare_functions(referenceFunction, actualFunction, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

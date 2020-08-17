@@ -35,6 +35,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
+    concat->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
@@ -282,6 +283,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
 
     const std::shared_ptr<ngraph::Node> lastDequantization = makeDequantization(concat, dequantizationOperations);
+    lastDequantization->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
@@ -343,8 +345,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
     concat2->set_friendly_name("concat2");
 
     const std::shared_ptr<ngraph::Node> lastDequantization1 = makeDequantization(concat1, dequantizationOperations1);
+    lastDequantization1->set_friendly_name("concat1");
 
     const std::shared_ptr<ngraph::Node> lastDequantization2 = makeDequantization(concat2, dequantizationOperations2);
+    lastDequantization2->set_friendly_name("concat2");
 
     const ngraph::ResultVector results {
         std::make_shared<ngraph::opset1::Result>(lastDequantization1),
@@ -448,6 +452,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
     const std::shared_ptr<ngraph::Node> lastDequantization1 = dequantizationOperations1.empty() ?
         concat :
         makeDequantization(concat, dequantizationOperations1);
+    lastDequantization1->set_friendly_name("concat");
 
     const std::shared_ptr<ngraph::Node> lastDequantization2 = dequantizationOperations2.empty() ?
         nullptr :
@@ -571,6 +576,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
     const std::shared_ptr<ngraph::Node> lastDequantization1 = dequantizationOperations1.empty() ?
         concat :
         makeDequantization(concat, dequantizationOperations1);
+    lastDequantization1->set_friendly_name("concat");
 
     const std::shared_ptr<ngraph::Node> lastDequantization2 = dequantizationOperations2.empty() ?
         nullptr :

@@ -77,6 +77,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     }
 
     const auto multiply = std::make_shared<ngraph::opset1::Multiply>(parent1, parent2);
+    multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     const auto inputs = constInput ? ngraph::ParameterVector{ input1 }: ngraph::ParameterVector{ input1, input2 };
@@ -159,6 +160,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
         multiplyOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
+    multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     const auto inputs = constInput ? ngraph::ParameterVector{ input1 } : ngraph::ParameterVector{ input1, input2 };

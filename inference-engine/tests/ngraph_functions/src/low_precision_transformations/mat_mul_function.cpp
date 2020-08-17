@@ -160,9 +160,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
 
     matMul->set_friendly_name("matMul");
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(matMul, precision);
+    auto dequantizationAfter = makeDequantization(matMul, resultDequantizationOperations);
+    dequantizationAfter->set_friendly_name("matMul");
 
-    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(
-        makeDequantization(matMul, resultDequantizationOperations));
+    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(dequantizationAfter);
 
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
@@ -202,6 +203,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(matMul, precision);
 
     const std::shared_ptr<ngraph::Node> lastDequantizationAfter = makeDequantization(matMul, resultDequantization);
+    lastDequantizationAfter->set_friendly_name("matMul");
 
     std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(lastDequantizationAfter);
 

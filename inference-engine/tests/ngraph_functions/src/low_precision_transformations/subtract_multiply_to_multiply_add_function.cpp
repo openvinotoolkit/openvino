@@ -22,6 +22,7 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
         ngraph::Shape(inputShape));
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
+    dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
@@ -75,6 +76,7 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getRefe
     if (!add.empty()) {
         parent = makeElementwise<ngraph::opset1::Add>(parent, add);
     }
+    parent->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");

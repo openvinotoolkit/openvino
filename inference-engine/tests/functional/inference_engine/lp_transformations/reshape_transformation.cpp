@@ -295,7 +295,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
 TEST_P(ReshapeTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

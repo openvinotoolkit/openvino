@@ -45,10 +45,11 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
             precision, ngraph::Shape{ shapes.first[0], shapes.first[1], 1ul, 1ul }, std::vector<float>{ 2.f });
         multiplyConst->set_friendly_name("multiplyConst");
         const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normalizeL2->output(0), multiplyConst);
-        multiply->set_friendly_name("multiply");
+        multiply->set_friendly_name("output");
 
         results = { std::make_shared<ngraph::opset1::Result>(multiply) };
     } else {
+        normalizeL2->set_friendly_name("output");
         results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
     }
 
@@ -85,7 +86,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ actualValues.axes.size() }, actualValues.axes);
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(parent, axesNode, 1e-6, epsMode);
-    normalizeL2->set_friendly_name("normalizeL2");
+    normalizeL2->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(normalizeL2) };
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");
@@ -131,6 +132,7 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
                 precision, Shape({ 1, expectedValues.mutliplyValues.size(), 1, 1 }), expectedValues.mutliplyValues), element::f32).get());
         output = multiply;
     }
+    output->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(output) };
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "NormalizeL2Transformation");

@@ -153,7 +153,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     }
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-
     // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
     // so we temporary have to call CNNNetwork ConvertPrecision transformation
     NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);

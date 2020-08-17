@@ -42,6 +42,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
         Shape{ 0, 0 },
         Shape{ 2, 2 },
         op::RoundingType::FLOOR);
+    maxPool->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");
@@ -100,6 +101,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
+    multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");

@@ -32,6 +32,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
     std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(separateInStandaloneBranch(op));
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
+    std::shared_ptr<Node> newAdd;
 
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(add);
@@ -40,9 +41,10 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
             return;
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
-        add = as_type_ptr<opset1::Add>(newMultiply->get_input_node_shared_ptr(0));
-        if (add == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*newMultiply) << "not expected parent type";
+        if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(multiplyBranch.first))) {
+            newAdd = as_type_ptr<opset1::Add>(newMultiply->get_input_node_shared_ptr(0));
+        } else {
+            newAdd = newMultiply;
         }
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
@@ -85,18 +87,17 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
                 std::make_shared<opset1::Subtract>(fullPathInput, newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<opset1::Multiply>(newAdd, multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);
-        NetworkHelper::copyInfo(add, newAdd);
-        add = newAdd;
     }
 
-    updateOutput(context, newMultiply, add);
+    NetworkHelper::copyInfo(add, newAdd);
+    updateOutput(context, newMultiply, newAdd);
 }
 
 } // namespace low_precision

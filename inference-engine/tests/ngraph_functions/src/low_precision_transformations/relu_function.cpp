@@ -26,6 +26,7 @@ std::shared_ptr<ngraph::Function> ReluFunction::getOriginal(
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     const std::shared_ptr<Node> relu = std::make_shared<ngraph::opset1::Relu>(dequantizationOp);
+    relu->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(relu) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReluFunction");
@@ -67,6 +68,7 @@ std::shared_ptr<ngraph::Function> ReluFunction::getReference(
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(relu, precisionAfterOperation);
     }
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(relu, dequantizationAfter);
+    quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReluFunction");

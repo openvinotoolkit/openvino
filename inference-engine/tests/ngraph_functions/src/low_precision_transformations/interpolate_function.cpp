@@ -24,6 +24,7 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
     const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
     const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(dequantizationOp, outShape, interpAttrs);
+    interpolate->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(interpolate) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "InterpolateFunction");
@@ -63,6 +64,7 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getReference(
     const auto outShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ outputShape.size() }, outputShape);
     const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(quantizationOpBefore, outShape, interpAttrs);
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(interpolate, dequantizationAfter);
+    quantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "InterpolateFunction");

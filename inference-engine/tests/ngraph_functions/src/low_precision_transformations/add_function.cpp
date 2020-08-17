@@ -17,54 +17,55 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::Shape& inputShape,
     const bool broadcast,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const AddActualValues& actualValues) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(
-        actualValues.precision1,
-        broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent1 = input1;
-
-    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<ngraph::opset1::Convert>(parent1, precision);
-    parent1 = convert1;
-
-    if (!actualValues.subtractValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared< ngraph::opset1::Subtract >(
-            parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.subtractValues1.size() }), actualValues.subtractValues1));
-        parent1 = subtract1;
+    const ngraph::element::Type& precision1,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+    const ngraph::element::Type& precision2,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+    const int constInput,
+    const std::vector<float>& constValues) {
+    std::shared_ptr<ngraph::Node> input1;
+    if (constInput == 0) {
+        input1 = std::make_shared<ngraph::opset1::Constant>(
+            precision,
+            inputShape,
+            constValues);
+    } else {
+        input1 = std::make_shared<ngraph::opset1::Parameter>(
+            precision1,
+            broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     }
 
-    if (!actualValues.mutliplyValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared< ngraph::opset1::Multiply >(
-            parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.mutliplyValues1.size() }), actualValues.mutliplyValues1));
-        parent1 = multiply1;
+    const auto dequantizationOp1 = makeDequantization(input1, dequantization1);
+
+    std::shared_ptr<ngraph::Node> input2;
+    if (constInput == 1) {
+        input2 = std::make_shared<ngraph::opset1::Constant>(
+            precision,
+            inputShape,
+            constValues);
+    } else {
+        input2 = std::make_shared<ngraph::opset1::Parameter>(
+            precision2, ngraph::Shape(inputShape));
     }
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(
-        actualValues.precision2, ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent2 = input2;
+    const auto dequantizationOp2 = makeDequantization(input2, dequantization2);
 
-    const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<ngraph::opset1::Convert>(parent2, precision);
-    parent2 = convert2;
+    const auto add = std::make_shared<ngraph::opset1::Add>(dequantizationOp1, dequantizationOp2);
 
-    if (!actualValues.subtractValues2.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared< ngraph::opset1::Subtract >(
-            parent2,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.subtractValues2.size() }), actualValues.subtractValues2));
-        parent2 = subtract2;
-    }
-
-    if (!actualValues.mutliplyValues2.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared< ngraph::opset1::Multiply >(
-            parent2,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2));
-        parent2 = multiply2;
-    }
-
-    const auto add = std::make_shared<ngraph::opset1::Add>(parent1, parent2);
+    add->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AddTransformation");
+    ngraph::ParameterVector parameters;
+    if (constInput == -1) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
+    } else if (constInput == 0) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input2) };
+    } else if (constInput == 1) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
+    } else {
+        THROW_IE_EXCEPTION << "Unexpected constant input index";
+    }
+    return std::make_shared<ngraph::Function>(results, parameters, "AddTransformation");
 }
 
 std::shared_ptr<ngraph::Function> AddFunction::getReference(
@@ -72,48 +73,65 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const ngraph::Shape& inputShape,
     const bool broadcast,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const AddExpectedValues& expectedValues) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(
-        expectedValues.precision1,
-        broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent1 = input1;
-
-    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<ngraph::opset1::Convert>(parent1, precision);
-    parent1 = convert1;
-
-    if (!expectedValues.subtractValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared<ngraph::opset1::Subtract>(
-            parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.subtractValues1.size() }), expectedValues.subtractValues1));
-        parent1 = subtract1;
+    const ngraph::element::Type& precision1,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+    const ngraph::element::Type& precision2,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const int constInput,
+    const std::vector<float>& constValues) {
+    std::shared_ptr<ngraph::Node> input1;
+    if (constInput == 0) {
+        input1 = std::make_shared<ngraph::opset1::Constant>(
+            precision,
+            inputShape,
+            constValues);
+    } else {
+        input1 = std::make_shared<ngraph::opset1::Parameter>(
+            precision1,
+            broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     }
 
-    if (!expectedValues.mutliplyValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ngraph::opset1::Multiply>(
-            parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.mutliplyValues1.size() }), expectedValues.mutliplyValues1));
-        parent1 = multiply1;
+    const auto dequantizationOp1 = makeDequantization(input1, dequantization1);
+
+    std::shared_ptr<ngraph::Node> input2;
+    if (constInput == 1) {
+        input2 = std::make_shared<ngraph::opset1::Constant>(
+            precision,
+            inputShape,
+            constValues);
+    } else {
+        input2 = std::make_shared<ngraph::opset1::Parameter>(
+            precision2, ngraph::Shape(inputShape));
     }
 
-    auto input2 = std::make_shared<ngraph::opset1::Parameter>(
-        expectedValues.precision2, ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent2 = input2;
+    const auto dequantizationOp2 = makeDequantization(input2, dequantization2);
 
     auto addOriginal = ngraph::opset1::Add(
-        ngraph::op::TemporaryReplaceOutputType(parent1, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(parent2, element::f32).get());
+        ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
 
     auto add = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
         addOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
 
-    const auto multiply = std::make_shared< ngraph::opset1::Multiply >(
-        add,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.mutliplyValuesAfter.size() }), expectedValues.mutliplyValuesAfter));
+    const auto dequantizationOpAfter = makeDequantization(add, dequantizationAfter);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AddTransformation");
+    dequantizationOpAfter->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    ngraph::ParameterVector parameters;
+    if (constInput == -1) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
+    } else if (constInput == 0) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input2) };
+    } else if (constInput == 1) {
+        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
+    } else {
+        THROW_IE_EXCEPTION << "Unexpected constant input index";
+    }
+    return std::make_shared<ngraph::Function>(results, parameters, "AddTransformation");
 }
 
 }  // namespace subgraph

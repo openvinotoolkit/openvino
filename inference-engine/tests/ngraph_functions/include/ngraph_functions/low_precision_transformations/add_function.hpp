@@ -8,6 +8,9 @@
 #include <ngraph/ngraph.hpp>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -58,14 +61,25 @@ public:
         const ngraph::Shape& inputShape,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const AddActualValues& actualValues);
+        const ngraph::element::Type& precision1,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+        const ngraph::element::Type& precision2,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+        const int constInput,
+        const std::vector<float>& constValues);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const bool broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const AddExpectedValues& actualValues);
+        const ngraph::element::Type& precision1,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+        const ngraph::element::Type& precision2,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const int constInput,
+        const std::vector<float>& constValues);
 };
 
 }  // namespace subgraph
