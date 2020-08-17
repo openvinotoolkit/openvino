@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/op.hpp"
