@@ -519,6 +519,26 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
+TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto select = std::make_shared<ngraph::opset4::Select>(input1, input1, input1);
+        auto type_relaxed = std::make_shared<op::TypeRelaxed<opset4::Select>>(*select, element::TypeVector{}, element::TypeVector{element::i64});
+
+        f = std::make_shared<Function>(OutputVector{type_relaxed}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i32, ngraph::element::i64);
+        manager.run_passes(f);
+
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i32>(f));
+        ASSERT_TRUE(has_type<ngraph::element::Type_t::i64>(f));
+    }
+}
+
 TEST(TransformationTests, ConvertPrecision_Variables) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {

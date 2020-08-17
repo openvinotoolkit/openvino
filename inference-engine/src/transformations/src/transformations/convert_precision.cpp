@@ -45,6 +45,8 @@ template <typename T>
 bool fuse_type_to_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
+        type_relaxed->set_origin_input_type(element::boolean, 0);
+        type_relaxed->set_origin_input_type(element::boolean, 1);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
@@ -59,6 +61,7 @@ template <class T>
 bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
+        type_relaxed->set_origin_input_type(element::boolean, 0);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
@@ -196,6 +199,7 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> & node, element::Type to, size_t
 bool fuse_type_to_parameter(std::shared_ptr<Node> & node, element::Type to, size_t idx) {
     if (auto param = as_type_ptr<opset4::Parameter>(node)) {
         param->set_element_type(to);
+        param->validate_and_infer_types();
         return true;
     }
     return false;
@@ -274,7 +278,10 @@ bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::eleme
 }
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<opset4::Select>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_origin_input_type(element::boolean, 0);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<opset4::Select>(node)) {
         auto relaxed_op = std::make_shared<op::TypeRelaxed<opset4::Select>>(*casted,
                 element::TypeVector{element::boolean},
                 element::TypeVector{});
