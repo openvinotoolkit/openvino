@@ -29,7 +29,7 @@ namespace ngraph
     ///        produces the following coordinates:
     ///             {0,0}, {0,1}, {0,2},
     ///             {1,0}, {1,1}, {2,2}
-    class NGRAPH_API CoordinateIterator
+    class CoordinateIterator
     {
     public:
         /// \brief Coordinates iterator constructor
@@ -75,7 +75,7 @@ namespace ngraph
     /// \brief Class which allows to calculate item index with given coordinates in tensor
     ///        and helps to iterate over all coordinates.
     ///        Tensor items should be placed in memory in row-major order.
-    class NGRAPH_API CoordinateTransformBasic
+    class CoordinateTransformBasic
     {
     public:
         using Iterator = CoordinateIterator;
@@ -99,7 +99,7 @@ namespace ngraph
     /// \brief Class which allows to calculate item index with given coordinates in tensor
     ///        and helps to iterate over the subset of coordinates.
     ///        Tensor items should be placed in memory in row-major order.
-    class NGRAPH_API CoordinateTransform : protected CoordinateTransformBasic
+    class CoordinateTransform : protected CoordinateTransformBasic
     {
     public:
         using Iterator = CoordinateIterator;
