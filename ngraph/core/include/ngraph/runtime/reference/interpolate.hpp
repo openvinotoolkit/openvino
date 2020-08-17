@@ -33,9 +33,9 @@ namespace ngraph
     {
         namespace reference
         {
-            using Nearest_mode = op::v4::Interpolate::NearestMode;
+            using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
             using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-            using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+            using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
 
             class GetNearestPixel final
             {
@@ -194,6 +194,31 @@ namespace ngraph
 
                 float triangle_coeff(float dz);
                 std::array<float, 4> get_cubic_coeff(float s, float a);
+
+                Coordinate get_input_coords_for_nearest_mode(const Coordinate& output_coord);
+
+                struct InfoForLinearONNXMode
+                {
+                    std::vector<float> y_original;
+                    std::vector<float> x_original;
+
+                    std::vector<int64_t> input_width_mul_y1;
+                    std::vector<int64_t> input_width_mul_y2;
+                    std::vector<int64_t> in_x1;
+                    std::vector<int64_t> in_x2;
+
+                    std::vector<float> dy1;
+                    std::vector<float> dy2;
+                    std::vector<float> dx1;
+                    std::vector<float> dx2;
+
+                    int64_t batch_size;
+                    int64_t num_channels;
+                    int64_t output_height;
+                    int64_t output_width;
+                };
+
+                InfoForLinearONNXMode get_info_for_linear_onnx_mode();
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
@@ -206,6 +231,12 @@ namespace ngraph
                 Shape m_out_shape;
 
                 std::vector<float> m_scales;
+
+                int64_t clip_coord(int64_t coord, float length)
+                {
+                    return std::max(static_cast<int64_t>(0),
+                                    std::min(coord, static_cast<int64_t>(length) - 1));
+                }
             };
 
             template <typename T>
@@ -441,80 +472,12 @@ namespace ngraph
                                     ((m_axes[0] == 2) && (m_axes[1] == 3));
                 assert(correct_axes);
 
-                Shape input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
-                Shape output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
-                if (input_rank == 4)
-                {
-                    input_shape = m_input_data_shape;
-                    output_shape = m_out_shape;
-                }
+                const auto info = helper.get_info_for_linear_onnx_mode();
 
-                int64_t batch_size = input_shape[0];
-                int64_t num_channels = input_shape[1];
-                int64_t input_height = input_shape[2];
-                int64_t input_width = input_shape[3];
-                int64_t output_height = output_shape[2];
-                int64_t output_width = output_shape[3];
-                float height_scale = m_scales[0];
-                float width_scale = m_scales[1];
-
-                std::vector<float> y_original;
-                std::vector<float> x_original;
-
-                std::vector<int64_t> input_width_mul_y1(output_height);
-                std::vector<int64_t> input_width_mul_y2(output_height);
-                std::vector<int64_t> in_x1(output_width);
-                std::vector<int64_t> in_x2(output_width);
-
-                std::vector<float> dy1(output_height);
-                std::vector<float> dy2(output_height);
-                std::vector<float> dx1(output_width);
-                std::vector<float> dx2(output_width);
-
-                for (int64_t y = 0; y < output_height; ++y)
-                {
-                    float in_y = m_get_original_coord(static_cast<float>(y),
-                                                      height_scale,
-                                                      static_cast<float>(output_height),
-                                                      static_cast<float>(input_height));
-                    y_original.push_back(in_y);
-                    in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
-
-                    const int64_t in_y1 = std::min(static_cast<int64_t>(in_y), input_height - 1);
-                    const int64_t in_y2 = std::min(in_y1 + 1, input_height - 1);
-                    dy1[y] = std::fabs(in_y - in_y1);
-                    dy2[y] = std::fabs(in_y - in_y2);
-
-                    if (in_y1 == in_y2)
-                    {
-                        dy1[y] = 0.5f;
-                        dy2[y] = 0.5f;
-                    }
-
-                    input_width_mul_y1[y] = input_width * in_y1;
-                    input_width_mul_y2[y] = input_width * in_y2;
-                }
-
-                for (int64_t x = 0; x < output_width; ++x)
-                {
-                    float in_x = m_get_original_coord(static_cast<float>(x),
-                                                      width_scale,
-                                                      static_cast<float>(output_width),
-                                                      static_cast<float>(input_width));
-                    x_original.push_back(in_x);
-                    in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
-
-                    in_x1[x] = std::min(static_cast<int64_t>(in_x), input_width - 1);
-                    in_x2[x] = std::min(in_x1[x] + 1, input_width - 1);
-
-                    dx1[x] = std::abs(in_x - in_x1[x]);
-                    dx2[x] = std::abs(in_x - in_x2[x]);
-                    if (in_x1[x] == in_x2[x])
-                    {
-                        dx1[x] = 0.5f;
-                        dx2[x] = 0.5f;
-                    }
-                }
+                int64_t batch_size = info.batch_size;
+                int64_t num_channels = info.num_channels;
+                int64_t output_height = info.output_height;
+                int64_t output_width = info.output_width;
 
                 const T* xdata = input_data;
                 T* ydata = out;
@@ -526,14 +489,16 @@ namespace ngraph
                         {
                             for (int64_t x = 0; x < output_width; ++x)
                             {
-                                T x11 = xdata[input_width_mul_y1[y] + in_x1[x]];
-                                T x21 = xdata[input_width_mul_y1[y] + in_x2[x]];
-                                T x12 = xdata[input_width_mul_y2[y] + in_x1[x]];
-                                T x22 = xdata[input_width_mul_y2[y] + in_x2[x]];
+                                T x11 = xdata[info.input_width_mul_y1[y] + info.in_x1[x]];
+                                T x21 = xdata[info.input_width_mul_y1[y] + info.in_x2[x]];
+                                T x12 = xdata[info.input_width_mul_y2[y] + info.in_x1[x]];
+                                T x22 = xdata[info.input_width_mul_y2[y] + info.in_x2[x]];
 
                                 ydata[output_width * y + x] =
-                                    static_cast<T>(dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21 +
-                                                   dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22);
+                                    static_cast<T>(info.dx2[x] * info.dy2[y] * x11 +
+                                                   info.dx1[x] * info.dy2[y] * x21 +
+                                                   info.dx2[x] * info.dy1[y] * x12 +
+                                                   info.dx1[x] * info.dy1[y] * x22);
                             }
                         }
                         xdata += input_height * input_width;
@@ -599,18 +564,7 @@ namespace ngraph
 
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    auto input_coord = output_coord;
-                    for (std::size_t i = 0; i < num_of_axes; ++i)
-                    {
-                        int64_t axis = m_axes[i];
-                        float length_original = static_cast<float>(m_input_data_shape[axis]);
-                        float in_coord = m_get_original_coord(static_cast<float>(output_coord[axis]),
-                                                              m_scales[i],
-                                                              static_cast<float>(m_out_shape[axis]),
-                                                              length_original);
-                        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_scales[i] < 1.0);
-                        input_coord[axis] = clip_coord(nearest_pixel, length_original);
-                    }
+                    auto input_coord = get_input_coords_for_nearest_mode(output_coord);
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }
