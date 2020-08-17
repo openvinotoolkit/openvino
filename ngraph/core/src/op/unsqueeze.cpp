@@ -22,8 +22,8 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/reference/copy.hpp"
 
 using namespace std;
 using namespace ngraph;

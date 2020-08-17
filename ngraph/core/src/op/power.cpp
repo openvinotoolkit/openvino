@@ -20,7 +20,7 @@
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/power.hpp"
+#include "ngraph/runtime/reference/power.hpp"
 
 using namespace std;
 using namespace ngraph;

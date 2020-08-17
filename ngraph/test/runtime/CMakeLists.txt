@@ -57,13 +57,13 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(ngraph_backend PUBLIC ngraph)
+target_link_libraries(ngraph_backend PUBLIC ngraph 
+                                            ngraph::reference)
 if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE dl)
 endif()
 target_compile_definitions(ngraph_backend PRIVATE BACKEND_DLL_EXPORTS)
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(ngraph_backend PUBLIC ${NGRAPH_PRIVATE_INCLUDE_PATH})
 
 add_subdirectory(interpreter)
 

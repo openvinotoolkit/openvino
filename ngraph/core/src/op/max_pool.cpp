@@ -20,8 +20,8 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/reference/max_pool.hpp"
 
 using namespace std;
 using namespace ngraph;

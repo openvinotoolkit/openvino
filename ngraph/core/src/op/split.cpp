@@ -23,7 +23,7 @@
 #include "ngraph/validation_util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/slice.hpp"
+#include "ngraph/runtime/reference/slice.hpp"
 
 using namespace std;
 using namespace ngraph;

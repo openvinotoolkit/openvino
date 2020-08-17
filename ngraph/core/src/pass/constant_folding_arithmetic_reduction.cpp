@@ -23,11 +23,11 @@
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reduce_sum.hpp"
 #include "ngraph/op/sum.hpp"
-#include "runtime/reference/max.hpp"
-#include "runtime/reference/mean.hpp"
-#include "runtime/reference/min.hpp"
-#include "runtime/reference/product.hpp"
-#include "runtime/reference/sum.hpp"
+#include "ngraph/runtime/reference/max.hpp"
+#include "ngraph/runtime/reference/mean.hpp"
+#include "ngraph/runtime/reference/min.hpp"
+#include "ngraph/runtime/reference/product.hpp"
+#include "ngraph/runtime/reference/sum.hpp"
 
 using namespace std;
 using namespace ngraph;

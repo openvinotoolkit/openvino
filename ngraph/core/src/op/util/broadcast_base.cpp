@@ -23,7 +23,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/partial_shape.hpp"
 
-#include "runtime/reference/broadcast.hpp"
+#include "ngraph/runtime/reference/broadcast.hpp"
 
 #include <numeric>
 

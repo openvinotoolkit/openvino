@@ -24,7 +24,7 @@
 
 #include <numeric>
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/broadcast.hpp"
+#include "ngraph/runtime/reference/broadcast.hpp"
 
 using namespace std;
 using namespace ngraph;

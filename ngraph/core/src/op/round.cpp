@@ -18,8 +18,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/copy.hpp"
-#include "runtime/reference/round.hpp"
+#include "ngraph/runtime/reference/copy.hpp"
+#include "ngraph/runtime/reference/round.hpp"
 
 using namespace std;
 using namespace ngraph;

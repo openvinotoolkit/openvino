@@ -22,7 +22,7 @@
 #include "ngraph/op/tan.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/tan.hpp"
+#include "ngraph/runtime/reference/tan.hpp"
 
 using namespace std;
 using namespace ngraph;

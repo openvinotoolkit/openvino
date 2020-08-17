@@ -20,8 +20,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/atanh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/atanh.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "runtime/reference/atanh.hpp"
 
 using namespace std;
 using namespace ngraph;

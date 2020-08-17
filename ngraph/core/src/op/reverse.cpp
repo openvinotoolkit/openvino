@@ -22,7 +22,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reverse.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "runtime/reference/reverse.hpp"
+#include "ngraph/runtime/reference/reverse.hpp"
 
 using namespace std;
 using namespace ngraph;

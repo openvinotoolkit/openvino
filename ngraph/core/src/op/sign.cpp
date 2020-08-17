@@ -22,7 +22,7 @@ using namespace std;
 using namespace ngraph;
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/sign.hpp"
+#include "ngraph/runtime/reference/sign.hpp"
 
 constexpr NodeTypeInfo op::Sign::type_info;
 

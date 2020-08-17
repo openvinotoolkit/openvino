@@ -19,7 +19,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/divide.hpp"
+#include "ngraph/runtime/reference/divide.hpp"
 
 using namespace std;
 using namespace ngraph;

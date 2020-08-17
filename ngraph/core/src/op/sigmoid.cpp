@@ -21,7 +21,7 @@
 #include "ngraph/util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/sigmoid.hpp"
+#include "ngraph/runtime/reference/sigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -18,8 +18,8 @@
 #include "ngraph/op/any.hpp"
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"
-#include "runtime/reference/any.hpp"
-#include "runtime/reference/logical_reduction.hpp"
+#include "ngraph/runtime/reference/any.hpp"
+#include "ngraph/runtime/reference/logical_reduction.hpp"
 
 using namespace std;
 using namespace ngraph;

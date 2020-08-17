@@ -22,7 +22,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "runtime/reference/matmul.hpp"
+#include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;

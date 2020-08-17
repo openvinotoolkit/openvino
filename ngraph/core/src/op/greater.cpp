@@ -17,7 +17,7 @@
 #include "ngraph/op/greater.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/greater.hpp"
+#include "ngraph/runtime/reference/greater.hpp"
 
 using namespace std;
 using namespace ngraph;

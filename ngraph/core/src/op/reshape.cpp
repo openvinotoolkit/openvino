@@ -21,8 +21,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "runtime/opt_kernel/reshape.hpp"
-#include "runtime/reference/reshape.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "ngraph/runtime/reference/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;

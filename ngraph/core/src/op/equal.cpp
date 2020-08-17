@@ -17,7 +17,7 @@
 #include "ngraph/op/equal.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/equal.hpp"
+#include "ngraph/runtime/reference/equal.hpp"
 
 using namespace std;
 using namespace ngraph;

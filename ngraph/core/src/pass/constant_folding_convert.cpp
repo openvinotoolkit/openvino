@@ -16,7 +16,7 @@
 
 #include "constant_folding.hpp"
 #include "ngraph/op/convert.hpp"
-#include "runtime/reference/convert.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 
 using namespace std;
 using namespace ngraph;

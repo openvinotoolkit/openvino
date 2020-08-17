@@ -18,8 +18,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/reference/scatter_elements_update.hpp"
 
 using namespace ngraph;
 using namespace std;

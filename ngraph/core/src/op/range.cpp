@@ -20,8 +20,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "runtime/reference/range.hpp"
 
 using namespace std;
 using namespace ngraph;

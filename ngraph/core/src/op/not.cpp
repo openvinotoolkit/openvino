@@ -21,7 +21,7 @@
 #include "ngraph/op/util/elementwise_args.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/not.hpp"
+#include "ngraph/runtime/reference/not.hpp"
 
 using namespace ngraph;
 using namespace std;

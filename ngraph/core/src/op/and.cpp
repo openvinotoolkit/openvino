@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/and.hpp"
-#include "../runtime/reference/and.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/and.hpp"
 
 using namespace std;
 using namespace ngraph;

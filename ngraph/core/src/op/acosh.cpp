@@ -20,8 +20,8 @@
 #include "ngraph/itt.hpp"
 #include "ngraph/op/acosh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/acosh.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "runtime/reference/acosh.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -17,8 +17,8 @@
 #include "constant_folding.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/one_hot.hpp"
-#include "runtime/reference/broadcast.hpp"
-#include "runtime/reference/one_hot.hpp"
+#include "ngraph/runtime/reference/broadcast.hpp"
+#include "ngraph/runtime/reference/one_hot.hpp"
 
 using namespace std;
 using namespace ngraph;

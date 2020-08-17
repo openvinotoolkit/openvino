@@ -20,7 +20,7 @@
 #include "ngraph/op/multiply.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/exp.hpp"
+#include "ngraph/runtime/reference/exp.hpp"
 
 using namespace std;
 using namespace ngraph;

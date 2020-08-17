@@ -24,8 +24,8 @@
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "runtime/reference/shape_of.hpp"
 
 using namespace std;
 using namespace ngraph;

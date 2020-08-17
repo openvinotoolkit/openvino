@@ -20,7 +20,7 @@
 #include "ngraph/op/prior_box_clustered.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/prior_box_clustered.hpp"
+#include "ngraph/runtime/reference/prior_box_clustered.hpp"
 
 using namespace std;
 using namespace ngraph;

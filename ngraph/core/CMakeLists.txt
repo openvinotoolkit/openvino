@@ -22,6 +22,8 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(NGRAPH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ngraph CACHE INTERNAL "")
 
+add_subdirectory(reference)
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -38,7 +40,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-target_link_libraries(ngraph PRIVATE openvino::itt)
+target_link_libraries(ngraph PRIVATE openvino::itt ngraph::reference)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)

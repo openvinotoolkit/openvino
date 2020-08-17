@@ -21,7 +21,7 @@
 #include "ngraph/op/sinh.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/cosh.hpp"
 
 using namespace std;
 using namespace ngraph;
