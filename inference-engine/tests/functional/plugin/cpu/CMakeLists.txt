@@ -8,6 +8,7 @@ set(TARGET_NAME cpuFuncTests)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             MKLDNNPlugin
         LINK_LIBRARIES

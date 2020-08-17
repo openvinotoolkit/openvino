@@ -325,5 +325,8 @@ std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
                                                  const std::vector<float>& weights = {},
                                                  const std::vector<float>& biasWeights = {});
 
+std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>& in,
+                                         const int& axis);
+
 }  // namespace builder
 }  // namespace ngraph
