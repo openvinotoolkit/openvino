@@ -67,6 +67,24 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
 
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
+    const auto isCompatible = [](size_t size, const Layout& l) -> bool {
+        switch (size) {
+        case 0:
+            return l == Layout::SCALAR;
+        case 1:
+            return l == Layout::C;
+        case 2:
+            return l == Layout::CN || l == Layout::HW || l == Layout::NC;
+        case 3:
+            return l == Layout::CHW;
+        case 4:
+            return l == Layout::NCHW || l == Layout::NHWC;
+        case 5:
+            return l == Layout::NCDHW || l == Layout::NDHWC;
+        default:
+            return false;
+        }
+    };
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     SizeVector dims;
     if (output.get_partial_shape().is_static()) {
@@ -78,10 +96,12 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 
     if (ptr) {
-        ptr->reshape(dims, ptr->getTensorDesc().getLayout());
+        const auto origLayout = ptr->getTensorDesc().getLayout();
+        const auto layout = isCompatible(dims.size(), origLayout) ? origLayout : TensorDesc::getLayoutByDims(dims);
+        ptr->reshape(dims, layout);
     } else {
-        const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
+        const auto precision = details::convertPrecision(output.get_element_type());
         ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
