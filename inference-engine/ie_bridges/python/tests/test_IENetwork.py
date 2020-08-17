@@ -181,17 +181,21 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_layers():
+def test_layers(recwarn):
+    warnings.simplefilter("always")
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     layers_name = [key for key in net.layers]
     assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_',
                                    '26', '27', '29', 'data', 'fc_out']
     assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
+    assert len(recwarn) == 2
+    assert recwarn.pop(DeprecationWarning)
 
 
 @pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_serialize():
+def test_serialize(recwarn):
+    warnings.simplefilter("always")
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
@@ -199,6 +203,8 @@ def test_serialize():
     assert net.layers.keys() == serialized_net.layers.keys()
     os.remove("./serialized_net.xml")
     os.remove("./serialized_net.bin")
+    assert len(recwarn) == 2
+    assert recwarn.pop(DeprecationWarning)
 
 
 def test_reshape():
@@ -233,11 +239,7 @@ def test_net_from_buffer_valid_deprecated():
             for blob, data in l.blobs.items():
                 assert np.allclose(data, net2.layers[name].blobs[blob]), \
                     "Incorrect weights for layer {} and blob {}".format(name, blob)
-        assert len(w) == 2
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "Reading network using constructor is deprecated. " \
-                   "Please, use IECore.read_network() method instead" in str(warns.message)
+        assert len(w) == 11
 
 
 def test_multi_out_data():

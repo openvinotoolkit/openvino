@@ -1261,6 +1261,10 @@ cdef class InferRequest:
 
 
 ## This class represents a main layer information and providing setters allowing to modify layer properties
+#
+#  \note This class is deprecated: for working with layers, please, use nGraph Python API.
+#        This class is going to be removed in 2021.2
+#
 cdef class IENetLayer:
     ## Name of the layer
     @property
@@ -1272,22 +1276,6 @@ cdef class IENetLayer:
     def type(self):
         return deref(self._ptr).type.decode()
 
-    ## \note This property is deprecated.
-    #  Please, use out_data property to access DataPtr objects for all output ports, which contains full
-    #  information about layer's output data including precision.
-    #
-    #  Layer base operating precision. Provides getter and setter interfaces.
-    @property
-    def precision(self):
-        warnings.warn("precision property of IENetLayer is deprecated. "
-                      "Please instead use precision property of DataPtr objects "
-                      "returned by out_data property",
-                      DeprecationWarning)
-        return deref(self._ptr).precision.name().decode()
-
-    @precision.setter
-    def precision(self, precision: str):
-        deref(self._ptr).precision = C.Precision.FromStr(precision.encode())
 
     ## Layer affinity set by user or a default affinity may be setted using `IECore.query_network() method`
     #  which returns dictionary {layer_name : device}.
@@ -1342,35 +1330,6 @@ cdef class IENetLayer:
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
-    ## \note This property is deprecated.
-    # Please, use out_data property to access DataPtr objects for all output ports, which contains full
-    # information about layer's output data including layout
-    #
-    # Returns the layout of the layer output data on 1st port
-    @property
-    def layout(self):
-        warnings.warn("layout property of IENetLayer is deprecated. "
-                      "Please instead use shape property of DataPtr objects "
-                      "returned by in_data or out_data property to access shape of input or output data "
-                      "on corresponding ports",
-                      DeprecationWarning)
-        cdef C.DataPtr c_input = deref(self._ptr).outData[0]
-        return layout_int_to_str_map[deref(c_input).getLayout()]
-
-    ## \note This property is deprecated.
-    # Please, use out_data property to access DataPtr objects for all output ports, which contains full
-    # information about layer's output data including shape
-    #
-    # Return the list of dimension of the layer output data on 1st port
-    @property
-    def shape(self):
-        warnings.warn("shape property of IENetLayer is deprecated. "
-                      "Please use shape property of DataPtr instead objects "
-                      "returned by in_data or out_data property to access shape of input or output data "
-                      "on corresponding ports",
-                      DeprecationWarning)
-        cdef C.DataPtr c_input = deref(self._ptr).outData[0]
-        return deref(c_input).getDims()
 
     ## Returns a list of DataPtr objects representing the output data of the layer on corresponding port
     @property
@@ -1410,17 +1369,6 @@ cdef class IENetLayer:
             weights_buffer.reset(blob.second)
             blobs_map[blob.first.decode()] = weights_buffer.to_numpy()
         return blobs_map
-
-    ## \note This property is deprecated.
-    #  Please use blobs property instead.
-    #
-    #  Dictionary with layer weights, biases or custom blobs if any
-    @property
-    def weights(self):
-        warnings.warn("weights property of IENetLayer is deprecated. "
-                      "Please use blobs property instead.",
-                      DeprecationWarning)
-        return self.blobs
 
 
 ## This class contains the information about the network model read from IR and allows you to manipulate with
@@ -1564,10 +1512,18 @@ cdef class IENetwork:
             raise AttributeError("Invalid batch size {}! Batch size should be positive integer value".format(batch))
         self.impl.setBatch(batch)
 
-    ## Return dictionary that maps network layer names in topological order to IENetLayer
+    ## \note The property is deprecated. Please use get_ops()/get_ordered_ops() methods
+    #  from nGraph Python API.
+    #  This property will be removed in 2021.2.
+    #
+    #  Return dictionary that maps network layer names in topological order to IENetLayer
     #  objects containing layer properties
     @property
     def layers(self):
+        warnings.warn("'layers' property of IENetwork class is deprecated. "
+              "For iteration over network please use get_ops()/get_ordered_ops() methods "
+              "from nGraph Python API",
+              DeprecationWarning)
         cdef vector[C.CNNLayerPtr] c_layers = self.impl.getLayers()
         layers = OrderedDict()
         cdef IENetLayer net_l

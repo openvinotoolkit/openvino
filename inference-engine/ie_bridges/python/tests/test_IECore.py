@@ -52,12 +52,14 @@ def test_load_network_wrong_device():
 
 
 @pytest.mark.skip(reason="IENetwork.layers return not all layers in case of ngraph representation due to inner conversion into legacy representation")
-def test_query_network(device):
+def test_query_network(device, recwarn):
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
     assert net.layers.keys() == query_res.keys(), "Not all network layers present in query_network results"
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
+    assert len(recwarn) == 1
+    assert recwarn.pop(DeprecationWarning)
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
@@ -203,7 +205,7 @@ def test_read_net_from_buffer():
     assert isinstance(net, IENetwork)
 
 
-def test_net_from_buffer_valid():
+def test_net_from_buffer_valid(recwarn):
     ie = IECore()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
@@ -215,3 +217,5 @@ def test_net_from_buffer_valid():
         for blob, data in layer.blobs.items():
             assert np.allclose(data, net2.layers[name].blobs[blob]), \
                 "Incorrect weights for layer {} and blob {}".format(name, blob)
+    assert len(recwarn) == 2
+    assert recwarn.pop(DeprecationWarning)
