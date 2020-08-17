@@ -168,6 +168,29 @@ namespace ngraph
                 }
             };
 
+            class InterpolateEvalHelper final
+            {
+            public:
+                InterpolateEvalHelper() = default;
+
+                InterpolateEvalHelper(const op::v4::Interpolate::InterpolateAttrs& attrs)
+                    : m_get_nearest_pixel{attrs.nearest_mode}
+                    , m_get_original_coord{attrs.coordinate_transformation_mode}
+                    , m_interp_mode{attrs.mode}
+                    , m_antialias{attrs.antialias}
+                    , m_cube_coeff{attrs.cube_coeff}
+                {
+                }
+
+                ~InterpolateEvalHelper() = default;
+            private:
+                GetNearestPixel m_get_nearest_pixel;
+                GetOriginalCoordinate m_get_original_coord;
+                InterpolateMode m_interp_mode;
+                double m_cube_coeff;
+                bool m_antialias;
+            }
+
             template <typename T>
             class InterpolateEval final
             {
@@ -274,6 +297,10 @@ namespace ngraph
 
                 std::vector<float> a(num_of_axes);
                 std::vector<int64_t> r(num_of_axes);
+
+                CoordinateTransform output_transform(m_out_shape);
+                CoordinateTransform input_transform(m_input_data_shape);
+
                 std::vector<int64_t> low_limits_vector(num_of_axes);
                 std::vector<int64_t> high_limits_vector(num_of_axes);
                 float prod_a = 1;
@@ -292,31 +319,20 @@ namespace ngraph
                 runtime::NDimIndex maximal_indices{
                     high_limits_vector, low_limits_vector, high_limits_vector};
 
-                std::vector<int64_t> coords_limits_vector(input_rank);
-                for (std::size_t i = 0; i < input_rank; ++i)
-                {
-                    coords_limits_vector[i] = m_out_shape[i] - 1;
-                }
-
-                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
-                runtime::NDimRange coords_range{out_limits};
-                runtime::NDimArrayView<T> result{out};
-                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
-
-                for (const auto& coordinates : coords_range)
+                for (const Coordinate& output_coord : output_transform)
                 {
                     std::vector<float> icoords(input_rank);
                     std::vector<int64_t> icoords_r(input_rank);
                     for (std::size_t i = 0; i < input_rank; ++i)
                     {
-                        icoords[i] = static_cast<float>(coordinates[i]);
-                        icoords_r[i] = coordinates[i];
+                        icoords[i] = static_cast<float>(output_coord[i]);
+                        icoords_r[i] = output_coord[i];
                     }
 
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
-                        float coordinate = static_cast<float>(coordinates[axis]);
+                        float coordinate = static_cast<float>(output_coord[axis]);
                         float in_coord = get_in_coord(coordinate, i);
                         icoords[axis] = in_coord;
                         icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
@@ -328,19 +344,23 @@ namespace ngraph
                     runtime::NDimRange indices{minimal_indices, maximal_indices};
                     for (const auto& index : indices)
                     {
-                        runtime::NDimIndex inner_coords{coordinates};
+                        std::vector<int64_t> inner_coords_vector(input_rank);
+                        for (std::size_t i = 0; i < input_rank; ++i)
+                        {
+                            inner_coords_vector[i] = output_coord[i];
+                        }
+
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            inner_coords[axis] = index[i] + icoords_r[axis];
-                            inner_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
+                            inner_coords_vector[axis] = index[i] + icoords_r[axis];
                         }
 
                         bool condition = true;
                         for (int64_t axis : m_axes)
                         {
-                            condition = condition && (inner_coords[axis] >= 0) &&
-                                        (inner_coords[axis] < m_input_data_shape[axis]);
+                            condition = condition && (inner_coords_vector[axis] >= 0) &&
+                                        (inner_coords_vector[axis] < m_input_data_shape[axis]);
                         }
 
                         if (!condition)
@@ -352,7 +372,7 @@ namespace ngraph
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            dz[i] = icoords[axis] - inner_coords[axis];
+                            dz[i] = icoords[axis] - inner_coords_vector[axis];
                         }
 
                         float w = prod_a;
@@ -361,17 +381,26 @@ namespace ngraph
                             w *= triangle_coeff(a[i] * dz[i]);
                         }
 
+                        std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
+                        for (std::size_t i = 0; i < input_rank; ++i)
+                        {
+                            unsigned_inner_coords_vector[i] = inner_coords_vector[i];
+                        }
+
+                        Coordinate inner_coord{unsigned_inner_coords_vector}
+
                         wsum += w;
-                        summa += w * static_cast<float>(input_view[inner_coords]);
+                        summa +=
+                            w * static_cast<float>(input_data[input_transform.index(inner_coord)]);
                     }
 
                     if (wsum == 0.0f)
                     {
-                        result[coordinates] = T{};
+                        out[output_transform.index(output_coord)] = T{};
                     }
                     else
                     {
-                        result[coordinates] = static_cast<T>(summa / wsum);
+                        out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
                     }
                 }
             }
@@ -505,7 +534,7 @@ namespace ngraph
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
-                        float coordinate = static_cast<float>(coordinates[axis]);
+                        float coordinate = static_cast<float>(output_coord[axis]);
                         float in_coord = get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         input_coord[axis] = in_coord_int;
@@ -517,13 +546,13 @@ namespace ngraph
                     CoordinateTransform indices{indices_shape};
                     for (const Coordinate& idx : indices)
                     {
-                        auto coords_for_sum = input_coord
+                        auto coords_for_sum = input_coord;
                         float coeffs_prod = 1.0;
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
-                                clip_coord(input_coords[axis] + idx[i] - 1,
+                                clip_coord(input_coord[axis] + idx[i] - 1,
                                            static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
