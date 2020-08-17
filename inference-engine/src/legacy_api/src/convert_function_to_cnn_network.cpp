@@ -529,9 +529,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ReduceMin", "ReduceMax", "ReduceMean", "ReduceProd", "ReduceSum", "ReduceL1", "ReduceL2", "ReduceLogicalAnd", "ReduceLogicalOr"},
                        [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
-        res->params["keep_dims"] = res->keep_dims ? "True" : "False";
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
         return res;
     });
 }
