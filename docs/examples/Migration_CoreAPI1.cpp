@@ -2,6 +2,7 @@
 
 int main() {
 using namespace InferenceEngine;
-InferenceEngine::Core core;
+InferenceEngine::Core core;
+
 return 0;
 }

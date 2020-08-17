@@ -1,11 +1,16 @@
 #include <inference_engine.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
+
 
 int main() {
 using namespace InferenceEngine;
-
-std::shared_ptr<ngraph::Function> nGraph;
-// ...
-ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
+
+
+std::shared_ptr<ngraph::Function> nGraph;
+
+// ...
+
+ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
+
 return 0;
 }

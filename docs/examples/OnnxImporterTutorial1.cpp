@@ -2,9 +2,13 @@
 
 int main() {
 using namespace InferenceEngine;
-Abs
-Acos
-// ...
-Xor
+Abs
+
+Acos
+
+// ...
+
+Xor
+
 return 0;
 }

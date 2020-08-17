@@ -2,6 +2,7 @@
 
 int main() {
 using namespace InferenceEngine;
-auto execNetwork = plugin.LoadNetwork(network, { });
+auto execNetwork = plugin.LoadNetwork(network, { });
+
 return 0;
 }
