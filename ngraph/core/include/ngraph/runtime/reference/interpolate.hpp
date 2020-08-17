@@ -493,22 +493,14 @@ namespace ngraph
             {
                 std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
-                std::vector<int64_t> coords_limits_vector(input_rank);
-                for (std::size_t i = 0; i < input_rank; ++i)
-                {
-                    coords_limits_vector[i] = m_out_shape[i] - 1;
-                }
-                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
-                runtime::NDimRange coords_range{out_limits};
-                runtime::NDimArrayView<T> result{out};
-                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
 
-                std::vector<int64_t> maximal_indices_vector(num_of_axes, 3);
-                runtime::NDimIndex maximal_indices{maximal_indices_vector, maximal_indices_vector};
+                CoordinateTransform output_transform(m_out_shape);
+                CoordinateTransform input_transform(m_input_data_shape);
+                Shape indices_shape{std::vector<std::size_t>(num_of_axes, 4)};
 
-                for (const auto& coordinates : coords_range)
+                for (const Coordinate& output_coord : output_transform)
                 {
-                    runtime::NDimIndex input_coords{coordinates};
+                    auto input_coord = output_coord;
                     std::map<std::size_t, std::array<float, 4>> cubic_coeffs;
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
@@ -516,30 +508,29 @@ namespace ngraph
                         float coordinate = static_cast<float>(coordinates[axis]);
                         float in_coord = get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
-                        input_coords[axis] = in_coord_int;
+                        input_coord[axis] = in_coord_int;
                         auto s = static_cast<float>(in_coord - in_coord_int);
                         cubic_coeffs[axis] = get_cubic_coeff(s, m_cube_coeff);
-                        input_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
                     }
 
                     float summa = 0.0f;
-                    runtime::NDimRange indices{maximal_indices};
-                    for (const auto& index : indices)
+                    CoordinateTransform indices{indices_shape};
+                    for (const Coordinate& idx : indices)
                     {
-                        runtime::NDimIndex coords_for_sum{input_coords};
+                        auto coords_for_sum = input_coord
                         float coeffs_prod = 1.0;
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
-                                clip_coord(input_coords[axis] + index[i] - 1,
+                                clip_coord(input_coords[axis] + idx[i] - 1,
                                            static_cast<float>(m_input_data_shape[axis]));
-                            coeffs_prod *= cubic_coeffs[axis][index[i]];
+                            coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
-                        summa += coeffs_prod * input_view[coords_for_sum];
+                        summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
                     }
 
-                    result[coordinates] = static_cast<T>(summa);
+                    out[output_transform.index(output_coord)] = static_cast<T>(summa);
                 }
             }
 
@@ -563,7 +554,7 @@ namespace ngraph
                                                               m_scales[i],
                                                               static_cast<float>(m_out_shape[axis]),
                                                               length_original);
-                        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
+                        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_scales[i] < 1.0);
                         input_coord[axis] = clip_coord(nearest_pixel, length_original);
                     }
                     out[output_transform.index(output_coord)] =

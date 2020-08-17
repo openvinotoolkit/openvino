@@ -467,10 +467,7 @@ namespace
         Shape out_shape{out_shape_vector};
         Shape padded_input_shape{padded_input_shape_vector};
 
-        ArgsToCallReference result;
-
-        return ArgsToCallReference{
-            input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
+        return {input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
     }
 
     template <element::Type_t ET>
