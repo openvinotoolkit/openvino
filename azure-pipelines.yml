@@ -278,9 +278,6 @@ jobs:
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
-  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-    displayName: Stop IncrediBuild
-    continueOnError: true
   - script: dir $(REPO_DIR)\bin\ /s /b
     displayName: 'List files'
   - script: |
@@ -295,7 +292,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\ieUnitTests
+      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\ieUnitTests" /MaxCPUS=40
     displayName: 'IE UT'
     continueOnError: false
   - script: |
@@ -320,7 +317,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\cpuFuncTests --gtest_print_time=1
+      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\cpuFuncTests --gtest_print_time=1" /MaxCPUS=40
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -339,7 +336,7 @@ jobs:
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*" /MaxCPUS=40
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
@@ -349,3 +346,6 @@ jobs:
       $(BIN_DIR)\InferenceEngineCAPITests
     displayName: 'IE CAPITests'
     continueOnError: false
+  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+    displayName: Stop IncrediBuild
+    continueOnError: true
