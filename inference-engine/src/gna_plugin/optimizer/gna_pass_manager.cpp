@@ -591,19 +591,21 @@ void RemovePermutationsNHWCToNCHWPass::run() {
     for (auto&& toRemove : permutationsToRemove) {
         gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
 
-        auto next = getInputTo(toRemove->outData.front()).begin()->second;
-        if (LayerInfo(next).isConvolution()) {
-            next->input()->setDims(toRemove->input()->getDims());
-            next->input()->setLayout(Layout::NHWC);
-            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+        if (getInputTo(toRemove->outData.front()).size()) {
+            auto next = getInputTo(toRemove->outData.front()).begin()->second;
+            if (LayerInfo(next).isConvolution()) {
+                next->input()->setDims(toRemove->input()->getDims());
+                next->input()->setLayout(Layout::NHWC);
+                auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+                layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
 
-            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
-            if (convolution._kernel_y != 1) {
-                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+                auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+                if (convolution._kernel_y != 1) {
+                    THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+                }
+                auto in_channels = next->input()->getDims()[3];
+                convolution._kernel_y = in_channels;
             }
-            auto in_channels = next->input()->getDims()[3];
-            convolution._kernel_y = in_channels;
         }
         auto prev = CNNNetPrevLayer(toRemove);
         if (LayerInfo(prev).isConvolution()) {
