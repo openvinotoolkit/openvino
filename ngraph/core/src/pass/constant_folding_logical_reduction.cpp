@@ -34,9 +34,9 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     {
         runtime::reference::any(constant->get_data_ptr<char>(),
                                 data_ptr,
-                                constant->get_output_shape(0),
-                                reduction_node->get_shape(),
-                                any->get_reduction_axes());
+                                reduction_node->get_input_shape(0),
+                                any->get_reduction_axes(),
+                                false);
     }
     else if (auto reduce_and = as_type_ptr<::ngraph::op::v1::ReduceLogicalAnd>(reduction_node))
     {
@@ -44,7 +44,8 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto input_shape = reduce_and->get_input_shape(0);
         const char* arg = constant->get_data_ptr<char>();
 
-        runtime::reference::reduce_logical_and(arg, data_ptr, input_shape, reduction_axes);
+        runtime::reference::reduce_logical_and(
+            arg, data_ptr, input_shape, reduction_axes, reduce_and->get_keep_dims());
     }
     else if (auto reduce_or = as_type_ptr<::ngraph::op::v1::ReduceLogicalOr>(reduction_node))
     {
@@ -52,7 +53,8 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto input_shape = reduce_or->get_input_shape(0);
         const char* arg = constant->get_data_ptr<char>();
 
-        runtime::reference::reduce_logical_or(arg, data_ptr, input_shape, reduction_axes);
+        runtime::reference::reduce_logical_or(
+            arg, data_ptr, input_shape, reduction_axes, reduce_or->get_keep_dims());
     }
     else
     {
