@@ -27,6 +27,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
+#include "ie_ngraph_utils.hpp"
+#include "generic_ie.hpp"
+#include <ngraph/variant.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -101,8 +104,6 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 
 InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
-    auto net = std::make_shared<details::CNNNetworkImpl>();
-    net->setName("runtime_gpu_graph");
     if (m_config.useProfiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
@@ -112,7 +113,11 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
         }
     }
 
-    std::vector<std::pair<cldnn::primitive_info, CNNLayerPtr>> node2layer;
+    std::map<std::string, std::shared_ptr<ngraph::Node>> node2layer;
+
+    ngraph::ResultVector results;
+    ngraph::ParameterVector params;
+    ngraph::NodeVector nodes;
 
     auto data_type_to_precision = [](cldnn::data_types dt) {
         switch (dt) {
@@ -252,12 +257,120 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
         return res;
     };
 
-    auto create_layer = [&](const cldnn::primitive_info& prim_info) -> CNNLayer::Ptr {
-        CNNLayer::Ptr layer(new CNNLayer({"name", "type", Precision::UNSPECIFIED}));
+    auto get_inputs = [&] (const cldnn::primitive_info& prim_info) {
+        ngraph::OutputVector inputs;
 
-        layer->name = remove_type_from_name(prim_info.original_id);
-        layer->type = to_IE_type_name(prim_info.type_id);
-        layer->precision = data_type_to_precision(prim_info.output_layout.data_type);
+        auto& deps = prim_info.c_dependencies;
+        size_t in_size = deps.size();
+
+        // Decrease expected dependencies count if there is a const input without original id in the IR
+        for (auto& dep : deps) {
+            auto dep_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
+                return entry.original_id == dep;
+            });
+
+            if (filter_const_primitives) {
+                if (dep_it == primitives_info.end())
+                    continue;
+                if (dep_it->type_id == "data") {
+                    continue;
+                }
+            }
+            auto node_it = node2layer.find(dep);
+            if (node_it != node2layer.end()) {
+                inputs.push_back(node_it->second->get_default_output());
+            }
+        }
+
+        return inputs;
+    };
+
+    auto desc_from_layout = [&](cldnn::layout layout) -> TensorDesc {
+        Precision precision = data_type_to_precision(layout.data_type);
+        SizeVector dims;
+        Layout l = Layout::NCHW;
+        auto size = layout.size;
+        if (layout.format.dimension() == 4) {
+            dims = {static_cast<size_t>(size.batch[0]),
+                    static_cast<size_t>(size.feature[0]),
+                    static_cast<size_t>(size.spatial[1]),
+                    static_cast<size_t>(size.spatial[0])};
+        } else if (layout.format.dimension() == 5) {
+            dims = {static_cast<size_t>(size.batch[0]),
+                    static_cast<size_t>(size.feature[0]),
+                    static_cast<size_t>(size.spatial[2]),
+                    static_cast<size_t>(size.spatial[1]),
+                    static_cast<size_t>(size.spatial[0])};
+            l = Layout::NCDHW;
+        } else if (layout.format.dimension() == 6) {
+            dims = {static_cast<size_t>(size.batch[0]),
+                    static_cast<size_t>(size.feature[0]),
+                    static_cast<size_t>(size.spatial[3]),
+                    static_cast<size_t>(size.spatial[2]),
+                    static_cast<size_t>(size.spatial[1]),
+                    static_cast<size_t>(size.spatial[0])};
+            // Should be NC?DHW but there is no such layout yet
+            l = Layout::BLOCKED;
+        }
+        TensorDesc dst{precision, dims, l};
+        return dst;
+    };
+
+    auto create_ngraph_node = [&](const cldnn::primitive_info& prim_info) {
+        const auto& deps = prim_info.c_dependencies;
+        const auto& user_ids = prim_info.c_users;
+        size_t output_size = user_ids.size();
+        bool is_output = user_ids.empty();
+        auto desc = desc_from_layout(prim_info.output_layout);
+        std::shared_ptr<ngraph::Node> return_node;
+
+        if (prim_info.type_id == "input_layout") {
+            auto param = std::make_shared<ngraph::op::Parameter>(
+                details::convertPrecision(desc.getPrecision()),
+                ngraph::PartialShape(desc.getDims()));
+            params.push_back(param);
+            return_node = param;
+        } else {
+            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+                get_inputs(prim_info), output_size);
+
+            if (is_output) {    // create additinal result node
+                nodes.push_back(return_node);
+                node2layer[prim_info.original_id] = return_node;
+                return_node->set_output_type(0,
+                    details::convertPrecision(desc.getPrecision()),
+                    ngraph::PartialShape(desc.getDims()));
+                results.emplace_back(std::make_shared<ngraph::op::Result>(return_node->get_default_output()));
+            } else {
+                size_t port = 0;
+                for (auto& usr_id : user_ids) {
+                    auto usr_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
+                        return entry.original_id == usr_id;
+                    });
+                    if (usr_it == primitives_info.end())
+                        continue;
+
+                    return_node->set_output_type(port,
+                                                details::convertPrecision(desc.getPrecision()),
+                                                ngraph::PartialShape(desc.getDims()));
+                    port++;
+                }
+            }
+        }
+
+        auto layerName = remove_type_from_name(prim_info.original_id);
+        return_node->set_friendly_name(layerName);
+        if (is_output)
+            results.back()->set_friendly_name(layerName + "_result");
+
+        std::map<std::string, std::string> info;
+        Precision prec = data_type_to_precision(prim_info.output_layout.data_type);
+        info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = prec.name();
+        info[ExecGraphInfoSerialization::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
+        info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
+        info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
+        info[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
+
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {
             for (auto& origin_id : find_origin_layers(fused_id)) {
@@ -265,10 +378,8 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                     originalNames.push_back(origin_id);
             }
         }
+        info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
 
-        layer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
-        layer->params[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
-        layer->params[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = layer->precision.name();
         std::string exec_time = "not_executed";
         if (perfMap.find(prim_info.original_id) != perfMap.end()) {
             auto perfCounter = perfMap.at(prim_info.original_id).second;
@@ -276,35 +387,20 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 exec_time = std::to_string(perfCounter.realTime_avg());
             }
         }
+        info[ExecGraphInfoSerialization::PERF_COUNTER] = exec_time;
 
-        layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = exec_time;
-        layer->params[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
-        layer->params[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
-
-        node2layer.emplace_back(prim_info, layer);
-
-        size_t in_size = prim_info.c_dependencies.size();
-
-        if (filter_const_primitives) {
-            // Decrease expected dependencies count if there is a const input without original id in the IR
-            for (auto& dep : prim_info.c_dependencies) {
-                auto it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
-                    return entry.original_id == dep;
-                });
-
-                if (it == primitives_info.end())
-                    --in_size;
-
-                if (it->type_id == "data") {
-                    std::vector<std::string> childOriginalNames{find_origin_layers(prim_info.original_id)};
-                    --in_size;
-                }
-            }
+        for (auto&& kvp : info) {
+            auto variant = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
+            return_node->get_rt_info()[kvp.first] = variant;
+            if (is_output)
+                results.back()->get_rt_info()[kvp.first] = variant;
         }
-        layer->insData.resize(in_size);
-        layer->outData.resize(prim_info.c_users.size());
+        if (is_output)
+            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] =
+                std::make_shared<::ngraph::VariantWrapper<std::string>>("Result");
 
-        return layer;
+        nodes.push_back(return_node);
+        node2layer[prim_info.original_id] = return_node;
     };
 
     if (filter_const_primitives) {
@@ -360,107 +456,13 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 continue;
             }
         }
-        auto layer = create_layer(pi);
-        net->addLayer(layer);
+
+        create_ngraph_node(pi);
     }
 
-    auto desc_from_layout = [&](cldnn::layout layout) -> TensorDesc {
-        Precision precision = data_type_to_precision(layout.data_type);
-        SizeVector dims;
-        Layout l = Layout::NCHW;
-        auto size = layout.size;
-        if (layout.format.dimension() == 4) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-        } else if (layout.format.dimension() == 5) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[2]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-            l = Layout::NCDHW;
-        } else if (layout.format.dimension() == 6) {
-            dims = {static_cast<size_t>(size.batch[0]),
-                    static_cast<size_t>(size.feature[0]),
-                    static_cast<size_t>(size.spatial[3]),
-                    static_cast<size_t>(size.spatial[2]),
-                    static_cast<size_t>(size.spatial[1]),
-                    static_cast<size_t>(size.spatial[0])};
-            // Should be NC?DHW but there is no such layout yet
-            l = Layout::BLOCKED;
-        }
-        TensorDesc dst{precision, dims, l};
-        return dst;
-    };
-
-    for (auto& pair : node2layer) {
-        auto pi = pair.first;
-        auto layer = pair.second;
-        auto user_ids = pi.c_users;
-        for (int i = 0; i < user_ids.size(); i++) {
-            auto it = std::find_if(node2layer.begin(), node2layer.end(), [&](std::pair<cldnn::primitive_info, CNNLayerPtr>& entry) {
-                return entry.first.original_id == user_ids[i];
-            });
-
-            if (it == node2layer.end())
-                continue;
-
-            auto& child_layer = it->second;
-
-            DataPtr data;
-            if (i < layer->outData.size()) {
-                std::string data_name = pi.original_id + "_out" + std::to_string(i);
-                layer->outData[i] = std::make_shared<Data>(data_name, desc_from_layout(pi.output_layout));
-                data = layer->outData[i];
-                getCreatorLayer(data) = layer;
-            } else {
-                data = layer->outData[0];
-            }
-
-            int in_port_id = 0;
-            for (auto& dep : it->first.c_dependencies) {
-                if (filter_const_primitives) {
-                    auto it = std::find_if(node2layer.begin(), node2layer.end(), [&](std::pair<cldnn::primitive_info, CNNLayerPtr>& entry) {
-                        return entry.first.original_id == dep;
-                    });
-
-                    if (it == node2layer.end())
-                        continue;
-                }
-
-                if (dep == pi.original_id && child_layer->insData[in_port_id].lock() == nullptr) {
-                    getInputTo(data)[child_layer->name] = child_layer;
-                    child_layer->insData[in_port_id] = data;
-                    break;
-                }
-                in_port_id++;
-            }
-        }
-    }
-    // Specify inputs data
-    for (auto& pair : node2layer) {
-        auto pi = pair.first;
-        auto layer = pair.second;
-        if (pi.c_dependencies.size() != 0)
-            continue;
-
-        auto in_info = std::make_shared<InputInfo>();
-        if (layer->outData.empty())
-            continue;
-
-        auto dt = layer->outData[0];
-        auto tensor_desc = desc_from_layout(pi.output_layout);
-
-        dt->setDims(tensor_desc.getDims());
-        dt->setPrecision(tensor_desc.getPrecision());
-        dt->setLayout(tensor_desc.getLayout());
-
-        in_info->setInputData(dt);
-        net->setInputInfo(in_info);
-    }
-
+    ngraph::op::GenericIE::DisableReshape reshape(nodes);
+    auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
+    InferenceEngine::CNNNetwork net(function);
     return net;
 }
 

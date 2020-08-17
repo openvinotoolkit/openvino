@@ -55,13 +55,7 @@ TEST_P(PluginSpecificConversion, GeluConversionTest) {
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, device);
     auto net = exeNetwork.GetExecGraphInfo();
 
-    if (device == "CPU") {
-        // Parameter->Activation->Output
-        ASSERT_EQ(net.layerCount(), 3);
-    } else if (device == "GPU") {
-        // Parameter--->Activation--->
-        ASSERT_EQ(net.layerCount(), 2);
-    }
+    ASSERT_EQ(net.layerCount(), 3);
 }
 
 TEST_P(PluginSpecificConversion, MatMulConversionTest) {
