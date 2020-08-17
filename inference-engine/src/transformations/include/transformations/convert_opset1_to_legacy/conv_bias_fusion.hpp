@@ -23,8 +23,6 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "transformations/mul_add_squence_fusion.hpp"
-
 namespace ngraph {
 namespace pass {
 
