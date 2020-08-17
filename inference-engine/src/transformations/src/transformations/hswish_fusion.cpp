@@ -16,7 +16,7 @@ bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& const
     }
     if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
         auto data = constant->cast_vector<float>();
-        if (data.size() != 1 || std::fabs(data[0] - value) < std::numeric_limits<float>::epsilon()) {
+        if (data.size() != 1 || std::fabs(data[0] - value) > std::numeric_limits<float>::epsilon()) {
             return false;
         }
     } else {
