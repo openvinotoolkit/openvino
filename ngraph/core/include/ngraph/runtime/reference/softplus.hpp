@@ -30,9 +30,9 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::log((std::exp(arg[i]) + 1.0));
+                    out[i] = std::log(std::exp(arg[i]) + 1.0);
                 }
             }
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+        }
+    }
+}
