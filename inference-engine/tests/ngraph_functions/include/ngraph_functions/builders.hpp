@@ -132,7 +132,6 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         size_t axis);
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
-                                                const element::Type &type,
                                                 const std::vector<size_t> numSplits,
                                                 size_t axis);
 
@@ -325,6 +324,9 @@ std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
                                                  const ngraph::Shape& weightsShape = {},
                                                  const std::vector<float>& weights = {},
                                                  const std::vector<float>& biasWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>& in,
+                                         const int& axis);
 
 }  // namespace builder
 }  // namespace ngraph

@@ -120,6 +120,7 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
+extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
@@ -608,6 +609,7 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
 extensions/ops/GatherNd.py
