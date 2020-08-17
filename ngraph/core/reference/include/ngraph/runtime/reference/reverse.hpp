@@ -26,7 +26,6 @@ namespace ngraph
     {
         namespace reference
         {
-            NGRAPH_API
             void reverse(const char* arg,
                          char* out,
                          const Shape& arg_shape,

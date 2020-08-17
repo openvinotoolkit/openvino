@@ -19,7 +19,6 @@
 #include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"

@@ -16,10 +16,13 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(NGRAPH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ngraph CACHE INTERNAL "")
+
+add_subdirectory(reference)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -37,7 +40,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-target_link_libraries(ngraph PRIVATE openvino::itt)
+target_link_libraries(ngraph PRIVATE openvino::itt ngraph::reference)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)
@@ -81,12 +84,12 @@ target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH
 target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/builder
                                           ${NGRAPH_INCLUDE_DIR}/op
-                                          ${NGRAPH_INCLUDE_DIR}/op/fused
                                           ${NGRAPH_INCLUDE_DIR}/op/util
                                           ${NGRAPH_INCLUDE_DIR}/pass
                                           ${NGRAPH_INCLUDE_DIR}/pattern
                                           ${NGRAPH_INCLUDE_DIR}/pattern/op
                                           ${NGRAPH_INCLUDE_DIR}/runtime
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/src
                                           )
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
