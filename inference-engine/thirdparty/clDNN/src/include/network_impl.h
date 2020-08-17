@@ -76,6 +76,7 @@ public:
     const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
     void execute(const std::vector<event_impl::ptr>& events);
     void validate_primitives();
+    void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::string get_primitive_info(const primitive_id& id) const;
@@ -97,6 +98,7 @@ private:
     const program_impl::cptr _program;
     uint16_t _stream_id;
     bool _internal;
+    bool _reset_arguments;
     float _learning_rate = static_cast<float>(0.00001);
 
     std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
