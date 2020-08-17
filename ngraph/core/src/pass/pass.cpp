@@ -36,16 +36,6 @@ pass::PassBase::PassBase()
 {
 }
 
-pass::ManagerState& pass::PassBase::get_state()
-{
-    return *m_state;
-}
-
-void pass::PassBase::set_state(ManagerState& state)
-{
-    m_state = &state;
-}
-
 bool pass::PassBase::get_property(const PassPropertyMask& prop) const
 {
     return m_property.is_set(prop);
@@ -89,28 +79,10 @@ void pass::PassBase::set_callback(const param_callback& callback)
 
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
 
-pass::ModulePass::~ModulePass()
-{
-}
-
 pass::FunctionPass::~FunctionPass()
 {
 }
 
 pass::NodePass::~NodePass()
 {
-}
-
-pass::CallGraphPass::~CallGraphPass()
-{
-}
-
-bool pass::CallGraphPass::run_on_call_graph(const std::vector<std::shared_ptr<ngraph::Node>>& nodes)
-{
-    list<shared_ptr<Node>> node_list;
-    for (auto op : nodes)
-    {
-        node_list.push_back(op);
-    }
-    return run_on_call_graph(node_list);
 }

@@ -26,7 +26,7 @@
 #include <ngraph/op/convert.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/relu.hpp>
-#include <ngraph/op/fused/prelu.hpp>
+#include <ngraph/op/prelu.hpp>
 #include <ngraph/op/result.hpp>
 
 #include "common_test_utils/file_utils.hpp"
