@@ -65,6 +65,8 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
                 }
             }
         }
+
+        return true;
     };
 
     std::shared_ptr<Node> inputLowConst = fakeQuantize->get_input_node_shared_ptr(1);
