@@ -479,7 +479,7 @@ void ngraph::parse_version_string(
 vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv)
 {
     vector<float> float_vec;
-    element::Type element_type = tv->get_tensor_layout()->get_element_type();
+    element::Type element_type = tv->get_element_type();
 
     if (element_type == element::boolean)
     {
@@ -595,7 +595,7 @@ vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv)
 vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv)
 {
     vector<int64_t> index_vec;
-    element::Type element_type = tv->get_tensor_layout()->get_element_type();
+    element::Type element_type = tv->get_element_type();
 
     if (element_type == element::boolean)
     {

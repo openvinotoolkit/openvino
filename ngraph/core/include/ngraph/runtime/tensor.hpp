@@ -19,7 +19,6 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
@@ -50,10 +49,6 @@ namespace ngraph
             /// \return const reference to a PartialShape
             const ngraph::PartialShape& get_partial_shape() const;
 
-            /// \brief Get tensor strides
-            /// \return Strides
-            virtual ngraph::Strides get_strides() const;
-
             /// \brief Get tensor element type
             /// \return element::Type
             virtual const element::Type& get_element_type() const;
@@ -69,14 +64,6 @@ namespace ngraph
             /// \brief Get tensor's unique name
             /// \return tensor's name
             const std::string& get_name() const;
-
-            /// \brief Get tensor layout
-            /// \return tensor layout
-            std::shared_ptr<descriptor::layout::TensorLayout> get_tensor_layout() const;
-
-            /// \brief Set tensor layout
-            /// \param layout Layout to set
-            void set_tensor_layout(const std::shared_ptr<descriptor::layout::TensorLayout>& layout);
 
             /// \brief Get the stale value of the tensor. A tensor is stale if its data is
             /// changed.

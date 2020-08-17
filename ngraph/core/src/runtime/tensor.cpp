@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "tensor.hpp"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -33,24 +32,9 @@ const PartialShape& runtime::Tensor::get_partial_shape() const
     return m_descriptor->get_partial_shape();
 }
 
-Strides runtime::Tensor::get_strides() const
-{
-    return m_descriptor->get_tensor_layout()->get_strides();
-}
-
 const element::Type& runtime::Tensor::get_element_type() const
 {
     return m_descriptor->get_element_type();
-}
-
-shared_ptr<descriptor::layout::TensorLayout> runtime::Tensor::get_tensor_layout() const
-{
-    return m_descriptor->get_tensor_layout();
-}
-
-void runtime::Tensor::set_tensor_layout(const shared_ptr<descriptor::layout::TensorLayout>& layout)
-{
-    m_descriptor->set_tensor_layout(layout);
 }
 
 size_t runtime::Tensor::get_element_count() const

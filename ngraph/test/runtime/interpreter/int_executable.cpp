@@ -17,7 +17,6 @@
 #include "int_executable.hpp"
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
@@ -33,8 +32,6 @@ using namespace std;
 using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-
-using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::OP_TYPEID runtime::interpreter::INTExecutable::get_typeid(const Node& node)
 {

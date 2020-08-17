@@ -72,8 +72,6 @@ namespace ngraph
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/dimension.hpp"

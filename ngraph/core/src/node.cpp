@@ -20,7 +20,6 @@
 #include <typeinfo>
 
 #include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"

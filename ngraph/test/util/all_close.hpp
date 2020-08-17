@@ -114,13 +114,6 @@ namespace ngraph
                                              T rtol = 1e-5f,
                                              T atol = 1e-8f)
         {
-            // Check that the layouts are compatible
-            if (*a->get_tensor_layout() != *b->get_tensor_layout())
-            {
-                return ::testing::AssertionFailure()
-                       << "Cannot compare tensors with different layouts";
-            }
-
             if (a->get_shape() != b->get_shape())
             {
                 return ::testing::AssertionFailure()
