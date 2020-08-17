@@ -24,6 +24,7 @@
 #include <functional>
 #include <list>
 #include <map>
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph

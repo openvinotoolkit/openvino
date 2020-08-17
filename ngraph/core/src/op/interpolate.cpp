@@ -422,12 +422,20 @@ namespace
         return result;
     }
 
-    template <element::Type_t ET>
-    inline bool evaluate(const HostTensorVector& args,
-                         const HostTensorPtr& out,
-                         const op::v4::Interpolate::InterpolateAttrs& attrs)
+    struct InfoToCallReference{
+        Shape input_shape;
+        Shape padded_input_shape;
+        Shape out_shape;
+        std::vector<size_t> pads_begin;
+        std::vector<size_t> pads_end;
+        std::vector<int64_t> axes;
+        std::vector<float> scales;
+    };
+
+    using InterpolateV4Attrs = op::v4::Interpolate::InterpolateAttrs
+    InfoToCallReference get_info_to_call_reference(const HostTensorVector& args,
+                                                   const InterpolateV4Attrs& attrs)
     {
-        using T = typename element_type_traits<ET>::value_type;
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
         Shape input_shape{args[data_port]->get_shape()};
@@ -441,56 +449,66 @@ namespace
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
 
-        auto padded_input_shape = get_padded_input_shape(input_shape, pads_begin, pads_end);
+        auto padded_input_shape_vector = get_padded_input_shape(input_shape, pads_begin, pads_end);
         std::vector<std::size_t> out_shape_vector;
 
         if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
         {
-            out_shape_vector = shape_infer_with_scales(padded_input_shape, axes, scales);
+            out_shape_vector = shape_infer_with_scales(padded_input_shape_vector, axes, scales);
         }
         else
         {
             auto target_shape = get_target_shape_vector(args, num_of_axes);
             out_shape_vector =
-                shape_infer_with_target_shape(padded_input_shape, axes, target_shape);
+                shape_infer_with_target_shape(padded_input_shape_vector, axes, target_shape);
         }
 
         Shape out_shape{out_shape_vector};
+        Shape padded_input_shape{padded_input_shape_vector};
+
+        ArgsToCallReference result;
+
+        return ArgsToCallReference{
+            input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
+    }
+
+    template <element::Type_t ET>
+    inline bool evaluate(const HostTensorVector& args,
+                         const HostTensorPtr& out,
+                         const op::v4::Interpolate::InterpolateAttrs& attrs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+
+        auto info_for_reference = get_info_to_call_reference(args, attrs);
 
         out->set_element_type(args[0]->get_element_type());
-        out->set_shape(out_shape);
+        out->set_shape(info_for_reference.out_shape);
 
-        std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}), T{});
+        std::vector<T> padded_input_data(shape_size(info_for_reference.padded_input_shape), T{});
 
-        runtime::NDimArrayView<T> padded_array_view{padded_input_data.data()};
-        runtime::NDimArrayView<T> input_array_view{args[0]->get_data_ptr<ET>()};
+        CoordinateTransform input_transform(input_shape);
+        CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
 
-        std::vector<int64_t> limits_for_indices(input_rank);
-        for (std::size_t i = 0; i < input_rank; ++i)
+        const T* data_ptr = args[0]->get_data_ptr<ET>();
+        T* padded_data_ptr = padded_input_data.data();
+
+        for (const Coordinate& input_coord : input_transform)
         {
-            limits_for_indices[i] = input_shape[i] - 1;
-        }
-        auto index_vector = limits_for_indices;
-
-        runtime::NDimIndex limits{index_vector, limits_for_indices};
-        runtime::NDimRange index_range{limits};
-        for (const auto& index : index_range)
-        {
-            auto padded_index = index;
+            auto padded_coord = input_coord;
             for (std::size_t i = 0; i < input_rank; ++i)
             {
-                padded_index[i] += pads_begin[i];
-                padded_index.set_axes_high_limit(padded_input_shape[i] - 1, i);
+                padded_coord[i] += pads_begin[i];
             }
-            padded_array_view[padded_index] = input_array_view[index];
+            padded_data_ptr[padded_transform.index(padded_coord)] =
+                data_ptr[input_transform.index(input_coord)];
         }
 
         runtime::reference::interpolate<T>(padded_input_data.data(),
-                                           Shape{padded_input_shape},
-                                           scales,
-                                           axes,
+                                           info_for_reference.padded_input_shape,
+                                           info_for_reference.scales,
+                                           info_for_reference.axes,
                                            out->get_data_ptr<ET>(),
-                                           out_shape,
+                                           info_for_reference.out_shape,
                                            attrs);
         return true;
     }
