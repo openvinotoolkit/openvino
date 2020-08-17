@@ -42,11 +42,6 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
 {
 }
 
-void descriptor::Tensor::set_name(const string& name)
-{
-    m_name = name;
-}
-
 void descriptor::Tensor::set_tensor_type(const element::Type& element_type,
                                          const PartialShape& pshape)
 {
@@ -102,6 +97,11 @@ size_t descriptor::Tensor::size() const
 
 const std::string& descriptor::Tensor::get_name() const
 {
+    if (m_name.empty() && m_node != nullptr)
+    {
+        const_cast<Tensor*>(this)->m_name =
+            m_node->get_name() + "_" + to_string(m_node_output_number);
+    }
     return m_name;
 }
 
