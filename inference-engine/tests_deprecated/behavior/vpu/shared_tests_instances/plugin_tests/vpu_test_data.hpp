@@ -77,16 +77,20 @@ const BehTestParams allUnSupportedValues[] = {
 };
 
 const std::vector<BehTestParams> deviceSpecificConfigurations = {
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}}),
 
+    // Deprecated
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}}),
 };
 
 const std::vector<BehTestParams> deviceAgnosticConfigurations = {
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)}}),
 
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)}}),
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_ERROR)}}),
@@ -95,16 +99,39 @@ const std::vector<BehTestParams> deviceAgnosticConfigurations = {
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}}),
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_TRACE)}}),
 
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO)}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3"}}),
+
+
+    BEH_MULTI_CONFIG.withConfig({
+        {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+        {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}
+    }),
+    BEH_MULTI_CONFIG.withConfig({
+        {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+        {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}
+    }),
+
+    // Please do not use other types of DDR in tests with a real device, because it may hang.
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}}),
+
+    // Deprecated
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}}),
+
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)}}),
 
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}}),
 
-    BEH_MULTI_CONFIG.withConfig({
-        {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-         {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}
-    }),
     BEH_MULTI_CONFIG.withConfig({
         {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
         {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}
@@ -121,6 +148,32 @@ const std::vector<BehTestParams> withCorrectConfValuesNetworkOnly = {
 };
 
 const BehTestParams withIncorrectConfValues[] = {
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, "BLUETOOTH"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, "LAN"}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "OFF"}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "OFF"}}),
+
+    BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "OFF"}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "Single"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "TWO"}}),
+
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,"ON"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
+
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, "-1"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, "MICRON"}}),
+
+    // Deprecated
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "LAN"}}),
 
@@ -130,28 +183,25 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), "ON"}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), "OFF"}}),
 
-    BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
-
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
-
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "ON"}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}}),
 
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),"ON"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
+
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
-
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {
