@@ -182,6 +182,8 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     return result;
 }
 
+static constexpr float epsilon = 1.0e-6f;
+
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const PartialShape& padded_input_shape)
@@ -199,7 +201,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
         if (padded_input_shape[axis].is_static())
         {
             float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i]);
+            int64_t new_dim = static_cast<int64_t>((padded_len + epsilon) * scales[i]);
             output_shape[axis] = Dimension(new_dim);
         }
         ++i;
