@@ -58,15 +58,15 @@ namespace ngraph
                 NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
                              shape_size(output_transform.get_target_shape()));
 
+                // depending on the data tensor element type, allocate enough bytes to fit a
+                // single value of this type
+                std::vector<char> v(elem_size, 0);
+
                 for (const Coordinate& in_coord : input_transform)
                 {
                     const Coordinate& out_coord = *output_it;
 
-                    // depending on the data tensor element type, allocate enough bytes to fit a
-                    // single
-                    // value of this type
-                    char v[elem_size];
-                    std::memset(v, 0, elem_size);
+                    std::fill(v.begin(), v.end(), 0);
 
                     switch (pad_mode)
                     {
@@ -74,12 +74,12 @@ namespace ngraph
                         // If the coordinate is out of bounds, substitute *pad_value.
                         if (input_transform.has_source_coordinate(in_coord))
                         {
-                            std::memcpy(
-                                v, data + input_transform.index(in_coord) * elem_size, elem_size);
+                            const auto* offset = data + input_transform.index(in_coord) * elem_size;
+                            std::copy(offset, offset + elem_size, v.begin());
                         }
                         else
                         {
-                            std::memcpy(v, pad_value, elem_size);
+                            std::copy(pad_value, pad_value + elem_size, v.begin());
                         }
                         break;
                     case op::PadMode::EDGE:
@@ -101,7 +101,8 @@ namespace ngraph
                                     padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]) - 1);
                             }
                         }
-                        std::memcpy(v, data + input_transform.index(c) * elem_size, elem_size);
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     case op::PadMode::REFLECT:
@@ -164,7 +165,8 @@ namespace ngraph
 
                             c[i] = static_cast<size_t>(new_dim);
                         }
-                        std::memcpy(v, data + input_transform.index(c) * elem_size, elem_size);
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     case op::PadMode::SYMMETRIC:
@@ -192,12 +194,14 @@ namespace ngraph
                                 }
                             }
                         }
-                        std::memcpy(v, data + input_transform.index(c) * elem_size, elem_size);
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     }
 
-                    std::memcpy(out + output_transform.index(out_coord) * elem_size, v, elem_size);
+                    std::copy(
+                        v.begin(), v.end(), out + output_transform.index(out_coord) * elem_size);
 
                     ++output_it;
                 }

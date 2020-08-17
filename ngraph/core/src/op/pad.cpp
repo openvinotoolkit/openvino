@@ -198,8 +198,7 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
-    const auto arg_pad_value_provided = get_input_size() == 4;
-    if (m_pad_mode == PadMode::CONSTANT && arg_pad_value_provided)
+    if (m_pad_mode == PadMode::CONSTANT)
     {
         const auto& arg_pad_element_type = get_input_element_type(3);
         const auto& arg_pad_shape = get_input_partial_shape(3);
