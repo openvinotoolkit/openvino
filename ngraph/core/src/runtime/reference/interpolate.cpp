@@ -146,10 +146,10 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     result.input_width_mul_y2 = input_width_mul_y2;
     result.in_x1 = in_x1;
     result.in_x2 = in_x2;
-    result.dy1 = dy1
-    result.dy2 = dy2
-    result.dx1 = dx1
-    result.dx2 = dx2
+    result.dy1 = dy1;
+    result.dy2 = dy2;
+    result.dx1 = dx1;
+    result.dx2 = dx2;
     result.batch_size = batch_size;
     result.num_channels = num_channels;
     result.output_height = output_height;
@@ -168,4 +168,75 @@ float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx)
     float length_resized = static_cast<float>(m_out_shape[axis]);
     float length_original = static_cast<float>(m_input_data_shape[axis]);
     return m_get_original_coord(coord, scale, length_resized, length_original);
+}
+
+InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_linear_mode()
+{
+    std::size_t input_rank = m_input_data_shape.size();
+    std::size_t num_of_axes = m_axes.size();
+    bool is_downsample = false;
+    for (std::size_t scale : m_scales)
+    {
+        is_downsample = is_downsample || (scale < 1.0);
+    }
+
+    bool antialias = is_downsample && m_antialias;
+
+    std::vector<float> a(num_of_axes);
+    std::vector<int64_t> r(num_of_axes);
+
+    CoordinateTransform output_transform(m_out_shape);
+    CoordinateTransform input_transform(m_input_data_shape);
+
+    std::vector<std::size_t> vector_for_indeces(num_of_axes);
+    float prod_a = 1;
+    for (std::size_t i = 0; i < num_of_axes; ++i)
+    {
+        a[i] = antialias ? m_scales[i] : 1.0;
+        prod_a *= a[i];
+        r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2)
+                                   : static_cast<int64_t>(std::ceil(2.0f / a[i]));
+        vector_for_indeces[i] = 2 * r[i] + 1;
+    }
+    Shape shape_for_indeces{vector_for_indeces};
+
+    InfoForLinearMode result;
+
+    result.antialias = antialias;
+    result.a = a;
+    result.r = r;
+    result.prod_a = prod_a;
+    result.shape_for_indeces = shape_for_indeces;
+
+    return result;
+}
+
+InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordinate& output_coord)
+{
+    ICoords result;
+
+    std::size_t input_rank = m_input_data_shape.size();
+    std::size_t num_of_axes = m_axes.size();
+
+    std::vector<float> icoords(input_rank);
+    std::vector<int64_t> icoords_r(input_rank);
+    for (std::size_t i = 0; i < input_rank; ++i)
+    {
+        icoords[i] = static_cast<float>(output_coord[i]);
+        icoords_r[i] = output_coord[i];
+    }
+
+    for (std::size_t i = 0; i < num_of_axes; ++i)
+    {
+        int64_t axis = m_axes[i];
+        float coordinate = static_cast<float>(output_coord[axis]);
+        float in_coord = helper.get_in_coord(coordinate, i);
+        icoords[axis] = in_coord;
+        icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
+    }
+
+    result.icoords = icoords;
+    result.icoords_r = icoords_r;
+
+    return result;
 }

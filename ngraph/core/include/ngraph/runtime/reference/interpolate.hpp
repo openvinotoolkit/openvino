@@ -223,6 +223,25 @@ namespace ngraph
 
                 InfoForLinearONNXMode get_info_for_linear_onnx_mode();
 
+                struct InfoForLinearMode
+                {
+                    bool antialias;
+                    float prod_a;
+                    std::vector<float> a;
+                    std::vector<int64_t> r;
+                    Shape shape_for_indeces;
+                };
+
+                InfoForLinearMode get_info_for_linear_mode();
+
+                struct ICoords
+                {
+                    std::vector<float> icoords;
+                    std::vector<int64_t> icoords_r;
+                };
+
+                ICoords get_icoords(const Coordinate& output_coord);
+
                 int64_t clip_coord(int64_t coord, float length)
                 {
                     return std::max(static_cast<int64_t>(0),
@@ -316,55 +335,20 @@ namespace ngraph
             {
                 std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
-                bool is_downsample = false;
-                for (std::size_t scale : m_scales)
-                {
-                    is_downsample = is_downsample || (scale < 1.0);
-                }
 
-                bool antialias = is_downsample && m_antialias;
-
-                std::vector<float> a(num_of_axes);
-                std::vector<int64_t> r(num_of_axes);
+                auto info = helper.get_info_for_linear_mode();
 
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
-                std::vector<std::size_t> vector_for_indeces(num_of_axes);
-                float prod_a = 1;
-                for (std::size_t i = 0; i < num_of_axes; ++i)
-                {
-                    a[i] = antialias ? m_scales[i] : 1.0;
-                    prod_a *= a[i];
-                    r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2)
-                                               : static_cast<int64_t>(std::ceil(2.0f / a[i]));
-                    vector_for_indeces[i] = 2 * r[i] + 1;
-                }
-                Shape shape_for_indeces{vector_for_indeces};
-
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    std::vector<float> icoords(input_rank);
-                    std::vector<int64_t> icoords_r(input_rank);
-                    for (std::size_t i = 0; i < input_rank; ++i)
-                    {
-                        icoords[i] = static_cast<float>(output_coord[i]);
-                        icoords_r[i] = output_coord[i];
-                    }
-
-                    for (std::size_t i = 0; i < num_of_axes; ++i)
-                    {
-                        int64_t axis = m_axes[i];
-                        float coordinate = static_cast<float>(output_coord[axis]);
-                        float in_coord = helper.get_in_coord(coordinate, i);
-                        icoords[axis] = in_coord;
-                        icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
-                    }
+                    auto icoords_data = helper.get_icoords(output_coord);
 
                     float summa = 0.0f;
                     float wsum = 0.0f;
 
-                    CoordinateTransform indices{shape_for_indeces};
+                    CoordinateTransform indices{info.shape_for_indeces};
                     for (const auto& index : indices)
                     {
                         std::vector<int64_t> inner_coords_vector(input_rank);
@@ -376,7 +360,7 @@ namespace ngraph
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            inner_coords_vector[axis] = index[i] + icoords_r[axis] - r[i];
+                            inner_coords_vector[axis] = index[i] + icoords_data.icoords_r[axis] - info.r[i];
                         }
 
                         bool condition = true;
@@ -395,13 +379,13 @@ namespace ngraph
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            dz[i] = icoords[axis] - inner_coords_vector[axis];
+                            dz[i] = icoords_data.icoords[axis] - inner_coords_vector[axis];
                         }
 
-                        float w = prod_a;
+                        float w = info.prod_a;
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
-                            w *= helper.triangle_coeff(a[i] * dz[i]);
+                            w *= helper.triangle_coeff(info.a[i] * dz[i]);
                         }
 
                         std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
