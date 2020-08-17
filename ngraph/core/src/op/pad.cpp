@@ -156,7 +156,7 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end})
+    : Op({arg, pads_begin, pads_end, op::Constant::create(arg.get_element_type(), Shape{}, {0})})
     , m_pad_mode{pad_mode}
 {
     constructor_validate_and_infer_types();
@@ -311,20 +311,8 @@ void op::v1::Pad::validate_and_infer_types()
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    const auto arg_pad_value_provided = get_input_size() == 4;
-    if (arg_pad_value_provided)
-    {
-        return make_shared<v1::Pad>(
-            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
-    }
-    else
-    {
-        return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
-    }
-}
-
-namespace
-{
+    return make_shared<v1::Pad>(
+        new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
 }
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
