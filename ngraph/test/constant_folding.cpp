@@ -3193,3 +3193,20 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims)
     test_constant_folding_reshape_v1(shape_in, values_in, {4}, {2, -1, 2, 0}, true);
     test_constant_folding_reshape_v1(shape_in, values_in, {4}, {4, 1, 0, 2}, true);
 }
+
+TEST(constant_folding, disable_constant_folding)
+{
+    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 3});
+    auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
+    auto& rt_info = dyn_reshape->get_rt_info();
+    rt_info["DISABLED_CONSTANT_FOLDING"];
+    auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+}

@@ -22,21 +22,21 @@ import ngraph as ng
 @pytest.fixture()
 def _proposal_node():
     attributes = {
-        "attrs.base_size": np.uint16(1),
-        "attrs.pre_nms_topn": np.uint16(20),
-        "attrs.post_nms_topn": np.uint16(64),
-        "attrs.nms_thresh": np.float64(0.34),
-        "attrs.feat_stride": np.uint16(16),
-        "attrs.min_size": np.uint16(32),
-        "attrs.ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=np.float64),
-        "attrs.scale": np.array([2, 3, 3, 4], dtype=np.float64),
+        "base_size": np.uint16(1),
+        "pre_nms_topn": np.uint16(20),
+        "post_nms_topn": np.uint16(64),
+        "nms_thresh": np.float64(0.34),
+        "feat_stride": np.uint16(16),
+        "min_size": np.uint16(32),
+        "ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=np.float64),
+        "scale": np.array([2, 3, 3, 4], dtype=np.float64),
     }
     batch_size = 7
 
     class_probs = ng.parameter([batch_size, 12, 34, 62], np.float64, "class_probs")
-    class_logits = ng.parameter([batch_size, 24, 34, 62], np.float64, "class_logits")
+    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], np.float64, "bbox_deltas")
     image_shape = ng.parameter([3], np.float64, "image_shape")
-    return ng.proposal(class_probs, class_logits, image_shape, attributes)
+    return ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
 
 def test_dynamic_attributes_softmax():
@@ -124,21 +124,21 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
 )
 def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     attributes = {
-        "attrs.base_size": int_dtype(1),
-        "attrs.pre_nms_topn": int_dtype(20),
-        "attrs.post_nms_topn": int_dtype(64),
-        "attrs.nms_thresh": fp_dtype(0.34),
-        "attrs.feat_stride": int_dtype(16),
-        "attrs.min_size": int_dtype(32),
-        "attrs.ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
-        "attrs.scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
+        "base_size": int_dtype(1),
+        "pre_nms_topn": int_dtype(20),
+        "post_nms_topn": int_dtype(64),
+        "nms_thresh": fp_dtype(0.34),
+        "feat_stride": int_dtype(16),
+        "min_size": int_dtype(32),
+        "ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
     }
     batch_size = 7
 
     class_probs = ng.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
-    class_logits = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "class_logits")
+    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
     image_shape = ng.parameter([3], fp_dtype, "image_shape")
-    node = ng.proposal(class_probs, class_logits, image_shape, attributes)
+    node = ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
     node.set_base_size(int_dtype(15))
     node.set_pre_nms_topn(int_dtype(7))

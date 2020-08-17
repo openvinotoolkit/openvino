@@ -140,7 +140,6 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #endif
 #endif
 
-    
     ACTIVATION_VEC16 pool_result;
 #if defined AVG_POOLING
 #if ENABLE_ROUND
@@ -169,25 +168,25 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     }
 #endif  // AVG_POOLING
 
-OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
+    OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-    FUSED_OPS_PRELOAD
+    FUSED_OPS_PRELOAD;
 #endif
 
     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for (uint i = 0; i < FEATURE_SLICE_SIZE; ++i) {
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
-        FUSED_OPS_CALC
+        FUSED_OPS_CALC;
 #else
-        FUSED_OPS
+        FUSED_OPS;
 #endif
         final_result[i] = FUSED_OPS_RESULT;
 #else
         final_result[i] = TO_OUTPUT_TYPE(ACTIVATION(pool_result[i], ACTIVATION_PARAMS));
 #endif
     }
-    
+
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 
 #if OUTPUT_TYPE_SIZE == 1
