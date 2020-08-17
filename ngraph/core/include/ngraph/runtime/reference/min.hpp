@@ -38,7 +38,7 @@ namespace ngraph
                 T minval = std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity()
                                                                 : std::numeric_limits<T>::max();
 
-                auto out_shape = reduce(in_shape, reduction_axes);
+                auto out_shape = reduce(in_shape, reduction_axes, false);
                 CoordinateTransform output_transform(out_shape);
 
                 for (const Coordinate& output_coord : output_transform)
@@ -50,7 +50,7 @@ namespace ngraph
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, false);
 
                     T x = arg[input_transform.index(input_coord)];
                     T min = out[output_transform.index(output_coord)];
