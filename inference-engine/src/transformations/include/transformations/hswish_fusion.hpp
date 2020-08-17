@@ -15,6 +15,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API HSwishFusion;
 class TRANSFORMATIONS_API HSwishFusionWithRelu;
+class TRANSFORMATIONS_API HSwishFusionWithReluMul;
 class TRANSFORMATIONS_API HSwishFusionWithoutRelu;
 
 
@@ -29,6 +30,7 @@ class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
 public:
     HSwishFusion() {
         add_matcher<ngraph::pass::HSwishFusionWithRelu>();
+        add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
         add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
     }
 };
@@ -40,6 +42,15 @@ public:
  class ngraph::pass::HSwishFusionWithRelu: public ngraph::pass::MatcherPass {
 public:
     HSwishFusionWithRelu();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
+ */
+ class ngraph::pass::HSwishFusionWithReluMul: public ngraph::pass::MatcherPass {
+public:
+    HSwishFusionWithReluMul();
 };
 
 /**
