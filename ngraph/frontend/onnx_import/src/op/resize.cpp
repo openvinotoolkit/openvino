@@ -189,7 +189,7 @@ namespace ngraph
                                                     const Output<ngraph::Node>& sizes)
                 {
                     const auto& data_shape = data.get_partial_shape();
-                    const auto& sizes_shape = scizes.get_partial_shape();
+                    const auto& sizes_shape = sizes.get_partial_shape();
 
                     const float epsilon = 1.0e-5;
 
@@ -205,7 +205,8 @@ namespace ngraph
                         for (size_t i = 0; i < data_static_shape.size(); ++i)
                         {
                             float scale = static_cast<float>(sizes_vector.at(i)) /
-                                static_cast<float>(data_static_shape.at(i)) + epsilon;
+                                              static_cast<float>(data_static_shape.at(i)) +
+                                          epsilon;
                             scales.push_back(scale);
                         }
                         auto scales_const = default_opset::Constant::create(
@@ -237,6 +238,8 @@ namespace ngraph
                     const auto inputs = node.get_ng_inputs();
                     const auto& data = inputs.at(0);
                     const auto& data_shape = data.get_partial_shape();
+
+                    auto attrs = get_resize_attrs(node);
 
                     if (inputs.size() == 4) // sizes input is provided
                     {
