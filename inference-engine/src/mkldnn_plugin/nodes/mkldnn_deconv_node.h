@@ -21,6 +21,8 @@ public:
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void createPrimitive() override;
+    void filterSupportedPrimitiveDescriptors() override;
+    void filterSupportedDescriptors();
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
