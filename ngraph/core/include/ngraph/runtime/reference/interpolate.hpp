@@ -194,6 +194,7 @@ namespace ngraph
 
                 float triangle_coeff(float dz);
                 std::array<float, 4> get_cubic_coeff(float s, float a);
+                float get_in_coord(float coord, int64_t axis_idx);
 
                 Coordinate get_input_coords_for_nearest_mode(const Coordinate& output_coord);
 
@@ -219,6 +220,12 @@ namespace ngraph
                 };
 
                 InfoForLinearONNXMode get_info_for_linear_onnx_mode();
+
+                int64_t clip_coord(int64_t coord, float length)
+                {
+                    return std::max(static_cast<int64_t>(0),
+                                    std::min(coord, static_cast<int64_t>(length) - 1));
+                }
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
@@ -231,12 +238,6 @@ namespace ngraph
                 Shape m_out_shape;
 
                 std::vector<float> m_scales;
-
-                int64_t clip_coord(int64_t coord, float length)
-                {
-                    return std::max(static_cast<int64_t>(0),
-                                    std::min(coord, static_cast<int64_t>(length) - 1));
-                }
             };
 
             template <typename T>
@@ -306,36 +307,6 @@ namespace ngraph
                 void linear_onnx_func(const T* input_data, T* out);
                 void cubic_func(const T* input_data, T* out);
                 void nearest_func(const T* input_data, T* out);
-
-                int64_t clip_coord(int64_t coord, float length)
-                {
-                    return std::max(static_cast<int64_t>(0),
-                                    std::min(coord, static_cast<int64_t>(length) - 1));
-                }
-
-                float triangle_coeff(float dz) { return std::max(0.0f, 1.0f - std::fabs(dz)); }
-                std::array<float, 4> get_cubic_coeff(float s, float a)
-                {
-                    std::array<float, 4> coeff;
-                    float abs_s = std::fabs(s);
-                    coeff[0] = static_cast<float>(
-                        ((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
-                    coeff[1] = static_cast<float>(((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1);
-                    coeff[2] = static_cast<float>(
-                        ((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
-                    coeff[3] = static_cast<float>(
-                        ((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
-                    return coeff;
-                }
-
-                float get_in_coord(float coord, int64_t axis_idx)
-                {
-                    float scale = m_scales[axis_idx];
-                    int64_t axis = m_axes[axis_idx];
-                    float length_resized = static_cast<float>(m_out_shape[axis]);
-                    float length_original = static_cast<float>(m_input_data_shape[axis]);
-                    return m_get_original_coord(coord, scale, length_resized, length_original);
-                }
             };
 
             template <typename T>
@@ -357,8 +328,7 @@ namespace ngraph
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
-                std::vector<int64_t> low_limits_vector(num_of_axes);
-                std::vector<int64_t> high_limits_vector(num_of_axes);
+                std::vector<std::size_t> vector_for_indeces(num_of_axes);
                 float prod_a = 1;
                 for (std::size_t i = 0; i < num_of_axes; ++i)
                 {
@@ -366,14 +336,9 @@ namespace ngraph
                     prod_a *= a[i];
                     r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2)
                                                : static_cast<int64_t>(std::ceil(2.0f / a[i]));
-                    low_limits_vector[i] = -r[i];
-                    high_limits_vector[i] = r[i];
+                    vector_for_indeces[i] = 2 * r[i] + 1;
                 }
-
-                runtime::NDimIndex minimal_indices{
-                    low_limits_vector, low_limits_vector, high_limits_vector};
-                runtime::NDimIndex maximal_indices{
-                    high_limits_vector, low_limits_vector, high_limits_vector};
+                Shape shape_for_indeces{vector_for_indeces};
 
                 for (const Coordinate& output_coord : output_transform)
                 {
@@ -389,7 +354,7 @@ namespace ngraph
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(output_coord[axis]);
-                        float in_coord = get_in_coord(coordinate, i);
+                        float in_coord = helper.get_in_coord(coordinate, i);
                         icoords[axis] = in_coord;
                         icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
                     }
@@ -397,7 +362,7 @@ namespace ngraph
                     float summa = 0.0f;
                     float wsum = 0.0f;
 
-                    runtime::NDimRange indices{minimal_indices, maximal_indices};
+                    CoordinateTransform indices{shape_for_indeces};
                     for (const auto& index : indices)
                     {
                         std::vector<int64_t> inner_coords_vector(input_rank);
@@ -409,7 +374,7 @@ namespace ngraph
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            inner_coords_vector[axis] = index[i] + icoords_r[axis];
+                            inner_coords_vector[axis] = index[i] + icoords_r[axis] - r[i];
                         }
 
                         bool condition = true;
@@ -434,7 +399,7 @@ namespace ngraph
                         float w = prod_a;
                         for (std::size_t i = 0; i < num_of_axes; ++i)
                         {
-                            w *= triangle_coeff(a[i] * dz[i]);
+                            w *= helper.triangle_coeff(a[i] * dz[i]);
                         }
 
                         std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
@@ -525,7 +490,7 @@ namespace ngraph
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(output_coord[axis]);
-                        float in_coord = get_in_coord(coordinate, i);
+                        float in_coord = helper.get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         input_coord[axis] = in_coord_int;
                         auto s = static_cast<float>(in_coord - in_coord_int);
@@ -542,8 +507,8 @@ namespace ngraph
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =
-                                clip_coord(input_coord[axis] + idx[i] - 1,
-                                           static_cast<float>(m_input_data_shape[axis]));
+                                helper.clip_coord(input_coord[axis] + idx[i] - 1,
+                                                  static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
                         summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
@@ -556,9 +521,6 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::nearest_func(const T* input_data, T* out)
             {
-                std::size_t input_rank = m_input_data_shape.size();
-                std::size_t num_of_axes = m_axes.size();
-
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 

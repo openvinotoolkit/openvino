@@ -41,6 +41,7 @@ std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
 Coordinate
     InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord)
 {
+    std::size_t num_of_axes = m_axes.size();
     auto input_coord = output_coord;
     for (std::size_t i = 0; i < num_of_axes; ++i)
     {
@@ -155,4 +156,13 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     result.output_width = output_width;
 
     return result;
+}
+
+float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx)
+{
+    float scale = m_scales[axis_idx];
+    int64_t axis = m_axes[axis_idx];
+    float length_resized = static_cast<float>(m_out_shape[axis]);
+    float length_original = static_cast<float>(m_input_data_shape[axis]);
+    return m_get_original_coord(coord, scale, length_resized, length_original);
 }
