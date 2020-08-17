@@ -39,7 +39,7 @@ TEST(op_eval, softplus_4D)
 
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
-		fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{4}, inputs)}));
+        fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{4}, inputs)}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{4});
     auto result_data = read_vector<float>(result);

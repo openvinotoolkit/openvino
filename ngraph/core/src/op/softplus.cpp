@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
@@ -77,7 +76,7 @@ namespace
 }
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
-	                            const HostTensorVector& inputs) const
+                                const HostTensorVector& inputs) const
 {
     return evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
