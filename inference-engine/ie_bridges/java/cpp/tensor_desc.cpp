@@ -36,24 +36,6 @@ JNIEXPORT jlong JNICALL Java_org_intel_openvino_TensorDesc_GetTensorDesc(JNIEnv 
     return 0;
 }
 
-JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_setDims(JNIEnv *env, jobject, jlong addr, jintArray dims)
-{
-    static const char method_name[] = "setDims";
-    try
-    {
-        TensorDesc *tDesc = (TensorDesc *)addr;
-        tDesc->setDims(jintArrayToVector(env, dims));  
-
-    } catch (const std::exception &e)
-    {
-        throwJavaException(env, &e, method_name);
-    }
-    catch (...)
-    {
-        throwJavaException(env, 0, method_name);
-    }
-}
-
 JNIEXPORT jintArray JNICALL Java_org_intel_openvino_TensorDesc_GetDims(JNIEnv *env, jobject obj, jlong addr)
 {
     static const char method_name[] = "GetDims";
@@ -79,7 +61,6 @@ JNIEXPORT jintArray JNICALL Java_org_intel_openvino_TensorDesc_GetDims(JNIEnv *e
     {
         throwJavaException(env, 0, method_name);
     }
-
     return 0;
 }
 
@@ -100,30 +81,9 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_TensorDesc_getLayout(JNIEnv *env,
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
-JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_setPrecision(JNIEnv *env, jobject, jlong addr, jint precision)
-{
-    static const char method_name[] = "setPrecision";
-    try
-    {
-        TensorDesc *tDesk = (TensorDesc *)addr;
-        auto it = precision_map.find(precision);
-
-        if (it == precision_map.end())
-            throw std::runtime_error("No such precision value!");
-
-        tDesk->setPrecision(it->second);
-        
-    } catch (const std::exception &e)
-    {
-        throwJavaException(env, &e, method_name);
-    }
-    catch (...)
-    {
-        throwJavaException(env, 0, method_name);
-    }
-}
 JNIEXPORT jint JNICALL Java_org_intel_openvino_TensorDesc_getPrecision(JNIEnv *env, jobject, jlong addr)
 {
     static const char method_name[] = "getPrecision";
@@ -141,6 +101,7 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_TensorDesc_getPrecision(JNIEnv *e
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_delete(JNIEnv *, jobject, jlong addr)

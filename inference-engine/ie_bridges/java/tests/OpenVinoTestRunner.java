@@ -4,7 +4,6 @@ import org.junit.runner.notification.Failure;
 
 public class OpenVinoTestRunner {
     public static void main(String[] args) {
-
         Result result = JUnitCore.runClasses(TestsSuite.class);
 		
         for (Failure failure : result.getFailures()) {

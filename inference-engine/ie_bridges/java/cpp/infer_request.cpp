@@ -70,6 +70,7 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_InferRequest_Wait(JNIEnv *env, jo
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 static std::mutex map_mutex;
@@ -114,6 +115,7 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_InferRequest_SetCompletionCallbac
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT long JNICALL Java_org_intel_openvino_InferRequest_GetBlob(JNIEnv *env, jobject obj, jlong addr, jstring output_name)
@@ -216,6 +218,7 @@ JNIEXPORT jobject JNICALL Java_org_intel_openvino_InferRequest_GetPerformanceCou
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_InferRequest_delete(JNIEnv *env, jobject, jlong addr)

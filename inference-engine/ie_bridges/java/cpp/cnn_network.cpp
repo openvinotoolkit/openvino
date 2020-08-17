@@ -114,6 +114,7 @@ JNIEXPORT jobject JNICALL Java_org_intel_openvino_CNNNetwork_GetOutputsInfo(JNIE
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_CNNNetwork_reshape(JNIEnv *env, jobject obj, jlong addr, jobject input)
@@ -171,6 +172,7 @@ JNIEXPORT jobject JNICALL Java_org_intel_openvino_CNNNetwork_getInputShapes(JNIE
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_CNNNetwork_addOutput(JNIEnv *env, jobject obj, jlong addr, jstring layerName, jint outputIndex){

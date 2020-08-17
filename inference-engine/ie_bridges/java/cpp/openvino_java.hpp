@@ -95,18 +95,9 @@ JNIEXPORT void JNICALL Java_org_intel_openvino_PreProcessInfo_SetResizeAlgorithm
 //
 JNIEXPORT jlong JNICALL Java_org_intel_openvino_TensorDesc_GetTensorDesc(JNIEnv *, jobject, jint, jintArray, jint);
 JNIEXPORT jintArray JNICALL Java_org_intel_openvino_TensorDesc_GetDims(JNIEnv *, jobject, jlong);
-JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_setDims(JNIEnv *, jobject, jlong, jintArray);
 JNIEXPORT jint JNICALL Java_org_intel_openvino_TensorDesc_getLayout(JNIEnv *, jobject, jlong);
-JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_setPrecision(JNIEnv *, jobject, jlong, jint);
 JNIEXPORT jint JNICALL Java_org_intel_openvino_TensorDesc_getPrecision(JNIEnv *, jobject, jlong);
 JNIEXPORT void JNICALL Java_org_intel_openvino_TensorDesc_delete(JNIEnv *, jobject, jlong);
-
-//
-// BlockingDesc
-//
-JNIEXPORT jlong JNICALL Java_org_intel_openvino_BlockingDesc_GetBlockingDesc(JNIEnv *, jobject);
-JNIEXPORT jlong JNICALL Java_org_intel_openvino_BlockingDesc_GetBlockingDesc1(JNIEnv *, jobject, jintArray, jint);
-JNIEXPORT void JNICALL Java_org_intel_openvino_BlockingDesc_delete(JNIEnv *, jobject, jlong);
 
 //
 // Parameter

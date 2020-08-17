@@ -16,16 +16,8 @@ public class TensorDesc extends IEWrapper {
         return GetDims(nativeObj);
     }
 
-    public void setDims(int[] dims) {
-        setDims(nativeObj, dims);
-    }
-
     public Layout getLayout(){
         return Layout.valueOf(getLayout(nativeObj));
-    }
-
-    public void setPrecision(Precision precision) {
-        setPrecision(nativeObj, precision.getValue());
     }
 
     public Precision getPrecision(){
@@ -37,11 +29,7 @@ public class TensorDesc extends IEWrapper {
 
     private native int[] GetDims(long addr);
 
-    private native void setDims(long addr, int[] dims);
-
     private static native int getLayout(long addr);
-
-    private static native void setPrecision(long addr, int precision);
 
     private static native int getPrecision(long addr);
 

@@ -12,7 +12,6 @@ using namespace InferenceEngine;
 JNIEXPORT jlong JNICALL Java_org_intel_openvino_InputInfo_getPreProcess(JNIEnv *env, jobject obj, jlong addr)
 {
     static const char method_name[] = "getPreProcess";
-
     try
     {
         InputInfo *input_info = (InputInfo*)addr;
@@ -25,6 +24,7 @@ JNIEXPORT jlong JNICALL Java_org_intel_openvino_InputInfo_getPreProcess(JNIEnv *
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_InputInfo_SetLayout(JNIEnv *env, jobject obj, jlong addr, jint layout)
@@ -66,6 +66,7 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_InputInfo_getLayout(JNIEnv *env, 
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_InputInfo_SetPrecision(JNIEnv *env, jobject obj, jlong addr, jint precision)
@@ -108,6 +109,7 @@ JNIEXPORT jint JNICALL Java_org_intel_openvino_InputInfo_getPrecision(JNIEnv *en
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_org_intel_openvino_InputInfo_GetTensorDesc(JNIEnv *env, jobject obj, jlong addr)
@@ -128,6 +130,5 @@ JNIEXPORT jlong JNICALL Java_org_intel_openvino_InputInfo_GetTensorDesc(JNIEnv *
     {
         throwJavaException(env, 0, method_name);
     }
-
     return 0;
 }

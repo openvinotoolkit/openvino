@@ -18,8 +18,9 @@ public class InputInfoTests extends IETest {
 
         String inputName = new ArrayList<String>(inputsInfo.keySet()).get(0);
         InputInfo inputInfo = inputsInfo.get(inputName);
-        inputInfo.setLayout(Layout.NHWC);
+        assertTrue(inputInfo.getLayout() != Layout.NHWC);
 
+        inputInfo.setLayout(Layout.NHWC);
         assertEquals("setLayout", Layout.NHWC, inputInfo.getLayout());
     }
 

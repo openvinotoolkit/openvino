@@ -7,13 +7,7 @@ This guide describes how to run the benchmark applications.
 Upon start-up, the application reads command-line parameters and loads a network to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
 
 ## Build
-Create an environment variable with OpenCV installation path:
-```bash
-export OpenCV_DIR=/path/to/opencv/
-```
-
-and the same for Inference Engine:
-```bash
+Create an environment variable with Inference Engine installation path:
 export IE_PATH=/path/to/openvino/bin/intel64/Release/lib
 ```
 
@@ -25,19 +19,19 @@ make
 ```
 
 ## Running
-Add library path for openvino java library and for opencv library before running:
+Add library path for openvino java library before running:
 ```bash
-export LD_LIBRARY_PATH=${OpenCV_DIR}/share/java/opencv4/:/${IE_PATH}:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${IE_PATH}:$LD_LIBRARY_PATH
 ```
 
 To get ```benchmark_app``` help use:
 ```bash
-java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main --help
+java -cp ".:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main --help
 ```
 
 To run ```benchmark_app`` use:
 ```bash
-java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main -m /path/to/model
+java -cp ".:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/benchmark_app.jar" Main -m /path/to/model
 ```
 
 ## Application Output
@@ -67,7 +61,34 @@ https://download.01.org/opencv/2019/open_model_zoo/R1/models_bin/face-detection-
 
 ## Build and run
 
-Build and run steps are similar to ```benchmark_app```
+Build and run steps are similar to ```benchmark_app```, but you need to add OpenCV path.
+
+### Build
+Add an environment variable with OpenCV installation or build path:
+```bash
+export OpenCV_DIR=/path/to/opencv/
+```
+
+### Running
+Add library path for opencv library and for openvino java library before running:
+
+* For OpenCV installation path
+```bash
+export LD_LIBRARY_PATH=${OpenCV_DIR}/share/java/opencv4/:/${IE_PATH}:$LD_LIBRARY_PATH
+```
+To run sample use:
+```bash
+java -cp ".:${OpenCV_DIR}/share/java/opencv4/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/sample_name.jar" Main -m /path/to/model -i /path/to/image
+```
+
+* For OpenCV build path
+```bash
+export LD_LIBRARY_PATH=${OpenCV_DIR}/bin/:/${IE_PATH}:$LD_LIBRARY_PATH
+```
+To run sample use:
+```bash
+java -cp ".:${OpenCV_DIR}/bin/*:${IE_PATH}/inference_engine_java_api.jar:${IE_PATH}/sample_name.jar" Main -m /path/to/model -i /path/to/image
+```
 
 ## Sample Output
 

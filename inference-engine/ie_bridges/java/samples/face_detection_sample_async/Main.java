@@ -16,6 +16,15 @@ import java.util.HashMap;
 
 import org.intel.openvino.*;
 
+/*
+This is async face detection java sample.
+
+Upon the start-up the sample application reads command line parameters and loads a network 
+and an images to the Inference Engine device. When inference is done, the application 
+saves a video `result.avi` with detected objects enclosed in rectangles.
+
+To get the list of command line parameters run the application with `--help` paramether.
+*/
 public class Main {
  
     public static Blob imageToBlob(Mat image) {
@@ -41,7 +50,7 @@ public class Main {
             if (inferRequest.Wait(wait) != StatusCode.OK)
                 return;
 
-            if(size == 0 && res == null) {
+            if (size == 0 && res == null) {
                 size = inferRequest.GetBlob(outputName).size();
                 res = new float[size];
             }
@@ -96,7 +105,6 @@ public class Main {
         BlockingQueue<Mat> framesQueue = new LinkedBlockingQueue<Mat>();
 
         Thread captureThread = new Thread(new Runnable() {
-        
             @Override
             public void run() {
                 VideoCapture cam = new VideoCapture();

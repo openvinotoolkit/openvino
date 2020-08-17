@@ -1,6 +1,6 @@
 import junit.framework.TestCase;
-import java.nio.file.Paths;
 
+import java.nio.file.Paths;
 import java.lang.Class;
 import java.util.List;
 

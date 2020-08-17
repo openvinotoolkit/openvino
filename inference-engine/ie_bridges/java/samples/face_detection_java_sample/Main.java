@@ -8,6 +8,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.ArrayList;
 
+/*
+This is face detection java sample.
+
+Upon the start-up the sample application reads command line parameters and loads a network 
+and an image to the Inference Engine device. When inference is done, the application will show 
+the image with detected objects enclosed in rectangles in new window.It also outputs the 
+confidence value and the coordinates of the rectangle to the standard output stream. 
+
+To get the list of command line parameters run the application with `--help` paramether.
+*/
 public class Main {
     public static void main(String[] args) {
         final double THRESHOLD = 0.7;

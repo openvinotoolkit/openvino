@@ -1,4 +1,5 @@
 #include <inference_engine.hpp>
+
 #include "openvino_java.hpp"
 #include "jni_common.hpp"
 

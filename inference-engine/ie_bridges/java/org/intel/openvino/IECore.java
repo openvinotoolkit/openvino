@@ -13,12 +13,12 @@ public class IECore extends IEWrapper {
         super(GetCore_1(xmlConfigFile));
     }
 
-    public CNNNetwork ReadNetwork(final String xml, final String bin) {
-        return new CNNNetwork(ReadNetwork1(nativeObj, xml, bin));
+    public CNNNetwork ReadNetwork(final String modelPath, final String weightPath) {
+        return new CNNNetwork(ReadNetwork1(nativeObj, modelPath, weightPath));
     }
 
-    public CNNNetwork ReadNetwork(final String model) {
-        return new CNNNetwork(ReadNetwork(nativeObj, model));
+    public CNNNetwork ReadNetwork(final String modelFileName) {
+        return new CNNNetwork(ReadNetwork(nativeObj, modelFileName));
     }
 
     public ExecutableNetwork LoadNetwork(CNNNetwork net, final String device) {
@@ -62,9 +62,9 @@ public class IECore extends IEWrapper {
     }
 
     /*----------------------------------- native methods -----------------------------------*/
-    private static native long ReadNetwork(long core, final String xml);
+    private static native long ReadNetwork(long core, final String modelFileName);
 
-    private static native long ReadNetwork1(long core, final String xml, final String bin);
+    private static native long ReadNetwork1(long core, final String modelPath, final String weightPath);
 
     private static native long LoadNetwork(long core, long net, final String device);
 

@@ -311,6 +311,7 @@ JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetConfig(JNIEnv *env, jo
     {
         throwJavaException(env, 0, method_name);
     }
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_intel_openvino_IECore_delete(JNIEnv *, jobject, jlong addr)
