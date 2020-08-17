@@ -52,7 +52,7 @@ void pass::ConstantFolding::construct_constant_dequantize()
         make_shared<op::Dequantize>(constant_label, dq_scale, dq_offset, element::f32, AxisSet{});
     auto dequant = make_shared<pattern::op::Label>(dequant_op, nullptr, NodeVector{dequant_op});
 
-    auto constant_dequantize_callback = [constant_label, dequant](pattern::Matcher& m) {
+    auto constant_dequantize_callback = [this, constant_label, dequant](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_dequantize_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -61,6 +61,9 @@ void pass::ConstantFolding::construct_constant_dequantize()
         auto constant_match = as_type_ptr<op::Constant>(pattern_map[constant_label]);
         auto dequant_match = pattern_map[dequant];
         auto dequantize_op = as_type_ptr<op::Dequantize>(dequant_match);
+
+        if (cf_is_disabled(dequantize_op))
+            return false;
 
         auto scale = as_type_ptr<op::Constant>(dequant_match->input_value(1).get_node_shared_ptr());
         auto offset =

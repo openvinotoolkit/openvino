@@ -949,6 +949,11 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
 
+    if (m_rt_info.count("DISABLED_CONSTANT_FOLDING"))
+    {
+        return false;
+    }
+
     // If all the inputs are constants, try to evaluate the outputs
     HostTensorVector input_tensors;
     for (auto input : input_values)

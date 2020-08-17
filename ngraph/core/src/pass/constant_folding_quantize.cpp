@@ -54,7 +54,7 @@ void pass::ConstantFolding::construct_constant_quantize()
         make_shared<op::Quantize>(constant_label, q_scale, q_offset, element::i8, AxisSet{}, mode);
     auto quant = make_shared<pattern::op::Label>(quant_op, nullptr, NodeVector{quant_op});
 
-    auto constant_quantize_callback = [constant_label, quant](pattern::Matcher& m) {
+    auto constant_quantize_callback = [this, constant_label, quant](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_quantize_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -63,6 +63,9 @@ void pass::ConstantFolding::construct_constant_quantize()
         auto constant_match = as_type_ptr<op::Constant>(pattern_map[constant_label]);
         auto quant_match = pattern_map[quant];
         auto quantize_op = as_type_ptr<op::Quantize>(quant_match);
+
+        if (cf_is_disabled(quantize_op))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(quantize_op));
 

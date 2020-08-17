@@ -80,6 +80,9 @@ void pass::ConstantFolding::construct_constant_pad()
         auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
         auto pad_match = static_pointer_cast<op::Pad>(m.get_match_root());
 
+        if (cf_is_disabled(pad_match))
+            return false;
+
         NGRAPH_CHECK(revalidate_and_ensure_static(pad_match));
 
         NodeExecutorTy func = nullptr;

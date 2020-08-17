@@ -114,7 +114,8 @@ void pass::ConstantFolding::construct_constant_one_hot()
     auto ont_hot_pattern =
         make_shared<op::v1::OneHot>(indices_label, depth_label, on_label, off_label, axis);
 
-    auto one_hot_callback = [indices_label, depth_label, on_label, off_label](pattern::Matcher& m) {
+    auto one_hot_callback = [this, indices_label, depth_label, on_label, off_label](
+        pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for one_hot_callback against node = "
                      << m.get_match_root()->get_name();
         auto pattern_map = m.get_pattern_map();
@@ -125,6 +126,10 @@ void pass::ConstantFolding::construct_constant_one_hot()
         const auto off_node = static_pointer_cast<op::Constant>(pattern_map[off_label]);
 
         auto one_hot = static_pointer_cast<op::v1::OneHot>(m.get_match_root());
+
+        if (cf_is_disabled(one_hot))
+            return false;
+
         const size_t axis = one_hot->get_axis();
         const auto output_shape = one_hot->get_output_shape(0);
         auto output_type = on_node->get_element_type();

@@ -187,7 +187,7 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
                                            is_supported_reduction,
                                            NodeVector{constant_data_label, constant_axes_label});
 
-    auto constant_arithmetic_reduction_callback = [constant_data_label](pattern::Matcher& m) {
+    auto constant_arithmetic_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_arithmetic_reduction_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -195,6 +195,9 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 
         auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
         auto reduction_match = m.get_match_root();
+
+        if (cf_is_disabled(reduction_match))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
 

@@ -65,7 +65,7 @@ void pass::ConstantFolding::construct_constant_select()
     auto select_v0_op = make_shared<op::v0::Select>(selection_label, t_label, f_label);
     auto select_v1_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
 
-    auto constant_select_callback = [selection_label, t_label, f_label](pattern::Matcher& m) {
+    auto constant_select_callback = [this, selection_label, t_label, f_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_select_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -76,6 +76,9 @@ void pass::ConstantFolding::construct_constant_select()
         const auto& t_node = static_pointer_cast<op::Constant>(pattern_map[t_label]);
         const auto& f_node = static_pointer_cast<op::Constant>(pattern_map[f_label]);
         const auto& select = m.get_match_root();
+
+        if (cf_is_disabled(select))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(select));
 

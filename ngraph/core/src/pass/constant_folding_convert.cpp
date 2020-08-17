@@ -161,7 +161,7 @@ void pass::ConstantFolding::construct_constant_convert()
         element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
     auto convert_op = make_shared<op::Convert>(constant_label, element::i64);
 
-    auto constant_convert_callback = [constant_label](pattern::Matcher& m) {
+    auto constant_convert_callback = [this, constant_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_convert_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -169,6 +169,9 @@ void pass::ConstantFolding::construct_constant_convert()
 
         auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
         auto convert_match = static_pointer_cast<op::Convert>(m.get_match_root());
+
+        if (cf_is_disabled(convert_match))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(convert_match));
 
