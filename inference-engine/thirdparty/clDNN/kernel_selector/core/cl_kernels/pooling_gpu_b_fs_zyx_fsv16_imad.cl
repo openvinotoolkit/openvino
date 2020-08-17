@@ -88,7 +88,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #endif
 
 #if INPUT0_DIMS == 4
-    const uint batch_and_feature_offset = GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, 0, 0);
+    const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0);
 #else
     const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0, 0);
 #endif
@@ -163,7 +163,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #endif
 #else // !CHECK_BOUNDRY
 #if INPUT0_DIMS == 4
-    uint input_idx = GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, offset_y, offset_x);
+    uint input_idx = INPUT0_GET_INDEX(b, f, offset_y, offset_x);
 #else
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_z, offset_y, offset_x);
 #endif
@@ -267,7 +267,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     }
 
 #if OUTPUT_DIMS == 4
-    const uint output_pos = GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
+    const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #else
     const uint output_pos = OUTPUT_GET_INDEX(b, f, z, y, x);
 #endif

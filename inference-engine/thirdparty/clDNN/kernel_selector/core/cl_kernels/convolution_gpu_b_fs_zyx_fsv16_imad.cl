@@ -80,7 +80,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const uint filter_idx_diff = (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * FSV);
 
 #if INPUT0_DIMS == 4
-    uint input_start_idx = GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, out_b, g * FILTER_IFM_NUM + k_start, input_y, input_x);
+    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_y, input_x);
 #else
     uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_z, input_y, input_x);
 #endif
@@ -391,7 +391,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     }
 
 #if OUTPUT_DIMS == 4
-    uint dst_index = GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, out_b, out_f_sg, out_y, out_x);
+    uint dst_index = OUTPUT_GET_INDEX(out_b, out_f_sg, out_y, out_x);
 #else
     uint dst_index = OUTPUT_GET_INDEX(out_b, out_f_sg, out_z, out_y, out_x);
 #endif
@@ -468,7 +468,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
             bool good_of_block = (CEIL_DIV(FILTER_OFM_NUM, SIMD) % OFM_BLOCKS_PER_SIMD == 0) || (out_f_sg + ofb * SIMD <= FILTER_OFM_NUM);
             if (good_of_block) {
         #if OUTPUT_DIMS == 4
-                const uint dst_index = GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, out_b, out_f + ofb * SIMD, out_y, out_x);
+                const uint dst_index = OUTPUT_GET_INDEX(out_b, out_f + ofb * SIMD, out_y, out_x);
         #else
                 const uint dst_index = OUTPUT_GET_INDEX(out_b, out_f + ofb * SIMD, out_z, out_y, out_x);
         #endif

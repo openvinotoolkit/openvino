@@ -355,13 +355,19 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)" };
+        std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)" };
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = { "out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)" };
+        }
+
         std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
-        
-        if (block_params.output_block_depth != 1) {
-            loop_axes.push_back(Tensor::DataChannelName::Z);
-        } else {
-            idx_order[idx_order.size() - 3] = "out_z";
+
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            if (block_params.output_block_depth != 1) {
+                loop_axes.push_back(Tensor::DataChannelName::Z);
+            } else {
+                idx_order[idx_order.size() - 3] = "out_z";
+            }
         }
         
         if (block_params.output_block_height != 1) {
