@@ -348,6 +348,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return false;
         };
 
+        auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
+            // Exclude `Conv -> DepthToSpace -> Eltwise (Sum)` case and handle it later by fusing into fused_conv_eltwise primitive
+            bool input_conv = node.get_dependency(0).is_type<convolution>();
+            bool out_eltw = node.get_users().front()->is_type<eltwise>();
+            if (input_conv && out_eltw) {
+                auto& eltw = static_cast<const eltwise&>(*node.get_users().front()->get_primitive());
+                auto& conv = node.get_dependency(0).as<convolution>();
+                auto eltw_mode = eltw.mode == eltwise_mode::sum;
+                auto conv_size = conv.get_dependency(0).get_output_layout().size.spatial[0] % 128 == 0 &&
+                                 conv.get_dependency(0).get_output_layout().size.spatial[1] % 2 == 0;
+                auto format = conv.get_output_layout().format == format::bfyx;
+                auto dt = conv.get_output_layout().data_type == data_types::f16;
+                if (eltw_mode && conv_size && format && dt)
+                    return false;
+            }
+
+            return true;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
@@ -549,16 +568,18 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
                                     (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) ||
+                                    (parent1->is_type<space_to_depth>()) ||
                                     (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>())) ||
-                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>());
+                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
+                                    (parent1->is_type<depth_to_space>() && dts_supports_fusings(parent1->as<depth_to_space>()));
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
                                     (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent2->is_type<depth_to_space>()) || (parent2->is_type<space_to_depth>()) ||
+                                    (parent2->is_type<space_to_depth>()) ||
                                     (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>())) ||
-                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>());
+                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
+                                    (parent2->is_type<depth_to_space>() && dts_supports_fusings(parent2->as<depth_to_space>()));
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
@@ -695,6 +716,11 @@ void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program
 
     depth_to_space_node* d_t_s_node = static_cast<depth_to_space_node*>(node->users.front());
     if (d_t_s_node->get_users().empty())
+        return;
+    if (!d_t_s_node->get_fused_primitives().empty())
+        return;
+    if (conv_node->get_dependency(0).get_output_layout().size.spatial[0] % 128 != 0 ||
+        conv_node->get_dependency(0).get_output_layout().size.spatial[1] % 2 != 0)
         return;
     if (!d_t_s_node->get_users().front()->is_type<eltwise>())
         return;
