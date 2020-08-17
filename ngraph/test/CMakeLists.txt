@@ -77,6 +77,7 @@ set(SRC
     op_eval/reduce_l2.cpp
     op_eval/split.cpp
     op_eval/strided_slice.cpp
+    op_eval/variadic_split.cpp
     op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
