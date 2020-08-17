@@ -23,10 +23,6 @@ void FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
     } while (fakeQuantize != nullptr);
 }
 
-bool eltwiseWithConstant(const std::shared_ptr<Node> eltwise)  {
-    return (eltwise->get_input_size() > 1ul) && is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
-}
-
 std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetShape) {
     const Shape shape = op->get_output_shape(0);
     if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
@@ -41,6 +37,35 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     TransformationContext& context,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
+
+    auto eltwiseWithConstant = [](const std::shared_ptr<Node>& eltwise) -> bool {
+        std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+        // not supported
+        // if (constant == nullptr) {
+        //    constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
+        // }
+        if (constant == nullptr) {
+            return false;
+        }
+
+        Shape shape = constant->get_output_shape(0);
+        if ((!shape.empty()) && (shape_size(shape) != 1ul)) {
+            const Shape eltwiseShape = eltwise->get_output_shape(0);
+            if ((eltwiseShape.size() - shape.size()) > 1) {
+                return false;
+            }
+
+            if ((eltwiseShape.size() - shape.size()) == 1ul) {
+                shape.insert(shape.begin(), 1ul);
+            }
+
+            for (size_t i = 2ul; i < shape.size(); ++i) {
+                if (shape[i] != 1ul) {
+                    return false;
+                }
+            }
+        }
+    };
 
     std::shared_ptr<Node> inputLowConst = fakeQuantize->get_input_node_shared_ptr(1);
     std::shared_ptr<Node> inputHightConst = fakeQuantize->get_input_node_shared_ptr(2);
