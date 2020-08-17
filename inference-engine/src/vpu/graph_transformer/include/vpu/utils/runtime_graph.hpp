@@ -14,7 +14,7 @@ namespace vpu {
 InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNet(
         GraphMetaInfo &graphMetaInfo,
         const std::vector<float>& perfInfo);
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNgraphNet(
+InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(
         GraphMetaInfo &graphMetaInfo,
         const std::vector<float>& perfInfo);
 

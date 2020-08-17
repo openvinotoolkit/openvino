@@ -4,20 +4,15 @@
 
 #include "vpu/utils/runtime_graph.hpp"
 
-<<<<<<< HEAD
-#include <legacy/cnn_network_impl.hpp>
-=======
-#include "ie_ngraph_utils.hpp"
-#include "inference_engine.hpp"
+#include "generic_ie.hpp"
 
-#include <cnn_network_impl.hpp>
->>>>>>> Execution graph via ngraph for VPU plugin
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/ie_ngraph_utils.hpp>
 #include <exec_graph_info.hpp>
 #include <ngraph/variant.hpp>
 
 #include <vector>
 #include <map>
-#include <string>
 #include <utility>
 #include <memory>
 
@@ -31,7 +26,7 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo&);
 
 }  // namespace
 
-    InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNgraphNet(GraphMetaInfo &graphMetaInfo, const std::vector<float>& perfInfo) {
+    InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo &graphMetaInfo, const std::vector<float>& perfInfo) {
         std::map<size_t, std::shared_ptr<ngraph::Node>> stageMetaIndexToNode;
         std::function<void(size_t)> createNodeFromMeta;
 
