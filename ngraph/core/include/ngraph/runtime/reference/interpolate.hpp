@@ -182,7 +182,7 @@ namespace ngraph
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
                     , m_antialias{attrs.antialias}
-                    , m_cube_coeff{attrs.cube_coeff},
+                    , m_cube_coeff{attrs.cube_coeff}
                     , m_input_data_shape{input_data_shape}
                     , m_axes{axes}
                     , m_out_shape{out_shape}
