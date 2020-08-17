@@ -24,6 +24,7 @@ from mo.ops.op import Op
 reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
+    'ReduceL1': lambda x, axis, keepdims: np.sum(a=np.absolute(x), axis=axis, keepdims=keepdims),
     'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
     'ReduceMax': np.max,
     'ReduceMin': np.min,
@@ -86,12 +87,13 @@ class ReduceOp(Op):
     enabled = False
     op = None
     op_type = None
+    version = 'opset1'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op_type,
-            'version': 'opset1',
+            'version': self.version,
             'infer': reduce_infer,
             'keep_dims': 0,
             'in_ports_count': 2,
@@ -138,10 +140,15 @@ class ReduceMean(ReduceOp):
     enabled = True
 
 
+class ReduceL1(ReduceOp):
+    op = 'ReduceL1'
+    op_type = 'ReduceL1'
+    version = 'opset4'
+
 class ReduceL2(ReduceOp):
     op = 'ReduceL2'
-    op_type = None
-    enabled = True
+    op_type = 'ReduceL2'
+    version = 'opset4'
 
 
 class ReduceAnd(ReduceOp):

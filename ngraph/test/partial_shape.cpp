@@ -783,7 +783,7 @@ TEST(partial_shape, partial_shape_project_rank_static_dynamic)
 TEST(partial_shape, partial_shape_reduce_rank_dynamic)
 {
     PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = reduce(s1, AxisSet{284, 0, 103});
+    PartialShape s2 = reduce(s1, AxisSet{284, 0, 103}, false);
 
     ASSERT_TRUE(s2.rank().is_dynamic());
 }
@@ -791,7 +791,7 @@ TEST(partial_shape, partial_shape_reduce_rank_dynamic)
 TEST(partial_shape, partial_shape_reduce_rank_static_dynamic)
 {
     PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = reduce(s1, AxisSet{0, 3});
+    PartialShape s2 = reduce(s1, AxisSet{0, 3}, false);
 
     ASSERT_TRUE(s2.same_scheme(PartialShape{2, Dimension::dynamic()}));
 }

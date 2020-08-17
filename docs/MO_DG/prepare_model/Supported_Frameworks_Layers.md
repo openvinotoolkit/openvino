@@ -150,6 +150,7 @@ Standard TensorFlow\* operations:
 | ExpandDims | No |
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
+| EuclideanNorm | No |
 | Fill | No |
 | Floor | No |
 | FusedBatchNorm | No |
@@ -365,6 +366,8 @@ Standard ONNX\* operators:
 | ROIAlign | No |
 | Range | No |
 | Reciprocal | No |
+| ReduceL1 | No |
+| ReduceL2 | No |
 | ReduceMax | No |
 | ReduceMean | No |
 | ReduceMin | No |

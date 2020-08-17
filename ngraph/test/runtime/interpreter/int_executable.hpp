@@ -204,8 +204,8 @@ protected:
             reference::any(args[0]->get_data_ptr<const char>(),
                            out[0]->get_data_ptr<char>(),
                            node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           any->get_reduction_axes());
+                           any->get_reduction_axes(),
+                           false);
             break;
         }
         case OP_TYPEID::Asin:

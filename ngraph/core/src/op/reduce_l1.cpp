@@ -14,39 +14,35 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/product.hpp"
+#include "ngraph/op/reduce_l1.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/product.hpp"
+#include "ngraph/runtime/reference/reduce_l1.hpp"
 #include "ngraph/shape_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::Product::type_info;
+constexpr NodeTypeInfo op::v4::ReduceL1::type_info;
 
-op::v0::Product::Product(const Output<Node>& arg, const AxisSet& reduction_axes)
-    : ArithmeticReduction(arg, reduction_axes)
+op::v4::ReduceL1::ReduceL1(const Output<Node>& arg,
+                           const Output<Node>& reduction_axes,
+                           bool keep_dims)
+    : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims)
 {
     constructor_validate_and_infer_types();
 }
 
-op::v0::Product::Product(const Output<Node>& arg, const Output<Node>& reduction_axes)
-    : ArithmeticReduction(arg, reduction_axes)
+shared_ptr<Node> op::v4::ReduceL1::get_default_value() const
 {
-    constructor_validate_and_infer_types();
+    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
 
-shared_ptr<Node> op::v0::Product::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::Product>(new_args.at(0), get_reduction_axes());
-}
-
-shared_ptr<Node> op::v0::Product::get_default_value() const
-{
-    return ngraph::make_constant_from_string("1", get_element_type(), get_shape());
+    return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
 namespace
@@ -58,15 +54,15 @@ namespace
                   bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
-        runtime::reference::product(
+        runtime::reference::reduce_l1(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
-    bool evaluate_product(const HostTensorPtr& arg,
-                          const HostTensorPtr& out,
-                          const AxisSet& axes,
-                          bool keep_dims)
+    bool evaluate_sum(const HostTensorPtr& arg,
+                      const HostTensorPtr& out,
+                      const AxisSet& axes,
+                      bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
@@ -75,9 +71,7 @@ namespace
             break;
             TYPE_CASE(i64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u64)(arg, out, axes, keep_dims);
+            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
             break;
             TYPE_CASE(f16)(arg, out, axes, keep_dims);
             break;
@@ -89,9 +83,9 @@ namespace
     }
 }
 
-bool op::v0::Product::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
+bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Product::evaluate");
-    return evaluate_product(inputs[0], outputs[0], get_reduction_axes(), false);
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL1::evaluate");
+    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

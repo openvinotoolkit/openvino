@@ -46,14 +46,16 @@ static shared_ptr<op::Constant>
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   max->get_reduction_axes());
+                                   max->get_reduction_axes(),
+                                   false);
     }
     else if (auto reduce_max = as_type_ptr<op::v1::ReduceMax>(reduction_node))
     {
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   reduce_max->get_reduction_axes());
+                                   reduce_max->get_reduction_axes(),
+                                   reduce_max->get_keep_dims());
     }
     else if (auto min = as_type_ptr<op::Min>(reduction_node))
     {
@@ -74,35 +76,40 @@ static shared_ptr<op::Constant>
         runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
-                                       prod->get_reduction_axes());
+                                       prod->get_reduction_axes(),
+                                       false);
     }
     else if (auto reduce_prod = as_type_ptr<op::v1::ReduceProd>(reduction_node))
     {
         runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
-                                       reduce_prod->get_reduction_axes());
+                                       reduce_prod->get_reduction_axes(),
+                                       reduce_prod->get_keep_dims());
     }
     else if (auto sum = as_type_ptr<op::Sum>(reduction_node))
     {
         runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   sum->get_reduction_axes());
+                                   sum->get_reduction_axes(),
+                                   false);
     }
     else if (auto reduce_sum = as_type_ptr<op::v1::ReduceSum>(reduction_node))
     {
         runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   reduce_sum->get_reduction_axes());
+                                   reduce_sum->get_reduction_axes(),
+                                   reduce_sum->get_keep_dims());
     }
     else if (auto reduce_mean = as_type_ptr<op::v1::ReduceMean>(reduction_node))
     {
         runtime::reference::mean<T>(constant->get_data_ptr<T>(),
                                     data_ptr,
                                     constant->get_output_shape(0),
-                                    reduce_mean->get_reduction_axes());
+                                    reduce_mean->get_reduction_axes(),
+                                    reduce_mean->get_keep_dims());
     }
     else
     {

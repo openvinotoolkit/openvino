@@ -53,30 +53,36 @@ shared_ptr<Node> op::v0::Sum::get_default_value() const
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate(const HostTensorPtr& arg,
+                  const HostTensorPtr& out,
+                  const AxisSet& axes,
+                  bool keep_dims)
     {
-        out->set_shape(reduce(arg->get_shape(), axes));
+        out->set_shape(reduce(arg->get_shape(), axes, false));
         runtime::reference::sum(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
-    bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate_sum(const HostTensorPtr& arg,
+                      const HostTensorPtr& out,
+                      const AxisSet& axes,
+                      bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes);
+            TYPE_CASE(i32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(i64)(arg, out, axes);
+            TYPE_CASE(i64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u32)(arg, out, axes);
+            TYPE_CASE(u32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u64)(arg, out, axes);
+            TYPE_CASE(u64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f16)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes, keep_dims);
             break;
         default: rc = false; break;
         }
@@ -87,5 +93,5 @@ namespace
 bool op::v0::Sum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Sum::evaluate");
-    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());
+    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), false);
 }

@@ -30,10 +30,10 @@ namespace ngraph
             static inline void any(const char* arg,
                                    char* out,
                                    const Shape& in_shape,
-                                   const Shape& out_shape,
-                                   const AxisSet& reduction_axes)
+                                   const AxisSet& reduction_axes,
+                                   bool keep_dims)
             {
-                CoordinateTransform output_transform(out_shape);
+                CoordinateTransform output_transform(reduce(in_shape, reduction_axes, keep_dims));
 
                 for (const Coordinate& output_coord : output_transform)
                 {
@@ -44,7 +44,7 @@ namespace ngraph
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
                     out[output_transform.index(output_coord)] =
                         out[output_transform.index(output_coord)] ||
                         arg[input_transform.index(input_coord)];

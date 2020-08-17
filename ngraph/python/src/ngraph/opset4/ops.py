@@ -313,3 +313,37 @@ def proposal(
     return _get_node_factory_opset4().create(
         "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
     )
+
+
+@nameable_op
+def reduce_l1(
+    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+) -> Node:
+    """L1-reduction operation on input tensor, eliminating the specified reduction axes.
+
+    :param node:           The tensor we want to mean-reduce.
+    :param reduction_axes: The axes to eliminate through mean operation.
+    :param keep_dims:      If set to True it holds axes that are used for reduction
+    :param name:           Optional name for output node.
+    :return: The new node performing mean-reduction operation.
+    """
+    return _get_node_factory_opset4().create(
+        "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+    )
+
+
+@nameable_op
+def reduce_l2(
+    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+) -> Node:
+    """L2-reduction operation on input tensor, eliminating the specified reduction axes.
+
+    :param node:           The tensor we want to mean-reduce.
+    :param reduction_axes: The axes to eliminate through mean operation.
+    :param keep_dims:      If set to True it holds axes that are used for reduction
+    :param name:           Optional name for output node.
+    :return: The new node performing mean-reduction operation.
+    """
+    return _get_node_factory_opset4().create(
+        "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+    )

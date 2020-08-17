@@ -33,9 +33,13 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
+            void mean(const T* arg,
+                      T* out,
+                      const Shape& in_shape,
+                      const AxisSet& reduction_axes,
+                      bool keep_dims)
             {
-                auto out_shape = reduce(in_shape, reduction_axes);
+                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
                 CoordinateTransform output_transform(out_shape);
                 std::vector<T> cs(shape_size(out_shape));
 
@@ -50,7 +54,7 @@ namespace ngraph
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
 
                     T x = arg[input_transform.index(input_coord)];
                     T& z = out[output_transform.index(output_coord)];

@@ -333,7 +333,7 @@ namespace ngraph
 
                         for (const Coordinate& output_coord : output_transform)
                         {
-                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes);
+                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
                             out[output_transform.index(output_coord)] =
                                 elementwise_functor(arg0[arg0_transform.index(output_coord)],
                                                     arg1[arg1_transform.index(arg1_coord)]);
@@ -452,9 +452,9 @@ namespace ngraph
 
                         for (const Coordinate& output_coord : output_transform)
                         {
-                            Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes);
-                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes);
-                            Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes);
+                            Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
+                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
+                            Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
                             out[output_transform.index(output_coord)] =
                                 elementwise_functor(arg0[arg0_transform.index(arg0_coord)],
                                                     arg1[arg1_transform.index(arg1_coord)],
@@ -536,8 +536,8 @@ namespace ngraph
 
                     for (const Coordinate& output_coord : output_transform)
                     {
-                        Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes);
-                        Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes);
+                        Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
+                        Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
                         out[output_transform.index(output_coord)] =
                             elementwise_functor(arg0[arg0_transform.index(arg0_coord)],
                                                 arg1[arg1_transform.index(output_coord)],

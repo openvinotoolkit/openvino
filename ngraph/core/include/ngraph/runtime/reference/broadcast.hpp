@@ -58,7 +58,7 @@ namespace ngraph
 
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    Coordinate input_coord = reduce(output_coord, adjusted_axes);
+                    Coordinate input_coord = reduce(output_coord, adjusted_axes, false);
                     out[output_transform.index(output_coord)] =
                         arg[input_transform.index(input_coord)];
                 }
