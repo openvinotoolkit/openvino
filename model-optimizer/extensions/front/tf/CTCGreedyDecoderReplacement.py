@@ -16,9 +16,9 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 from mo.utils.error import Error
 
 
@@ -56,27 +56,25 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         return [match['cast'].id, match['sparse_to_dense']]
 
     def replace_sub_graph(self, graph: Graph, match: dict):
+        # TODO: it requires further refactoring and improvement to provide reshape-ability
         decoder_node = match['decoder']
+        decoder_node_name = decoder_node.soft_get('name', decoder_node.id)
         graph.remove_edge(decoder_node.id, match['sparse_to_dense'].id)
         graph.remove_edge(decoder_node.id, match['cast'].id)
         match['sparse_to_dense'].replace_node(decoder_node)
 
-        # update the TensorFlow infer function for the CTCGreedyDecoder to make necessary changes with the second input
-        decoder_node['old_infer'] = decoder_node.infer
-        decoder_node.infer = __class__.tf_greedy_decoder_infer
-        return {}
-
-    @staticmethod
-    def tf_greedy_decoder_infer(node: Node):
-        sequence_length_node = node.in_node(1)
+        sequence_length_node = decoder_node.in_node(1)
         if sequence_length_node.value is None:
             raise Error('The second input to the CTCGreedyDecoder node "{}" is not constant. This case is not '
-                        'supported with the Inference Engine.'.format(node.soft_get('name')))
-        # the batch size is the dimension with index 1 for the layer CTCGreedyDecoder
-        new_value = np.ones([node.in_node(0).shape[1], sequence_length_node.value[0]])
-        new_value[:, 0] = 0
-        new_value = np.transpose(new_value)
-        sequence_length_node.value = new_value
-        sequence_length_node.shape = int64_array(sequence_length_node.value.shape)
+                        'supported with the Inference Engine.'.format(decoder_node_name))
 
-        node.old_infer(node)
+        # the batch size is the dimension with index 1 for the layer CTCGreedyDecoder
+        mask_value = np.ones([decoder_node.in_node(0).shape[1], sequence_length_node.value[0]])
+        mask_value[:, 0] = 0
+        mask_value = np.transpose(mask_value)
+        mask_node = Const(graph, {'name': decoder_node_name + '/Mask',
+                                  'value': mask_value}).create_node()
+        decoder_node.in_port(1).disconnect()
+        decoder_node.in_port(1).connect(mask_node.out_port(0))
+
+        return {}
