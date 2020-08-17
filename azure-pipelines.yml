@@ -32,7 +32,7 @@ jobs:
       cat /proc/meminfo
       vmstat -s
       df
-    displayName: 'System properties'
+    displayName: 'System info'
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
@@ -145,7 +145,7 @@ jobs:
       xcrun --sdk macosx --show-sdk-version
       env
       sysctl -a
-    displayName: 'System properties'
+    displayName: 'System info'
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
@@ -249,7 +249,7 @@ jobs:
       wmic logicaldisk get description,name
       wmic VOLUME list
       set
-    displayName: 'System properties'
+    displayName: 'System info'
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
@@ -292,7 +292,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\ieUnitTests" /MaxCPUS=40
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\ieUnitTests /test=gtest
     displayName: 'IE UT'
     continueOnError: false
   - script: |
@@ -317,7 +317,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\cpuFuncTests --gtest_print_time=1" /MaxCPUS=40
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\cpuFuncTests --gtest_print_time=1 /test=gtest
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -336,7 +336,7 @@ jobs:
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*" /MaxCPUS=40
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* /test=gtest
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
