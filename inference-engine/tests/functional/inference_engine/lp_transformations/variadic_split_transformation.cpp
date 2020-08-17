@@ -214,14 +214,14 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
-            ngraph::element::u8,
+            ngraph::element::i8,
             {{ngraph::element::f32},
             {},
             {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -268,19 +268,42 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
             }
         }
     },
+     // no Convert
     {
         ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, std::vector<size_t>{ 2, 2 },
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
-            ngraph::element::i8,
-            {}
+            ngraph::element::f32,
+            {{},
+            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4, 1}},
+            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 1, 4, 1}}}
         },
         // ExpectedValues
         {
-            ngraph::element::i8,
-            {}
+            ngraph::element::f32,
+            {
+                {
+                    {},
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                },
+                {
+                    {},
+                    {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                }
+            }
         }
+    },
+    // empty
+    {
+        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, std::vector<size_t>{ 2, 2 },
+        LayerTransformation::createParamsI8I8(),
+        // ActualValues
+        { },
+        // ExpectedValues
+        { }
     },
 };
 INSTANTIATE_TEST_CASE_P(

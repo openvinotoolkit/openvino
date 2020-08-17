@@ -63,34 +63,27 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             previous = convert;
         }
 
-        if (!subSplitLengths.empty()) {
-            const auto newSubConstShape = getConstSplitShape(subSplitLengths, subConstShape, axis, i);
+        if (dequantization.subtract != nullptr) {
+            std::shared_ptr<ngraph::opset1::Constant> subConst;
+            if (!subSplitLengths.empty()) {
+                const auto newSubConstShape = getConstSplitShape(subSplitLengths, subConstShape, axis, i);
 
-            std::vector<float> newSubValues(
-                subValues.begin() + subSplitLengths[i],
-                subValues.begin() + subSplitLengths[i + 1]);
+                std::vector<float> newSubValues(
+                    subValues.begin() + subSplitLengths[i],
+                    subValues.begin() + subSplitLengths[i + 1]);
 
-            const auto subConst = std::make_shared<ngraph::opset1::Constant>(
-                dequantization.subtract->get_input_element_type(1),
-                newSubConstShape,
-                newSubValues);
-
-            auto subtract = dequantization.subtract ? std::make_shared<ngraph::opset1::Subtract>(previous, subConst) : nullptr;
-            if (subtract != nullptr) {
-                previous = subtract;
+                subConst = as_type_ptr<ngraph::opset1::Constant>(std::make_shared<ngraph::opset1::Constant>(
+                    dequantization.subtract->get_input_element_type(1),
+                    newSubConstShape,
+                    newSubValues));
+            } else {
+                subConst = as_type_ptr<ngraph::opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}));
             }
-        } else {
-            auto subtract = dequantization.subtract ?
-                std::make_shared<ngraph::opset1::Subtract>(
-                    previous,
-                    dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({})) :
-                nullptr;
-            if (subtract != nullptr) {
-                previous = subtract;
-            }
+            const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(previous, subConst);
+            previous = subtract;
         }
 
-        std::shared_ptr<ngraph::Node> multiply;
+        std::shared_ptr<ngraph::opset1::Constant> mulConst;
         if (!mulSplitLengths.empty()) {
             const auto newMulConstShape = getConstSplitShape(mulSplitLengths, mulConstShape, axis, i);
 
@@ -98,14 +91,12 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
                 mulValues.begin() + mulSplitLengths[i],
                 mulValues.begin() + mulSplitLengths[i + 1]);
 
-            auto mul_const = std::make_shared<ngraph::opset1::Constant>(
-                dequantization.multiply->get_input_element_type(1), newMulConstShape, newMulValues);
-            multiply = std::make_shared<ngraph::opset1::Multiply>(previous, mul_const);
+            mulConst = as_type_ptr<ngraph::opset1::Constant>(std::make_shared<ngraph::opset1::Constant>(
+                dequantization.multiply->get_input_element_type(1), newMulConstShape, newMulValues));
         } else {
-            multiply = std::make_shared<ngraph::opset1::Multiply>(
-                previous,
-                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}));
+            mulConst = as_type_ptr<ngraph::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}));
         }
+        const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(previous, mulConst);
 
         lastNodes.push_back(multiply);
         replacement.push_back(multiply);
