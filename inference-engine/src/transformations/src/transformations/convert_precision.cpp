@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace ngraph;
 
