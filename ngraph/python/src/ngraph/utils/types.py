@@ -124,6 +124,13 @@ def get_ndarray(data: NumericData) -> np.ndarray:
     return np.array(data)
 
 
+def get_shape(data: NumericData) -> TensorShape:
+    """Wrap data into a numpy ndarray."""
+    if type(data) == np.ndarray:
+        return data.shape  # type: ignore
+    return []
+
+
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
     """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
