@@ -38,7 +38,6 @@ public:
     {
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
-        construct_constant_variadic_split();
         construct_constant_pad();
         construct_constant_quantize();
         construct_constant_dequantize();
@@ -62,7 +61,6 @@ private:
     void construct_constant_gather_with_subgraph();
     void construct_constant_scatter_elements_update();
     void construct_constant_select();
-    void construct_constant_variadic_split();
     void construct_constant_one_hot();
     void construct_constant_default();
 

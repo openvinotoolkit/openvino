@@ -21,6 +21,9 @@
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/validation_util.hpp"
 
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/slice.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -141,4 +144,120 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
 {
     check_new_args_count(this, new_args);
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
+}
+
+namespace
+{
+    inline bool evaluate(const HostTensorPtr& in,
+                         const HostTensorPtr& out,
+                         const Coordinate& lower_bounds,
+                         const Coordinate& upper_bounds)
+    {
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  lower_bounds,
+                                  upper_bounds,
+                                  Strides(lower_bounds.size(), 1),
+                                  out->get_shape(),
+                                  in->get_element_type().size());
+
+        return true;
+    }
+
+    bool evaluate_variadic_split(const HostTensorPtr& data_tensor,
+                                 const HostTensorPtr& axis_tensor,
+                                 const HostTensorPtr& split_lengths_tensor,
+                                 const HostTensorVector& outputs,
+                                 const Node* split_node)
+    {
+        int64_t axis;
+        switch (axis_tensor->get_element_type())
+        {
+        case element::Type_t::i16: axis = read_vector<int16_t>(axis_tensor)[0]; break;
+        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0]; break;
+        case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
+        case element::Type_t::u64:
+            axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);
+            break;
+        default:
+            NODE_VALIDATION_CHECK(split_node,
+                                  false,
+                                  "Not supported axis type: ",
+                                  axis_tensor->get_element_type(),
+                                  " during evaluate Split:v1");
+            break;
+        }
+        axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+
+        std::vector<int64_t> split_lengths;
+        switch (split_lengths_tensor->get_element_type())
+        {
+        case element::Type_t::i32:
+        {
+            const auto split_lengths_i32 = read_vector<int32_t>(split_lengths_tensor);
+            split_lengths =
+                std::vector<int64_t>(std::begin(split_lengths_i32), std::end(split_lengths_i32));
+            break;
+        }
+        case element::Type_t::i64:
+        {
+            const auto split_lengths_i64 = read_vector<int64_t>(split_lengths_tensor);
+            split_lengths =
+                std::vector<int64_t>(std::begin(split_lengths_i64), std::end(split_lengths_i64));
+            break;
+        }
+        case element::Type_t::u64:
+        {
+            const auto split_lengths_u64 = read_vector<uint64_t>(split_lengths_tensor);
+            split_lengths =
+                std::vector<int64_t>(std::begin(split_lengths_u64), std::end(split_lengths_u64));
+            break;
+        }
+        default:
+            NODE_VALIDATION_CHECK(split_node,
+                                  false,
+                                  "Not supported split lengths type: ",
+                                  split_lengths_tensor->get_element_type(),
+                                  " during evaluate Split:v1");
+            break;
+        }
+
+        const auto data_shape = data_tensor->get_shape();
+        const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
+        if (neg_one != std::end(split_lengths)) // negative length set
+        {
+            const auto sum_of_known_splits =
+                std::accumulate(std::begin(split_lengths), std::end(split_lengths), 0) + 1;
+            split_lengths[std::distance(std::begin(split_lengths), neg_one)] =
+                data_shape[axis] - sum_of_known_splits;
+        }
+
+        Shape output_shape = data_shape;
+        std::vector<size_t> lower_bounds(data_shape.size(), 0);
+        std::vector<size_t> upper_bounds = data_shape;
+        upper_bounds.at(axis) = split_lengths[0];
+
+        int64_t split_pos = 0;
+        for (const auto& output : outputs)
+        {
+            output_shape.at(axis) = split_lengths[split_pos++];
+            output->set_shape(output_shape);
+            evaluate(data_tensor, output, lower_bounds, upper_bounds);
+            lower_bounds.at(axis) = upper_bounds.at(axis);
+            upper_bounds.at(axis) += split_lengths[split_pos];
+        }
+
+        return true;
+    }
+}
+
+bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto& axis = inputs[1];
+    const auto& split_lengths = inputs[2];
+
+    return evaluate_variadic_split(data, axis, split_lengths, outputs, this);
 }
