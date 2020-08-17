@@ -271,10 +271,11 @@ namespace ngraph
                         axes.push_back(ax);
                     }
 
-                    auto axes_const = default_opset::Constant::create(
+                    const auto axes_const = default_opset::Constant::create(
                         ngraph::element::i64, Shape({axes.size()}), axes);
+                    const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, scales, axes_const, attrs)};
+                        data, output_shape, scales, axes_const, attrs)};
                 }
 
             } // namespace set_1
