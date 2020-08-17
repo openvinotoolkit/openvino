@@ -28,6 +28,7 @@ class MemoryOffset(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': 'MemoryOffset',
+            'type': None,
             'pair_name': None,
             'has_default': False,
             'infer': __class__.infer,
@@ -35,8 +36,6 @@ class MemoryOffset(Op):
             'out_ports_count': 1,
         }, attrs)
 
-    def supported_attrs(self):
-        return ['t']
 
     @staticmethod
     def infer(node: Node):
@@ -58,9 +57,19 @@ class MemoryOffset(Op):
             elif pair_node.in_port(0).get_source().node.has_valid('out-size'):
                 out_size = pair_node.in_port(0).get_source().node['out-size']
                 node.out_port(0).data.set_shape(np.array([1, out_size]))
-            elif pair_node.in_port(0).get_source().node.op in ["Add", "ReLU"] and \
-                    pair_node.in_port(0).get_source().node.in_port(0).get_source().node.has_valid('out-size'):
-                out_size = pair_node.in_port(0).get_source().node.in_port(0).get_source().node['out-size']
+            elif pair_node.in_port(0).get_source().node.has_valid('shape'):
+                out_shape = pair_node.in_port(0).get_source().node['shape']
+                node.out_port(0).data.set_shape(out_shape)
+            elif pair_node.in_port(0).get_source().node.op in ["Add", "ReLU"]:
+                if pair_node.in_port(0).get_source().node.in_port(0).get_source().node.has_valid('out-size'):
+                    out_size = pair_node.in_port(0).get_source().node.in_port(0).get_source().node['out-size']
+                    node.out_port(0).data.set_shape(np.array([1, out_size]))
+                elif pair_node.in_port(0).get_source().node.in_port(1).get_source().node.has_valid('out-size'):
+                    out_size = pair_node.in_port(0).get_source().node.in_port(1).get_source().node['out-size']
+                    node.out_port(0).data.set_shape(np.array([1, out_size]))
+            elif pair_node.in_port(0).get_source().node.op == "Mul" and \
+                    pair_node.in_port(0).get_source().node.in_port(0).get_source().node.has_valid('shape'):
+                out_size = pair_node.in_port(0).get_source().node.in_port(0).get_source().node.shape
                 node.out_port(0).data.set_shape(np.array([1, out_size]))
             elif pair_node.in_port(0).get_source().node.has_valid('in_dim'):
                     out_size = pair_node.in_port(0).get_source().node['in_dim']

@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import io
 import os
 import struct
@@ -61,6 +62,8 @@ supported_components = [
     'splicecomponent',
     'sumgroupcomponent',
     'tanhcomponent',
+    'tdnncomponent',
+    'generaldropoutcomponent'
 ]
 
 
