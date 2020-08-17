@@ -27,17 +27,17 @@ bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& const
     return true;
 }
 
-ngraph::pass::HSwishFusionWithRelu::HSwishFusionWithRelu() {
-    // Replaces a sub-graph x * (min(Relu(x + 3), 6) / 6) with a HSwish op.
+ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
+    // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
     auto relu = std::make_shared<ngraph::opset4::Relu>(add);
     auto min_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto min = std::make_shared<ngraph::opset4::Minimum>(relu, min_constant);
+    auto mul = std::make_shared<ngraph::opset4::Multiply>(input, min);
     auto div_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
-    auto div = std::make_shared<ngraph::opset4::Divide>(min, div_constant);
-    auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
+    auto div = std::make_shared<ngraph::opset4::Divide>(mul, div_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
@@ -63,16 +63,16 @@ ngraph::pass::HSwishFusionWithRelu::HSwishFusionWithRelu() {
                                     pattern_to_output.at(relu).get_node_shared_ptr(),
                                     pattern_to_output.at(min_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(min).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr(),
                                     pattern_to_output.at(div_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(div).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul).get_node_shared_ptr()
                                    },
                                   hswish);
         ngraph::replace_node(m.get_match_root(), hswish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "HSwishWithReluFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSwishWithReluDivFusion");
     register_matcher(m, callback);
 }
 
@@ -98,7 +98,7 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
 
         bool valid_constant_values = check_constant_value(add_const_value, 3.0)
                                         && check_constant_value(min_const_value, 6.0)
-                                        && check_constant_value(mul_const_value, (1.0/6.0), 0.001);
+                                        && check_constant_value(mul_const_value, (1.0/6.0), 0.0001);
 
         if (!valid_constant_values) {
             return false;
@@ -112,8 +112,8 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
                                     pattern_to_output.at(relu).get_node_shared_ptr(),
                                     pattern_to_output.at(min_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(mul_first).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(mul_second).get_node_shared_ptr()
                                    },
                                   hswish);
