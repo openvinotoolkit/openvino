@@ -43,7 +43,7 @@ std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise) {
     }
 
     return nullptr;
-};
+}
 
 std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
     if (eltwise->get_input_size() != 2) {
@@ -56,8 +56,7 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
     }
 
     return as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
-};
-
+}
 
 bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
     std::shared_ptr<opset1::Constant> constant = getConstant(eltwise);
@@ -84,7 +83,7 @@ bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
     }
 
     return getData(eltwise) != nullptr;
-};
+}
 
 std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     TransformationContext& context,
