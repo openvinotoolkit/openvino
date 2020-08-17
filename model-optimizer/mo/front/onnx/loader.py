@@ -81,6 +81,15 @@ def protobuf2nx(graph, pb):
         # add to a tensors map
         assert not name in data_nodes_map, 'Inconsistency between data_nodes_map and graph.nodes'
         data_nodes_map[name] = (name, 0)
+    output_ids = []
+    for outp in pb.graph.output:
+        name = str(outp.name)
+        if graph.has_node(name):
+            raise Error('Name {} of output node already exists in graph.', name)
+        else:
+            # add fake node on output
+            graph.add_node(name, kind='op', op='FakeOutput', pb=outp)
+            output_ids.append(name)
 
     # go over all initializer and make sure that all of them are added to the graph
     for initializer in initializers.nodes():
@@ -124,6 +133,17 @@ def protobuf2nx(graph, pb):
 
         # add outgoing edges to data_nodes_map
         for src_port, out in enumerate(node.output):
+            if out in output_ids:
+                edge_attrs = {
+                    'out': src_port,
+                    'in': 0,
+                    'name': out,
+                    'fw_tensor_debug_info': [(out, out)],
+                    'in_attrs': ['in', 'name'],
+                    'out_attrs': ['out', 'name'],
+                    'data_attrs': ['fw_tensor_debug_info']
+                }
+                graph.add_edge(id, out, **edge_attrs)
             if out in data_nodes_map:
                 log.debug("Detected reuse of blob {}.".format(out))
             data_nodes_map[out] = (id, src_port)
