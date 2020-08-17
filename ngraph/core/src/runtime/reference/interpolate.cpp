@@ -16,6 +16,8 @@
 
 #include "ngraph/runtime/reference/interpolate.hpp"
 
+using namespace ngraph::runtime::reference;
+
 float InterpolateEvalHelper::triangle_coeff(float dz)
 {
     return std::max(0.0f, 1.0f - std::fabs(dz));
