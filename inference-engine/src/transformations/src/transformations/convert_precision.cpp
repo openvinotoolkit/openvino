@@ -31,7 +31,10 @@ bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::T
 
 template <typename T>
 bool fuse_type_to_binary_comparision(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted, element::TypeVector{}, element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
@@ -41,7 +44,10 @@ bool fuse_type_to_binary_comparision(std::shared_ptr<ngraph::Node> & node, ngrap
 
 template <typename T>
 bool fuse_type_to_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
                 element::TypeVector{element::boolean, element::boolean}, element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -50,10 +56,13 @@ bool fuse_type_to_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element:
     return false;
 }
 
-template <>
-bool fuse_type_to_logical<opset4::LogicalNot>(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<opset4::LogicalNot>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset4::LogicalNot>>(*casted,
+template <class T>
+bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
                 element::TypeVector{element::boolean}, element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
@@ -61,18 +70,8 @@ bool fuse_type_to_logical<opset4::LogicalNot>(std::shared_ptr<ngraph::Node> & no
     return false;
 }
 
-template <class T>
-bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                element::TypeVector{element::boolean, element::undefined}, element::TypeVector{to});
-        replace_node(node, relaxed_op);
-        return true;
-    }
-    return false;
-}
-
-static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
+bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
         {opset4::Convert::type_info, fuse_type_to_convert},
         {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
@@ -95,13 +94,12 @@ static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&,
         {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
-};
+    };
 
-static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_extend {
-        {opset4::Select::type_info, extend_select_type},
-};
+    static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_extend {
+            {opset4::Select::type_info, extend_select_type},
+    };
 
-bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // As Constant operations can be shared between multiple nGraph Functions so before
     // changing precision we need to understand which Constant consumers belongs
     // to the current nGraph Function
@@ -264,7 +262,10 @@ bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::eleme
 }
 
 bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
         auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
                 element::TypeVector{}, element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -275,8 +276,8 @@ bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::eleme
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto casted = std::dynamic_pointer_cast<opset4::Select>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset4::Select>>(*casted,
-                element::TypeVector{element::boolean, element::undefined, element::undefined},
+        auto relaxed_op = std::make_shared<op::TypeRelaxed<opset4::Select>>(*casted,
+                element::TypeVector{element::boolean},
                 element::TypeVector{});
         replace_node(node, relaxed_op);
         return true;
