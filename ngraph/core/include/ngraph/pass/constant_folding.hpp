@@ -64,5 +64,7 @@ private:
     void construct_constant_one_hot();
     void construct_constant_default();
 
+    bool cf_is_disabled(const std::shared_ptr<Node>&);
+
     ngraph::BuildNodeExecutorMap m_cfmap;
 };
