@@ -21,30 +21,28 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Proposal::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
 
-op::Proposal::Proposal(const Output<Node>& class_probs,
-                       const Output<Node>& class_logits,
-                       const Output<Node>& image_shape,
-                       const ProposalAttrs& attrs)
-    : Op({class_probs, class_logits, image_shape})
+op::v0::Proposal::Proposal(const Output<Node>& class_probs,
+                           const Output<Node>& bbox_deltas,
+                           const Output<Node>& image_shape,
+                           const ProposalAttrs& attrs)
+    : Op({class_probs, bbox_deltas, image_shape})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Proposal::validate_and_infer_types()
+void op::v0::Proposal::validate_and_infer_types()
 {
-    set_input_is_relevant_to_shape(2);
-
     const auto& class_probs_pshape = get_input_partial_shape(0);
-    const auto& class_logits_pshape = get_input_partial_shape(1);
+    const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
     const auto& image_shape_pshape = get_input_partial_shape(2);
-    if (class_probs_pshape.is_static() && class_logits_pshape.is_static() &&
+    if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
         image_shape_pshape.is_static())
     {
         const Shape class_probs_shape{class_probs_pshape.to_shape()};
-        const Shape class_logits_shape{class_logits_pshape.to_shape()};
+        const Shape class_bbox_deltas_shape{class_bbox_deltas_pshape.to_shape()};
         const Shape image_shape_shape{image_shape_pshape.to_shape()};
 
         NODE_VALIDATION_CHECK(
@@ -54,12 +52,12 @@ void op::Proposal::validate_and_infer_types()
             class_probs_shape,
             ").");
 
-        NODE_VALIDATION_CHECK(
-            this,
-            class_logits_shape.size() == 4,
-            "Proposal layer shape class_logits_shape input must have rank 4 (class_logits_shape: ",
-            class_logits_shape,
-            ").");
+        NODE_VALIDATION_CHECK(this,
+                              class_bbox_deltas_shape.size() == 4,
+                              "Proposal layer shape class_bbox_deltas_shape input must have rank 4 "
+                              "(class_bbox_deltas_shape: ",
+                              class_bbox_deltas_shape,
+                              ").");
 
         NODE_VALIDATION_CHECK(
             this,
@@ -84,15 +82,17 @@ void op::Proposal::validate_and_infer_types()
     }
 }
 
-shared_ptr<Node> op::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return make_shared<op::v0::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-bool op::Proposal::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs", m_attrs);
+    //    temporary workaround, remove after #35906 is fixed
+    //    visitor.on_attribute("attrs", m_attrs);
+    visitor.on_attribute("the_proposal", m_attrs);
     return true;
 }
 
@@ -120,4 +120,36 @@ bool AttributeAdapter<op::ProposalAttrs>::visit_attributes(AttributeVisitor& vis
     visitor.on_attribute("box_coordinate_scale", m_ref.box_coordinate_scale);
     visitor.on_attribute("framework", m_ref.framework);
     return true;
+}
+
+NGRAPH_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
+
+op::v4::Proposal::Proposal(const Output<Node>& class_probs,
+                           const Output<Node>& class_bbox_deltas,
+                           const Output<Node>& image_shape,
+                           const op::ProposalAttrs& attrs)
+    : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs)
+{
+    constructor_validate_and_infer_types();
+}
+
+void op::v4::Proposal::validate_and_infer_types()
+{
+    v0::Proposal::validate_and_infer_types();
+
+    const auto& class_probs_pshape = get_input_partial_shape(0);
+    const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
+    const auto& image_shape_pshape = get_input_partial_shape(2);
+    auto batch_size = class_probs_pshape.to_shape()[0];
+    if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
+        image_shape_pshape.is_static())
+        set_output_type(1, get_input_element_type(0), Shape{batch_size * m_attrs.post_nms_topn});
+    else
+        set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+}
+
+std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<op::v4::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }

@@ -607,7 +607,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Proposal>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
