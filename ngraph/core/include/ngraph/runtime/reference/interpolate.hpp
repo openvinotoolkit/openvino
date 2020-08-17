@@ -173,23 +173,40 @@ namespace ngraph
             public:
                 InterpolateEvalHelper() = default;
 
-                InterpolateEvalHelper(const op::v4::Interpolate::InterpolateAttrs& attrs)
+                InterpolateEvalHelper(const op::v4::Interpolate::InterpolateAttrs& attrs,
+                                      const Shape& input_data_shape,
+                                      const std::vector<int64_t>& axes,
+                                      const Shape& out_shape,
+                                      std::vector<float>& m_scales)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
                     , m_antialias{attrs.antialias}
-                    , m_cube_coeff{attrs.cube_coeff}
+                    , m_cube_coeff{attrs.cube_coeff},
+                    , m_input_data_shape{input_data_shape}
+                    , m_axes{axes}
+                    , m_out_shape{out_shape}
+                    , m_scales{scales}
                 {
                 }
 
                 ~InterpolateEvalHelper() = default;
+
+                float triangle_coeff(float dz);
+                std::array<float, 4> get_cubic_coeff(float s, float a);
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
                 InterpolateMode m_interp_mode;
                 double m_cube_coeff;
                 bool m_antialias;
-            }
+
+                Shape m_input_data_shape;
+                std::vector<int64_t> m_axes;
+                Shape m_out_shape;
+
+                std::vector<float> m_scales;
+            };
 
             template <typename T>
             class InterpolateEval final
@@ -224,6 +241,9 @@ namespace ngraph
 
                     m_scales = scales;
 
+                    helper =
+                        InterpolateEvalHelper{attrs, input_data_shape, axes, out_shape, scales};
+
                     switch (m_interp_mode)
                     {
                     case InterpolateMode::nearest: nearest_func(input_data, out); break;
@@ -245,6 +265,8 @@ namespace ngraph
                 Shape m_out_shape;
 
                 std::vector<float> m_scales;
+
+                InterpolateEvalHelper helper;
 
                 void linear_func(const T* input_data, T* out);
                 void linear_onnx_func(const T* input_data, T* out);
@@ -387,7 +409,7 @@ namespace ngraph
                             unsigned_inner_coords_vector[i] = inner_coords_vector[i];
                         }
 
-                        Coordinate inner_coord{unsigned_inner_coords_vector}
+                        Coordinate inner_coord{unsigned_inner_coords_vector};
 
                         wsum += w;
                         summa +=
@@ -539,7 +561,7 @@ namespace ngraph
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         input_coord[axis] = in_coord_int;
                         auto s = static_cast<float>(in_coord - in_coord_int);
-                        cubic_coeffs[axis] = get_cubic_coeff(s, m_cube_coeff);
+                        cubic_coeffs[axis] = helper.get_cubic_coeff(s, m_cube_coeff);
                     }
 
                     float summa = 0.0f;
