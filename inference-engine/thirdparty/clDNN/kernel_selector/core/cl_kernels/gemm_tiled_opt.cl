@@ -42,7 +42,7 @@ inline uint FUNC(get_input0_batch_offset)(uint b, uint f, uint w, uint z) {
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, 0, 0);
 #else // INPUT0_SIMPLE
-#   error gemm_nn_tiled.cl : Unsupported input 0 format
+#   error gemm_tiled_opt.cl : Unsupported input 0 format
 #endif // INPUT0_SIMPLE
 }
 
@@ -50,7 +50,7 @@ inline uint FUNC(get_input1_batch_offset)(uint b, uint f, uint w, uint z) {
 #if INPUT1_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, 0, 0);
 #else // INPUT1_SIMPLE
-#   error gemm_nn_tiled.cl : Unsupported input 1 format
+#   error gemm_tiled_opt.cl : Unsupported input 1 format
 #endif // INPUT1_SIMPLE
 }
 
@@ -59,7 +59,7 @@ inline uint FUNC(get_input2_batch_offset)(uint b, uint f, uint w, uint z) {
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, 0, 0);
 #else // INPUT2_SIMPLE
-#   error gemm_nn_tiled.cl : Unsupported input 2 format
+#   error gemm_tiled_opt.cl : Unsupported input 2 format
 #endif // INPUT2_SIMPLE
 }
 #endif // INPUT2_TYPE
@@ -68,7 +68,7 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 #if OUTPUT_SIMPLE
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, 0, 0);
 #else // OUTPUT_SIMPLE
-#   error gemm_nn_tiled.cl : Unsupported output format
+#   error gemm_tiled_opt.cl : Unsupported output format
 #endif // OUTPUT_SIMPLE
 }
 
@@ -282,14 +282,14 @@ KERNEL(gemm_tiled_opt)(
         b_ptr += N;
     } // Loading leftovers of the matrix B end
 
-    // Loading leftovers of the matrix A and and tile C calculation
+    // Loading leftovers of the matrix A and tile C calculation
     unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
         INPUT0_TYPE a_read = a_ptr[dot_id * K + sglid];
 
         unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
             c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
         }
-    } // Loading leftovers of the matrix A and and tile C calculation end
+    } // Loading leftovers of the matrix A and tile C calculation end
 #endif // TILE_K_NOT_DIVISIBLE
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
