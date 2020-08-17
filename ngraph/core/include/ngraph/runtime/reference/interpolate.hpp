@@ -177,7 +177,7 @@ namespace ngraph
                                       const Shape& input_data_shape,
                                       const std::vector<int64_t>& axes,
                                       const Shape& out_shape,
-                                      std::vector<float>& scales)
+                                      const std::vector<float>& scales)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
