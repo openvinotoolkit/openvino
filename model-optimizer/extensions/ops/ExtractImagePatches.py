@@ -48,11 +48,11 @@ class ExtractImagePatches(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 1), \
+        assert [port.idx for port in node.in_ports().values() if not port.disconnected()] == [0], \
             'Wrong input nodes number for node {} with type ExtractImagePatches'.format(node.soft_get('name', node.id))
         input_shape = node.in_port(0).data.get_shape()
-        if input_shape is None:
-            return
+        name = node.soft_get('name', node.id)
+        assert input_shape is not None, 'Input shape is not set for node {} with type ExtractImagePatches'.format(name)
 
         assert len(input_shape) == 4, 'ExtractImagePatches operation supports only 4D tensors'
 
