@@ -81,3 +81,59 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic_2)
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_5d_to_3d)
+{
+    Shape shape_input{1, 2, 3, 4, 5};
+    Shape shape_r{1, 24, 5};
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 1, shape_input.size() - 2);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(120, 1);
+    vector<float> b(120, 1);
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_r, b);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_6d_to_1d)
+{
+    Shape shape_input{1, 2, 3, 4, 5, 6};
+    Shape shape_r{720};
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 0, shape_input.size() - 1);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(720, 1);
+    vector<float> b(720, 1);
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_r, b);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_unchanged_shape)
+{
+    Shape shape_input{1, 2, 3, 4, 5, 6};
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 2, shape_input.size() - 4);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(720, 1);
+    vector<float> b(720, 1);
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_input, b);
+    test_case.run();
+}
