@@ -43,7 +43,6 @@ public:
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
 
             keep_dims = layer->GetParamAsBool("keep_dims", true);
-            std::cout << keep_dims << std::endl;
             if (keep_dims) {
                 if (data_dims.size() != dst_dims.size())
                     THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
