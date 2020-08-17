@@ -18,8 +18,6 @@
 #include "evaluates_map.hpp"
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
-#include "ngraph/cpio.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/util.hpp"
@@ -29,7 +27,6 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)

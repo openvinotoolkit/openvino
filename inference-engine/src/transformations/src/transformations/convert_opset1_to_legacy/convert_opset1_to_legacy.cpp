@@ -40,14 +40,13 @@
 #include <transformations/batch_norm_decomposition.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <transformations/mul_add_squence_fusion.hpp>
-#include <transformations/mul_add_verification.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
 #include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -79,10 +78,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-    decomp->add_matcher<ngraph::pass::ConvertConvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertGroupConvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();
-    decomp->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
@@ -95,10 +90,23 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
+    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // Convolution/Deconvolution/FullyConnected fusions
+    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
-    fusion->add_matcher<ngraph::pass::ConvMultiplyFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
     fusion->set_name("ngraph::pass::Fusions");
@@ -117,6 +125,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
     anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();

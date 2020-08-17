@@ -20,7 +20,6 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
 
 void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
 
-void visualize_function(std::shared_ptr<ngraph::Function> f, const std::string & file_name);
 
 namespace ngraph {
 namespace pass {

@@ -373,7 +373,12 @@ namespace ngraph
                 for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i) {
                     reverse_axes.insert(i);
                 }
-                reverse<FILTER>(filter, &reversed[0], filter_shape, filter_shape, reverse_axes);
+                reverse(reinterpret_cast<const char*>(filter),
+                        reinterpret_cast<char*>(&reversed[0]),
+                        filter_shape,
+                        filter_shape,
+                        reverse_axes,
+                        sizeof(FILTER));
                 size_t filter_out_channel_axis = num_groups == 1 ? 1 : 2;
                 size_t filter_in_channel_axis = num_groups == 1 ? 0 : 1;
 

@@ -18,16 +18,16 @@
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
 #include <memory>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin_config.hpp"
 #include "caseless.hpp"
 #include <legacy/details/ie_cnn_network_tools.h>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -106,9 +106,11 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
 
-        // Apply all transformations to TensorIterator body
         ngraph::pass::Manager ti_manager;
+        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        // Unroll will be called after all conversions
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
@@ -563,16 +565,5 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
 };  // namespace CLDNNPlugin
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-            { 2, 1,
-             CI_BUILD_NUMBER,
-             "clDNNPlugin" }, std::make_shared<CLDNNPlugin::clDNNEngine>());
-        return OK;
-    }
-    catch (std::exception & ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
-
+static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(CLDNNPlugin::clDNNEngine, version)

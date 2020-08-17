@@ -9,7 +9,6 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
@@ -17,7 +16,8 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 
@@ -52,7 +52,10 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         manager.run_passes(function);
 
         ngraph::pass::Manager ti_manager;
+        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        // Unroll should be called after all conversions
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(function);
     }
 

@@ -20,7 +20,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
-#include "ngraph/op/fused/clamp.hpp"
+#include "ngraph/op/clamp.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
@@ -111,9 +111,7 @@ shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const
 {
     if (m_clip == 0.f)
     {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        return data.as_single_output_node();
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        return data.get_node_shared_ptr();
     }
 
     return make_shared<op::Clamp>(data, -m_clip, m_clip);

@@ -607,7 +607,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Proposal>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
@@ -812,8 +811,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
-            std::string outName = layer->get_friendly_name();
-            if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
+            auto outName = layer->output(i).get_tensor().get_name();
+            if (outName.empty()) {
+                outName = ngraph::op::util::create_ie_output_name(layer->output(i));
+            }
+
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
             SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
@@ -854,12 +856,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->inputs().size() == 1);
+            IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            std::string outName = input.get_node_shared_ptr()->get_friendly_name();
-            if (input.get_node_shared_ptr()->get_output_size() != 1)
-                outName += "." + std::to_string(input.get_index());
-            cnnNetworkImpl->addOutput(outName);
+            auto name = input.get_tensor().get_name();
+            if (!name.empty())
+                cnnNetworkImpl->addOutput(name);
+            else
+                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
             continue;
         }
 

@@ -33,8 +33,8 @@ namespace ngraph
         // clip_before_nms Clip before NMs
         // clip_after_nms  Clip after NMs
         // normalize       Normalize boxes to [0,1]
-        // box_size_scale  Scale factor for scaling box size logits
-        // box_coordinate_scale Scale factor for scaling box coordiate logits
+        // box_size_scale  Scale factor for scaling box size
+        // box_coordinate_scale Scale factor for scaling box coordiate
         // framework            Calculation frameworkrithm to use
         struct ProposalAttrs
         {
@@ -46,12 +46,13 @@ namespace ngraph
             size_t min_size = 1;
             std::vector<float> ratio;
             std::vector<float> scale;
-            bool clip_before_nms = false;
+            bool clip_before_nms = true;
             bool clip_after_nms = false;
             bool normalize = false;
             float box_size_scale = 1.0f;
             float box_coordinate_scale = 1.0f;
             std::string framework;
+            bool infer_probs = false;
         };
 
         namespace v0
@@ -59,17 +60,16 @@ namespace ngraph
             class NGRAPH_API Proposal : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Proposal", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Proposal() = default;
                 /// \brief Constructs a Proposal operation
                 ///
                 /// \param class_probs     Class probability scores
-                /// \param class_logits    Class prediction logits
+                /// \param bbox_deltas     Prediction of bounding box deltas
                 /// \param image_shape     Shape of image
                 /// \param attrs           Proposal op attributes
                 Proposal(const Output<Node>& class_probs,
-                         const Output<Node>& class_logits,
+                         const Output<Node>& bbox_deltas,
                          const Output<Node>& image_shape,
                          const ProposalAttrs& attrs);
 
@@ -79,10 +79,36 @@ namespace ngraph
                 const ProposalAttrs& get_attrs() const { return m_attrs; }
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
 
-            private:
+            protected:
                 ProposalAttrs m_attrs;
             };
         }
+
+        namespace v4
+        {
+            class NGRAPH_API Proposal : public op::v0::Proposal
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+                Proposal() = default;
+                /// \brief Constructs a Proposal operation
+                ///
+                /// \param class_probs     Class probability scores
+                /// \param bbox_deltas     Prediction of bounding box deltas
+                /// \param image_shape     Shape of image
+                /// \param attrs           Proposal op attributes
+                Proposal(const Output<Node>& class_probs,
+                         const Output<Node>& bbox_deltas,
+                         const Output<Node>& image_shape,
+                         const ProposalAttrs& attrs);
+
+                void validate_and_infer_types() override;
+                virtual std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+                const ProposalAttrs& get_attrs() const { return m_attrs; }
+            };
+        }
+
         using v0::Proposal;
     }
 

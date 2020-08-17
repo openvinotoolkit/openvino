@@ -44,7 +44,7 @@ KERNEL(pooling_gpu)(
 )
 {
 #if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX ||\
-    OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+    OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16 || OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BYXF_AF32
     const uint x    = (uint)get_global_id(0);
 #if OUTPUT_DIMS == 5
     const uint y   = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
@@ -81,15 +81,18 @@ KERNEL(pooling_gpu)(
     if (f >= OUTPUT_FEATURE_NUM) {
         return;
     }
-#elif OUTPUT_LAYOUT_YXFB
+#else
     const uint x    = (uint)get_global_id(1);
+#if OUTPUT_DIMS == 5
+    const uint y    = (uint)get_global_id(2) % OUTPUT_SIZE_Y;
+    const uint z    = (uint)get_global_id(2) / OUTPUT_SIZE_Y;
+#else
     const uint y    = (uint)get_global_id(2);
+    const uint z    = 0;
+#endif
     const uint bf   = (uint)get_global_id(0);
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
-    const uint z    = 0;
-#else
-    #error "pooling_gpu_ref: unsupported layout"
 #endif
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
@@ -272,7 +275,7 @@ KERNEL(pooling_gpu)(
 
     OUTPUT_TYPE final_result;
     ACTIVATION_TYPE pool_result = TO_ACTIVATION_TYPE(result);
-    
+
 #if HAS_FUSED_OPS
       FUSED_OPS;
       final_result = FUSED_OPS_RESULT;

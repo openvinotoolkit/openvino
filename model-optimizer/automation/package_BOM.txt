@@ -120,6 +120,7 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
+extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
@@ -608,6 +609,7 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
 extensions/ops/GatherNd.py
@@ -707,6 +709,8 @@ install_prerequisites/install_prerequisites_onnx.bat
 install_prerequisites/install_prerequisites_onnx.sh
 install_prerequisites/install_prerequisites_tf.bat
 install_prerequisites/install_prerequisites_tf.sh
+install_prerequisites/install_prerequisites_tf2.bat
+install_prerequisites/install_prerequisites_tf2.sh
 install_prerequisites/protobuf-3.6.1-py3.5-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
@@ -981,3 +985,4 @@ requirements_kaldi.txt
 requirements_mxnet.txt
 requirements_onnx.txt
 requirements_tf.txt
+requirements_tf2.txt

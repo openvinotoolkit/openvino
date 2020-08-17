@@ -341,6 +341,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
 
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
     //
     // Final check
     //

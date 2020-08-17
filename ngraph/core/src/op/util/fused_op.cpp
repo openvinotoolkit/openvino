@@ -20,6 +20,8 @@
 
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 op::util::FusedOp::FusedOp()
     : Op()
 {
@@ -47,7 +49,7 @@ void op::util::FusedOp::validate_and_infer_types()
     validate_nodes_and_infer_types(subgraph);
 
     size_t i = 0;
-    for (auto output : subgraph_outputs)
+    for (const auto& output : subgraph_outputs)
     {
         if (i >= get_output_size())
         {

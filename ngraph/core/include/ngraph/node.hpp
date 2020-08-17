@@ -155,6 +155,9 @@ namespace ngraph
     protected:
         /// \brief Construct an unitialized Node
         Node() {}
+        /// \brief Copying a node
+        Node(const Node&);
+
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
         Node(size_t output_size);
@@ -233,7 +236,7 @@ namespace ngraph
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
-        virtual const std::string& description() const;
+        virtual std::string description() const;
         /// \brief Get the unique name of the node.
         /// \returns A const reference to the node's unique name.
         const std::string& get_name() const;
@@ -301,11 +304,6 @@ namespace ngraph
 
         /// Returns the partial shape for output i
         const PartialShape& get_output_partial_shape(size_t i) const;
-
-        /// Second argument is ignored
-        /// Returns the node if i=0 and the node has 1 output, otherwise a GetOutputElement
-        /// If the node is a GetOutputElement, applies to the underlying node
-        std::shared_ptr<Node> get_output_as_single_output_node(size_t i);
 
         /// Return the output to use when converting to an Output<Node> with no index specified.
         /// Throws when not supported.

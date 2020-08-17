@@ -56,6 +56,8 @@ public:
 
     virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
 
+    virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
+
     virtual void SetRefMode(RefMode mode);
 
 protected:

@@ -44,7 +44,6 @@ endif()
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
-    assertion.cpp
     attributes.cpp
     bfloat16.cpp
     build_graph.cpp
@@ -56,7 +55,6 @@ set(SRC
     convert_u1_to_string.cpp
     coordinate.cpp
     copy.cpp
-    cpio.cpp
     element_type.cpp
     eval.cpp
     file_util.cpp
@@ -77,6 +75,7 @@ set(SRC
     op_eval/non_zero.cpp
     op_eval/split.cpp
     op_eval/strided_slice.cpp
+    op_eval/variadic_split.cpp
     op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
@@ -121,7 +120,6 @@ set(SRC
     type_prop/gather.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
-    type_prop/get_output_element.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp

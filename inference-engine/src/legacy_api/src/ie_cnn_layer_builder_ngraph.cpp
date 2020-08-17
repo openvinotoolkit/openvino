@@ -264,11 +264,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     for (const auto& desc : tensor_iterator->get_output_descriptions()) {
         auto result = results[desc->m_body_value_index]->input(0).get_source_output();
 
-        // GetOutputElement layer can be inserted by ngraph deep copy functions
-        // Take the previous layer.
-        if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
-            result = result.get_node()->input(0).get_source_output();
-        }
         std::string name = result.get_node()->get_friendly_name();
         if (result.get_node()->get_output_size() > 1) {
             name += "." + std::to_string(result.get_index());
@@ -328,11 +323,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
 
                 auto result = results[input_desc->m_body_value_index]->inputs()[0].get_source_output();
 
-                // GetOutputElement layer can be inserted by ngraph deep copy functions
-                // Take the previous layer.
-                if (::ngraph::is_type<ngraph::op::GetOutputElement>(result.get_node_shared_ptr())) {
-                    result = result.get_node()->input(0).get_source_output();
-                }
                 // Create correct name for output.
                 std::string output_name = result.get_node()->get_friendly_name();
                 if (result.get_node()->get_output_size() > 1) {
@@ -1434,7 +1424,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr NodeConverter<ngraph::op::v0::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     THROW_IE_EXCEPTION << "Proposal operation should be converted to ProposalIE";
 }
 

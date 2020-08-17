@@ -26,6 +26,8 @@
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace onnx_import
@@ -193,15 +195,11 @@ namespace ngraph
                     OutputVector node_outputs;
                     for (const auto& v : final_values)
                     {
-                        NGRAPH_SUPPRESS_DEPRECATED_START
-                        node_outputs.push_back(v.as_single_output_node());
-                        NGRAPH_SUPPRESS_DEPRECATED_END
+                        node_outputs.push_back(v);
                     }
                     for (const auto& v : scan_outputs)
                     {
-                        NGRAPH_SUPPRESS_DEPRECATED_START
-                        node_outputs.push_back(v.as_single_output_node());
-                        NGRAPH_SUPPRESS_DEPRECATED_END
+                        node_outputs.push_back(v);
                     }
                     return node_outputs;
                 }

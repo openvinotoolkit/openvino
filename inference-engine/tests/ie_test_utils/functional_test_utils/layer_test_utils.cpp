@@ -64,6 +64,32 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     }
 }
 
+void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
+    auto get_raw_buffer = [] (const InferenceEngine::Blob::Ptr &blob) {
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        return lockedMemory.as<const std::uint8_t *>();
+    };
+    const auto expectedBuffer = get_raw_buffer(expected);
+    const auto actualBuffer = get_raw_buffer(actual);
+
+    const auto &precision = actual->getTensorDesc().getPrecision();
+    const auto &size = actual->size();
+    switch (precision) {
+        case InferenceEngine::Precision::FP32:
+            Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
+                    size, threshold);
+            break;
+        case InferenceEngine::Precision::I32:
+            Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
+                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
+            break;
+        default:
+            FAIL() << "Comparator for " << precision << " precision isn't supported";
+    }
+}
+
 void LayerTestsCommon::ConfigurePlugin() {
     if (!configuration.empty()) {
         core->SetConfig(configuration, targetDevice);
