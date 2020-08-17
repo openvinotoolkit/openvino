@@ -80,7 +80,7 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
     new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
-    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo().begin()->second->getLayout());
+    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
 }
 
 TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
