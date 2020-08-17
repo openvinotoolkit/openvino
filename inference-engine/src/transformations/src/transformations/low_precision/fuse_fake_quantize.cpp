@@ -33,75 +33,98 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetS
     return op;
 }
 
+std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise) {
+    if (!is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
+        return eltwise->get_input_node_shared_ptr(0);
+    }
+
+    if (!is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
+        return eltwise->get_input_node_shared_ptr(1);
+    }
+
+    return nullptr;
+};
+
+std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
+    if (eltwise->get_input_size() != 2) {
+        return nullptr;
+    }
+
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+    if (constant != nullptr) {
+        return constant;
+    }
+
+    return as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
+};
+
+
+bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
+    std::shared_ptr<opset1::Constant> constant = getConstant(eltwise);
+    if (constant == nullptr) {
+        return false;
+    }
+
+    Shape shape = constant->get_output_shape(0);
+    if ((!shape.empty()) && (shape_size(shape) != 1ul)) {
+        const Shape eltwiseShape = eltwise->get_output_shape(0);
+        if ((eltwiseShape.size() - shape.size()) > 1) {
+            return false;
+        }
+
+        if ((eltwiseShape.size() - shape.size()) == 1ul) {
+            shape.insert(shape.begin(), 1ul);
+        }
+
+        for (size_t i = 2ul; i < shape.size(); ++i) {
+            if (shape[i] != 1ul) {
+                return false;
+            }
+        }
+    }
+
+    return getData(eltwise) != nullptr;
+};
+
 std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     TransformationContext& context,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    auto eltwiseWithConstant = [](const std::shared_ptr<Node>& eltwise) -> bool {
-        std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
-        // not supported
-        // if (constant == nullptr) {
-        //    constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
-        // }
-        if (constant == nullptr) {
-            return false;
-        }
-
-        Shape shape = constant->get_output_shape(0);
-        if ((!shape.empty()) && (shape_size(shape) != 1ul)) {
-            const Shape eltwiseShape = eltwise->get_output_shape(0);
-            if ((eltwiseShape.size() - shape.size()) > 1) {
-                return false;
-            }
-
-            if ((eltwiseShape.size() - shape.size()) == 1ul) {
-                shape.insert(shape.begin(), 1ul);
-            }
-
-            for (size_t i = 2ul; i < shape.size(); ++i) {
-                if (shape[i] != 1ul) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    };
-
     std::shared_ptr<Node> inputLowConst = fakeQuantize->get_input_node_shared_ptr(1);
     std::shared_ptr<Node> inputHightConst = fakeQuantize->get_input_node_shared_ptr(2);
 
+    std::shared_ptr<opset1::Constant> constant = getConstant(eltwise);
     if (is_type<opset1::Multiply>(eltwise) && eltwiseWithConstant(eltwise)) {
-        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
-            eltwise->get_input_node_shared_ptr(1) :
-            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
+        const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            constant :
+            fold<opset1::Convert>(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = updateShape(fold<opset1::Divide>(inputLowConst, value), fakeQuantize->get_output_shape(0));
         inputHightConst = updateShape(fold<opset1::Divide>(inputHightConst, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Divide>(eltwise) && eltwiseWithConstant(eltwise)) {
-        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
-            eltwise->get_input_node_shared_ptr(1) :
-            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
+        const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            constant :
+            fold<opset1::Convert>(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = updateShape(fold<opset1::Multiply>(inputLowConst, value), fakeQuantize->get_output_shape(0));
         inputHightConst = updateShape(fold<opset1::Multiply>(inputHightConst, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Subtract>(eltwise) && eltwiseWithConstant(eltwise)) {
-        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
-            eltwise->get_input_node_shared_ptr(1) :
-            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
+        const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            constant :
+            fold<opset1::Convert>(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = updateShape(fold<opset1::Add>(inputLowConst, value), fakeQuantize->get_output_shape(0));
         inputHightConst = updateShape(fold<opset1::Add>(inputHightConst, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Add>(eltwise) && eltwiseWithConstant(eltwise)) {
-        if (is_type<opset1::Convolution>(eltwise->get_input_node_shared_ptr(0)) ||
-            is_type<opset1::GroupConvolution>(eltwise->get_input_node_shared_ptr(0))) {
+        if (is_type<opset1::Convolution>(getData(eltwise)) ||
+            is_type<opset1::GroupConvolution>(getData(eltwise))) {
             return nullptr;
         }
 
-        const auto value = eltwise->get_input_node_shared_ptr(1)->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
-            eltwise->get_input_node_shared_ptr(1) :
-            fold<opset1::Convert>(eltwise->get_input_node_shared_ptr(1), eltwise->get_output_element_type(0));
+        const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
+            constant :
+            fold<opset1::Convert>(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = updateShape(fold<opset1::Subtract>(inputLowConst, value), fakeQuantize->get_output_shape(0));
         inputHightConst = updateShape(fold<opset1::Subtract>(inputHightConst, value), fakeQuantize->get_output_shape(0));
@@ -112,7 +135,7 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     }
 
     std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        eltwise->get_input_node_shared_ptr(0),
+        getData(eltwise),
         inputLowConst,
         inputHightConst,
         fakeQuantize->input_value(3),
