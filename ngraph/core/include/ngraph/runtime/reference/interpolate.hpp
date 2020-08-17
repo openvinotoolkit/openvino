@@ -242,6 +242,17 @@ namespace ngraph
 
                 ICoords get_icoords(const Coordinate& output_coord);
 
+                struct LinearModeInnerIterationResult
+                {
+                    bool condition;
+                    float w;
+                    Coordinate inner_coord;
+                };
+
+                LinearModeInnerIterationResult inner_calculation(const Coordinate& output_coord,
+                                                                 const ICoords& icoords_data,
+                                                                 const InfoForLinearMode& info);
+
                 int64_t clip_coord(int64_t coord, float length)
                 {
                     return std::max(static_cast<int64_t>(0),
@@ -351,54 +362,15 @@ namespace ngraph
                     CoordinateTransform indices{info.shape_for_indeces};
                     for (const auto& index : indices)
                     {
-                        std::vector<int64_t> inner_coords_vector(input_rank);
-                        for (std::size_t i = 0; i < input_rank; ++i)
-                        {
-                            inner_coords_vector[i] = output_coord[i];
-                        }
-
-                        for (std::size_t i = 0; i < num_of_axes; ++i)
-                        {
-                            int64_t axis = m_axes[i];
-                            inner_coords_vector[axis] = index[i] + icoords_data.icoords_r[axis] - info.r[i];
-                        }
-
-                        bool condition = true;
-                        for (int64_t axis : m_axes)
-                        {
-                            condition = condition && (inner_coords_vector[axis] >= 0) &&
-                                        (inner_coords_vector[axis] < m_input_data_shape[axis]);
-                        }
-
-                        if (!condition)
+                        auto inner_result = helper.inner_calculation(output_coord, icoords_data, info);
+                        if (!inner_result.condition)
                         {
                             continue;
                         }
 
-                        std::vector<float> dz(num_of_axes);
-                        for (std::size_t i = 0; i < num_of_axes; ++i)
-                        {
-                            int64_t axis = m_axes[i];
-                            dz[i] = icoords_data.icoords[axis] - inner_coords_vector[axis];
-                        }
-
-                        float w = info.prod_a;
-                        for (std::size_t i = 0; i < num_of_axes; ++i)
-                        {
-                            w *= helper.triangle_coeff(info.a[i] * dz[i]);
-                        }
-
-                        std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
-                        for (std::size_t i = 0; i < input_rank; ++i)
-                        {
-                            unsigned_inner_coords_vector[i] = inner_coords_vector[i];
-                        }
-
-                        Coordinate inner_coord{unsigned_inner_coords_vector};
-
-                        wsum += w;
-                        summa +=
-                            w * static_cast<float>(input_data[input_transform.index(inner_coord)]);
+                        wsum += inner_result.w;
+                        summa += inner_result.w *
+                                 static_cast<float>(input_data[input_transform.index(inner_result.inner_coord)]);
                     }
 
                     if (wsum == 0.0f)

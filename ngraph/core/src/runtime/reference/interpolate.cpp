@@ -230,13 +230,76 @@ InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordina
     {
         int64_t axis = m_axes[i];
         float coordinate = static_cast<float>(output_coord[axis]);
-        float in_coord = helper.get_in_coord(coordinate, i);
+        float in_coord = get_in_coord(coordinate, i);
         icoords[axis] = in_coord;
         icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
     }
 
     result.icoords = icoords;
     result.icoords_r = icoords_r;
+
+    return result;
+}
+
+InterpolateEvalHelper::LinearModeInnerIterationResult
+    InterpolateEvalHelper::inner_calculation(const Coordinate& output_coord,
+                                             const ICoords& icoords_data,
+                                             const InfoForLinearMode& info)
+{
+
+    std::size_t input_rank = m_input_data_shape.size();
+    std::size_t num_of_axes = m_axes.size();
+
+    LinearModeInnerIterationResult result;
+
+    std::vector<int64_t> inner_coords_vector(input_rank);
+    for (std::size_t i = 0; i < input_rank; ++i)
+    {
+        inner_coords_vector[i] = output_coord[i];
+    }
+
+    for (std::size_t i = 0; i < num_of_axes; ++i)
+    {
+        int64_t axis = m_axes[i];
+        inner_coords_vector[axis] = index[i] + icoords_data.icoords_r[axis] - info.r[i];
+    }
+
+    bool condition = true;
+    for (int64_t axis : m_axes)
+    {
+        condition = condition && (inner_coords_vector[axis] >= 0) &&
+                    (inner_coords_vector[axis] < m_input_data_shape[axis]);
+    }
+
+    result.condition = condition;
+    if (!condition)
+    {
+        return result;
+    }
+
+    std::vector<float> dz(num_of_axes);
+    for (std::size_t i = 0; i < num_of_axes; ++i)
+    {
+        int64_t axis = m_axes[i];
+        dz[i] = icoords_data.icoords[axis] - inner_coords_vector[axis];
+    }
+
+    float w = info.prod_a;
+    for (std::size_t i = 0; i < num_of_axes; ++i)
+    {
+        w *= triangle_coeff(info.a[i] * dz[i]);
+    }
+
+    std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
+    for (std::size_t i = 0; i < input_rank; ++i)
+    {
+        unsigned_inner_coords_vector[i] = inner_coords_vector[i];
+    }
+
+    Coordinate inner_coord{unsigned_inner_coords_vector};
+
+    result.w = w;
+    result.inner_coord = inner_coord;
 
     return result;
 }
