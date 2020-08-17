@@ -215,6 +215,8 @@ namespace ngraph
 
                     int64_t batch_size;
                     int64_t num_channels;
+                    int64_t input_height;
+                    int64_t input_width;
                     int64_t output_height;
                     int64_t output_width;
                 };
@@ -443,6 +445,8 @@ namespace ngraph
                 int64_t num_channels = info.num_channels;
                 int64_t output_height = info.output_height;
                 int64_t output_width = info.output_width;
+                int64_t input_height = info.input_height;
+                int64_t input_width = info.input_width;
 
                 const T* xdata = input_data;
                 T* ydata = out;
@@ -526,7 +530,7 @@ namespace ngraph
 
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    auto input_coord = get_input_coords_for_nearest_mode(output_coord);
+                    auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }

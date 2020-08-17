@@ -154,6 +154,9 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     result.num_channels = num_channels;
     result.output_height = output_height;
     result.output_width = output_width;
+    result.input_height = input_height;
+    result.input_width = input_width;
+
 
     return result;
 }
