@@ -24,6 +24,9 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 
 void DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
+    if (!canBeTransformed(context, depthToSpace)) {
+        return;
+    }
     moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
 }
 
@@ -32,8 +35,7 @@ bool DepthToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 }
 
 bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    // TODO: change when getDequantization will be expanded
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
     if (dequantization.multiply != nullptr) {
         auto multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
         if (!NetworkHelper::isScalarLike(multiplyConst)) {
