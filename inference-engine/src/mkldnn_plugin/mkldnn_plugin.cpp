@@ -29,7 +29,6 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -82,7 +81,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)

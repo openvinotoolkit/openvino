@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPadToConvolution;
+class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -22,13 +22,13 @@ class TRANSFORMATIONS_API ConvertPadToConvolution;
 /**
  * @ingroup ie_transformation_common_api
  * @brief ConvertPadToConvolution transformation replaces Pad operation
- * with Convolution but has some restrictions on Pad parameters:
+ * with GroupConvolution but has some restrictions on Pad parameters:
  * 1. PadMode must be Constant and value is equal to 0
  * 2. Padding must be applied only for spatial dimensions
  * 3. Input shape rank must be static and greater than 3
  */
 
-class ngraph::pass::ConvertPadToConvolution: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPadToGroupConvolution: public ngraph::pass::MatcherPass {
 public:
-    ConvertPadToConvolution();
+    ConvertPadToGroupConvolution();
 };

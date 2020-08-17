@@ -5,8 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "subgraph_tests/convert_pad_to_conv.hpp"
-#include <transformations/convert_pad_to_conv.hpp>
+#include "subgraph_tests/convert_pad_to_group_conv.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -38,16 +37,12 @@ void ConvertPadToConvTests::SetUp() {
     {
         auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, input_shape);
         auto pad = std::make_shared<ngraph::opset4::Pad>(param,
-                ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_begin.size()}, pad_begin),
-                ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_end.size()}, pad_end),
-                ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
-
-        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{pad}, ngraph::ParameterVector{param}, "pad");
+                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_begin.size()}, pad_begin),
+                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_end.size()}, pad_end),
+                                                         ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
+        auto relu = std::make_shared<ngraph::opset4::Relu>(pad);
+        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{relu}, ngraph::ParameterVector{param}, "pad");
     }
-
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPadToConvolution>();
-    manager.run_passes(function);
 }
 
 TEST_P(ConvertPadToConvTests, CompareWithRefs) {

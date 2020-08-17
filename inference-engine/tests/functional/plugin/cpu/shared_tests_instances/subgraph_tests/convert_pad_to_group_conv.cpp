@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "subgraph_tests/convert_pad_to_conv.hpp"
+#include "subgraph_tests/convert_pad_to_group_conv.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -14,7 +14,7 @@ namespace {
             {0, 0, 0}, {0, 0, 1}, {0, 2, 0}, {3, 0, 0}
     };
 
-    const std::vector<float> values{0., 1., -1.};
+    const std::vector<float> values{0., 1.};
 
     INSTANTIATE_TEST_CASE_P(Pad_1D, ConvertPadToConvTests,
                             ::testing::Combine(

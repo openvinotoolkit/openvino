@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_pad_to_conv.hpp"
+#include "transformations/convert_pad_to_group_conv.hpp"
 
 #include <memory>
 #include <vector>
@@ -12,12 +12,12 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/pattern.hpp>
 
-ngraph::pass::ConvertPadToConvolution::ConvertPadToConvolution() {
+ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
-        if (!pad || !m_transformation_callback(pad) /* by default its disabled */) {
+        if (!pad || !m_transformation_callback(pad) /* disabled by default */) {
             return false;
         }
 
@@ -60,18 +60,17 @@ ngraph::pass::ConvertPadToConvolution::ConvertPadToConvolution() {
             return false;
         }
 
-        // Create fake weights with ones
-        Shape weights_shape(rank, 1);
-        weights_shape[0] = channel_dim; // O dimension
-        weights_shape[1] = channel_dim; // I dimension
+        // Create fake weights with ones GOIXY
+        Shape weights_shape(rank + 1, 1);
+        weights_shape[0] = channel_dim; // G dimension
         auto weights = opset4::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
 
-        // Create Convolution attributes
+        // Create GroupConvolution attributes
         Strides stride(rank - 2, 1);
         CoordinateDiff new_pad_begin{pad_begin.begin() + 2, pad_begin.end()};
         CoordinateDiff new_pad_end{pad_end.begin() + 2, pad_end.end()};
 
-        auto conv = std::make_shared<opset4::Convolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
+        auto conv = std::make_shared<opset4::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
 
         conv->set_friendly_name(pad->get_friendly_name());
         ngraph::copy_runtime_info(pad, conv);
