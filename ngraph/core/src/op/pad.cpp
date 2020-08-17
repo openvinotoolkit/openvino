@@ -198,7 +198,7 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
-    if (m_pad_mode == PadMode::CONSTANT)
+    if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4)
     {
         const auto& arg_pad_element_type = get_input_element_type(3);
         const auto& arg_pad_shape = get_input_partial_shape(3);
@@ -310,8 +310,15 @@ void op::v1::Pad::validate_and_infer_types()
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<v1::Pad>(
-        new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
+    if (get_input_size() == 4)
+    {
+        return make_shared<v1::Pad>(
+            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
+    }
+    else
+    {
+        return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
+    }
 }
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
