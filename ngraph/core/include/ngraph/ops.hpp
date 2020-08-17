@@ -115,6 +115,8 @@
 #include "ngraph/op/quantized_dot.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
+#include "ngraph/op/reduce_l1.hpp"
+#include "ngraph/op/reduce_l2.hpp"
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"
 #include "ngraph/op/reduce_mean.hpp"

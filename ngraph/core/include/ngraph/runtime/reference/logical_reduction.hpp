@@ -26,33 +26,16 @@ namespace ngraph
 {
     namespace runtime
     {
-        namespace
-        {
-            Shape get_shape_no_keep_dims(const AxisSet& reduction_axes, const Shape& input_shape)
-            {
-                Shape shape_no_keep_dims;
-
-                for (size_t i = 0; i < input_shape.size(); i++)
-                {
-                    if (reduction_axes.count(i) == 0)
-                    {
-                        shape_no_keep_dims.push_back(input_shape[i]);
-                    }
-                }
-
-                return shape_no_keep_dims;
-            }
-        }
-
         namespace reference
         {
             static inline void reduce_logical_and(const char* arg,
                                                   char* out,
                                                   const Shape& input_shape,
-                                                  const AxisSet& reduction_axes)
+                                                  const AxisSet& reduction_axes,
+                                                  bool keep_dims)
             {
                 CoordinateTransform output_transform(
-                    get_shape_no_keep_dims(reduction_axes, input_shape));
+                    reduce(input_shape, reduction_axes, keep_dims));
 
                 for (const Coordinate& output_coord : output_transform)
                 {
@@ -63,7 +46,7 @@ namespace ngraph
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    Coordinate output_coord = reduce(input_coord, reduction_axes);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
                     out[output_transform.index(output_coord)] =
                         out[output_transform.index(output_coord)] &&
                         arg[input_transform.index(input_coord)];
@@ -73,13 +56,10 @@ namespace ngraph
             static inline void reduce_logical_or(const char* arg,
                                                  char* out,
                                                  const Shape& input_shape,
-                                                 const AxisSet& reduction_axes)
+                                                 const AxisSet& reduction_axes,
+                                                 bool keep_dims)
             {
-                runtime::reference::any(arg,
-                                        out,
-                                        input_shape,
-                                        get_shape_no_keep_dims(reduction_axes, input_shape),
-                                        reduction_axes);
+                runtime::reference::any(arg, out, input_shape, reduction_axes, keep_dims);
             }
         }
     }

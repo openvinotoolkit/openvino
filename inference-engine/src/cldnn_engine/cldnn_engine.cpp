@@ -24,7 +24,10 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+<<<<<<< HEAD
 #include <ngraph/op/gelu.hpp>
+=======
+>>>>>>> upstream/master
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
@@ -92,6 +95,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();

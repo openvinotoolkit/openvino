@@ -525,6 +525,34 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"ReduceMin", "ReduceMax", "ReduceMean", "ReduceProd", "ReduceSum", "ReduceL1", "ReduceL2"},
+                       [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
+
+    addSpecificCreator({"ReduceLogicalAnd"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
+
+    addSpecificCreator({"ReduceLogicalOr"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -613,11 +641,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Range>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReverseSequence>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMin>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMax>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMean>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceProd>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceSum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
@@ -648,8 +671,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalAnd>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalOr>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };

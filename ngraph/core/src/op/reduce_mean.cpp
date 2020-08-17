@@ -44,30 +44,36 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate(const HostTensorPtr& arg,
+                  const HostTensorPtr& out,
+                  const AxisSet& axes,
+                  bool keep_dims)
     {
-        out->set_shape(reduce(arg->get_shape(), axes));
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::mean(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
-    bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate_mean(const HostTensorPtr& arg,
+                       const HostTensorPtr& out,
+                       const AxisSet& axes,
+                       bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes);
+            TYPE_CASE(i32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(i64)(arg, out, axes);
+            TYPE_CASE(i64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u32)(arg, out, axes);
+            TYPE_CASE(u32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u64)(arg, out, axes);
+            TYPE_CASE(u64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f16)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes, keep_dims);
             break;
         default: rc = false; break;
         }
@@ -79,5 +85,5 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMean::evaluate");
-    return evaluate_mean(inputs[0], outputs[0], get_reduction_axes());
+    return evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -38,7 +38,7 @@ extensions/back/PackBinaryWeights.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
 extensions/back/ProposalMutation.py
-extensions/back/ReduceToPooling.py
+extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
 extensions/back/RemoveUselessConvert.py
@@ -291,12 +291,7 @@ extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
 extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
-extensions/front/onnx/reduce_l2_ext.py
-extensions/front/onnx/reduce_max_ext.py
-extensions/front/onnx/reduce_mean_ext.py
-extensions/front/onnx/reduce_min_ext.py
-extensions/front/onnx/reduce_prod_ext.py
-extensions/front/onnx/reduce_sum_ext.py
+extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
 extensions/front/onnx/resize_ext.py
 extensions/front/onnx/resize_to_interpolate.py
@@ -327,7 +322,6 @@ extensions/front/PowerToEltwises.py
 extensions/front/rank_decomposer.py
 extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
-extensions/front/ReduceL2Decomposition.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py

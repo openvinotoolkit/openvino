@@ -1800,66 +1800,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ReorgYolo>::createLayer(const std::share
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceMin>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceMin",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::ReduceMin>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "true" : "false";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceMax>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceMax",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::ReduceMax>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "true" : "false";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceMean>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceMean",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::ReduceMean>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "true" : "false";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceProd>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceProd",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::ReduceProd>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "true" : "false";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceSum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceSum",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::ReduceSum>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "true" : "false";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeL2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     THROW_IE_EXCEPTION << "NormalizeL2 operation should be converted to NormalizeIE";
 }
@@ -2096,30 +2036,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::LogicalNot>::createLayer(const std::
     LayerParams params = {layer->get_friendly_name(), "Activation", details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
     res->params["type"] = "not";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceLogicalAnd>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceAnd", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::ReduceLogicalAnd>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "True" : "False";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::ReduceLogicalOr>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReduceOr", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReduceLayer>(params);
-
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::ReduceLogicalOr>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["keep_dims"] = castedLayer->get_keep_dims() ? "True" : "False";
     return res;
 }
 
