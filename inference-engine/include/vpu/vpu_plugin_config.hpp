@@ -3,6 +3,7 @@
 //
 
 /**
+ * @deprecated Use vpu/myriad_config.hpp or vpu/hddl_config.hpp instead.
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
@@ -44,9 +45,11 @@ namespace VPUConfigParams {
 //
 
 /**
+ * @deprecated Use InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION instead.
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
  * This option should be used with values: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION instead")
 DECLARE_VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION);
 
 /**
@@ -57,32 +60,12 @@ INFERENCE_ENGINE_DEPRECATED("Use CONFIG_KEY(LOG_LEVEL) instead")
 DECLARE_VPU_CONFIG_KEY(LOG_LEVEL);
 
 /**
- * @deprecated
- * @brief The key to define normalization coefficient for the network input.
- * This option should used with be a real number. Example "255.f"
- */
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_CONFIG_KEY(INPUT_NORM);
-
-/**
- * @deprecated
- * @brief The flag to specify Bias value that is added to each element of the network input.
- * This option should used with be a real number. Example "0.1f"
- */
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_CONFIG_KEY(INPUT_BIAS);
-
-/**
+ * @deprecated Use InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME instead.
  * @brief The flag for adding to the profiling information the time of obtaining a tensor.
  * This option should be used with values: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME instead")
 DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
-
-/**
- * @deprecated The data scaling now works automatically.
- */
-INFERENCE_ENGINE_DEPRECATED("The data scaling now works automatically")
-DECLARE_VPU_CONFIG_KEY(NETWORK_CONFIG);
 
 /**
  * @deprecated Use InputInfo::setLayout on input data from ICNNNetwork::getInputsInfo() or
@@ -114,41 +97,28 @@ INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info
 DECLARE_VPU_CONFIG_VALUE(NDHWC);
 
 /**
+ * @deprecated Use InferenceEngine::MYRIAD_CUSTOM_LAYERS instead.
  * @brief This option allows to pass custom layers binding xml.
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_CUSTOM_LAYERS instead")
 DECLARE_VPU_CONFIG_KEY(CUSTOM_LAYERS);
 
 /**
+ * @deprecated Use InferenceEngine::MYRIAD_PROTOCOL instead.
  * @brief This option allows to specify protocol.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_PROTOCOL instead")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(PROTOCOL);
 
 /**
+ * @deprecated Use InferenceEngine::MYRIAD_PCIE or InferenceEngine::MYRIAD_USB instead.
  * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(PROTOCOL) option.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_PCIE instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(PCIE);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_USB instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(USB);
-
-/**
- * @deprecated Use VPU_MYRIAD_CONFIG_KEY(FORCE_RESET) instead.
- */
-INFERENCE_ENGINE_DEPRECATED("Use VPU_MYRIAD_CONFIG_KEY(FORCE_RESET) instead")
-DECLARE_VPU_CONFIG_KEY(FORCE_RESET);
-
-/**
- * @deprecated Use VPU_MYRIAD_CONFIG_KEY(PLATFORM) instead.
- */
-INFERENCE_ENGINE_DEPRECATED("Use VPU_MYRIAD_CONFIG_KEY(PLATFORM) instead")
-DECLARE_VPU_CONFIG_KEY(PLATFORM);
-
-/**
- * @brief Supported keys definition for DECLARE_VPU_CONFIG_KEY(PLATFORM) option.
- */
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_CONFIG_VALUE(2450);
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_CONFIG_VALUE(2480);
 
 }  // namespace VPUConfigParams
 

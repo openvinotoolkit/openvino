@@ -63,7 +63,7 @@ TEST_P(myriadLayersTestsROIFeatureExtractor_smoke, ROIFeatureExtractor) {
     bool use_output_rois = true;
     const int levels_num = 4;
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     IN_OUT_desc input_tensors, output_tensors;
     input_tensors.push_back({num_rois, NUM_ELEM_ROIS});
