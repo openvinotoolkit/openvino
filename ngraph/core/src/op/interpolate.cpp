@@ -432,7 +432,8 @@ namespace
         std::vector<float> scales;
     };
 
-    using InterpolateV4Attrs = op::v4::Interpolate::InterpolateAttrs
+    using InterpolateV4Attrs = op::v4::Interpolate::InterpolateAttrs;
+
     InfoToCallReference get_info_to_call_reference(const HostTensorVector& args,
                                                    const InterpolateV4Attrs& attrs)
     {
@@ -486,7 +487,7 @@ namespace
 
         std::vector<T> padded_input_data(shape_size(info_for_reference.padded_input_shape), T{});
 
-        CoordinateTransform input_transform(input_shape);
+        CoordinateTransform input_transform(info_for_reference.input_shape);
         CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
 
         const T* data_ptr = args[0]->get_data_ptr<ET>();
@@ -495,9 +496,10 @@ namespace
         for (const Coordinate& input_coord : input_transform)
         {
             auto padded_coord = input_coord;
-            for (std::size_t i = 0; i < input_rank; ++i)
+            std::size_t i = 0;
+            for (std::size_t pad : info_for_reference.pads_begin)
             {
-                padded_coord[i] += pads_begin[i];
+                padded_coord[i] += pad;
             }
             padded_data_ptr[padded_transform.index(padded_coord)] =
                 data_ptr[input_transform.index(input_coord)];

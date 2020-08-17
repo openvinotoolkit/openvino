@@ -548,32 +548,26 @@ namespace ngraph
             {
                 std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
-                std::vector<int64_t> coords_limits_vector(input_rank);
-                for (std::size_t i = 0; i < input_rank; ++i)
+
+                CoordinateTransform output_transform(m_out_shape);
+                CoordinateTransform input_transform(m_input_data_shape);
+
+                for (const Coordinate& output_coord : output_transform)
                 {
-                    coords_limits_vector[i] = m_out_shape[i] - 1;
-                }
-                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
-                runtime::NDimRange coords_range{out_limits};
-                runtime::NDimArrayView<T> result{out};
-                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
-                for (const auto& coordinates : coords_range)
-                {
-                    runtime::NDimIndex input_coords{coordinates};
+                    auto input_coord = output_coord;
                     for (std::size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
-                        float coordinate = static_cast<float>(coordinates[axis]);
-                        float scale = m_scales[i];
-                        float length_resized = static_cast<float>(m_out_shape[axis]);
                         float length_original = static_cast<float>(m_input_data_shape[axis]);
-                        float in_coord = m_get_original_coord(
-                            coordinate, scale, length_resized, length_original);
+                        float in_coord = m_get_original_coord(static_cast<float>(output_coord[axis]),
+                                                              m_scales[i],
+                                                              static_cast<float>(m_out_shape[axis]),
+                                                              length_original);
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
-                        input_coords[axis] = clip_coord(nearest_pixel, length_original);
-                        input_coords.set_axes_high_limit(m_input_data_shape[axis] - 1, axis);
+                        input_coord[axis] = clip_coord(nearest_pixel, length_original);
                     }
-                    result[coordinates] = input_view[input_coords];
+                    out[output_transform.index(output_coord)] =
+                        input_data[input_transform.index(input_coord)];
                 }
             }
 
