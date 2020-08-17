@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertPadToConvolution transformation replaces Pad operation
+ * @brief ConvertPadToGroupConvolution transformation replaces Pad operation
  * with GroupConvolution but has some restrictions on Pad parameters:
  * 1. PadMode must be Constant and value is equal to 0
  * 2. Padding must be applied only for spatial dimensions
@@ -30,5 +30,6 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 class ngraph::pass::ConvertPadToGroupConvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertPadToGroupConvolution();
 };

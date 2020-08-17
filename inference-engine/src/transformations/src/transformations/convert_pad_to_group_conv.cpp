@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/pattern.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToGroupConvolution, "ConvertPadToGroupConvolution", 0);
+
 ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
@@ -31,7 +33,7 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             return false;
         }
 
-        // Check that Pad has CONSTANT mode and value equal to 0 if 4th input exists
+        // Check that Pad has CONSTANT mode and value is equal to 0 if 4th input exists
         if (pad->get_pad_mode() != op::PadMode::CONSTANT) {
             return false;
         }
@@ -45,7 +47,7 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             }
         }
 
-        // Check that Pad has padding only fo spatial dimensions
+        // Check that Pad has padding only for spatial dimensions
         const auto & pad_begin = pad->get_pads_begin();
         const auto & pad_end = pad->get_pads_end();
 
@@ -78,6 +80,6 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertPadToConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertPadToGroupConvolution");
     this->register_matcher(m, callback);
 }
