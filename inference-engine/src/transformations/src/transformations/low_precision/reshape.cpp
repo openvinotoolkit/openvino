@@ -63,7 +63,6 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     reshape = separateInStandaloneBranch(reshape);
-
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
 }
@@ -104,9 +103,12 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return true;
     }
 
-    const auto inputShape = op->get_input_shape(0);
     const auto outputShape = op->get_output_shape(0);
+    if ((outputShape.size() != 4ul) && (outputShape.size() != 5ul)) {
+        return false;
+    }
 
+    const auto inputShape = op->get_input_shape(0);
     Shape subtractShapeWithBatch = subtractShape;
     if ((dequantization.subtract != nullptr) && (subtractShapeWithBatch.size() < inputShape.size())) {
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), inputShape[0]);

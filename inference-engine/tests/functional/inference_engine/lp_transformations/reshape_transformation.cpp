@@ -41,7 +41,7 @@ public:
     };
 
     ngraph::Shape inputShape;
-    std::vector<int> transposeConstValues;
+    std::vector<int> reshapeConstValues;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
@@ -66,7 +66,7 @@ public:
 
         actualFunction = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
             testValues.inputShape,
-            testValues.transposeConstValues,
+            testValues.reshapeConstValues,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
@@ -76,7 +76,7 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::ReshapeFunction::getReference(
             testValues.inputShape,
-            testValues.transposeConstValues,
+            testValues.reshapeConstValues,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
@@ -89,7 +89,7 @@ public:
         std::ostringstream result;
         result <<
             testValues.inputShape << "_" <<
-            testValues.transposeConstValues << "_" <<
+            testValues.reshapeConstValues << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
@@ -165,9 +165,9 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
         }
     },
     // U8: no subtract 4D -> 3D: channels are not affected: with subtract
@@ -185,13 +185,13 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
             {
-                {ngraph::element::f32},
-                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
-                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
-            }
+                { },
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+            },
+            ngraph::element::f32,
+            {}
         }
     },
     // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization
@@ -271,6 +271,22 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {},
             ngraph::element::u8,
+            {}
+        }
+    },
+    // U8: no subtract 4D -> 2D: channels are not affected: no subtract
+    {
+        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 1, 3 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}},
+            ngraph::element::f32,
             {}
         }
     },
