@@ -33,10 +33,6 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-<<<<<<< HEAD
-#include <ngraph/op/gelu.hpp>
-=======
->>>>>>> upstream/master
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
