@@ -177,7 +177,7 @@ namespace ngraph
                                       const Shape& input_data_shape,
                                       const std::vector<int64_t>& axes,
                                       const Shape& out_shape,
-                                      std::vector<float>& m_scales)
+                                      std::vector<float>& scales)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
@@ -215,7 +215,8 @@ namespace ngraph
                 InterpolateEval() = default;
 
                 InterpolateEval(const op::v4::Interpolate::InterpolateAttrs& attrs)
-                    : m_get_nearest_pixel{attrs.nearest_mode}
+                    : m_attrs{attrs}
+                    , m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
                     , m_antialias{attrs.antialias}
@@ -242,7 +243,7 @@ namespace ngraph
                     m_scales = scales;
 
                     helper =
-                        InterpolateEvalHelper{attrs, input_data_shape, axes, out_shape, scales};
+                        InterpolateEvalHelper{m_attrs, input_data_shape, axes, out_shape, scales};
 
                     switch (m_interp_mode)
                     {
@@ -254,6 +255,8 @@ namespace ngraph
                 }
 
             private:
+                op::v4::Interpolate::InterpolateAttrs m_attrs;
+
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
                 InterpolateMode m_interp_mode;
