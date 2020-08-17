@@ -24,10 +24,16 @@
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/avg_pool.hpp"
+#include <ngraph/runtime/reference/ceiling.hpp>
+#include <ngraph/runtime/reference/select.hpp>
+
 #include "reference/detection_output.hpp"
 #include "reference/scatter_nd_update.hpp"
 #include "reference/scatter_update.hpp"
-#include "ngraph/runtime/reference/select.hpp"
+#include "reference/gelu.hpp"
+#include "reference/hard_sigmoid.hpp"
+#include "reference/elu.hpp"
+#include "reference/selu.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -376,6 +382,65 @@ namespace {
                                         op->get_pads_begin(),
                                         op->get_pads_end(),
                                         !op->get_exclude_pad());
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::HardSigmoid> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::hard_sigmoid<T>(input[0]->get_data_ptr<T>(),
+                                            input[1]->get_data_ptr<T>(),
+                                            input[2]->get_data_ptr<T>(),
+                                            outputs[0]->get_data_ptr<T>(),
+                                            shape_size(input[0]->get_shape()),
+                                            shape_size(input[1]->get_shape()),
+                                            shape_size(input[2]->get_shape()));
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Elu> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::elu<T>(input[0]->get_data_ptr<T>(),
+                                   outputs[0]->get_data_ptr<T>(),
+                                   shape_size(input[0]->get_shape()),
+                                   op->get_alpha());
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Selu> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::selu<T>(input[0]->get_data_ptr<T>(),
+                                    input[1]->get_data_ptr<T>(),
+                                    input[2]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    shape_size(input[0]->get_shape()),
+                                    shape_size(input[1]->get_shape()),
+                                    shape_size(input[2]->get_shape()));
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Ceiling> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::ceiling<T>(input[0]->get_data_ptr<T>(),
+                                       outputs[0]->get_data_ptr<T>(),
+                                       shape_size(input[0]->get_shape()));
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Gelu> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::gelu<T>(input[0]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    shape_size(input[0]->get_shape()));
         return true;
     }
 

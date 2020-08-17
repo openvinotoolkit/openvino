@@ -176,7 +176,7 @@ void ActivationParamLayerTest::SetUp() {
     std::tie(activationType, netPrecision, shapes, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
-    auto activationParams = createActivationParams(ngPrc);
+    auto activationParams = createActivationParams(ngPrc, shapes.second);
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
