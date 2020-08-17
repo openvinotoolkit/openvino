@@ -118,6 +118,41 @@ protected:
         return events_waiter(_outer.get_program().get_engine().get_context()).run(net_id, events);
     }
 
+    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        uint32_t net_id = instance.get_network().get_id();
+        if (optimized_out(instance) || is_cpu()) {
+            return;
+        }
+
+        auto split = get_split();
+
+        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            for (decltype(split) i = 0; i < split; i++) {
+                auto args = get_arguments(instance, i);
+                args.scalars = &_kernel_data.kernels[k].scalars;
+                args.split = i;
+
+                for (const auto& m : _intermediates_memory) {
+                    args.intermediates.push_back(m);
+                }
+
+                _kernels[k].set_arguments(net_id, _kernel_data.kernels[k], args);
+            }
+        }
+    }
+
+    void cleanup_impl(typed_primitive_inst<PType>& instance) override {
+        uint32_t net_id = instance.get_network().get_id();
+        if (optimized_out(instance) || is_cpu()) {
+            return;
+        }
+
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            _kernels[k].cleanup(net_id);
+        }
+    }
+
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
                                  typed_primitive_inst<PType>& instance) override {
         uint32_t net_id = instance.get_network().get_id();
@@ -134,14 +169,6 @@ protected:
         for (size_t k = 0; k < _kernels.size(); ++k) {
             std::vector<event_impl::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
-                auto args = get_arguments(instance, i);
-                args.scalars = &_kernel_data.kernels[k].scalars;
-                args.split = i;
-
-                for (const auto& m : _intermediates_memory) {
-                    args.intermediates.push_back(m);
-                }
-
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be
                 // nullptr)
                 auto users = instance.node.get_users();
@@ -152,7 +179,7 @@ protected:
                     _kernels[k].set_output_event(net_id, instance.node.is_output());
                 }
 
-                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events, args);
+                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
                 new_events.push_back(event);
             }
 
