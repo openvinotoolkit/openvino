@@ -449,7 +449,7 @@ namespace ngraph
 
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
-                Shape indices_shape{num_of_axes, 4};
+                Shape indices_shape{std::vector<std::size_t>(num_of_axes, 4)};
 
                 std::cout << "indices_shape: " << indices_shape << "\n";
                 for (const Coordinate& output_coord : output_transform)
