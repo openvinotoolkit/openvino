@@ -16,7 +16,7 @@
 
 #include "ngraph/op/reduce_sum.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"

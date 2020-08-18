@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/runtime/host_tensor.hpp"

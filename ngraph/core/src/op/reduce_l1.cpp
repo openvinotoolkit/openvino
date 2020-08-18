@@ -16,7 +16,7 @@
 
 #include "ngraph/op/reduce_l1.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/reduce_l1.hpp"
 #include "ngraph/shape_util.hpp"
