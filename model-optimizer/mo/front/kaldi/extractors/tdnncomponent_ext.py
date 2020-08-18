@@ -20,7 +20,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_integer32_token, collect_until_token, \
     read_binary_float_token
 from mo.front.kaldi.utils import read_binary_vector, read_binary_matrix
-
+from mo.ops.tdnncomponent import TdnnComponent
 
 class TdnnComponentFrontExtractor(FrontExtractorOp):
     op = 'tdnncomponent'
@@ -37,7 +37,7 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<LearningRate>')
 
         collect_until_token(pb, b'<TimeOffsets>')
-        time_offests = read_binary_vector(pb, False, np.int32)
+        time_offsets = read_binary_vector(pb, False, np.int32)
 
         collect_until_token(pb, b'<LinearParams>')
         weights, weights_shape = read_binary_matrix(pb)
@@ -60,4 +60,10 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         rank_inout1 = read_binary_integer32_token(pb)
         rank_inout2 = read_binary_integer32_token(pb)
 
+        attrs = {
+            'weights': np.reshape(weights, weights_shape),
+            'biases': np.array(bias_params),
+            'time_offsets': time_offsets,
+        }
+        TdnnComponent.update_node_stat(node, attrs)
         return cls.enabled

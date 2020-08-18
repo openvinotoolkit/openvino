@@ -146,6 +146,7 @@ extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_memoryoffsets.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/kaldi/trainnodes_eraser.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
@@ -915,6 +916,7 @@ mo/ops/softmax.py
 mo/ops/space_to_batch.py
 mo/ops/squeeze.py
 mo/ops/strided_slice.py
+mo/ops/tdnncomponent.py
 mo/ops/tile.py
 mo/ops/unsqueeze.py
 mo/pipeline/__init__.py
