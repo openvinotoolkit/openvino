@@ -66,6 +66,8 @@ namespace
 
         switch (arg->get_element_type())
         {
+            TYPE_CASE(bf16)(arg, out, count);
+            break;
             TYPE_CASE(f16)(arg, out, count);
             break;
             TYPE_CASE(f32)(arg, out, count);
