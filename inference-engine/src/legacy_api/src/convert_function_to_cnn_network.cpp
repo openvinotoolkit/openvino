@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_function_to_cnn_network.hpp"
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -37,16 +35,16 @@
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
-#include "ie_cnn_layer_builder_ngraph.h"
 #include "caseless.hpp"
-
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
+#include "legacy/convert_function_to_cnn_network.hpp"
 #include "ie_legacy_itt.hpp"
+#include "ie_cnn_layer_builder_ngraph.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -496,6 +494,16 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     });
 
+    addSpecificCreator({"SwishIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Swish",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+
+    });
+
     addSpecificCreator({"PriorBox"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
         THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
@@ -515,6 +523,34 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
         res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"ReduceMin", "ReduceMax", "ReduceMean", "ReduceProd", "ReduceSum", "ReduceL1", "ReduceL2"},
+                       [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
+
+    addSpecificCreator({"ReduceLogicalAnd"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
+
+    addSpecificCreator({"ReduceLogicalOr"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->get_output_element_type(0))};
+        auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
+        res->params = params;
+        res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
         return res;
     });
 }
@@ -599,18 +635,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Proposal>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Range>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReverseSequence>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMin>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMax>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMean>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceProd>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceSum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
@@ -641,8 +671,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalAnd>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalOr>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };
@@ -804,8 +832,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
-            std::string outName = layer->get_friendly_name();
-            if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
+            auto outName = layer->output(i).get_tensor().get_name();
+            if (outName.empty()) {
+                outName = ngraph::op::util::create_ie_output_name(layer->output(i));
+            }
+
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
             SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
@@ -846,12 +877,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->inputs().size() == 1);
+            IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            std::string outName = input.get_node_shared_ptr()->get_friendly_name();
-            if (input.get_node_shared_ptr()->get_output_size() != 1)
-                outName += "." + std::to_string(input.get_index());
-            cnnNetworkImpl->addOutput(outName);
+            auto name = input.get_tensor().get_name();
+            if (!name.empty())
+                cnnNetworkImpl->addOutput(name);
+            else
+                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
             continue;
         }
 

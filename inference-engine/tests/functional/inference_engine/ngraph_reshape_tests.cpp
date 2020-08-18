@@ -23,7 +23,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/graph_util.hpp>
 
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_common.hpp"
@@ -57,6 +57,30 @@ TEST_F(NGraphReshapeTests, getBatchSize) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(1, cnnNetwork.getBatchSize());
+}
+
+TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({-1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("A");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+
+        ngraph::ParameterVector params = {param};
+
+        ngraph = std::make_shared<ngraph::Function>(relu, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    ASSERT_EQ(Layout::SCALAR, cnnNetwork.getInputsInfo()["A"]->getLayout());
+
+    ICNNNetwork::InputShapes new_shape;
+    new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
+    cnnNetwork.reshape(new_shape);
+
+    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
 }
 
 TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {

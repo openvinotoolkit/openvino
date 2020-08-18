@@ -162,7 +162,7 @@ static std::string getModel(const int batches, const int channels, const int hei
 }
 
 TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     const tensor_test_params dims_layer_in = std::get<0>(GetParam());
     const roi_align_param test_params      = std::get<1>(GetParam());

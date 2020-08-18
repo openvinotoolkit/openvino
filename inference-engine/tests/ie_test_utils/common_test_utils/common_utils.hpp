@@ -11,7 +11,7 @@
 #include <set>
 
 #include <cpp/ie_cnn_network.h>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 namespace CommonTestUtils {
 template<typename vecElementType>

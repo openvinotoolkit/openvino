@@ -23,16 +23,20 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
+import ngraph.utils.rt_map
 from ngraph.impl import Node
 from ngraph.helpers import function_from_cnn
 
 from ngraph.opset4 import absolute
 from ngraph.opset4 import absolute as abs
 from ngraph.opset4 import acos
+from ngraph.opset4 import acosh
 from ngraph.opset4 import add
 from ngraph.opset4 import asin
+from ngraph.opset4 import asinh
 from ngraph.opset4 import assign
 from ngraph.opset4 import atan
+from ngraph.opset4 import atanh
 from ngraph.opset4 import avg_pool
 from ngraph.opset4 import batch_norm_inference
 from ngraph.opset4 import batch_to_space
@@ -115,6 +119,8 @@ from ngraph.opset4 import psroi_pooling
 from ngraph.opset4 import proposal
 from ngraph.opset4 import range
 from ngraph.opset4 import read_value
+from ngraph.opset4 import reduce_l1
+from ngraph.opset4 import reduce_l2
 from ngraph.opset4 import reduce_logical_and
 from ngraph.opset4 import reduce_logical_or
 from ngraph.opset4 import reduce_max
@@ -150,6 +156,7 @@ from ngraph.opset4 import squared_difference
 from ngraph.opset4 import squeeze
 from ngraph.opset4 import strided_slice
 from ngraph.opset4 import subtract
+from ngraph.opset4 import swish
 from ngraph.opset4 import tan
 from ngraph.opset4 import tanh
 from ngraph.opset4 import tensor_iterator

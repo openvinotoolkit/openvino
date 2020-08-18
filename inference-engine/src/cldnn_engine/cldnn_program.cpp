@@ -75,9 +75,9 @@
 #include "simple_math.h"
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <graph_tools.hpp>
-#include <ie_layers_internal.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "caseless.hpp"
@@ -219,7 +219,7 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     return check_result;
 }
 
-Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
+Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
     : m_config(config)
     , m_defaultFormat(cldnn::format::bfyx)
     , m_engine(engine)
@@ -243,7 +243,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 
-        auto it = details::CNNNetworkIterator(&network);
+        auto it = details::CNNNetworkIterator(network);
         auto end = details::CNNNetworkIterator();
         bool fqFound = false;
         bool allFQareSupported = true;
@@ -386,7 +386,7 @@ void Program::InitFormat(InferenceEngine::ICNNNetwork &network) {
     m_defaultFormat = FormatFromLayout(InferenceEngine::Layout::NCHW);
 }
 
-std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwork &network) {
+std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::CNNNetwork &network) {
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));

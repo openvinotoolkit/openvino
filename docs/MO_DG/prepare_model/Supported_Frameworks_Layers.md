@@ -150,6 +150,7 @@ Standard TensorFlow\* operations:
 | ExpandDims | No |
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
+| EuclideanNorm | No |
 | Fill | No |
 | Floor | No |
 | FusedBatchNorm | No |
@@ -360,11 +361,13 @@ Standard ONNX\* operators:
 | Pad | No |
 | Pow | No |
 | PriorBox (Intel experimental) | No |
-| QuantizeLinear | Only in combination with DequantizeLinear. When the ops following each other in the graph and the scale and zero-point values for these operations are the same (or explicitly shared), the combination is fused into a 'FakeQuantization'|
+| QuantizeLinear | No |
 | RNN | No |
 | ROIAlign | No |
 | Range | No |
 | Reciprocal | No |
+| ReduceL1 | No |
+| ReduceL2 | No |
 | ReduceMax | No |
 | ReduceMean | No |
 | ReduceMin | No |

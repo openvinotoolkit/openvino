@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 
@@ -41,7 +41,7 @@ public:
     ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
 
-    void SetAffinity(InferenceEngine::ICNNNetwork& network, const Configs &config);
+    void SetAffinity(InferenceEngine::CNNNetwork& network, const Configs &config);
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;

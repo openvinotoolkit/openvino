@@ -13,6 +13,7 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 #include <ngraph/op/constant.hpp>
+#include <ngraph/opsets/opset3.hpp>
 
 namespace ngraph {
 namespace op {
@@ -42,6 +43,14 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
         }
     }
     return false;
+}
+
+inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    const auto& prev_layer = output.get_node_shared_ptr();
+    std::string out_name = prev_layer->get_friendly_name();
+    if (prev_layer->get_output_size() != 1)
+        out_name += "." + std::to_string(output.get_index());
+    return out_name;
 }
 
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);

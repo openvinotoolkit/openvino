@@ -29,7 +29,7 @@
 #endif
 
 namespace GNAPluginNS {
-class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::enable_shared_from_this<GNAPlugin> {
+class GNAPlugin : public InferenceEngine::IInferencePlugin {
  protected:
     std::string _pluginName = "GNA";
 
@@ -55,6 +55,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
 #if GNA_LIB_VER == 2
     uint32_t activeLayerIndex = 0xffffffff;
 #endif
+    bool do_rotate_input = false;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
     uint32_t *ptr_active_indices = nullptr;
@@ -95,7 +96,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     std::string GetName() const noexcept override;
     void SetName(const std::string & pluginName) noexcept override;
 
-    void LoadNetwork(InferenceEngine::ICNNNetwork &network);
+    void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     void Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
@@ -103,7 +104,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &executableNetwork,
-                     const InferenceEngine::ICNNNetwork &network,
+                     const InferenceEngine::CNNNetwork &network,
                      const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::CNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,

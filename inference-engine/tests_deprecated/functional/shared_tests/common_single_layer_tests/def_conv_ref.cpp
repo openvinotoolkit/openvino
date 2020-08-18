@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <precision_utils.h>
 #include <math.h>
 #include <ie_parallel.hpp>

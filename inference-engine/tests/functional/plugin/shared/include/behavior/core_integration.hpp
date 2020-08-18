@@ -11,7 +11,7 @@
 #include <fstream>
 #include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>

@@ -47,8 +47,8 @@ onnx_model_scatterND
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
-# Not supported ONNX op: Round
-onnx_model_round
+# Round op doesn't support some specific cases of rounding
+onnx_model_round_half_nearest_even
 
 # LSTMSequence Layer is not instance of RNNLayer class
 onnx_model_lstm_fwd_with_clip
@@ -59,8 +59,6 @@ onnx_model_lstm_bdir_short_input_seq
 onnx_model_lstm_mixed_seq_reverse
 
 # Result mismatch
-onnx_model_depth_to_space_chw
-onnx_model_space_to_depth_chw
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
 onnx_model_softmax

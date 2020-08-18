@@ -75,6 +75,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Activation", Activation },
         { "Clamp", Activation },
         { "Swish", Activation },
+        { "Mish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
         { "Norm", Lrn },
@@ -437,6 +438,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
         if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
             if (selectedPrimitiveDesc->getConfig().inConfs[0].desc.getPrecision() != InferenceEngine::Precision::U8) {
                 str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].desc.getPrecision().name());
+            } else {
+                str_type += "_I8";
+            }
+        } else {
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision().name());
             } else {
                 str_type += "_I8";
             }

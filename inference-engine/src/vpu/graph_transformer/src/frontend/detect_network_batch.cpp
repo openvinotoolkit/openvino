@@ -10,9 +10,9 @@
 #include <set>
 #include <map>
 
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>

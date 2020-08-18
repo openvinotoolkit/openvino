@@ -71,7 +71,6 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
         const auto op_type = std::string(op->get_type_name());
         count_topk += (op_type == "TopK" ? 1 : 0);
         count_constants += (op_type == "Constant" ? 1 : 0);
-        count_goe += (op_type == "GetOutputElement" ? 1 : 0);
         count_parameters += (op_type == "Parameter" ? 1 : 0);
     }
 
@@ -84,7 +83,6 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
     ASSERT_EQ(function->get_output_shape(1), ngraph::Shape({3, 3}));
     ASSERT_EQ(count_topk, 1);
     ASSERT_EQ(count_constants, 1);
-    ASSERT_EQ(count_goe, 2);
     ASSERT_EQ(count_parameters, 1);
 }
 

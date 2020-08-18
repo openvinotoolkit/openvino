@@ -15,9 +15,15 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertProposalToLegacyMatcher;
+class TRANSFORMATIONS_API ConvertProposal4ToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
+
+class ngraph::pass::ConvertProposal4ToLegacyMatcher: public ngraph::pass::MatcherPass {
+public:
+    ConvertProposal4ToLegacyMatcher();
+};
 
 class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
