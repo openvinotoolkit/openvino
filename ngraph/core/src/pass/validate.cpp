@@ -16,7 +16,7 @@
 
 #include "ngraph/pass/validate.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 

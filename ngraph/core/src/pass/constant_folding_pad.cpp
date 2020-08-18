@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/pad.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
 
