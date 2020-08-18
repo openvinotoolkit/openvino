@@ -118,6 +118,8 @@ namespace ngraph
 
 // Interpolate v4
 
+NGRAPH_RTTI_DEFINITION(op::v4::Interpolate, "Interpolate", 4);
+
 constexpr NodeTypeInfo op::v4::Interpolate::type_info;
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,

@@ -92,6 +92,8 @@ namespace ngraph
             class NGRAPH_API Interpolate : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 static constexpr NodeTypeInfo type_info{"Interpolate", 4};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 enum class ShapeCalcMode
