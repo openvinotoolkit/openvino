@@ -60,9 +60,10 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         rank_inout1 = read_binary_integer32_token(pb)
         rank_inout2 = read_binary_integer32_token(pb)
 
+        biases = np.array(bias_params) if len(bias_params) != 0 else None
         attrs = {
             'weights': np.reshape(weights, weights_shape),
-            'biases': np.array(bias_params),
+            'biases': biases,
             'time_offsets': time_offsets,
         }
         TdnnComponent.update_node_stat(node, attrs)

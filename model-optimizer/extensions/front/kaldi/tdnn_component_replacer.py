@@ -18,6 +18,7 @@ from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.memoryoffset import MemoryOffset
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from extensions.ops.MatMul import FullyConnected
 
 
@@ -59,16 +60,26 @@ class TdnnComponentReplacer(FrontReplacementPattern):
             concat_node.add_input_port(i)
             memoryoffset_node.out_port(0).connect(concat_node.in_port(i))
 
-        fc_layer = FullyConnected(graph, {'name': tdnn_name + '_fc',
-                                          'out-size': None, 'transpose_weights': False,
-                                          'bias_term': False}).create_node()
-        concat_node.out_port(0).connect(fc_layer.in_port(0))
+        weights = tdnn_node['weights']
+        bias_term = False
+        if tdnn_node.has_valid('biases') and tdnn_node['biases'] is not None:
+            bias_term = True
+            biases = tdnn_node['biases']
+            assert len(biases) == weights.shape[0]
+
+        fc_node = FullyConnected(graph, {'name': tdnn_name + '_fc',
+                                         'out-size': weights.shape[0],
+                                         'transpose_weights': False,  # check this
+                                         'bias_term': bias_term}).create_node()
+        concat_node.out_port(0).connect(fc_node.in_port(0))
         tdnn_node.in_port(0).disconnect()
-        tdnn_node.out_port(0).get_connection().set_source(fc_layer.out_port(0))
+        tdnn_node.out_port(0).get_connection().set_source(fc_node.out_port(0))
+
+        weights_node = Const(graph, {'name': tdnn_name + '_fc_weights', 'value': tdnn_node['weights']}).create_node()
+        weights_node.out_port(0).connect(fc_node.in_port(1))
+
+        if bias_term:
+            biases_node = Const(graph, {'name': tdnn_name + '_fc_biases', 'value': biases}).create_node()
+            biases_node.out_port(0).connect(fc_node.in_port(2))
+
         print('hey')
-        pass
-
-        # add fully to concat
-        # add const nodes to fully
-        # set source of tdnns output to fully connected out
-

@@ -26,7 +26,7 @@ from mo.utils.unittest.graph import build_graph, regular_op, result, connect_fro
 class TdnnComponentReplacerTest(unittest.TestCase):
 
     @generate(*[
-        ([1, 1, 1], [], [-1, 0]),
+        ([[1, 1, 1], [4, 4, 4]], [1, 2], [-1, 0]),
     ])
     def test_tdnnreplacer(self, weights, biases, time_offsets):
         nodes = {
