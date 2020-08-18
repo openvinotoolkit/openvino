@@ -58,7 +58,7 @@ protected:
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
         ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(mockNotEmptyNet, {}));
-        ASSERT_NO_THROW(exeNetwork.CreateInferRequest());
+        ASSERT_NO_THROW(request = exeNetwork.CreateInferRequest());
     }
 };
 
