@@ -33,18 +33,32 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
         }
 
         auto p_shape_input = extract_image_patches->get_input_partial_shape(0);
+        auto sizes = extract_image_patches->get_sizes();
         auto strides = extract_image_patches->get_strides();
+        auto rates = extract_image_patches->get_rates();
 
         // Check that ExtractImagePatches input have static shape
         if (!p_shape_input.rank().is_static()) {
             return false;
         }
 
-        if (p_shape_input.rank().get_length() != 4 || p_shape_input[2].is_dynamic() || p_shape_input[3].is_dynamic()) {
+        if (p_shape_input.rank().get_length() != 4) {
+            return false;
+        }
+
+        if (p_shape_input[2].is_dynamic() || p_shape_input[3].is_dynamic()) {
             return false;
         }
 
         if (p_shape_input[2].get_length() % strides[0] != 0 || p_shape_input[3].get_length() % strides[1] != 0) {
+            return false;
+        }
+
+        if (sizes[0] != strides[0] || sizes[1] != strides[1]) {
+            return false;
+        }
+
+        if (rates[0] != 1 || rates[1] != 1) {
             return false;
         }
 
