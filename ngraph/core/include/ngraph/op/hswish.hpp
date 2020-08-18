@@ -26,8 +26,8 @@ namespace ngraph
         namespace v4
         {
             /// \brief A HSwish Activation Function
-            /// f(x) =  x * (min(max(x + 3, 0), 6) / 6) or
-            /// f(x) = x * (min(ReLU(x + 3), 6) / 6)
+            /// f(x) =  x * min(max(x + 3, 0), 6) / 6 or
+            /// f(x) = x * min(ReLU(x + 3), 6) / 6
             ///
             class NGRAPH_API HSwish : public ngraph::op::Op
             {
