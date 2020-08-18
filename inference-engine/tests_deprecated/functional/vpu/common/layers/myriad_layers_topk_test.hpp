@@ -33,7 +33,7 @@ class TopKTest: public myriadLayerTestBaseWithParam<TopKTestParams>
 {
 protected:
     void testTopK(const IRVersion irVersion, const bool outputValues, const bool outputIndices) {
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         _config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
         _irVersion = irVersion;
 

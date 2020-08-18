@@ -210,8 +210,8 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
         return evaluate_v4_range<element::Type_t::u32>(out, start, stop, step);
     case element::Type_t::u64:
         return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
+    default: return false;
     }
-    return false;
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
