@@ -170,7 +170,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-constexpr NodeTypeInfo op::v0::ShapeOf::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
 
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg)
     : Op({arg})
