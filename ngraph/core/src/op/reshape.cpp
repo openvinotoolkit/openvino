@@ -17,8 +17,8 @@
 #include <algorithm>
 #include <iostream>
 
-#include "ngraph/function.hpp"
 #include "itt.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
