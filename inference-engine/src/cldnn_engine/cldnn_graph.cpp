@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
 
