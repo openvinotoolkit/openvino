@@ -23,6 +23,8 @@ set (SRC
     executable.cpp
     executable.hpp
     performance_counter.hpp
+    dynamic/dynamic_backend.cpp
+    dynamic/dynamic_backend.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     op/convolution.cpp
@@ -41,6 +43,10 @@ set (SRC
     pass/liveness.hpp
     pass/shape_relevance.cpp
     pass/shape_relevance.hpp
+    pass/opset0_downgrade.cpp
+    pass/opset0_downgrade.hpp
+    pass/opset1_downgrade.cpp
+    pass/opset1_downgrade.hpp
     )
 
 add_library(ngraph_backend SHARED ${SRC})

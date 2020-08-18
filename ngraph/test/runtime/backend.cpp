@@ -26,6 +26,7 @@
 #include "backend_manager.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/util.hpp"
+#include "dynamic/dynamic_backend.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -73,7 +74,14 @@ std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
     }
 
     auto inner_backend = BackendManager::create_backend(type);
-
+    if (!must_support_dynamic || inner_backend->supports_dynamic_tensors())
+    {
+        return inner_backend;
+    }
+    else
+    {
+        return make_shared<runtime::dynamic::DynamicBackend>(inner_backend);
+    }
     return inner_backend;
 }
 
