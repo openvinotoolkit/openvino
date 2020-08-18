@@ -27,7 +27,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v4::HSwish::type_info;
 
 op::v4::HSwish::HSwish(const Output<Node>& arg)
-    : Op({arg})
+    : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
@@ -35,12 +35,6 @@ op::v4::HSwish::HSwish(const Output<Node>& arg)
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
-}
-
-void op::v4::HSwish::validate_and_infer_types()
-{
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const

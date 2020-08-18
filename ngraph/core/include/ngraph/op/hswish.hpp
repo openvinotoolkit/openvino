@@ -18,6 +18,7 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ngraph
 {
@@ -29,7 +30,7 @@ namespace ngraph
             /// f(x) =  x * min(max(x + 3, 0), 6) / 6 or
             /// f(x) = x * min(ReLU(x + 3), 6) / 6
             ///
-            class NGRAPH_API HSwish : public ngraph::op::Op
+            class NGRAPH_API HSwish : public ngraph::op::util::UnaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"HSwish", 4};
@@ -39,11 +40,9 @@ namespace ngraph
                 /// \brief Constructs a HSwish (hard version of Swish) operation.
                 ///
                 /// \param data Input tensor
-
-                explicit HSwish(const Output<Node>& arg);
+                HSwish(const Output<Node>& arg);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
