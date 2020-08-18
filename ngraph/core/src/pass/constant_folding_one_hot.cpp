@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"

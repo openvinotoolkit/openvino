@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/gather.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"

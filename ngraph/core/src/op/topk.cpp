@@ -16,9 +16,9 @@
 
 #include <memory>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/util/op_types.hpp"

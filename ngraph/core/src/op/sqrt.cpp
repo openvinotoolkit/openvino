@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"

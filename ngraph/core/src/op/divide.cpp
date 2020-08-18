@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/divide.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"

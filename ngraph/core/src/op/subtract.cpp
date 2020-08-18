@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/subtract.hpp"

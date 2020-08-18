@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/runtime/host_tensor.hpp"

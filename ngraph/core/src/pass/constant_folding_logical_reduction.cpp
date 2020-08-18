@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/any.hpp"
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"

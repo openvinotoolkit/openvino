@@ -16,11 +16,11 @@
 #include <memory>
 #include <numeric>
 
+#include "itt.hpp"
 #include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/matmul_factory.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 

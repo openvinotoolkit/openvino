@@ -19,9 +19,9 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"

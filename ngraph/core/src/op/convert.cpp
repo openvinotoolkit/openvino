@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/runtime/reference/convert.hpp"
 
