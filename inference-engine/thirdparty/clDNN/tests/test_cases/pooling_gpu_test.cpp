@@ -2698,6 +2698,7 @@ INSTANTIATE_TEST_CASE_P(
                                      format::b_fs_yx_fsv16,
                                      format::fs_b_yx_fsv32,
                                      format::b_fs_yx_fsv32,
+                                     format::b_fs_yx_fsv4,
                                      format::fs_bs_yx_bsv4_fsv32)),
     testing::internal::DefaultParamName<pooling_random_test_params>);
 

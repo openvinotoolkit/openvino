@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::v0::Split::type_info;
 
 op::v0::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_split)
@@ -218,7 +220,7 @@ namespace
         int64_t axis;
         switch (axis_tensor->get_element_type())
         {
-        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0];
+        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0]; break;
         case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
         case element::Type_t::u64:
             axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);

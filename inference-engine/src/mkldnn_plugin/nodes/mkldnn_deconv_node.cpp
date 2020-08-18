@@ -152,6 +152,38 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
     attr.set_post_ops(ops);
 }
 
+void MKLDNNDeconvolutionNode::filterSupportedPrimitiveDescriptors() {
+    MKLDNNNode::filterSupportedPrimitiveDescriptors();
+    filterSupportedDescriptors();
+}
+
+void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
+    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
+        if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
+            THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats for Deconvolution node";
+        }
+        auto itd = descs.begin();
+        while (itd != descs.end()) {
+            bool isSuitableDesc = true;
+            if (!inputMemoryFormatsFilter.empty()) {
+                auto src_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc.format;
+                if (src_fmt != inputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!outputMemoryFormatsFilter.empty()) {
+                auto dst_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc.format;
+                if (dst_fmt != outputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!isSuitableDesc) {
+                itd = descs.erase(itd);
+            } else {
+                itd++;
+            }
+        }
+    }
+}
+
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (prim) {
         strm.submit({*prim});

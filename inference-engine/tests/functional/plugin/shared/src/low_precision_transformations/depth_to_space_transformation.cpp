@@ -13,6 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/depth_to_space_fusion.hpp>
 #include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
+#include <ngraph/op/depth_to_space.hpp>
 
 using namespace ngraph::opset1;
 

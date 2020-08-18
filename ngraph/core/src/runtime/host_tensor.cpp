@@ -19,7 +19,6 @@
 
 #include "host_tensor.hpp"
 #include "ngraph/chrome_trace.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/util.hpp"
 
@@ -75,9 +74,7 @@ void runtime::HostTensor::allocate_buffer()
     NGRAPH_CHECK(get_element_type().is_static(),
                  "Attempt to allocate buffer for tensor with dynamic type: ",
                  get_element_type());
-    m_descriptor->set_tensor_layout(
-        std::make_shared<ngraph::descriptor::layout::DenseTensorLayout>(*m_descriptor));
-    m_buffer_size = m_descriptor->get_tensor_layout()->get_size() * get_element_type().size();
+    m_buffer_size = shape_size(m_descriptor->get_shape()) * get_element_type().size();
     if (m_memory_pointer != nullptr)
     {
         m_aligned_buffer_pool = m_memory_pointer;

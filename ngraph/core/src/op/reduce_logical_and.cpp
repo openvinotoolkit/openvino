@@ -44,7 +44,8 @@ namespace
 {
     bool evaluate_reduce_logical_and(const HostTensorPtr& data,
                                      const HostTensorPtr& axes,
-                                     const HostTensorPtr& out)
+                                     const HostTensorPtr& out,
+                                     bool keep_dims)
     {
         try
         {
@@ -53,7 +54,8 @@ namespace
             runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
                                                    out->get_data_ptr<char>(),
                                                    data->get_shape(),
-                                                   reduction_axes);
+                                                   reduction_axes,
+                                                   keep_dims);
 
             return true;
         }
@@ -80,6 +82,6 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
     }
     else
     {
-        return evaluate_reduce_logical_and(data, axes, out);
+        return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
     }
 }

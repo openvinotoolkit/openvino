@@ -43,7 +43,7 @@ pass::Manager::~Manager()
 {
 }
 
-void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
+void pass::Manager::run_passes(shared_ptr<Function> func)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
 

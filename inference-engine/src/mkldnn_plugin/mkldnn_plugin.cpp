@@ -9,7 +9,6 @@
 #include "mkldnn_itt.h"
 
 #include <legacy/net_pass.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
@@ -36,7 +35,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
@@ -84,7 +83,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node);
+               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)

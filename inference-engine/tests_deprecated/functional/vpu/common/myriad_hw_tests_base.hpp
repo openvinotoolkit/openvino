@@ -126,10 +126,10 @@ public:
         StatusCode st;
 
         std::map<std::string, std::string> config = {
-            { VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), runInfo.hwMode ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO) },
+            { InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, runInfo.hwMode ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO) },
 
             { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) },
-            { VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE) },
+            { InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE },
 
             { CONFIG_KEY(LOG_LEVEL), logLevel }
         };

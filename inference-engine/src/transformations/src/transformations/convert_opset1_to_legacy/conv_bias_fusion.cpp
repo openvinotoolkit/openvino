@@ -15,6 +15,23 @@
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
 
+template <class A, class B>
+std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
+    auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());
+    auto constant = std::dynamic_pointer_cast<B>(node->input(1).get_source_output().get_node_shared_ptr());
+
+    if (!eltwise) {
+        eltwise = std::dynamic_pointer_cast<A>(node->input(1).get_source_output().get_node_shared_ptr());
+        constant = std::dynamic_pointer_cast<B>(node->input(0).get_source_output().get_node_shared_ptr());
+    }
+
+    if (!eltwise || !constant) {
+        return {nullptr, nullptr};
+    }
+
+    return {eltwise, constant};
+}
+
 template <class Conv>
 bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
 #ifdef LPT_SUPPORT
@@ -22,12 +39,12 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return false;
     }
 
-    auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node) {
-        const ngraph::element::Type inputType = node->get_input_element_type(0);
+    auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+        const ngraph::element::Type inputType = node->get_input_element_type(index);
         return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
     };
 
-    if (isLowPrecision(conv)) {
+    if (isLowPrecision(conv, 0) || isLowPrecision(conv, 1)) {
         return true;
     }
 
@@ -36,7 +53,7 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return false;
     }
 
-    return isLowPrecision(subtract);
+    return isLowPrecision(subtract, 0) || isLowPrecision(subtract, 1);
 #else
     const ngraph::element::Type inputType = conv->get_input_element_type(1);
     return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);

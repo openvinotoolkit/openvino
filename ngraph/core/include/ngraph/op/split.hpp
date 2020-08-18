@@ -22,6 +22,8 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace op
@@ -113,3 +115,5 @@ namespace ngraph
         using v0::Split;
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END
