@@ -24,7 +24,7 @@ using namespace ngraph;
 
 // ---------------------------------- v1 ---------------------------------------
 
-constexpr NodeTypeInfo op::v1::LessEqual::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::LessEqual, "LessEqual", 1);
 
 op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
                              const Output<Node>& arg1,

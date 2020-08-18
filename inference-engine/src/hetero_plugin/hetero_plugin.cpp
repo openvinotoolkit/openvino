@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
 
 using namespace InferenceEngine;
