@@ -95,7 +95,7 @@ bool op::v0::NotEqual::evaluate(const HostTensorVector& outputs,
 
 // ----------------------------------- v1 --------------------------------------
 
-constexpr NodeTypeInfo op::v1::NotEqual::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1);
 
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0,
                            const Output<Node>& arg1,

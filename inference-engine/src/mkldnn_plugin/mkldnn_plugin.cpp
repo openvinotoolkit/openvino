@@ -32,7 +32,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/gelu.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
@@ -80,7 +80,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node);
+               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
@@ -97,6 +99,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
             {ngraph::element::u16, ngraph::element::i32},
             {ngraph::element::u32, ngraph::element::i32},
             {ngraph::element::f16, ngraph::element::f32},
+            {ngraph::element::boolean, ngraph::element::u8},
     };
 
     for (auto & precision : convert_precision_list) {
@@ -115,10 +118,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ti_manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-
-    // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
-    // so we temporary have to call CNNNetwork ConvertPrecision transformation
-    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs

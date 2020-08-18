@@ -330,12 +330,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Range>>("Range"),
         std::make_shared<LayerCreator<ngraph::op::PriorBox>>("PriorBox"),
         std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
-        std::make_shared<LayerCreator<ngraph::op::Proposal>>("Proposal"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceMax>>("ReduceMax"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceMin>>("ReduceMin"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceMean>>("ReduceMean"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceProd>>("ReduceProd"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceSum>>("ReduceSum"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
@@ -363,8 +357,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceLogicalAnd>>("ReduceLogicalAnd"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ReduceLogicalOr>>("ReduceLogicalOr"),
     };
 
     // Check that operation in default opsets
@@ -714,36 +706,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBoxCluste
     attr.clip = (GetIntAttr(dn, "clip") != 0);
 
     return std::make_shared<ngraph::op::PriorBoxClustered>(inputs[0], inputs[1], attr);
-}
-
-// Proposal layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Proposal>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::ProposalAttrs attr;
-    attr.base_size = GetUIntAttr(dn, "base_size");
-    attr.pre_nms_topn = GetUIntAttr(dn, "pre_nms_topn");
-    attr.post_nms_topn = GetUIntAttr(dn, "post_nms_topn");
-    attr.nms_thresh = GetFloatAttr(dn, "nms_thresh");
-    attr.feat_stride = GetUIntAttr(dn, "feat_stride");
-    attr.min_size = GetUIntAttr(dn, "min_size");
-    attr.ratio = getParameters<float>(dn, "ratio");
-    attr.scale = getParameters<float>(dn, "scale");
-    attr.clip_after_nms = (GetIntAttr(dn, "clip_after_nms", 0) != 0);
-    attr.clip_before_nms = (GetIntAttr(dn, "clip_before_nms", 1) != 0);
-    attr.normalize = (GetIntAttr(dn, "normalize", 0) != 0);
-    attr.box_size_scale = GetFloatAttr(dn, "box_size_scale", 1.0f);
-    attr.box_coordinate_scale = GetFloatAttr(dn, "box_coordinate_scale", 1.0f);
-    attr.framework = GetStrAttr(dn, "framework", "");
-
-    return std::make_shared<ngraph::op::Proposal>(inputs[0], inputs[1], inputs[2], attr);
 }
 
 // PriorBox layer
@@ -1527,76 +1489,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::cr
     return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
 }
 
-// ReduceMin layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceMin>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceMin>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims", false));
-}
-
-// ReduceMax layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceMax>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceMax>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims", false));
-}
-
-// ReduceMean layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceMean>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceMean>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims", false));
-}
-
-// ReduceProd layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceProd>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceProd>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims", false));
-}
-
-// ReduceSum layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceSum>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceSum>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims", false));
-}
-
 // Transpose layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Transpose>::createLayer(
@@ -2206,34 +2098,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalNot
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::v1::LogicalNot>(inputs[0]);
-}
-
-// ReduceLogicalAnd layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceLogicalAnd>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceLogicalAnd>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims"));
-}
-
-// ReduceLogicalOr layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ReduceLogicalOr>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::ReduceLogicalOr>(inputs[0], inputs[1], GetBoolAttr(dn, "keep_dims"));
 }
 
 // NonMaxSuppression layer

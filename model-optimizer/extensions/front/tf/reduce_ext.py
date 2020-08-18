@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum
+from extensions.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum, ReduceL2
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 
@@ -66,4 +66,14 @@ class SumFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node: Node):
         ReduceSum.update_node_stat(node, {'keep_dims': node.pb.attr["keep_dims"].b})
+        return cls.enabled
+
+
+class EuclideanNormFrontExtractor(FrontExtractorOp):
+    op = 'EuclideanNorm'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        ReduceL2.update_node_stat(node, {'keep_dims': node.pb.attr["keep_dims"].b})
         return cls.enabled
