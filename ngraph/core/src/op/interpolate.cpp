@@ -149,7 +149,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
 
 static const char* cannot_define_axes =
     "Cannot define axes of interpolation when there is "
-    "only two inputs and input data have dynamic rank";
+    "only three inputs and input data have dynamic rank";
 
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
 {
