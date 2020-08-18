@@ -30,18 +30,17 @@ std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
 {
     std::array<float, 4> coeff;
     float abs_s = std::fabs(s);
-    coeff[0] = static_cast<float>(
-        ((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
+    coeff[0] =
+        static_cast<float>(((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
     coeff[1] = static_cast<float>(((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1);
-    coeff[2] = static_cast<float>(
-        ((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
-    coeff[3] = static_cast<float>(
-        ((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
+    coeff[2] =
+        static_cast<float>(((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
+    coeff[3] =
+        static_cast<float>(((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
     return coeff;
 }
 
-Coordinate
-    InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord)
+Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord)
 {
     std::size_t num_of_axes = m_axes.size();
     auto input_coord = output_coord;
@@ -159,7 +158,6 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     result.input_height = input_height;
     result.input_width = input_width;
 
-
     return result;
 }
 
@@ -249,7 +247,6 @@ InterpolateEvalHelper::LinearModeInnerIterationResult
                                              const InfoForLinearMode& info,
                                              const Coordinate& index)
 {
-
     std::size_t input_rank = m_input_data_shape.size();
     std::size_t num_of_axes = m_axes.size();
 

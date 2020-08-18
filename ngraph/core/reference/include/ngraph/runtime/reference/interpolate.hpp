@@ -259,6 +259,7 @@ namespace ngraph
                     return std::max(static_cast<int64_t>(0),
                                     std::min(coord, static_cast<int64_t>(length) - 1));
                 }
+
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
@@ -363,7 +364,8 @@ namespace ngraph
                     CoordinateTransform indices{info.shape_for_indeces};
                     for (const auto& index : indices)
                     {
-                        auto inner_result = helper.inner_calculation(output_coord, icoords_data, info, index);
+                        auto inner_result =
+                            helper.inner_calculation(output_coord, icoords_data, info, index);
                         if (!inner_result.condition)
                         {
                             continue;
@@ -371,7 +373,8 @@ namespace ngraph
 
                         wsum += inner_result.w;
                         summa += inner_result.w *
-                                 static_cast<float>(input_data[input_transform.index(inner_result.inner_coord)]);
+                                 static_cast<float>(
+                                     input_data[input_transform.index(inner_result.inner_coord)]);
                     }
 
                     if (wsum == 0.0f)

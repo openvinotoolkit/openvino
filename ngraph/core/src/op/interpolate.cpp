@@ -419,7 +419,8 @@ namespace
         return result;
     }
 
-    struct InfoToCallReference{
+    struct InfoToCallReference
+    {
         Shape input_shape;
         Shape padded_input_shape;
         Shape out_shape;
