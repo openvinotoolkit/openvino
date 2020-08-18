@@ -286,7 +286,7 @@ jobs:
     displayName: 'nGraph UT'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
       "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /test=gtest
     displayName: 'IE UT old'
     continueOnError: false
@@ -316,7 +316,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
       "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\cpuFuncTests.exe --gtest_print_time=1 /test=gtest
     displayName: 'CPU FuncTests'
     continueOnError: false
@@ -333,7 +333,7 @@ jobs:
     # Add for gtest-parallel, it hangs now (CVS-33386)
     #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
       "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* /test=gtest
