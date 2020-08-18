@@ -61,6 +61,6 @@ class RandomUniformReplacer(MiddleReplacementPattern):
         node_name = node.soft_get('name', node.id)
         data_type = match['mul_const'].out_port(0).get_data_type()
         broadcast_node = create_op_with_const_inputs(graph, Broadcast, port_value_dict={0: np.array([1], dtype=data_type)},
-                                                     op_attrs={'name': node_name + '/Broadcast'})
+                                                     op_attrs={'name': node_name + '/Broadcast', 'mode': 'numpy'})
         node.in_port(0).get_connection().set_destination(broadcast_node.in_port(1))
         node.out_port(0).get_connection().set_source(broadcast_node.out_port(0))
