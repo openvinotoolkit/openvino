@@ -35,7 +35,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF16) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -68,7 +68,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF32) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -101,7 +101,7 @@ TEST(TransformationTests, HSwishFusionWithReluMul) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithReluMul>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -135,7 +135,7 @@ TEST(TransformationTests, HSwishFusionWithoutRelu) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithoutRelu>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -168,7 +168,7 @@ TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithReluMul>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -208,7 +208,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithReluDiv>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -249,7 +249,7 @@ TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ngraph::pass::HSwishFusionWithoutRelu>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
