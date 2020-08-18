@@ -19,6 +19,8 @@
 
 using namespace ngraph::runtime::reference;
 
+using Coordinate = ngraph::Coordinate;
+
 float InterpolateEvalHelper::triangle_coeff(float dz)
 {
     return std::max(0.0f, 1.0f - std::fabs(dz));
@@ -244,7 +246,8 @@ InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordina
 InterpolateEvalHelper::LinearModeInnerIterationResult
     InterpolateEvalHelper::inner_calculation(const Coordinate& output_coord,
                                              const ICoords& icoords_data,
-                                             const InfoForLinearMode& info)
+                                             const InfoForLinearMode& info,
+                                             const Coordinate& index)
 {
 
     std::size_t input_rank = m_input_data_shape.size();

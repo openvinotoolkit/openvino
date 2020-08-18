@@ -251,7 +251,8 @@ namespace ngraph
 
                 LinearModeInnerIterationResult inner_calculation(const Coordinate& output_coord,
                                                                  const ICoords& icoords_data,
-                                                                 const InfoForLinearMode& info);
+                                                                 const InfoForLinearMode& info,
+                                                                 const Coordinate& index);
 
                 int64_t clip_coord(int64_t coord, float length)
                 {
@@ -362,7 +363,7 @@ namespace ngraph
                     CoordinateTransform indices{info.shape_for_indeces};
                     for (const auto& index : indices)
                     {
-                        auto inner_result = helper.inner_calculation(output_coord, icoords_data, info);
+                        auto inner_result = helper.inner_calculation(output_coord, icoords_data, info, index);
                         if (!inner_result.condition)
                         {
                             continue;
