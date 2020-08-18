@@ -16,7 +16,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-        auto hswish_node = std::dynamic_pointer_cast<ngraph::opset4::HSwish>(pattern_to_output.at(hswish).get_node_shared_ptr());
+        auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 
         if (m_transformation_callback(hswish_node)) {
             return false;
