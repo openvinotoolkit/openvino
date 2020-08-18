@@ -19,7 +19,7 @@
 
 #include <memory>
 
-#include "ngraph/opsets/opset0.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "round.hpp"
 
 namespace ngraph
@@ -30,10 +30,26 @@ namespace ngraph
         {
             namespace set_1
             {
+                // WARNING!
+                // Current version is:
+                // data_floor = floor(data)
+                // diff = data - data_floor
+                // if(diff < 0.5f)
+                //   return data_floor
+                // else
+                //   return data_floor + 1.0f
+                //
+                // The correct version should contain condition:
+                // if (diff < 0.5f || (diff == 0.5f && static_cast<int>(data_floor) % 2 == 0))
                 OutputVector round(const Node& node)
                 {
                     const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    return {std::make_shared<ngraph::opset0::Round>(data)};
+                    const auto half_const =
+                        default_opset::Constant::create(data.get_element_type(), {}, {0.5f});
+
+                    // Floor(data + 0.5)
+                    return {std::make_shared<default_opset::Floor>(
+                        std::make_shared<default_opset::Add>(data, half_const))};
                 }
             } // namespace set_1
 

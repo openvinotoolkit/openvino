@@ -111,7 +111,7 @@
 #include "onnx_import/op/reverse_sequence.hpp"
 #include "onnx_import/op/rnn.hpp"
 #include "onnx_import/op/roi_align.hpp"
-// #include "onnx_import/op/round.hpp"
+#include "onnx_import/op/round.hpp"
 #include "onnx_import/op/scatter_elements.hpp"
 // #include "onnx_import/op/scatter_nd.hpp"
 #include "onnx_import/op/selu.hpp"
@@ -360,7 +360,7 @@ namespace ngraph
             REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
             REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
-            // REGISTER_OPERATOR("Round", 1, round);
+            REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
             // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
