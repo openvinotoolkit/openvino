@@ -488,9 +488,10 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                                           enablePerfCounters);
 }
 
-void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                        network,
-                                              const std::map<std::string, std::string>& config,
-                                              QueryNetworkResult&                       queryResult) const {
+QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                        network,
+                                                            const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult queryResult;
+
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with MULTI device via InferencEngine::Core object";
     }
@@ -552,5 +553,7 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
     for (auto&& supportedLayer : supportedLayers) {
         queryResult.supportedLayersMap[supportedLayer] = GetName();
     }
+
+    return queryResult;
 }
 }  // namespace MultiDevicePlugin

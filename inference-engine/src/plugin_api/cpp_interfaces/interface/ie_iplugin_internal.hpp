@@ -271,8 +271,7 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @param      res      The result of query operator containing supported layers map
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
-                              QueryNetworkResult& res) const = 0;
+    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
 };
 
 }  // namespace InferenceEngine

@@ -23,9 +23,9 @@ public:
     ~Plugin() override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult &res) const override;
+    InferenceEngine::QueryNetworkResult
+    QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+                 const std::map<std::string, std::string>& config) const override;
     InferenceEngine::ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;

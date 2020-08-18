@@ -386,7 +386,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     if (queryNetworkResult.supportedLayersMap.empty()) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it != _config.end()) {
-            _heteroPlugin->QueryNetwork(network_, _config, queryNetworkResult);
+            queryNetworkResult = _heteroPlugin->QueryNetwork(network_, _config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
