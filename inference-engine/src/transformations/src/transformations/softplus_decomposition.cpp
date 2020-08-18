@@ -21,6 +21,10 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
 
         auto softplus_node = std::dynamic_pointer_cast<ngraph::opset4::SoftPlus>(pattern_to_output.at(softplus).get_node_shared_ptr());
 
+        if (softplus_node == nullptr) {
+            return false;
+        }
+
         if (m_transformation_callback(softplus_node)) {
             return false;
         }
