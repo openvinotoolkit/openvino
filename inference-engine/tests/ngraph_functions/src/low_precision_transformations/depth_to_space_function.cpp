@@ -5,6 +5,7 @@
 #include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -36,34 +37,15 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
-    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
-    const DepthToSpaceActualValues& actualValues) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(actualValues.precision, inputShape);
-    std::shared_ptr<ngraph::Node> parent = input;
+    const ngraph::element::Type precisionBeforeDequantization,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
-    parent = convert;
-
-    if (!actualValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared< ngraph::opset1::Subtract >(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ actualValues.subtractValues.size() }), actualValues.subtractValues));
-        parent = subtract;
-    }
-
-    if (!actualValues.mutliplyValues.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::opset1::Multiply >(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ actualValues.mutliplyValues.size() }), actualValues.mutliplyValues));
-        parent = multiply;
-    }
-
-    auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(parent, mode, blockSize);
+    const auto dequantizationOp = makeDequantization(input, dequantization);
+    auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(dequantizationOp, mode, blockSize);
     d2s->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(d2s) };
@@ -73,38 +55,20 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
-    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
-    const DepthToSpaceExpectedValues& expectedValues) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(expectedValues.precision, inputShape);
+    const ngraph::element::Type precisionBeforeDequantization,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
-    auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(input, mode, blockSize);
+    const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, dequantizationBefore);
+    auto d2s = std::make_shared<ngraph::opset1::DepthToSpace>(dequantizationOpBefore, mode, blockSize);
+    const std::shared_ptr<Node> dequantizationOpAfter = makeDequantization(d2s, dequantizationAfter);
+    dequantizationOpAfter->set_friendly_name("output");
 
-    std::shared_ptr<ngraph::Node> parent = d2s;
-
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
-    parent = convert;
-
-    if (!expectedValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared< ngraph::opset1::Subtract >(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ expectedValues.subtractValues.size() }), expectedValues.subtractValues));
-        parent = subtract;
-    }
-
-    if (!expectedValues.mutliplyValues.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::opset1::Multiply >(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                precision, Shape({ expectedValues.mutliplyValues.size() }), expectedValues.mutliplyValues));
-        parent = multiply;
-    }
-    parent->set_friendly_name("output");
-
-    ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(parent) };
+    ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;

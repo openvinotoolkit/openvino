@@ -11,39 +11,11 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-
-class DepthToSpaceActualValues {
-public:
-    ngraph::element::Type precision;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
-};
-
-inline std::ostream& operator<<(std::ostream& out, const DepthToSpaceActualValues& values) {
-    return out <<
-        "_" << values.precision <<
-        "_subtract" << values.subtractValues.size() <<
-        "_mutliply" << values.mutliplyValues.size();
-}
-
-class DepthToSpaceExpectedValues {
-public:
-    ngraph::element::Type precision;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
-};
-
-inline std::ostream& operator<<(std::ostream& out, const DepthToSpaceExpectedValues& values) {
-    return out <<
-        "_" << values.precision <<
-        "_subtract" << values.subtractValues.size() <<
-        "_mutliply" << values.mutliplyValues.size();
-}
-
 
 class DepthToSpaceFunction {
 public:
@@ -52,18 +24,21 @@ public:
         const ngraph::Shape& inputShape,
         const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
         const size_t blockSize);
+
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
         const size_t blockSize,
-        const DepthToSpaceActualValues& actualValues);
+        const ngraph::element::Type precisionBeforeDequantization,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
         const size_t blockSize,
-        const DepthToSpaceExpectedValues& expectedValues);
+        const ngraph::element::Type precisionBeforeDequantization,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph
