@@ -85,28 +85,28 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
 
     VPU_THROW_UNLESS(g_compileEnv->config.numSHAVEs <= g_compileEnv->config.numCMXSlices,
         R"(Value of configuration option ("{}") must be not greater than value of configuration option ("{}"), but {} > {} are provided)",
-        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), config.numSHAVEs, config.numCMXSlices);
+        ie::MYRIAD_NUMBER_OF_SHAVES, ie::MYRIAD_NUMBER_OF_CMX_SLICES, config.numSHAVEs, config.numCMXSlices);
 
     const auto numExecutors = config.numExecutors != -1 ? config.numExecutors : DefaultAllocation::numStreams(platform, config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), 1, DeviceResources::numStreams(), numExecutors);
+        ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);
 
     const auto numSlices  = config.numCMXSlices != -1 ? config.numCMXSlices : DefaultAllocation::numSlices(platform, numExecutors);
     VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), 1, DeviceResources::numSlices(platform), numSlices);
+        ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(platform), numSlices);
 
     int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
     const auto tilingCMXLimit  = config.tilingCMXLimitKB != -1 ? std::min(config.tilingCMXLimitKB * 1024, defaultCmxLimit) : defaultCmxLimit;
     VPU_THROW_UNLESS(tilingCMXLimit >= 0,
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
-        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), 0, tilingCMXLimit);
+        ie::MYRIAD_TILING_CMX_LIMIT_KB, 0, tilingCMXLimit);
 
     const auto numShaves = config.numSHAVEs != -1 ? config.numSHAVEs : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), 1, DeviceResources::numShaves(platform), numShaves);
+        ie::MYRIAD_NUMBER_OF_SHAVES, 1, DeviceResources::numShaves(platform), numShaves);
 
     const auto numAllocatedShaves = numShaves * numExecutors;
     VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(platform),

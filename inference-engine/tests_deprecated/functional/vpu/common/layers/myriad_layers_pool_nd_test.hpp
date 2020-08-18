@@ -190,7 +190,7 @@ protected:
         // Initialize network
         //
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         std::string model = createModel(inputShape,
                                         outputShape,
