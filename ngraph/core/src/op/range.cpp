@@ -26,7 +26,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::Range::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::Range, "Range", 4);
 
 op::v4::Range::Range(const Output<Node>& start,
                      const Output<Node>& stop,

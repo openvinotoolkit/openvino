@@ -29,8 +29,7 @@ namespace ngraph
             class NGRAPH_API Range : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Range", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs an unitialized range operation.
                 Range() = default;
 
