@@ -967,16 +967,23 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     return idx;
 }
 
-void GNAPlugin::Wait(uint32_t request_idx) {
+bool GNAPlugin::Wait(uint32_t request_idx) {
+    return WaitFor(request_idx, MAX_TIMEOUT);
+}
+
+bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return;    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return;
+    if (std::get<1>(nnets[request_idx]) == -1) return true;
 
     if (gnadevice) {
-        gnadevice->wait(std::get<1>(nnets[request_idx]));
+        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
+            std::get<1>(nnets[request_idx]) = -1;
+            return false;
+        }
     }
 
     std::get<1>(nnets[request_idx]) = -1;
@@ -1063,13 +1070,14 @@ void GNAPlugin::Wait(uint32_t request_idx) {
         }
         output_idx++;
     }
+    return true;
 }
 
 void GNAPlugin::Reset() {
     graphCompiler.Reset();
 }
 
-void GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
+bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
     BlobMap bmInput;
     BlobMap bmOutput;
     if (inputsDataMap.size() != 1) {
@@ -1080,11 +1088,11 @@ void GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
     bmInput[inputsDataMap.begin()->first] = std::shared_ptr<Blob>(const_cast<Blob*>(&input), [](Blob*){});
     IE_ASSERT(!outputsDataMap.empty());
     bmOutput[outputsDataMap.begin()->first] = std::shared_ptr<Blob>(&output, [](Blob*){});
-    Infer(bmInput, bmOutput);
+    return Infer(bmInput, bmOutput);
 }
 
-void GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    Wait(QueueInference(input, result));
+bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
+    return  Wait(QueueInference(input, result));
 }
 
 Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Precision precision) {
