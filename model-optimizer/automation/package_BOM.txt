@@ -351,8 +351,10 @@ extensions/front/tf/const_ext.py
 extensions/front/tf/conv_ext.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
-extensions/front/tf/CTCGreedyDecoder.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
+extensions/front/tf/CTCGreedyDecoderReplacement.py
+extensions/front/tf/CTCLoss_ext.py
+extensions/front/tf/CTCLossReplacement.py
 extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
@@ -593,6 +595,7 @@ extensions/ops/constant_fill.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
 extensions/ops/depth_to_space.py

@@ -668,11 +668,11 @@ TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
                                                       {
                                                           {
-                                                              VPU_CONFIG_KEY(PERF_REPORT_MODE),
-                                                              VPU_CONFIG_VALUE(PER_STAGE)
+                                                              InferenceEngine::MYRIAD_PERF_REPORT_MODE,
+                                                              InferenceEngine::MYRIAD_PER_STAGE
                                                           },
                                                           {
-                                                              VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+                                                              InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
                                                               CONFIG_VALUE(YES)
                                                           },
                                                       },
