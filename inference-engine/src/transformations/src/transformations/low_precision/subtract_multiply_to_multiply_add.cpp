@@ -106,7 +106,8 @@ void SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         }
 
         if (dequantization.multiply != nullptr) {
-            NetworkHelper::copyInfo(dequantization.multiply, lastNew);
+            copy_runtime_info(dequantization.multiply, lastNew);
+            //NetworkHelper::copyInfo(dequantization.multiply, lastNew);
         }
 
         lastNewPrecision = precisionAfterDequantization;
