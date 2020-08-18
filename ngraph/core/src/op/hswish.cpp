@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::HSwish , "HSwish", 4);
+NGRAPH_RTTI_DEFINITION(op::v4::HSwish, "HSwish", 4);
 
 op::v4::HSwish::HSwish(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
