@@ -16,14 +16,14 @@
 
 #include "ngraph/op/softplus.hpp"
 #include "ngraph/attribute_visitor.hpp"
-
+#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/softplus.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::SoftPlus, 'SoftPlus', 4);
+NGRAPH_RTTI_DEFINITION(op::v4::SoftPlus, "SoftPlus", 4);
 
 op::v4::SoftPlus::SoftPlus(const Output<Node>& arg)
     : Op({arg})
@@ -78,5 +78,6 @@ namespace
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::SoftPlus::evaluate");
     return evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
