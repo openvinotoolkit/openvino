@@ -38,6 +38,9 @@
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
 #include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/reduce_l1_decomposition.hpp>
+#include <transformations/reduce_l2_decomposition.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -54,6 +57,11 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // the following two transformations produce ReduceSum operations so they
+    // must be executed before the ConvertReduceSumToPooling transformation
+    manager.register_pass<ngraph::pass::ReduceL1Decomposition>();
+    manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
 
     // List if Decomposition and Conversion transformations that can be
     // applied simultaneously in a single graph traversal

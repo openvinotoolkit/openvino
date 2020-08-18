@@ -2262,23 +2262,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round)
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/round.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f,
-                                0.5f,
-                                0.9f,
-                                1.2f,
-                                1.5f,
-                                1.8f,
-                                2.3f,
-                                2.5f,
-                                2.7f,
-                                -1.1f,
-                                -1.5f,
-                                -1.9f,
-                                -2.2f,
-                                -2.5f,
-                                -2.8f});
+    test_case.add_input<float>(
+        {0.1f, 0.9f, 1.2f, 1.5f, 1.8f, 2.3f, 2.7f, -1.1f, -1.9f, -2.2f, -2.8f});
     test_case.add_expected_output<float>(
-        {0.f, 0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -2.f, -2.f, -3.f});
+        {0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -3.f});
+
+    test_case.run();
+}
+
+// CASES NOT CORRECTLY HANDLED BY CURRENT IMPLEMENTATION OF ROUND
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/round_half_nearest_even.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({0.5f, 2.5f, -1.5f, -2.5f});
+    test_case.add_expected_output<float>({0.f, 2.f, -2.f, -2.f});
 
     test_case.run();
 }

@@ -76,7 +76,7 @@ class myriadLayersTestsExpPriorGridGen : public myriadLayerTestBaseWithParam<Exp
 
             const auto numPriors = inputTensorsDims.priors.n;
 
-            _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+            _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
             IN_OUT_desc inputTensors, outputTensors;
             inputTensors.push_back({inputTensorsDims.priors.n, inputTensorsDims.priors.c});

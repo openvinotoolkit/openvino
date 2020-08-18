@@ -261,7 +261,7 @@ void PassImpl::run(const Model& model) {
                 }
                 {
                     auto postfix = formatString("@temp(d=%d/%d,k=%d/%d)", d + 1, OD, k + 1, KD);
-                    subTemp[d][k] = model->duplicateData(subPool[d], postfix, subDesc);
+                    subTemp[d][k] = model->duplicateData(subPool[i], postfix, subDesc);
                 }
 
                 if (iCount < 2) {

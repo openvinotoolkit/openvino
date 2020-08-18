@@ -33,7 +33,7 @@
 
 #include <inference_engine.hpp>
 #include <common.hpp>
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/vpu_config.hpp>
 
 static char* m_exename = nullptr;
 
@@ -155,8 +155,8 @@ static bool loadBinaryTensor(const std::string &binaryFilename, InferenceEngine:
 static void setConfig(std::map<std::string, std::string>& config,
                       const std::string& file_config_cl) {
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
-    config[VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME)] = CONFIG_VALUE(YES);
-    config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = file_config_cl;
+    config[InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME] = CONFIG_VALUE(YES);
+    config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = file_config_cl;
 }
 
 static void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) {
