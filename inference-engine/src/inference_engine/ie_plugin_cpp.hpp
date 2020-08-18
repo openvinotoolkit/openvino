@@ -76,9 +76,7 @@ public:
     }
 
     ExecutableNetwork LoadNetwork(CNNNetwork network, const std::map<std::string, std::string>& config) {
-        IExecutableNetwork::Ptr ret;
-        CALL_STATEMENT(actual->LoadNetwork(ret, network, config));
-        return ExecutableNetwork(ret, actual);
+        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config), actual));
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
