@@ -534,7 +534,6 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
-extensions/middle/NasNet.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
