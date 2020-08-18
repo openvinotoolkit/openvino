@@ -48,7 +48,16 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     void InferImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
-        plg->Infer(_inputs, _outputs);
+        // result returned from sync infer wait method
+        auto result = plg->Infer(_inputs, _outputs);
+
+        // if result is false we are dealing with QoS feature
+        // if result is ok, next call to wait() will return Ok, if request not in gna_queue
+        if (!result) {
+            inferRequestIdx = -1;
+        } else {
+            inferRequestIdx = -2;
+        }
     }
 
     /**
@@ -73,10 +82,11 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         if (_callback) {
             auto infer_request = _publicInterface.lock();
             IE_ASSERT(infer_request != nullptr);
-            auto res = Wait(0);
+            auto res = Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
             _callback(infer_request, res);
         }
     }
+
 
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
         if (inferRequestIdx == -1) {
@@ -85,8 +95,20 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
         }
 
-        plg->Wait(inferRequestIdx);
-        return InferenceEngine::OK;
+        bool qosOK;
+        if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
+            qosOK = plg->Wait(inferRequestIdx);
+        } else {
+            qosOK = plg->WaitFor(inferRequestIdx, millis_timeout);
+        }
+
+        if (qosOK) {
+            return InferenceEngine::OK;
+        } else {
+            // need to preserve invalid state here to avoid next Wait() from clearing it
+            inferRequestIdx = -1;
+            return InferenceEngine::INFER_NOT_STARTED;
+        }
     }
 };
 }  // namespace GNAPluginNS

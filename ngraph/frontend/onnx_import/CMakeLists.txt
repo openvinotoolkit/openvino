@@ -24,14 +24,12 @@ list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/round.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/scatter_nd.cpp
     )
 list(REMOVE_ITEM PUBLIC_HEADERS 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/gather_nd.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/round.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/scatter_nd.hpp
     )
 

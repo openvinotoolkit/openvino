@@ -14,14 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
-#include <cmath>
-
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/op/pad.hpp" // for op::PadMode
+#include "ngraph/runtime/reference/pad.hpp"
 
 namespace ngraph
 {
@@ -29,29 +22,29 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void pad(const T* arg0,
-                     const T* arg1,
-                     T* out,
-                     const Shape& arg0_shape,
+            void pad(const char* data,
+                     const char* pad_value,
+                     char* out,
+                     const size_t elem_size,
+                     const Shape& data_shape,
                      const Shape& out_shape,
                      const CoordinateDiff& padding_below,
                      const CoordinateDiff& padding_above,
-                     op::PadMode pad_mode)
+                     const op::PadMode pad_mode)
             {
-                Coordinate input_start(arg0_shape.size(), 0); // start at (0,0,...,0)
+                Coordinate input_start(data_shape.size(), 0); // start at (0,0,...,0)
                 Coordinate input_end = out_shape; // end at (d'0,d'1,...,d'n), the outer corner of
                                                   // the post-padding shape
 
-                Strides input_strides(arg0_shape.size(), 1);
+                Strides input_strides(data_shape.size(), 1);
 
-                AxisVector input_axis_order(arg0_shape.size());
-                for (size_t i = 0; i < arg0_shape.size(); i++)
+                AxisVector input_axis_order(data_shape.size());
+                for (size_t i = 0; i < data_shape.size(); i++)
                 {
                     input_axis_order[i] = i;
                 }
 
-                CoordinateTransform input_transform(arg0_shape,
+                CoordinateTransform input_transform(data_shape,
                                                     input_start,
                                                     input_end,
                                                     input_strides,
@@ -65,19 +58,29 @@ namespace ngraph
                 NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) ==
                              shape_size(output_transform.get_target_shape()));
 
+                // depending on the data tensor element type, allocate enough bytes to fit a
+                // single value of this type
+                std::vector<char> v(elem_size, 0);
+
                 for (const Coordinate& in_coord : input_transform)
                 {
                     const Coordinate& out_coord = *output_it;
 
-                    T v(0);
+                    std::fill(v.begin(), v.end(), 0);
 
                     switch (pad_mode)
                     {
                     case op::PadMode::CONSTANT:
-                        // If the coordinate is out of bounds, substitute *arg1.
-                        v = input_transform.has_source_coordinate(in_coord)
-                                ? arg0[input_transform.index(in_coord)]
-                                : *arg1;
+                        // If the coordinate is out of bounds, substitute *pad_value.
+                        if (input_transform.has_source_coordinate(in_coord))
+                        {
+                            const auto* offset = data + input_transform.index(in_coord) * elem_size;
+                            std::copy(offset, offset + elem_size, v.begin());
+                        }
+                        else
+                        {
+                            std::copy(pad_value, pad_value + elem_size, v.begin());
+                        }
                         break;
                     case op::PadMode::EDGE:
                     {
@@ -92,13 +95,14 @@ namespace ngraph
                             }
 
                             if (static_cast<ptrdiff_t>(c[i]) >=
-                                (padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i])))
+                                (padding_below[i] + static_cast<ptrdiff_t>(data_shape[i])))
                             {
                                 c[i] = static_cast<size_t>(
-                                    padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i]) - 1);
+                                    padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]) - 1);
                             }
                         }
-                        v = arg0[input_transform.index(c)];
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     case op::PadMode::REFLECT:
@@ -144,13 +148,13 @@ namespace ngraph
                                     new_dim = padding_below[i] + distance_oob;
                                 }
                                 else if (new_dim >=
-                                         padding_below[i] + static_cast<ptrdiff_t>(arg0_shape[i]))
+                                         padding_below[i] + static_cast<ptrdiff_t>(data_shape[i]))
                                 {
                                     ptrdiff_t distance_oob =
                                         new_dim - padding_below[i] -
-                                        (static_cast<ptrdiff_t>(arg0_shape[i]) - 1);
+                                        (static_cast<ptrdiff_t>(data_shape[i]) - 1);
                                     new_dim = padding_below[i] +
-                                              static_cast<ptrdiff_t>(arg0_shape[i]) - distance_oob -
+                                              static_cast<ptrdiff_t>(data_shape[i]) - distance_oob -
                                               1;
                                 }
                                 else
@@ -161,7 +165,8 @@ namespace ngraph
 
                             c[i] = static_cast<size_t>(new_dim);
                         }
-                        v = arg0[input_transform.index(c)];
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     case op::PadMode::SYMMETRIC:
@@ -177,7 +182,7 @@ namespace ngraph
                             else
                             {
                                 pos = -(pos + 1);
-                                ptrdiff_t src_dim = static_cast<ptrdiff_t>(arg0_shape[i]);
+                                ptrdiff_t src_dim = static_cast<ptrdiff_t>(data_shape[i]);
                                 if (pos < src_dim)
                                 {
                                     c[i] = static_cast<size_t>(pos + padding_below[i]);
@@ -189,12 +194,14 @@ namespace ngraph
                                 }
                             }
                         }
-                        v = arg0[input_transform.index(c)];
+                        const auto* offset = data + input_transform.index(c) * elem_size;
+                        std::copy(offset, offset + elem_size, v.begin());
                         break;
                     }
                     }
 
-                    out[output_transform.index(out_coord)] = v;
+                    std::copy(
+                        v.begin(), v.end(), out + output_transform.index(out_coord) * elem_size);
 
                     ++output_it;
                 }
