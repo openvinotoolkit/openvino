@@ -20,7 +20,7 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
         auto &pattern_to_output = m.get_pattern_value_map();
         auto extract_image_patches =  std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
 
-        if (!extract_image_patches) {
+        if (!extract_image_patches || m_transformation_callback(extract_image_patches) {
             return false;
         }
 
