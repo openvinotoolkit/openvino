@@ -121,10 +121,10 @@ elif [[ $DISTRO == "ubuntu" ]]; then
 
     system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
     if [ $system_ver = "16.04" ]; then
-    	sudo -E apt-get install -y libpng12-dev
+        sudo -E apt-get install -y libpng12-dev
     else
-    	sudo -E apt-get install -y libpng-dev
-fi
+        sudo -E apt-get install -y libpng-dev
+    fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     # check installed Python version
     if command -v python3.7 >/dev/null 2>&1; then
