@@ -26,6 +26,7 @@
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
+#include "pyngraph/rt_map.hpp"
 #include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
@@ -34,30 +35,8 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-template <typename T>
-void _set_with_variant(PyRTMap& m, const std::string& k, const T v)
-{
-    auto new_v = std::make_shared<ngraph::VariantWrapper<T>>(ngraph::VariantWrapper<T>(v));
-    auto it = m.find(k);
-    if (it != m.end())
-        it->second = new_v;
-    else
-        m.emplace(k, new_v);
-}
-
 void regclass_pyngraph_Node(py::module m)
 {
-    auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
-    py_map.doc() =
-        "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
-        "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
-    py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
-        _set_with_variant(m, k, v);
-    });
-    py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const int64_t v) {
-        _set_with_variant(m, k, v);
-    });
-
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("__add__",
