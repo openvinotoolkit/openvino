@@ -616,6 +616,7 @@ xfail_issue_36535(test_cases.test_tinyyolov2_opset8_cpu)
 
 xfail_issue_36537(test_cases.test_shufflenet_v2_opset10_cpu)
 xfail_issue_36538(test_cases.test_yolov3_opset10_cpu)
+xfail_issue_36538(test_cases.test_tiny_yolov3_opset11_cpu)
 
 for test_case in test_cases_list:
     xfail_issue_36533(test_case)
