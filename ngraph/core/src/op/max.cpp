@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/max.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
