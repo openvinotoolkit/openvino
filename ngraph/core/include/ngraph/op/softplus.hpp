@@ -33,7 +33,6 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 SoftPlus() = default;
                 /// \brief Constructs an SoftPlus operation.
                 ///
