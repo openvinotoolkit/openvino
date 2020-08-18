@@ -196,41 +196,20 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     {
     case element::Type_t::bf16:
         return evaluate_v4_range<element::Type_t::bf16>(out, start, stop, step);
-        break;
     case element::Type_t::f16:
         return evaluate_v4_range<element::Type_t::f16>(out, start, stop, step);
-        break;
     case element::Type_t::f32:
         return evaluate_v4_range<element::Type_t::f32>(out, start, stop, step);
-        break;
-    case element::Type_t::i8:
-        return evaluate_v4_range<element::Type_t::i8>(out, start, stop, step);
-        break;
+    case element::Type_t::i8: return evaluate_v4_range<element::Type_t::i8>(out, start, stop, step);
     case element::Type_t::i32:
         return evaluate_v4_range<element::Type_t::i32>(out, start, stop, step);
-        break;
     case element::Type_t::i64:
         return evaluate_v4_range<element::Type_t::i64>(out, start, stop, step);
-        break;
-    case element::Type_t::u8:
-        return evaluate_v4_range<element::Type_t::u8>(out, start, stop, step);
-        break;
+    case element::Type_t::u8: return evaluate_v4_range<element::Type_t::u8>(out, start, stop, step);
     case element::Type_t::u32:
         return evaluate_v4_range<element::Type_t::u32>(out, start, stop, step);
-        break;
     case element::Type_t::u64:
         return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
-        break;
-    case element::Type_t::f64:
-    case element::Type_t::i16:
-    case element::Type_t::u16:
-    case element::Type_t::dynamic:
-    case element::Type_t::u1:
-    case element::Type_t::undefined:
-    case element::Type_t::boolean:
-        NODE_VALIDATION_CHECK(
-            this, false, "Internal nGraph error: unsupported element type: ", m_output_type);
-        break;
     }
     return false;
 }
