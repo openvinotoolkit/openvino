@@ -23,6 +23,11 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+
+        if (constant == nullptr) {
+            return false;
+        }
+
         if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
             auto data = constant->cast_vector<float>();
             if (data.size() != 1 || data[0] != 1.0) {
