@@ -158,7 +158,12 @@ void ngraph::pass::ConvertTensorIteratorToLSTMSequence::convert_ti_to_lstm_seque
             }
         }
 
-        std::string type = cell->get_type_name();
+        ngraph::NodeVector new_nodes = {in_1, in_2, in_4, in_5, in_6, sequence, out_0, out_1, out_2};
+        if (slice_axis == 0) {
+            new_nodes.push_back(out);
+            new_nodes.push_back(in_0.get_node_shared_ptr());
+        }
+        copy_runtime_info(ti, new_nodes);
         return true;
     };
 
@@ -299,7 +304,12 @@ void ngraph::pass::ConvertTensorIteratorToRNNSequence::convert_ti_to_rnn_sequenc
             }
         }
 
-        std::string type = cell->get_type_name();
+        ngraph::OutputVector new_nodes = {in_1, in_3, in_4, in_5, sequence, out_0, out_1};
+        if (slice_axis == 0) {
+            new_nodes.push_back(out);
+            new_nodes.push_back(in_0);
+        }
+        copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
     };
 
@@ -421,9 +431,6 @@ void ngraph::pass::ConvertTensorIteratorToGRUSequence::convert_ti_to_gru_sequenc
                 rnn_cell->get_clip(),
                 rnn_cell->get_linear_before_reset());
 
-        NodeVector new_nodes = {in_1, in_3, in_4, in_5, sequence};
-        copy_runtime_info(ti, new_nodes);
-
         auto axis_out = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(1), axis_out);
@@ -444,7 +451,12 @@ void ngraph::pass::ConvertTensorIteratorToGRUSequence::convert_ti_to_gru_sequenc
             }
         }
 
-        std::string type = cell->get_type_name();
+        ngraph::OutputVector new_nodes = {in_1, in_3, in_4, in_5, sequence, out_0, out_1};
+        if (slice_axis == 0) {
+            new_nodes.push_back(out);
+            new_nodes.push_back(in_0);
+        }
+        copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
     };
 

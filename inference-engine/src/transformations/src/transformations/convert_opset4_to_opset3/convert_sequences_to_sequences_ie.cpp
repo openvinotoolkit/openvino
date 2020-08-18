@@ -69,7 +69,8 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             }
         }
         lstm_sequence_ie->set_friendly_name(lstm_sequence->get_friendly_name());
-        ngraph::copy_runtime_info(lstm_sequence, {concat, lstm_sequence_ie});
+        ngraph::copy_runtime_info(lstm_sequence, {concat, lstm_sequence_ie, in_1, in_2, in_3, in_4, unsqueeze_1,
+                                                  unsqueeze_2, unsqueeze_3});
         ngraph::replace_node(m.get_match_root(), lstm_sequence_ie);
         return true;
     };
@@ -196,7 +197,8 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             }
         }
         rnn_sequence_ie->set_friendly_name(rnn_sequence->get_friendly_name());
-        ngraph::copy_runtime_info(rnn_sequence, {concat, rnn_sequence_ie});
+        ngraph::copy_runtime_info(rnn_sequence, {concat, rnn_sequence_ie, in_1, in_3, in_4, unsqueeze_1,
+                                                 unsqueeze_2});
         ngraph::replace_node(m.get_match_root(), rnn_sequence_ie);
         return true;
     };

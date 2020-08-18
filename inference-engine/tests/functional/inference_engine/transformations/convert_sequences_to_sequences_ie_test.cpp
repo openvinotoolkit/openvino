@@ -31,19 +31,20 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
     const size_t input_size = 3;
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
+    const size_t num_directions = 1;
     {
         const auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32,
                                                                    ngraph::Shape{batch_size, input_size});
         const auto W =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                           ngraph::Shape{gates_count * hidden_size, input_size});
+                                                           ngraph::Shape{num_directions, gates_count * hidden_size, input_size});
         const auto R =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                           ngraph::Shape{gates_count * hidden_size, hidden_size});
+                                                           ngraph::Shape{num_directions, gates_count * hidden_size, hidden_size});
         const auto H_t = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32,
-                                                                     ngraph::Shape{batch_size, hidden_size});
+                                                                     ngraph::Shape{batch_size, num_directions, hidden_size});
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                                  ngraph::Shape{gates_count * hidden_size});
+                                                                  ngraph::Shape{num_directions, gates_count * hidden_size});
 
         const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
         sequence = std::make_shared<ngraph::opset4::GRUSequence>(X, H_t, seq_len, W, R, B, hidden_size,
@@ -63,22 +64,27 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
                                                                    ngraph::Shape{batch_size, input_size});
         const auto W =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                           ngraph::Shape{gates_count * hidden_size, input_size});
+                                                           ngraph::Shape{num_directions, gates_count * hidden_size, input_size});
         const auto R =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                           ngraph::Shape{gates_count * hidden_size, hidden_size});
+                                                           ngraph::Shape{num_directions, gates_count * hidden_size, hidden_size});
         const auto H_t = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32,
-                                                                     ngraph::Shape{batch_size, hidden_size});
+                                                                     ngraph::Shape{batch_size, num_directions, hidden_size});
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
-                                                                  ngraph::Shape{gates_count * hidden_size});
+                                                                  ngraph::Shape{num_directions, gates_count * hidden_size});
 
-        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        // const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(H_t, axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(B, axis_2);
         auto sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(X,
-                                                                       H_t,
-                                                                       seq_len,
-                                                                       concat,
-                                                                       B,
+                                                                       in_1,
+                                                                       // seq_len,   // this input is not supported
+                                                                       in_3,
+                                                                       in_4,
                                                                        sequence->get_hidden_size(),
                                                                        sequence->get_direction(),
                                                                        sequence->get_activations(),
@@ -88,28 +94,33 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
                                                                        sequence->get_linear_before_reset());
         sequence_ie->set_friendly_name("test_sequence");
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sequence_ie}, ngraph::ParameterVector{X, H_t});
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(1), unsqueeze_axis);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{unsqueeze_1}, ngraph::ParameterVector{X, H_t});
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
+            ->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(sequence_node->get_friendly_name() == "test_sequence")
                                 << "Transformation ConvertGRUSequenceToGRUSequenceIE should keep output names.\n";
 }
 
 TEST(TransformationTests, RNNSequenceConversionTest) {
     const size_t hidden_size = 3;
+    const size_t num_directions = 1;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset4::RNNSequence> sequence;
 
     {
         auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3});
+        auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, num_directions, 3});
+        auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
+        auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
+        auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3});
         auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{1}, 1);
         sequence = std::make_shared<ngraph::opset4::RNNSequence>(X, H, seq_len, W, R, B, hidden_size,
                                                                  ngraph::op::RecurrentSequenceDirection::FORWARD);
@@ -125,17 +136,22 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
 
     {
         auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{3});
-        auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{1}, 1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, num_directions, 3});
+        auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
+        auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
+        auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3});
+        // auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{1}, 1);
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(H, axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(B, axis_2);
         auto sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(X,
-                                                                       H,
-                                                                       seq_len,
-                                                                       concat,
-                                                                       B,
+                                                                       in_1,
+                                                                       // seq_len,
+                                                                       in_3,
+                                                                       in_4,
                                                                        sequence->get_hidden_size(),
                                                                        sequence->get_direction(),
                                                                        sequence->get_activations(),
@@ -143,15 +159,19 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
                                                                        sequence->get_activations_beta(),
                                                                        sequence->get_clip());
 
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(1), unsqueeze_axis);
         sequence_ie->set_friendly_name("test_sequence");
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sequence_ie}, ngraph::ParameterVector{X, H});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{unsqueeze_1}, ngraph::ParameterVector{X, H});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
+            ->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(sequence_node->get_friendly_name() == "test_sequence")
                                 << "Transformation ConvertRNNSequenceToRNNSequenceIE should keep output names.\n";
 }
@@ -214,14 +234,20 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
                                                                                 gates_count * hidden_size});
-        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 1);
+        // const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
+        auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(H_t, axis_1);
+        auto in_2 = std::make_shared<ngraph::opset4::Squeeze>(C_t, axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+        auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(B, axis_2);
         auto sequence_ie = std::make_shared<ngraph::op::LSTMSequenceIE>(X,
-                                                                        H_t,
-                                                                        C_t,
-                                                                        seq_len,
-                                                                        concat,
-                                                                        B,
+                                                                        in_1,
+                                                                        in_2,
+                                                                        // seq_len,
+                                                                        in_3,
+                                                                        in_4,
                                                                         sequence->get_hidden_size(),
                                                                         sequence->get_direction(),
                                                                         sequence->get_activations(),
@@ -229,8 +255,11 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
                                                                         sequence->get_activations_beta(),
                                                                         sequence->get_clip_threshold());
         sequence_ie->set_friendly_name("test_sequence");
-
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sequence_ie},
+        auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(0), unsqueeze_axis);
+        auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(1), unsqueeze_axis);
+        auto unsqueeze_3 = std::make_shared<ngraph::opset4::Unsqueeze>(sequence_ie->output(2), unsqueeze_axis);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{unsqueeze_1},
                                                    ngraph::ParameterVector{X, H_t, C_t});
     }
 
@@ -238,7 +267,8 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
+            ->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(sequence_node->get_friendly_name() == "test_sequence")
                                 << "Transformation ConvertLSTMSequenceToLSTMSequenceIE should keep output names.\n";
 }
