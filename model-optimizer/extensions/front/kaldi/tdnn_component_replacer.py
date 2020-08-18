@@ -15,9 +15,10 @@
 """
 
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.memoryoffset import MemoryOffset
-from mo.ops.result import Result
+from mo.ops.concat import Concat
+from extensions.ops.MatMul import FullyConnected
 
 
 class TdnnComponentReplacer(FrontReplacementPattern):
@@ -44,18 +45,30 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        tdnn_node = match['tdnncomponent']
+        tdnn_node: Node = match['tdnncomponent']
         tdnn_name = tdnn_node.name
+        concat_node = Concat(graph, {'name': tdnn_name + '_concat', 'axis': 0}).create_node()
 
         for i, t in enumerate(tdnn_node['time_offsets']):
             memory_name = tdnn_name + '_memoryoffset_' + str(t)
-            MemoryOffset(graph, {'name': memory_name, 't': t,
+            memoryoffset_node = MemoryOffset(graph, {'name': memory_name, 't': t,
                                  'pair_name': memory_name + '_out',
                                  'has_default': False}).create_node()
-        pass
-        # concat_op = Concat(graph, dict(axis=3)).create_node([crop_batch_node, crop_coordinates_node], dict(name='batch_and_coords', nchw_layout=True))
-        # connect all offsets to concat
+            tdnn_node.in_port(0).get_source().connect(memoryoffset_node.in_port(0))
 
-        # add convolution to concat
-        # add const nodes to convolution
-        # reconnect concat to out of tdnn
+            concat_node.add_input_port(i)
+            memoryoffset_node.out_port(0).connect(concat_node.in_port(i))
+
+        fc_layer = FullyConnected(graph, {'name': tdnn_name + '_fc',
+                                          'out-size': None, 'transpose_weights': False,
+                                          'bias_term': False}).create_node()
+        concat_node.out_port(0).connect(fc_layer.in_port(0))
+        tdnn_node.in_port(0).disconnect()
+        tdnn_node.out_port(0).get_connection().set_source(fc_layer.out_port(0))
+        print('hey')
+        pass
+
+        # add fully to concat
+        # add const nodes to fully
+        # set source of tdnns output to fully connected out
+
