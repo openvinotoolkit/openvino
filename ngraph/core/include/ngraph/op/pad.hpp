@@ -148,6 +148,9 @@ namespace ngraph
                 /// \return The padding mode.
                 PadMode get_pad_mode() const { return m_pad_mode; }
                 void set_pad_mode(PadMode pad_mode) { m_pad_mode = pad_mode; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             private:
                 PadMode m_pad_mode;
             };
