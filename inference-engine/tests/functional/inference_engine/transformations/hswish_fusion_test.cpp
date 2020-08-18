@@ -80,7 +80,6 @@ TEST(TransformationTests, HSwishFusionWithReluDivF32) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
 
-
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -113,7 +112,6 @@ TEST(TransformationTests, HSwishFusionWithReluMul) {
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;

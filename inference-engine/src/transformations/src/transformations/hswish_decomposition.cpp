@@ -16,7 +16,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-        auto hswish_node =  std::dynamic_pointer_cast<ngraph::opset4::HSwish>(pattern_to_output.at(hswish).get_node_shared_ptr());
+        auto hswish_node = std::dynamic_pointer_cast<ngraph::opset4::HSwish>(pattern_to_output.at(hswish).get_node_shared_ptr());
 
         if (m_transformation_callback(hswish_node)) {
             return false;
@@ -29,7 +29,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         auto min_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {6.0});
         auto min = std::make_shared<ngraph::opset4::Minimum>(relu, min_constant);
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(hswish_node->input_value(0), min);
-        auto mul_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {0.1666666716});  // const(1/6)
+        auto mul_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
         auto mul_second = std::make_shared<ngraph::opset4::Multiply>(mul_first, mul_constant);
 
         mul_second->set_friendly_name(m.get_match_root()->get_friendly_name());
