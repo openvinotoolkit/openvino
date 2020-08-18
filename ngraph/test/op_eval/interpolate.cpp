@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -58,30 +59,31 @@ TEST(op_eval, interpolate_v4_cubic)
                        {0.8f, 0.8f},
                        CoordinateTransformMode::half_pixel,
                        ShapeCalcMode::scales},
-        // resize_downsample_sizes_cubic:
-        ShapesAndAttrs{{3, 3},
-                       Shape{1, 1, 3, 3},
-                       {0.75f, 0.75f},
-                       CoordinateTransformMode::half_pixel,
-                       ShapeCalcMode::sizes},
-        // resize_upsample_scales_cubic:
-        ShapesAndAttrs{{8, 8},
-                       Shape{1, 1, 8, 8},
-                       {2.0f, 2.0f},
-                       CoordinateTransformMode::half_pixel,
-                       ShapeCalcMode::scales},
-        // resize_upsample_scales_cubic_asymmetric:
-        ShapesAndAttrs{{8, 8},
-                       Shape{1, 1, 8, 8},
-                       {2.0f, 2.0f},
-                       CoordinateTransformMode::asymmetric,
-                       ShapeCalcMode::scales},
-        // resize_upsample_sizes_cubicresize_upsample_sizes_cubic:
-        ShapesAndAttrs{{9, 10},
-                       Shape{1, 1, 9, 10},
-                       {2.25f, 2.5f},
-                       CoordinateTransformMode::half_pixel,
-                       ShapeCalcMode::sizes}};
+//         // resize_downsample_sizes_cubic:
+//         ShapesAndAttrs{{3, 3},
+//                        Shape{1, 1, 3, 3},
+//                        {0.75f, 0.75f},
+//                        CoordinateTransformMode::half_pixel,
+//                        ShapeCalcMode::sizes},
+//         // resize_upsample_scales_cubic:
+//         ShapesAndAttrs{{8, 8},
+//                        Shape{1, 1, 8, 8},
+//                        {2.0f, 2.0f},
+//                        CoordinateTransformMode::half_pixel,
+//                        ShapeCalcMode::scales},
+//         // resize_upsample_scales_cubic_asymmetric:
+//         ShapesAndAttrs{{8, 8},
+//                        Shape{1, 1, 8, 8},
+//                        {2.0f, 2.0f},
+//                        CoordinateTransformMode::asymmetric,
+//                        ShapeCalcMode::scales},
+//         // resize_upsample_sizes_cubicresize_upsample_sizes_cubic:
+//         ShapesAndAttrs{{9, 10},
+//                        Shape{1, 1, 9, 10},
+//                        {2.25f, 2.5f},
+//                        CoordinateTransformMode::half_pixel,
+//                        ShapeCalcMode::sizes}
+    };
 
     std::vector<float> input_data = {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
@@ -141,6 +143,7 @@ TEST(op_eval, interpolate_v4_cubic)
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
+        std::cout << "test info number " << i << "\n";
         auto image = std::make_shared<op::Parameter>(element::f32, data_shape);
         auto target_spatial_shape =
             op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);

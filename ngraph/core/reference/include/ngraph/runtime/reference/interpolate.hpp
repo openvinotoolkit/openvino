@@ -451,6 +451,7 @@ namespace ngraph
                 CoordinateTransform input_transform(m_input_data_shape);
                 Shape indices_shape{num_of_axes, 4};
 
+                std::cout << "indices_shape: " << indices_shape << "\n";
                 for (const Coordinate& output_coord : output_transform)
                 {
                     auto input_coord = output_coord;
@@ -480,7 +481,7 @@ namespace ngraph
                                                   static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
-                        summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
+                        summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
                     }
 
                     out[output_transform.index(output_coord)] = static_cast<T>(summa);
