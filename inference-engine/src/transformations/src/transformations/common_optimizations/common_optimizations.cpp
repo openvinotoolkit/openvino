@@ -8,6 +8,7 @@
 #include "transformations/depth_to_space_fusion.hpp"
 #include "transformations/optimize_strided_slice.hpp"
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/convert_pad_to_group_conv.hpp"
 #include "transformations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/itt.hpp"
@@ -36,6 +37,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
