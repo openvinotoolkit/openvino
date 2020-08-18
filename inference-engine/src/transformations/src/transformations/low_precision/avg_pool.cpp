@@ -25,12 +25,22 @@ void AvgPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void AvgPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    if (!LayerTransformation::canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(context, m.get_match_root())) {
         return;
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+}
+
+bool AvgPoolTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    if (!LayerTransformation::canBeTransformed(context, operation)) {
+        return false;
+    }
+
+    auto dequantization = NetworkHelper::getDequantization(operation);
+
+    return !!dequantization.multiply;
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
