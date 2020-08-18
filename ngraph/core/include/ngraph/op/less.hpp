@@ -57,8 +57,7 @@ namespace ngraph
             class NGRAPH_API Less : public util::BinaryElementwiseComparison
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Less", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a less-than operation.
                 Less()
                     : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY)
