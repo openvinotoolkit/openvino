@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 

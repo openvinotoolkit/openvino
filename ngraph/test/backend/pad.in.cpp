@@ -32,732 +32,672 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_1d)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{15};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{5};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {4});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {5});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 1>(
-             {2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112})
-             .get_vector()),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
-{
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{8};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{-2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 1>({2112, 2112, 2112, 2112, 1, 2, 3, 4}).get_vector()),
-        read_vector<float>(result),
-        MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
-{
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{3};
-    CoordinateDiff padding_below{4};
-    CoordinateDiff padding_above{-7};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({2112, 2112, 2112}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
-{
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{11};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{3};
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{15});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
     EXPECT_TRUE(
-        test::all_close_f((test::NDArray<float, 1>({1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6}).get_vector()),
+        test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112},
                           read_vector<float>(result),
                           MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {4});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{8});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({1, 1, 1, 2, 3}).get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f({2112, 2112, 2112, 2112, 1, 2, 3, 4},
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_1d_check_limits)
+{
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {4});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{3});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        {2112, 2112, 2112}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d)
+{
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{11});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        {1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg)
+{
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{5});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(
+        test::all_close_f({1, 1, 1, 2, 3}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_top_neg_bigger_than_tensor)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{1};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-7};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{1});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({1}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f({1}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{7};
-    CoordinateDiff padding_below{-2};
-    CoordinateDiff padding_above{3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {-2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{7});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({3, 4, 5, 6, 6, 6, 6}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        {3, 4, 5, 6, 6, 6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_edge_1d_bottom_neg_bigger_than_tensor)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{2};
-    CoordinateDiff padding_below{-7};
-    CoordinateDiff padding_above{3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {-7});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{2});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({6, 6}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f({6, 6}, read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d)
 {
-    Shape shape_a{3, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{6, 9};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{1, 2};
+    const Shape data_shape{3, 4};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, 3});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a,
-              test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
+    auto result = backend->create_tensor(element::f32, Shape{6, 9});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{1, 1, 1, 1, 2, 3, 4, 4, 4},
-                                                            {1, 1, 1, 1, 2, 3, 4, 4, 4},
-                                                            {1, 1, 1, 1, 2, 3, 4, 4, 4},
-                                                            {5, 5, 5, 5, 6, 7, 8, 8, 8},
-                                                            {9, 9, 9, 9, 10, 11, 12, 12, 12},
-                                                            {9, 9, 9, 9, 10, 11, 12, 12, 12}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{1, 1, 1, 1, 2, 3, 4, 4, 4},
+                                                           {1, 1, 1, 1, 2, 3, 4, 4, 4},
+                                                           {1, 1, 1, 1, 2, 3, 4, 4, 4},
+                                                           {5, 5, 5, 5, 6, 7, 8, 8, 8},
+                                                           {9, 9, 9, 9, 10, 11, 12, 12, 12},
+                                                           {9, 9, 9, 9, 10, 11, 12, 12, 12}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_edge_2d_with_neg)
 {
-    Shape shape_a{3, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{6, 5};
-    CoordinateDiff padding_below{2, -1};
-    CoordinateDiff padding_above{1, 2};
+    const Shape data_shape{3, 4};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, -1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::EDGE),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::EDGE),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a,
-              test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
+    auto result = backend->create_tensor(element::f32, Shape{6, 5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2, 3, 4, 4, 4},
-                                                            {2, 3, 4, 4, 4},
-                                                            {2, 3, 4, 4, 4},
-                                                            {6, 7, 8, 8, 8},
-                                                            {10, 11, 12, 12, 12},
-                                                            {10, 11, 12, 12, 12}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{2, 3, 4, 4, 4},
+                                                           {2, 3, 4, 4, 4},
+                                                           {2, 3, 4, 4, 4},
+                                                           {6, 7, 8, 8, 8},
+                                                           {10, 11, 12, 12, 12},
+                                                           {10, 11, 12, 12, 12}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{11};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{11});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(
-        test::all_close_f((test::NDArray<float, 1>({3, 2, 1, 2, 3, 4, 5, 6, 5, 4, 3}).get_vector()),
-                          read_vector<float>(result),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(std::vector<float>({3, 2, 1, 2, 3, 4, 5, 6, 5, 4, 3}),
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({3, 2, 1, 2, 3}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        std::vector<float>({3, 2, 1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_top_neg_bigger_than_tensor)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{1};
-    CoordinateDiff padding_below{2};
-    CoordinateDiff padding_above{-7};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {-7});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{1});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({3}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        std::vector<float>({3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{7};
-    CoordinateDiff padding_below{-2};
-    CoordinateDiff padding_above{3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {-2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{7});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({3, 4, 5, 6, 5, 4, 3}).get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(std::vector<float>({3, 4, 5, 6, 5, 4, 3}),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_bottom_neg_bigger_than_tensor)
 {
-    Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{2};
-    CoordinateDiff padding_below{-7};
-    CoordinateDiff padding_above{3};
+    const Shape data_shape{6};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {-7});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {3});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3, 4, 5, 6}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3, 4, 5, 6}));
+    auto result = backend->create_tensor(element::f32, Shape{2});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 1>({4, 3}).get_vector()),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        std::vector<float>({4, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_1d_multi_reflect)
 {
-    Shape shape_a{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{22};
-    CoordinateDiff padding_below{10};
-    CoordinateDiff padding_above{9};
+    const Shape data_shape{3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{1}, {10});
+    const auto pads_end = op::Constant::create(element::i64, Shape{1}, {9});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, test::NDArray<float, 1>({1, 2, 3}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    copy_data(a, std::vector<float>({1, 2, 3}));
+    auto result = backend->create_tensor(element::f32, Shape{22});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 1>({3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2})
-             .get_vector()),
+        std::vector<float>({3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2}),
         read_vector<float>(result),
         MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d)
 {
-    Shape shape_a{3, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{6, 9};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{1, 2};
+    const Shape data_shape{3, 4};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, 3});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a,
               test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{6, 9});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{12, 11, 10, 9, 10, 11, 12, 11, 10},
-                                                            {8, 7, 6, 5, 6, 7, 8, 7, 6},
-                                                            {4, 3, 2, 1, 2, 3, 4, 3, 2},
-                                                            {8, 7, 6, 5, 6, 7, 8, 7, 6},
-                                                            {12, 11, 10, 9, 10, 11, 12, 11, 10},
-                                                            {8, 7, 6, 5, 6, 7, 8, 7, 6}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{12, 11, 10, 9, 10, 11, 12, 11, 10},
+                                                           {8, 7, 6, 5, 6, 7, 8, 7, 6},
+                                                           {4, 3, 2, 1, 2, 3, 4, 3, 2},
+                                                           {8, 7, 6, 5, 6, 7, 8, 7, 6},
+                                                           {12, 11, 10, 9, 10, 11, 12, 11, 10},
+                                                           {8, 7, 6, 5, 6, 7, 8, 7, 6}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_reflect_2d_with_neg)
 {
-    Shape shape_a{3, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{6, 5};
-    CoordinateDiff padding_below{2, -1};
-    CoordinateDiff padding_above{1, 2};
+    const Shape data_shape{3, 4};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, -1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::REFLECT),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::REFLECT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a,
               test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{6, 5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{10, 11, 12, 11, 10},
-                                                            {6, 7, 8, 7, 6},
-                                                            {2, 3, 4, 3, 2},
-                                                            {6, 7, 8, 7, 6},
-                                                            {10, 11, 12, 11, 10},
-                                                            {6, 7, 8, 7, 6}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{10, 11, 12, 11, 10},
+                                                           {6, 7, 8, 7, 6},
+                                                           {2, 3, 4, 3, 2},
+                                                           {6, 7, 8, 7, 6},
+                                                           {10, 11, 12, 11, 10},
+                                                           {6, 7, 8, 7, 6}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d)
 {
-    Shape shape_a{2, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5, 2};
-    CoordinateDiff padding_below{1, -1};
-    CoordinateDiff padding_above{2, 0};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{2, 3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {1, -1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {2, 0});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {9});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a, test::NDArray<float, 2>({{1, 2, 3}, {4, 5, 6}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{9});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{5, 2});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f(
-        (test::NDArray<float, 2>({{9, 9}, {2, 3}, {5, 6}, {9, 9}, {9, 9}}).get_vector()),
+        test::NDArray<float, 2>({{9, 9}, {2, 3}, {5, 6}, {9, 9}, {9, 9}}).get_vector(),
         read_vector<float>(result),
         MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_2d_all_negative)
 {
-    Shape shape_a{3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{1, 1};
-    CoordinateDiff padding_below{-1, -1};
-    CoordinateDiff padding_above{-1, -1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{3, 3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {-1, -1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {-1, -1});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {9});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a, test::NDArray<float, 2>({{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{9});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{1, 1});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{5}}).get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{5}}).get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x0)
 {
-    Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5, 5};
-    CoordinateDiff padding_below{2, 3};
-    CoordinateDiff padding_above{3, 2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{0, 0};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, 3});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {3, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    // copy_data(a, test::NDArray<float, 2>({{}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    auto result = backend->create_tensor(element::f32, Shape{5, 5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_0x3)
 {
-    Shape shape_a{0, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5, 5};
-    CoordinateDiff padding_below{2, 1};
-    CoordinateDiff padding_above{3, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{0, 3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {2, 1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {3, 1});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    // copy_data(a, test::NDArray<float, 2>({}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    auto result = backend->create_tensor(element::f32, Shape{5, 5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_2d_3x0)
 {
-    Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{5, 5};
-    CoordinateDiff padding_below{1, 3};
-    CoordinateDiff padding_above{1, 2};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{3, 0};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {1, 3});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    // copy_data(a, test::NDArray<float, 2>({}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto a = backend->create_tensor(element::f32, data_shape);
+    auto result = backend->create_tensor(element::f32, Shape{5, 5});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112},
-                                                            {2112, 2112, 2112, 2112, 2112}})
-                                       .get_vector()),
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(test::NDArray<float, 2>({{2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112},
+                                                           {2112, 2112, 2112, 2112, 2112}})
+                                      .get_vector(),
                                   read_vector<float>(result),
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
 {
-    Shape shape_a{1, 2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{1, 2, 4, 4};
-    CoordinateDiff padding_below{0, 0, 1, 1};
-    CoordinateDiff padding_above{0, 0, 1, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{1, 2, 2, 2};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     // clang-format off
     copy_data(a, test::NDArray<float, 4>(
         {
@@ -773,14 +713,10 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
             }
         }).get_vector());
     // clang-format on
-
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{42});
-
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{1, 2, 4, 4});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
     // clang-format off
     EXPECT_TRUE(test::all_close_f((test::NDArray<float, 4>(
         {
@@ -805,20 +741,21 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_exterior_4d_1x2x2x2)
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
 {
-    Shape shape_a{1, 3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{1, 1, 4, 4};
-    CoordinateDiff padding_below{0, -1, 1, 1};
-    CoordinateDiff padding_above{0, -1, 1, 1};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{1, 3, 2, 2};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{4}, {0, -1, 1, 1});
+    const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, -1, 1, 1});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     // clang-format off
     copy_data(a, test::NDArray<float, 4>(
         {
@@ -839,13 +776,11 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
         }).get_vector());
     // clang-format on
 
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{42});
-
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{1, 1, 4, 4});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
+
     // clang-format off
     EXPECT_TRUE(test::all_close_f((test::NDArray<float, 4>(
         {
@@ -866,21 +801,22 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_negative_exterior_4d)
 // bug has been found on nvGPU side now covered by this test
 NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
 {
-    Shape shape_a{2, 2, 4, 4};
-    auto window_movement_strides = Strides{2, 2};
-    CoordinateDiff padding_below{0, 0, 0, 0};
-    CoordinateDiff padding_above{0, 0, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{2, 2, 6, 6};
-    auto f = make_shared<Function>(make_shared<op::Pad>(A, B, padding_below, padding_above),
-                                   ParameterVector{A, B});
+    const Shape data_shape{2, 2, 4, 4};
+    const auto window_movement_strides = Strides{2, 2};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    const auto pads_end = op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {42});
+
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a,
               test::NDArray<float, 4>({{{{0, 1, 0, 2}, // img 0 chan 0
                                          {0, 3, 2, 0},
@@ -903,13 +839,11 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
                                          {1, 0, 0, 0}}}})
                   .get_vector());
 
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{42});
-
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{2, 2, 6, 6});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
+
     EXPECT_TRUE(test::all_close_f((test::NDArray<float, 4>({{{{0, 1, 0, 2, 42, 42}, // img 0 chan 0
                                                               {0, 3, 2, 0, 42, 42},
                                                               {2, 0, 0, 0, 42, 42},
@@ -944,28 +878,26 @@ NGRAPH_TEST(${BACKEND_NAME}, pad_2channel_2image_asym)
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_symmetric)
 {
-    Shape shape_a{2, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    Shape shape_r{4, 7};
-    CoordinateDiff padding_below{1, 2};
-    CoordinateDiff padding_above{1, 2};
+    const Shape data_shape{2, 3};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    const auto pads_begin = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pads_end = op::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto pad_val = op::Constant::create(element::f32, Shape{}, {2112});
+
     auto f = make_shared<Function>(
-        make_shared<op::Pad>(A, B, padding_below, padding_above, op::PadMode::SYMMETRIC),
-        ParameterVector{A, B});
+        make_shared<op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::SYMMETRIC),
+        ParameterVector{data});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, data_shape);
     copy_data(a, test::NDArray<float, 2>({{1, 2, 3}, {4, 5, 6}}).get_vector());
-    auto b = backend->create_tensor(element::f32, shape_b);
-    copy_data(b, vector<float>{2112});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, Shape{4, 7});
 
     auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
+    handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f((test::NDArray<float, 2>({{2, 1, 1, 2, 3, 3, 2},
                                                             {2, 1, 1, 2, 3, 3, 2},
                                                             {5, 4, 4, 5, 6, 6, 5},

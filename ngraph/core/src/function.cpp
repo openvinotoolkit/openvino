@@ -18,10 +18,10 @@
 #include <list>
 #include <memory>
 
+#include "itt.hpp"
 #include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/util.hpp"
