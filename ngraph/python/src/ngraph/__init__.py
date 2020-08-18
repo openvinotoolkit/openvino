@@ -119,6 +119,8 @@ from ngraph.opset4 import psroi_pooling
 from ngraph.opset4 import proposal
 from ngraph.opset4 import range
 from ngraph.opset4 import read_value
+from ngraph.opset4 import reduce_l1
+from ngraph.opset4 import reduce_l2
 from ngraph.opset4 import reduce_logical_and
 from ngraph.opset4 import reduce_logical_or
 from ngraph.opset4 import reduce_max
