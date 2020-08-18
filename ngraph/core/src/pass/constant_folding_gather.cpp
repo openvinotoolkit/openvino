@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/squeeze.hpp"
