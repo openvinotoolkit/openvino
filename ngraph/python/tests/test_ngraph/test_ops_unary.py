@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
+from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
 from tests import xfail_issue_35929, xfail_issue_34323
 
@@ -148,3 +149,14 @@ def test_erf():
 
     result = run_op_numeric_data(input_tensor, ng.erf)
     assert np.allclose(result, expected)
+
+
+def test_hswish():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.hswish(data)
+    assert node.get_type_name() == "HSwish"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
