@@ -37,46 +37,44 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        if (stage->attrs().get<int>("kernelSizeX") != 1
-        || stage->attrs().get<int>("kernelSizeY") != 1) {
+        if (stage->attrs().get<int>("kernelSizeX") != 1 ||
+            stage->attrs().get<int>("kernelSizeY") != 1) {
             continue;
         }
 
-        auto input = stage->input(0);
-        auto output = stage->output(0);
+        const auto input = stage->input(0);
+        const auto output = stage->output(0);
 
-        if (input->desc().dim(Dim::N) > 1) {
+        const auto& inputDesc = input->desc();
+        const auto& outputDesc = output->desc();
+
+        if ((inputDesc.dimsOrder() != DimsOrder::NCHW) ||
+            (outputDesc.dimsOrder() != DimsOrder::NCHW)) {
             continue;
         }
 
-        if ((input->desc().dimsOrder() != DimsOrder::NCHW)
-                || (output->desc().dimsOrder() != DimsOrder::NCHW)) {
+        const auto actualInputShape = inputDesc.dims();
+        const auto expectedInputShape = DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 60} };
+        std::vector<size_t> outChannels{10, 128, 490};
+
+        if (actualInputShape != expectedInputShape) {
             continue;
         }
 
-        if (input->desc().dim(Dim::W) != 60
-        || input->desc().dim(Dim::H) != 34
-        || input->desc().dim(Dim::C) != 608) {
+        if (outputDesc.dim(Dim::W) != inputDesc.dim(Dim::W) ||
+            outputDesc.dim(Dim::H) != inputDesc.dim(Dim::H)) {
             continue;
         }
 
-        if (output->desc().dim(Dim::W) != 60
-        || output->desc().dim(Dim::H) != 34) {
+        if (std::find(outChannels.begin(), outChannels.end(), outputDesc.dim(Dim::C)) == outChannels.end()) {
             continue;
         }
 
-        if (output->desc().dim(Dim::C) != 10
-        && output->desc().dim(Dim::C) != 128
-        && output->desc().dim(Dim::C) != 490
-        ) {
-            continue;
-        }
-
-        auto newDesc_input = input->desc();
+        auto newDesc_input = inputDesc;
         newDesc_input.setDim(Dim::W, 255);
         newDesc_input.setDim(Dim::H, 8);
 
-        auto newDesc_output = output->desc();
+        auto newDesc_output = outputDesc;
         newDesc_output.setDim(Dim::W, 255);
         newDesc_output.setDim(Dim::H, 8);
 
@@ -89,7 +87,7 @@ void PassImpl::run(const Model& model) {
         model->replaceStageInput(stage->inputEdge(0), newInput);
         model->replaceStageOutput(stage->outputEdge(0), newOutput);
 
-        auto reshape_stage_before = _stageBuilder->addReshapeStage(model,
+        _stageBuilder->addReshapeStage(model,
                 stage->name() + "@copy-reinterpret-input-data",
                 nullptr, input, newInput);
 
