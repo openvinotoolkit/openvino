@@ -48,7 +48,7 @@ protected:
         return _model->addNewData(name, newDesc);
     }
 
-    void InitConvStage(const Data& input, const Data& output, int kernel_x, int kernel_y) {
+    void InitConvStage(const Data& input, const Data& output, int kernel_x = 1, int kernel_y = 1) {
         auto convLayer = std::make_shared < ie::ConvolutionLayer
                 > (ie::LayerParams { "TestConvolution", "StubConv",
                         ie::Precision::FP16 });
@@ -67,12 +67,11 @@ protected:
         frontEnd->parseConvolution(_model, convLayer, { input }, { output });
     }
 
-    void CompareDatas(const details::ContainerRange<IntrusiveHandleList<DataNode>, false>& datas,
-            const std::vector<Data>& pattern) {
-        ASSERT_EQ(datas.size(), pattern.size());
+    void CompareDatas(const details::ContainerRange<IntrusiveHandleList<DataNode>, false>& datas) {
+        ASSERT_EQ(datas.size(), pattern_datas.size());
 
         auto dataIter = datas.begin();
-        for (auto patternIter = pattern.begin(); patternIter != pattern.end();
+        for (auto patternIter = pattern_datas.begin(); patternIter != pattern_datas.end();
                 std::advance(dataIter, 1),
                 std::advance(patternIter, 1)) {
             ASSERT_EQ((*dataIter)->desc(), (*patternIter)->desc());
@@ -80,10 +79,10 @@ protected:
         }
     }
 
-    void CompareStages(const details::ContainerRange<IntrusiveHandleList<StageNode>, false>& stages, const std::vector<StageType>& pattern) {
-        ASSERT_EQ(stages.size(), pattern.size());
+    void CompareStages(const details::ContainerRange<IntrusiveHandleList<StageNode>, false>& stages) {
+        ASSERT_EQ(stages.size(), pattern_stages.size());
 
-        auto patternIter = pattern.begin();
+        auto patternIter = pattern_stages.begin();
         for (auto stageIter = stages.begin(); stageIter != stages.end();
                 std::advance(stageIter, 1),
                 std::advance(patternIter, 1)) {
@@ -94,16 +93,16 @@ protected:
 protected:
     PassSet _pipeline;
     Model _model;
+    std::vector<Data>pattern_datas;
+    std::vector<StageType>pattern_stages;
 };
 
 class ReshapeBeforeConvCases : public ReshapeBeforeConvTests {
 protected:
-    void CreateCorrectPattern(std::vector<Data>& pattern_datas, std::vector<StageType>& pattern_stages,
-            const Data& input, const Data& output) {
+    void CreateCorrectPattern(const Data& input, const Data& output) {
         const auto inDims = input->desc().dims();
         const auto outDims = output->desc().dims();
 
-        // this adds to model additional not connected data
         const Data fake = _model->addFakeData();
         const Data weights = InitNewData(
                 DimValues{ {Dim::N, outDims[Dim::C]}, {Dim::C, inDims[Dim::C]}, {Dim::H, 1}, {Dim::W, 1} },
@@ -137,12 +136,10 @@ protected:
 
 class NoReshapeBeforeConvCases : public ReshapeBeforeConvTests {
 protected:
-    void CreateNoCorrectPattern(std::vector<Data>& pattern_datas, std::vector<StageType>& pattern_stages,
-            const Data& input, const Data& output) {
-        // this adds to model additional not connected data
+    void CreateIncorrectPattern(const Data& input, const Data& output, size_t kernelH = 1, size_t kernelW = 1) {
         const Data fake = _model->addFakeData();
         const Data weights = InitNewData(DimValues{ {Dim::N, output->desc().dim(Dim::C)}, {Dim::C, input->desc().dim(Dim::C)},
-                {Dim::H, 1}, {Dim::W, 1} }, "TestConvolution@weights@conv");
+                {Dim::H, kernelH}, {Dim::W, kernelW} }, "TestConvolution@weights@conv");
 
         pattern_datas.push_back(input);
         pattern_datas.push_back(output);
@@ -173,19 +170,17 @@ TEST_P(ReshapeBeforeConvCases, CompareCountOfLayersPatternCaseTest) {
     _model->attrs().set<int>("numInputs", 1);
     const auto output = InitOutputData(outDims);
 
-    InitConvStage(input, output, 1, 1);
+    InitConvStage(input, output);
 
     ASSERT_NO_THROW(Compile());
 
-    const auto datas = _model->datas();
+    auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    CreateCorrectPattern(pattern_datas, pattern_stages, input, output);
+    CreateCorrectPattern(input, output);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
 static const std::vector<DimValues> patternInputDims = {
@@ -222,28 +217,11 @@ TEST_F(NoReshapeBeforeConvCases, NoChangesForOtherConvKernel) {
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    // this adds to model additional not connected data
-    const Data fake = _model->addFakeData();
-    const Data weights = InitNewData(DimValues{ {Dim::N, 10}, {Dim::C, 608},
-            {Dim::H, 3}, {Dim::W, 3} }, "TestConvolution@weights@conv");
+    CreateIncorrectPattern(input, output, 3, 3);
 
-    pattern_datas.push_back(input);
-    pattern_datas.push_back(output);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(weights);
-    pattern_datas.push_back(fake);
-
-    // duplicate to pattern additional not connected data
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(weights);
-
-    pattern_stages.push_back(StageType::StubConv);
-
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
 TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
@@ -261,39 +239,29 @@ TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
     _model->attrs().set<int>("numInputs", 1);
     const auto output = InitOutputData(outDims);
 
-    InitConvStage(input, output, 1, 1);
+    InitConvStage(input, output);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    CreateNoCorrectPattern(pattern_datas, pattern_stages, input, output);
+    CreateIncorrectPattern(input, output);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
 static const std::vector<DimValues> noPatternDims = {
     DimValues{ {Dim::N, 1}, {Dim::C, 12}, {Dim::H, 34}, {Dim::W, 60} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 8}, {Dim::W, 255} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 18}, {Dim::W, 60} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 34}, {Dim::W, 30} },
     DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 8}, {Dim::W, 64} },
     DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 82}, {Dim::W, 255} },
     DimValues{ {Dim::N, 1}, {Dim::C, 490}, {Dim::H, 72}, {Dim::W, 90} },
     DimValues{ {Dim::N, 1}, {Dim::C, 490}, {Dim::H, 64}, {Dim::W, 30} },
     DimValues{ {Dim::N, 1}, {Dim::C, 11}, {Dim::H, 34}, {Dim::W, 60} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 64}, {Dim::H, 34}, {Dim::W, 60} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 256}, {Dim::H, 34}, {Dim::W, 60} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 32}, {Dim::H, 34}, {Dim::W, 60} },
     DimValues{ {Dim::N, 1}, {Dim::C, 48}, {Dim::H, 34}, {Dim::W, 60} },
     DimValues{ {Dim::N, 1}, {Dim::C, 440}, {Dim::H, 34}, {Dim::W, 60} },
     DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 22}, {Dim::W, 48} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 15}, {Dim::W, 8} },
-    DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 255} }
 };
 
 INSTANTIATE_TEST_CASE_P(
@@ -333,17 +301,14 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     const auto firstOutput = InitOutputData(firstOutDims);
     const auto secondOutput = InitOutputData(secondOutDims);
 
-    InitConvStage(firstInput, firstOutput, 1, 1);
-    InitConvStage(secondInput, secondOutput, 1, 1);
+    InitConvStage(firstInput, firstOutput);
+    InitConvStage(secondInput, secondOutput);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    // this adds to model additional not connected data
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
             DimValues{ {Dim::N, 10}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
@@ -395,8 +360,8 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
 TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions) {
@@ -421,17 +386,14 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     const auto firstOutput = InitOutputData(firstOutDims);
     const auto secondOutput = InitOutputData(secondOutDims);
 
-    InitConvStage(firstInput, firstOutput, 1, 1);
-    InitConvStage(secondInput, secondOutput, 1, 1);
+    InitConvStage(firstInput, firstOutput);
+    InitConvStage(secondInput, secondOutput);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    // this adds to model additional not connected data
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
             DimValues { {Dim::N, 10}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
@@ -471,11 +433,11 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
-TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarger) {
+TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     //
     //                          [Fake]              ->|                                                           [Fake]          ->|
     //                          [FirstWeights]      ->|                                                           [SecondWeights] ->|
@@ -493,17 +455,14 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarger) {
     const auto layerData = InitNewData(layerDims, "Layer");
     const auto output = InitOutputData(outDims);
 
-    InitConvStage(input, layerData, 1, 1);
-    InitConvStage(layerData, output, 1, 1);
+    InitConvStage(input, layerData);
+    InitConvStage(layerData, output);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    // this adds to model additional not connected data
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
             DimValues{ {Dim::N, 490}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
@@ -542,11 +501,11 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarger) {
     pattern_stages.push_back(StageType::Reshape);
     pattern_stages.push_back(StageType::StubConv);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
-TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarger) {
+TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     //
     //  [Fake]         ->|                                              [Fake]                  ->|
     //  [FirstWeights] ->|                                              [SecondWeights]         ->|
@@ -564,17 +523,14 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarger) {
     const auto layerData = InitNewData(layerDims, "Layer");
     const auto output = InitOutputData(outDims);
 
-    InitConvStage(input, layerData, 1, 1);
-    InitConvStage(layerData, output, 1, 1);
+    InitConvStage(input, layerData);
+    InitConvStage(layerData, output);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
-    auto pattern_datas = std::vector<Data>();
-    auto pattern_stages = std::vector<StageType>();
 
-    // this adds to model additional not connected data
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
             DimValues{ {Dim::N, 608}, {Dim::C, 800}, {Dim::H, 1}, {Dim::W, 1} },
@@ -613,8 +569,8 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarger) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages, pattern_stages);
-    CompareDatas(datas, pattern_datas);
+    CompareStages(stages);
+    CompareDatas(datas);
 }
 
 } // namespace vpu
