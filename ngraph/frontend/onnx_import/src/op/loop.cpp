@@ -144,8 +144,8 @@ namespace ngraph
                         default_opset::Constant::create(element::boolean, Shape{}, {true});
 
                     // create the loop body
-                    const auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
-                        graph_outputs, graph_inputs);
+                    const auto body =
+                        std::make_shared<ngraph::Function>(graph_outputs, graph_inputs);
                     auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
                     tensor_iterator->set_body(body);
 

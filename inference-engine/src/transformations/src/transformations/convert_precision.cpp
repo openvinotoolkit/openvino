@@ -47,7 +47,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         for (auto & node : f->get_ordered_ops()) {
             // Recursively run for TensorIterator body function
             if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                register_constants(ti->get_body()->to_function());
+                register_constants(ti->get_body());
             }
             for (auto & input : node->inputs()) {
                 if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
@@ -96,7 +96,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         for (auto &node : f->get_ordered_ops()) {
             // Recursively run for TensorIterator body function
             if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                convert_function_precision(ti->get_body()->to_function());
+                convert_function_precision(ti->get_body());
             }
             convert_node_precision(node);
         }
