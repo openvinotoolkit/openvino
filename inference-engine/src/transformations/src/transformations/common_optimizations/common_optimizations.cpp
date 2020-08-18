@@ -37,7 +37,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
-    // manager.register_pass<ngraph::pass::HSwishFusion>(); // not supported by some of the plugins
+    manager.register_pass<ngraph::pass::HSwishFusion>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
