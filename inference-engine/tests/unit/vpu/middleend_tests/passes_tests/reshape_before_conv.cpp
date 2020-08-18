@@ -28,7 +28,6 @@ protected:
     void InitPipeline() {
         _pipeline = PassSet();
         _pipeline.addPass(passManager->dumpModel("before-convert-shape-notation"));
-        _pipeline.addPass(passManager->initialCheck());
         _pipeline.addPass(passManager->reshapeBeforeConvTiling());
         _pipeline.addPass(passManager->dumpModel("after-convert-shape-notation"));
     }
@@ -49,9 +48,11 @@ protected:
     }
 
     void InitConvStage(const Data& input, const Data& output, int kernel_x = 1, int kernel_y = 1) {
-        auto convLayer = std::make_shared < ie::ConvolutionLayer
-                > (ie::LayerParams { "TestConvolution", "StubConv",
-                        ie::Precision::FP16 });
+        auto convLayer = std::make_shared < ie::ConvolutionLayer > (ie::LayerParams {
+            "TestConvolution",
+            "StubConv",
+            ie::Precision::FP16
+        });
         convLayer->_kernel_x = kernel_x;
         convLayer->_kernel_y = kernel_y;
         convLayer->_stride_x = 1;
@@ -59,7 +60,7 @@ protected:
         convLayer->_padding_x = 0;
         convLayer->_padding_y = 0;
 
-        convLayer->_weights = ie::make_shared_blob<short>({
+        convLayer->_weights = ie::make_shared_blob<fp16_t>({
                 ie::Precision::FP16, {static_cast<size_t>(convLayer->_kernel_x * convLayer->_kernel_y *
                 input->desc().dim(Dim::C) * output->desc().dim(Dim::C))}, ie::Layout::C });
         convLayer->_weights->allocate();
@@ -67,7 +68,7 @@ protected:
         frontEnd->parseConvolution(_model, convLayer, { input }, { output });
     }
 
-    void CompareDatas(const details::ContainerRange<IntrusiveHandleList<DataNode>, false>& datas) {
+    void CompareDataObjects(const details::ContainerRange<DataList, false>& datas) {
         ASSERT_EQ(datas.size(), pattern_datas.size());
 
         auto dataIter = datas.begin();
@@ -79,7 +80,7 @@ protected:
         }
     }
 
-    void CompareStages(const details::ContainerRange<IntrusiveHandleList<StageNode>, false>& stages) {
+    void CompareStages(const details::ContainerRange<StageList, false>& stages) {
         ASSERT_EQ(stages.size(), pattern_stages.size());
 
         auto patternIter = pattern_stages.begin();
@@ -175,12 +176,12 @@ TEST_P(ReshapeBeforeConvCases, CompareCountOfLayersPatternCaseTest) {
     ASSERT_NO_THROW(Compile());
 
     auto datas = _model->datas();
-    const auto stages = _model->getStages();
+    auto stages = _model->getStages();
 
     CreateCorrectPattern(input, output);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 static const std::vector<DimValues> patternInputDims = {
@@ -221,7 +222,7 @@ TEST_F(NoReshapeBeforeConvCases, NoChangesForOtherConvKernel) {
     CreateIncorrectPattern(input, output, 3, 3);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
@@ -249,7 +250,7 @@ TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
     CreateIncorrectPattern(input, output);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 static const std::vector<DimValues> noPatternDims = {
@@ -361,7 +362,7 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     pattern_stages.push_back(StageType::Reshape);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions) {
@@ -434,7 +435,7 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     pattern_stages.push_back(StageType::Reshape);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
@@ -502,7 +503,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     pattern_stages.push_back(StageType::StubConv);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
@@ -570,7 +571,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     pattern_stages.push_back(StageType::Reshape);
 
     CompareStages(stages);
-    CompareDatas(datas);
+    CompareDataObjects(datas);
 }
 
 } // namespace vpu
