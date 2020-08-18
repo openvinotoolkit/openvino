@@ -169,10 +169,14 @@ private:
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
-    // Remember all input data types and reset them to m_output_data_type.
+    // Remember all input data types
     element::TypeVector old_input_types;
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         old_input_types.push_back(BaseOp::get_input_element_type(i));
+    }
+
+    // Reset input data types to m_output_data_type.
+    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         auto origin_input_type = get_origin_input_type(i);
         if (origin_input_type != element::undefined) {
             BaseOp::get_input_tensor(i).set_tensor_type(origin_input_type, BaseOp::get_input_partial_shape(i));
