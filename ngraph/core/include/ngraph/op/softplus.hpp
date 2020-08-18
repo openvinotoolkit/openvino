@@ -31,6 +31,8 @@ namespace ngraph
             class NGRAPH_API SoftPlus : public ngraph::op::Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 static constexpr NodeTypeInfo type_info{"SoftPlus", 4};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 SoftPlus() = default;
@@ -47,6 +49,6 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-        } // namespace v4
-    }     // namespace op
-} // namespace ngraph
+        }
+    }
+}

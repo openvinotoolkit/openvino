@@ -23,6 +23,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::v4::SoftPlus, 'SoftPlus', 4);
+
 constexpr NodeTypeInfo op::v4::SoftPlus::type_info;
 
 op::v4::SoftPlus::SoftPlus(const Output<Node>& arg)
