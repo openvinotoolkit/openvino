@@ -36,11 +36,15 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     u64 -> i32
  *     i64 -> i32
  *     f16 -> f32
+ *    bool -> u8
+ *    bool -> i32
+ *
  * For all operations from opset1-opset4 this conversions can be applied without adding Conversion operations.
  * That is possible because all operations that produces "FROM" type can produce "TO" type. And for this operations
  * we have created special fuse_type_into_<type> functoin (can be found in cpp file) that performs type fusion
  * into operation.
- * List of operations that are supported by this transformations:
+ *
+ * List of operations that are supported by this transformations for i64 -> i32 conversion:
  *     opset4::Parameter
  *     opset4::Convert
  *     opset4::ShapeOf
@@ -49,6 +53,20 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     opset4::TopK
  *     opset4::NonZero
  *     opset4::Bucketize
+ *
+ * List of operations that are supported by this transformations for bool -> u8 conversion:
+ *     LogicalAnd
+ *     LogicalNot
+ *     LogicalOr
+ *     LogicalXor
+ *     ReduceLogicalAnd
+ *     ReduceLogicalOr
+ *     Equal
+ *     NotEqual
+ *     Greater
+ *     GreaterEqual
+ *     Less
+ *     LessEqual
  */
 
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {

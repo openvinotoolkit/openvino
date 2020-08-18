@@ -24,7 +24,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v1::ReduceLogicalOr::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalOr, "ReduceLogicalOr", 1);
 
 op::v1::ReduceLogicalOr::ReduceLogicalOr(const Output<Node>& data,
                                          const Output<Node>& reduction_axes,

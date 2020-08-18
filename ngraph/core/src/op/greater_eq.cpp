@@ -95,7 +95,7 @@ bool op::v0::GreaterEq::evaluate(const HostTensorVector& outputs,
 
 //---------------------------------- v1 ----------------------------------------
 
-constexpr NodeTypeInfo op::v1::GreaterEqual::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1);
 
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,

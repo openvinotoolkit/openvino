@@ -86,8 +86,7 @@ namespace ngraph
             class NGRAPH_API Select : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Select", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a selection operation.
                 Select()
                     : m_auto_broadcast(AutoBroadcastSpec(AutoBroadcastType::NUMPY))

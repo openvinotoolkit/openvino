@@ -26,7 +26,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v1::LogicalNot::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
 
 op::v1::LogicalNot::LogicalNot(const Output<Node>& arg)
     : Op({arg})

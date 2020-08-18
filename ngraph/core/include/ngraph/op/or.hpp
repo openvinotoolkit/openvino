@@ -31,8 +31,7 @@ namespace ngraph
             class NGRAPH_API LogicalOr : public util::BinaryElementwiseLogical
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LogicalOr", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 LogicalOr() = default;
                 /// \brief Constructs a logical-or operation.
                 ///

@@ -31,8 +31,7 @@ namespace ngraph
             class NGRAPH_API ReduceLogicalAnd : public util::LogicalReductionKeepDims
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReduceLogicalAnd", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 ReduceLogicalAnd() = default;
                 /// \brief Constructs a ReduceLogicalAnd node.
                 ///

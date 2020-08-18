@@ -271,3 +271,28 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
 
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
+
+TEST_F(TypeRelaxedTests, OneOutputMultipleInputPorts) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto param1 = make_shared<ngraph::opset1::Parameter>(element::boolean, ngraph::Shape{1, 3, 22, 22});
+        auto op = ngraph::opset1::Select(param1, param1, param1);
+        auto relaxed_op = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Select>>(
+                op, TypeVector{}, TypeVector{element::i64});
+
+        f = make_shared<ngraph::Function>(ngraph::OutputVector{relaxed_op}, ngraph::ParameterVector{param1});
+
+        // Prepare relaxed op for input change
+        relaxed_op->set_origin_input_type(element::boolean, 0);
+
+        // Change Parameter element type
+        param1->set_element_type(element::i64);
+        param1->validate_and_infer_types();
+        ASSERT_EQ(param1->output(0).get_element_type(), element::i64);
+
+        // Check that after restoring original precisions inside validate_and_infer_types
+        // function we do not corrupt original types
+        relaxed_op->validate_and_infer_types();
+        ASSERT_EQ(param1->output(0).get_element_type(), element::i64);
+    }
+}

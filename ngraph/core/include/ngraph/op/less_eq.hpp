@@ -28,8 +28,7 @@ namespace ngraph
             class NGRAPH_API LessEqual : public util::BinaryElementwiseComparison
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LessEqual", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a less-than-or-equal operation.
                 LessEqual()
                     : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY)

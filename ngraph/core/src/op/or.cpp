@@ -22,7 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::LogicalOr::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::LogicalOr, "LogicalOr", 1, util::BinaryElementwiseLogical);
 
 op::v1::LogicalOr::LogicalOr(const Output<Node>& arg0,
                              const Output<Node>& arg1,

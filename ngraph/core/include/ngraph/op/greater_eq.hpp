@@ -57,8 +57,7 @@ namespace ngraph
             class NGRAPH_API GreaterEqual : public util::BinaryElementwiseComparison
             {
             public:
-                static constexpr NodeTypeInfo type_info{"GreaterEqual", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a greater-than-or-equal operation.
                 GreaterEqual()
                     : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY)
