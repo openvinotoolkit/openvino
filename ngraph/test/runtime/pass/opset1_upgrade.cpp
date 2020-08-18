@@ -346,25 +346,6 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Pad> node)
-    {
-        auto padding_below = node->get_padding_below();
-        auto pads_begin_node =
-            make_shared<op::Constant>(element::i64, Shape{padding_below.size()}, padding_below);
-        auto padding_above = node->get_padding_above();
-        auto pads_end_node =
-            make_shared<op::Constant>(element::i64, Shape{padding_above.size()}, padding_above);
-
-        auto replacement_node = make_shared<op::v1::Pad>(node->input_value(0),
-                                                         pads_begin_node,
-                                                         pads_end_node,
-                                                         node->input_value(1),
-                                                         node->get_pad_mode());
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Power> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
