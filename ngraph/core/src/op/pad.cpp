@@ -324,12 +324,19 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
-    const auto& pad_value = inputs[3];
-    const auto& out = outputs[0];
     const auto elem_size = data->get_element_type().size();
 
+    const char* pad_value = nullptr;
+    const std::vector<char> pad_zero_value(elem_size, 0);
+    if (get_input_size() == 4) {
+        pad_value = inputs[3]->get_data_ptr<char>();
+    } else {
+        pad_value = pad_zero_value.data();
+    }
+    const auto& out = outputs[0];
+
     ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
-                                    pad_value->get_data_ptr<char>(),
+                                    pad_value,
                                     out->get_data_ptr<char>(),
                                     elem_size,
                                     data->get_shape(),
