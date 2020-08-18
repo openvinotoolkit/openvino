@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 #include <list>
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
@@ -436,9 +437,19 @@ namespace ngraph
                 std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
 
+                std::cout << "Calculation for the cubic mode\n";
+                std::cout << "Axes: ";
+                for (const std::size_t axis : axes)
+                {
+                    std::cout << axis << " ";
+                }
+                std::cout << "\ninput rank: " << input_rank << "\n";
+                std::cout << "input shape:  " << m_input_data_shape << "\n";
+                std::cout << "output shape: " << m_out_shape << "\n";
+
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
-                Shape indices_shape{std::vector<std::size_t>(num_of_axes, 4)};
+                Shape indices_shape{num_of_axes, 4};
 
                 for (const Coordinate& output_coord : output_transform)
                 {
@@ -469,7 +480,7 @@ namespace ngraph
                                                   static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
-                        summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
+                        summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
                     }
 
                     out[output_transform.index(output_coord)] = static_cast<T>(summa);

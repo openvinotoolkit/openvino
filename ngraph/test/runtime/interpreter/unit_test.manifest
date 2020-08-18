@@ -13,6 +13,16 @@ reduce_sum_keep_large_1d_to_scalar
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
 
+# Temporarily disabled:
+INTERPRETER.onnx_model_resize10_import_only
+INTERPRETER.onnx_resize10_down_scales_const_linear
+INTERPRETER.onnx_resize10_up_scales_const_linear
+INTERPRETER.onnx_resize11_scales_down_linear
+INTERPRETER.onnx_resize11_scales_up_linear_asymmetric
+INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+INTERPRETER.onnx_resize11_sizes_linear
+INTERPRETER.onnx_model_round
+
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
