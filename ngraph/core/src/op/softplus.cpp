@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/softplus.hpp"
-#include "ngraph/attribute_visitor.hpp"
 #include "itt.hpp"
+#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/softplus.hpp"
 
