@@ -39,12 +39,18 @@ Compute probabilities of these aligned paths (alignments) as follows:
 p(S) = \prod_{t=1}^{L_i} p_{i,t,ct}
 \f]
 
-3. Finally, compute negative sum of log-probabilities of all found alignments:
+3. Finally, compute negative log of summed up probabilities of all found alignments:
 \f[
-CTCLoss = \minus \sum_{S} \ln p(S)
+CTCLoss = \minus \ln \sum_{S} p(S)
 \f]
 
-**Note**:  This calculation scheme does not provide steps for optimal implementation and primarily serves for better explanation.
+**Note 1**:  This calculation scheme does not provide steps for optimal implementation and primarily serves for better explanation.
+
+**Note 2**:  This is recommended to compute a log-probability \f$ \ln p(S)\f$ for an aligned path as a sum of log-softmax of input logits. It helps to avoid underflow and overflow during calculation.
+Having log-probabilities for aligned paths, log of summed up probabilities for these paths can be computed as follows:
+\f[
+\ln(a + b) = \ln(a) + \ln(1 + \exp(\ln(b) - \ln(a)))
+\f]
 
 **Attributes**
 
