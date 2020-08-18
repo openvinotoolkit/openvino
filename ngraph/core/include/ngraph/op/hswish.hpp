@@ -33,8 +33,7 @@ namespace ngraph
             class NGRAPH_API HSwish : public ngraph::op::util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"HSwish", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 HSwish() = default;
 
                 /// \brief Constructs a HSwish (hard version of Swish) operation.

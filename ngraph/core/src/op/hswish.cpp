@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::HSwish::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::HSwish , "HSwish", 4);
 
 op::v4::HSwish::HSwish(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
