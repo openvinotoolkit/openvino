@@ -439,7 +439,7 @@ namespace ngraph
 
                 std::cout << "Calculation for the cubic mode\n";
                 std::cout << "Axes: ";
-                for (const std::size_t axis : axes)
+                for (const std::size_t axis : m_axes)
                 {
                     std::cout << axis << " ";
                 }
