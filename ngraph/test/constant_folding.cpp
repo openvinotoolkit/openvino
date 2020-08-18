@@ -352,36 +352,6 @@ TEST(constant_folding, constant_broadcast_v1_numpy)
     ASSERT_EQ(values_expected, values_out);
 }
 
-TEST(constant_folding, constant_pad_exterior)
-{
-    Shape shape_in{2};
-
-    vector<int> values_in{777, 888};
-    auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    auto pad_value = make_shared<op::Constant>(element::i32, Shape{}, vector<int>{111});
-
-    CoordinateDiff padding_below{1};
-    CoordinateDiff padding_above{2};
-
-    auto broadcast = make_shared<op::Pad>(constant, pad_value, padding_below, padding_above);
-    auto f = make_shared<Function>(broadcast, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<int>();
-
-    vector<int> padded_values{111, 777, 888, 111, 111};
-    ASSERT_EQ(padded_values, values_out);
-}
-
 TEST(constant_folding, constant_unary_binary)
 {
     vector<int> values_a{1, 2, 3, 4};
