@@ -23,10 +23,12 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'shape': {'kind': 'op', 'op': 'ShapeOf'},
-    'shape_data': {'kind': 'data', 'value': np.array([1], dtype=np.int32)},
+    'shape_data': {'kind': 'data'},
     'random_uniform': {'kind': 'op', 'op': 'RandomUniform'},
     'random_uniform_data': {'kind': 'data'},
     'mul': {'kind': 'op', 'op': 'Mul'},
+    'mul_const': {'kind': 'op', 'op': 'Const'},
+    'mul_const_data': {'kind': 'data', 'value': np.array([1], dtype=np.int32)},
 
     'broadcast': {'kind': 'op', 'op': 'Broadcast'},
     'broadcast_const': {'kind': 'op', 'op': 'Const'},
@@ -35,14 +37,15 @@ nodes_attributes = {
 
 
 class RandomUniformReplacerTest(unittest.TestCase):
-
     def test_1(self):
         graph = build_graph(nodes_attributes,
                             edges=[
                                 ('shape', 'shape_data'),
                                 ('shape_data', 'random_uniform'),
                                 ('random_uniform', 'random_uniform_data'),
-                                ('random_uniform_data', 'mul')
+                                ('random_uniform_data', 'mul', {'in': 0}),
+                                ('mul_const', 'mul_const_data'),
+                                ('mul_const_data', 'mul', {'in': 1})
                             ],
                             nodes_with_edges_only=True)
 
@@ -53,7 +56,39 @@ class RandomUniformReplacerTest(unittest.TestCase):
                                     ('broadcast_const', 'broadcast_const_data'),
                                     ('broadcast_const_data', 'broadcast', {'in': 0}),
                                     ('broadcast', 'random_uniform_data'),
-                                    ('random_uniform_data', 'mul')
+                                    ('random_uniform_data', 'mul', {'in': 0}),
+                                    ('mul_const', 'mul_const_data'),
+                                    ('mul_const_data', 'mul', {'in': 1})
+                                ],
+                                nodes_with_edges_only=True)
+
+        RandomUniformReplacer().find_and_replace_pattern(graph)
+
+        flag, resp = compare_graphs(graph, ref_graph, 'mul', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_2(self):
+        graph = build_graph(nodes_attributes,
+                            edges=[
+                                ('shape', 'shape_data'),
+                                ('shape_data', 'random_uniform'),
+                                ('random_uniform', 'random_uniform_data'),
+                                ('random_uniform_data', 'mul', {'in': 1}),
+                                ('mul_const', 'mul_const_data'),
+                                ('mul_const_data', 'mul', {'in': 0})
+                            ],
+                            nodes_with_edges_only=True)
+
+        ref_graph = build_graph(nodes_attributes,
+                                edges=[
+                                    ('shape', 'shape_data'),
+                                    ('shape_data', 'broadcast', {'in': 1}),
+                                    ('broadcast_const', 'broadcast_const_data'),
+                                    ('broadcast_const_data', 'broadcast', {'in': 0}),
+                                    ('broadcast', 'random_uniform_data'),
+                                    ('random_uniform_data', 'mul', {'in': 1}),
+                                    ('mul_const', 'mul_const_data'),
+                                    ('mul_const_data', 'mul', {'in': 0})
                                 ],
                                 nodes_with_edges_only=True)
 

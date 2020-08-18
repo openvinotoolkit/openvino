@@ -18,7 +18,7 @@ import numpy as np
 from typing import Dict
 
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
+from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.broadcast import Broadcast
 
@@ -37,17 +37,21 @@ class RandomUniformReplacer(MiddleReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('shape', dict(kind='op', op='ShapeOf')),
-                ('shape_data', dict(kind='data')),
-                ('random_uniform', dict(kind='op', op='RandomUniform')),
-                ('random_uniform_data', dict(kind='data')),
-                ('mul', dict(kind='op', op='Mul'))
+                ('shape', dict(op='ShapeOf')),
+                ('shape_data', dict()),
+                ('random_uniform', dict(op='RandomUniform')),
+                ('random_uniform_data', dict()),
+                ('mul', dict(op='Mul')),
+                ('mul_const', dict(op='Const')),
+                ('mul_const_data', dict())
             ],
             edges=[
                 ('shape', 'shape_data'),
                 ('shape_data', 'random_uniform'),
                 ('random_uniform', 'random_uniform_data'),
-                ('random_uniform_data', 'mul', {'in': 0})
+                ('random_uniform_data', 'mul'),
+                ('mul_const', 'mul_const_data'),
+                ('mul_const_data', 'mul')
             ]
         )
 
@@ -55,10 +59,8 @@ class RandomUniformReplacer(MiddleReplacementPattern):
     def replace_pattern(graph: Graph, match: Dict[str, Node]):
         node = match['random_uniform']
         node_name = node.soft_get('name', node.id)
-        data_type = node.in_port(0).get_data_type()
+        data_type = match['mul_const'].out_port(0).get_data_type()
         broadcast_node = create_op_with_const_inputs(graph, Broadcast, port_value_dict={0: np.array([1], dtype=data_type)},
-                                                     op_attrs={'name': 'Broadcast'})
+                                                     op_attrs={'name': node_name + '/Broadcast'})
         node.in_port(0).get_connection().set_destination(broadcast_node.in_port(1))
         node.out_port(0).get_connection().set_source(broadcast_node.out_port(0))
-
-        rename_nodes([(node, node_name + '/ShouldBeDeleted'), (broadcast_node, node_name)])
