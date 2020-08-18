@@ -328,9 +328,12 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
     const char* pad_value = nullptr;
     const std::vector<char> pad_zero_value(elem_size, 0);
-    if (get_input_size() == 4) {
+    if (get_input_size() == 4)
+    {
         pad_value = inputs[3]->get_data_ptr<char>();
-    } else {
+    }
+    else
+    {
         pad_value = pad_zero_value.data();
     }
     const auto& out = outputs[0];
