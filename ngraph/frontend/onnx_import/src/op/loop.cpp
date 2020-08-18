@@ -116,15 +116,15 @@ namespace ngraph
                     const auto& graph_outputs = body_graph.get_ng_outputs();
                     const auto& graph_inputs = body_graph.get_ng_parameters();
 
-                    CHECK_VALID_NODE(
-                        node,
-                        graph_inputs.size() == loop_carried_dependencies.size() + 2,
-                        "The provided loop body graph inputs size (",
-                        graph_inputs.size(),
-                        "), is not equal to the sum of loop carried dependencies and two mandatory"
-                        " inputs (",
-                        loop_carried_dependencies.size() + 2,
-                        ")");
+                    CHECK_VALID_NODE(node,
+                                     graph_inputs.size() >= loop_carried_dependencies.size() + 2,
+                                     "The provided loop body graph inputs size (",
+                                     graph_inputs.size(),
+                                     "), is not greater than the sum of loop carried dependencies "
+                                     "and two mandatory"
+                                     " inputs (",
+                                     loop_carried_dependencies.size() + 2,
+                                     ")");
 
                     CHECK_VALID_NODE(node,
                                      graph_outputs.size() >= loop_carried_dependencies.size() + 1,
