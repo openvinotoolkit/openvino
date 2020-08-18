@@ -117,50 +117,29 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
 
 namespace
 {
-    template <element::Type_t ET>
-    inline bool
-        evaluate(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis)
+    bool evaluate_concat(const HostTensorVector& args,
+                         const HostTensorPtr& out,
+                         int64_t concatenation_axis)
     {
-        using T = typename element_type_traits<ET>::value_type;
-        std::vector<const T*> arg_bufs;
+        std::vector<const char*> arg_bufs;
         std::vector<Shape> arg_shapes;
         Shape out_shape(args[0]->get_shape());
         out_shape[concatenation_axis] = 0;
         for (auto& input : args)
         {
-            arg_bufs.push_back(input->get_data_ptr<ET>());
+            arg_bufs.push_back(input->get_data_ptr<char>());
             arg_shapes.push_back(input->get_shape());
             out_shape[concatenation_axis] += arg_shapes.back()[concatenation_axis];
         }
         out->set_shape(out_shape);
-        runtime::reference::concat<T>(
-            arg_bufs, out->get_data_ptr<ET>(), arg_shapes, out_shape, concatenation_axis);
+        runtime::reference::concat(arg_bufs,
+                                   out->get_data_ptr<char>(),
+                                   arg_shapes,
+                                   out_shape,
+                                   concatenation_axis,
+                                   out->get_element_type().size());
+
         return true;
-    }
-
-    bool evaluate_concat(const HostTensorVector& args,
-                         const HostTensorPtr& out,
-                         int64_t concatenation_axis)
-    {
-        bool rc = true;
-
-        switch (out->get_element_type())
-        {
-            TYPE_CASE(i32)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(i64)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(u32)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(u64)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(f16)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(f32)(args, out, concatenation_axis);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
     }
 }
 
