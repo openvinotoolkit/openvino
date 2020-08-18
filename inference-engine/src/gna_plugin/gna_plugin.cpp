@@ -1140,7 +1140,11 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
         THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelFileName;
     }
 
-    auto header = GNAModelSerial::ReadHeader(inputStream);
+    return ImportNetwork(inputStream);
+}
+
+InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
+    auto header = GNAModelSerial::ReadHeader(networkModel);
 
     InitGNADevice();
 
@@ -1164,7 +1168,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
     serial.setHeader(header);
     serial.Import(basePtr,
             header.gnaMemSize,
-            inputStream,
+            networkModel,
             inputsDesc,
             outputsDesc,
             inputsDataMap,

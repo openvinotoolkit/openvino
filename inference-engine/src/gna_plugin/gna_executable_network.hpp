@@ -28,6 +28,13 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         _networkOutputs = plg->GetOutputs();
     }
 
+    GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg)
+        : plg(plg) {
+        plg->ImportNetwork(networkModel);
+        _networkInputs = plg->GetInputs();
+        _networkOutputs = plg->GetOutputs();
+    }
+
     GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
