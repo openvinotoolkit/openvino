@@ -44,8 +44,10 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
+#include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
@@ -76,6 +78,8 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
@@ -91,11 +95,6 @@
 #include "op/avg_pool.hpp"
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
-
-#include "reference/ctc_loss.hpp"
-#include "reference/detection_output.hpp"
-#include "reference/scatter_nd_update.hpp"
-#include "reference/scatter_update.hpp"
 
 namespace ngraph
 {
