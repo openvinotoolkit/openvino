@@ -18,6 +18,7 @@ extensions/back/CorrectName.py
 extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
+extensions/back/dynamic_convolution_transpose.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
@@ -382,6 +383,8 @@ extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
+extensions/front/tf/inpaint.json
+extensions/front/tf/Inpaint.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/LoopCond_ext.py
