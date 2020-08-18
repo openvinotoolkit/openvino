@@ -22,7 +22,7 @@ def test_hswish():
     float_dtype = np.float32
     data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
 
-    node = ng.swish(data)
+    node = ng.hswish(data)
     assert node.get_type_name() == "HSwish"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]

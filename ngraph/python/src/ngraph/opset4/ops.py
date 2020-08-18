@@ -156,7 +156,7 @@ def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
     :param data: Tensor with input data floating point type.
     :return: The new node which performs HSwish
     """
-    return _get_node_factory_opset4().create("Swish", as_nodes(data), {})
+    return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
 
 
 @nameable_op
