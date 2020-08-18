@@ -264,8 +264,8 @@ namespace ngraph
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
                 InterpolateMode m_interp_mode;
-                double m_cube_coeff;
                 bool m_antialias;
+                double m_cube_coeff;
 
                 Shape m_input_data_shape;
                 std::vector<int64_t> m_axes;
@@ -282,10 +282,7 @@ namespace ngraph
 
                 InterpolateEval(const op::v4::Interpolate::InterpolateAttrs& attrs)
                     : m_attrs{attrs}
-                    , m_get_nearest_pixel{attrs.nearest_mode}
-                    , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
-                    , m_antialias{attrs.antialias}
                     , m_cube_coeff{attrs.cube_coeff}
                 {
                 }
@@ -323,11 +320,8 @@ namespace ngraph
             private:
                 op::v4::Interpolate::InterpolateAttrs m_attrs;
 
-                GetNearestPixel m_get_nearest_pixel;
-                GetOriginalCoordinate m_get_original_coord;
                 InterpolateMode m_interp_mode;
                 double m_cube_coeff;
-                bool m_antialias;
 
                 Shape m_input_data_shape;
                 std::vector<int64_t> m_axes;
