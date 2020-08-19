@@ -161,7 +161,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
             std::make_shared<ExecutableNetwork>(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 
-    return ie::ExecutableNetwork{make_executable_network(executableNetwork)};
+    return make_executable_network(executableNetwork);
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
