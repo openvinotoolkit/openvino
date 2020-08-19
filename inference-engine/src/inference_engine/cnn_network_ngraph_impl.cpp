@@ -248,9 +248,6 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 if (_outputData.count(outputName) == 0) {
                     reshape();
                 }
-                if (_outputData.count(outputName) == 0) {
-                    addOutput(layer->output(outputIndex));
-                }
                 return OK;
             }
         }
