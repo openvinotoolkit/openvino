@@ -23,6 +23,7 @@
 #include <generic_ie.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/convert_tensor_iterator_to_sequence.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/convert_opset4_to_opset3/convert_opset4_to_opset3.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
@@ -397,6 +398,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
             ngraph::pass::Manager manager;
+            const auto& env = CompileEnv::get();
+            if (!env.config.forcePureTensorIterator) {
+                manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+                manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+                manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+            }
             manager.register_pass<ngraph::pass::ConvertOpSet4ToOpSet3>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -407,8 +414,11 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             ngraph::pass::Manager ti_manager;
             // Apply all transformations to TensorIterator body
             ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-            // Unroll will be called after all conversions
-            ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+
+            if (env.config.enableTensorIteratorUnrolling && !env.config.forcePureTensorIterator) {
+                // Unroll will be called after all conversions
+                ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            }
             ti_manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);

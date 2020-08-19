@@ -4,7 +4,6 @@
 
 #include "transformations/convert_opset4_to_opset3/convert_opset4_to_opset3.hpp"
 #include "transformations/convert_opset4_to_opset3/convert_sequences_to_sequences_ie.hpp"
-#include "transformations/convert_opset4_to_opset3/convert_tensor_iterator_to_sequence.hpp"
 #include "transformations/itt.hpp"
 
 #include <memory>
@@ -18,10 +17,6 @@ bool ngraph::pass::ConvertOpSet4ToOpSet3::run_on_function(std::shared_ptr<ngraph
 
     ngraph::pass::Manager manager;
 
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceMatcher>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceMatcher>();

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset4_to_opset3/convert_tensor_iterator_to_sequence.hpp"
+#include "transformations/tensor_iterator_transformations/convert_tensor_iterator_to_sequence.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
