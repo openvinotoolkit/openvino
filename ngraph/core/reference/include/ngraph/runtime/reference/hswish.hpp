@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include <vector>
-
-#include "ngraph/shape.hpp"
+#include <cmath>
+#include <cstddef>
 
 namespace ngraph
 {
@@ -26,12 +25,14 @@ namespace ngraph
     {
         namespace reference
         {
-            void concat(const std::vector<const char*>& args,
-                        char* out,
-                        const std::vector<Shape>& in_shapes,
-                        const Shape& out_shape,
-                        int64_t concatenation_axis,
-                        size_t elem_size);
+            template <typename T>
+            void hswish(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = arg[i] * std::min<T>(std::max<T>(arg[i] + 3.0f, 0.0f), 6.0f) / 6.0f;
+                }
+            }
         }
     }
 }

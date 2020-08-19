@@ -21,6 +21,7 @@ INTERPRETER.onnx_resize11_scales_down_linear
 INTERPRETER.onnx_resize11_scales_up_linear_asymmetric
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.onnx_resize11_sizes_linear
+INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 INTERPRETER.onnx_model_round
 
 # Disabled tests for disabled reference implementations

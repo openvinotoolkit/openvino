@@ -301,7 +301,7 @@ namespace ngraph
                     m_axes = axes;
                     m_out_shape = out_shape;
 
-                    std::size_t output_data_size = shape_size(out_shape);
+                    size_t output_data_size = shape_size(out_shape);
                     std::fill(out, out + output_data_size, T{});
 
                     m_scales = scales;
@@ -341,8 +341,8 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_func(const T* input_data, T* out)
             {
-                std::size_t input_rank = m_input_data_shape.size();
-                std::size_t num_of_axes = m_axes.size();
+                size_t input_rank = m_input_data_shape.size();
+                size_t num_of_axes = m_axes.size();
 
                 auto info = helper.get_info_for_linear_mode();
 
@@ -386,7 +386,7 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
-                std::size_t input_rank = m_input_data_shape.size();
+                size_t input_rank = m_input_data_shape.size();
 
                 assert((input_rank == 2) || (input_rank == 4));
                 assert(m_axes.size() == 2);
@@ -434,12 +434,12 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::cubic_func(const T* input_data, T* out)
             {
-                std::size_t input_rank = m_input_data_shape.size();
-                std::size_t num_of_axes = m_axes.size();
+                size_t input_rank = m_input_data_shape.size();
+                size_t num_of_axes = m_axes.size();
 
                 std::cout << "Calculation for the cubic mode\n";
                 std::cout << "Axes: ";
-                for (const std::size_t axis : m_axes)
+                for (const size_t axis : m_axes)
                 {
                     std::cout << axis << " ";
                 }
@@ -449,14 +449,19 @@ namespace ngraph
 
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
-                Shape indices_shape{std::vector<std::size_t>(num_of_axes, 4)};
+                Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
 
                 std::cout << "indices_shape: " << indices_shape << "\n";
+
+                std::cout << "size of float: " << sizeof(float) << "\n";
                 for (const Coordinate& output_coord : output_transform)
                 {
+                    std::cout << "*******************************************************\n";
+                    std::cout << "Calculating output tensor element with coordinates " <<
+                              << output_coord << "\n\n";
                     auto input_coord = output_coord;
-                    std::map<std::size_t, std::array<float, 4>> cubic_coeffs;
-                    for (std::size_t i = 0; i < num_of_axes; ++i)
+                    std::map<size_t, std::array<float, 4>> cubic_coeffs;
+                    for (size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(output_coord[axis]);
@@ -469,11 +474,13 @@ namespace ngraph
 
                     float summa = 0.0f;
                     CoordinateTransform indices{indices_shape};
+                    std::cout << "Base input coordinate: " << input_coord << "\n\n";
                     for (const Coordinate& idx : indices)
                     {
+                        std::cout << "summation index: " << idx << "\n";
                         auto coords_for_sum = input_coord;
                         float coeffs_prod = 1.0;
-                        for (std::size_t i = 0; i < num_of_axes; ++i)
+                        for (size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
                             coords_for_sum[axis] =

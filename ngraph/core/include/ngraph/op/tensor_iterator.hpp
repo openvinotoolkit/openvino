@@ -20,7 +20,6 @@
 
 #include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
@@ -46,28 +45,6 @@ namespace ngraph
 
                 TensorIterator() = default;
                 TensorIterator(const OutputVector& values);
-
-                class NGRAPH_API BodyLambda : public Lambda
-                {
-                public:
-                    using type_info_t = DiscreteTypeInfo;
-                    static constexpr type_info_t type_info{"BodyLamdba", 0};
-                    const type_info_t& get_type_info() const { return type_info; }
-                    BodyLambda(const OutputVector& outputs, const ParameterVector& parameters)
-                        : Lambda(outputs, parameters)
-                    {
-                    }
-                    BodyLambda(const ResultVector& results, const ParameterVector& parameters)
-                        : Lambda(results, parameters)
-                    {
-                    }
-                    BodyLambda() = default;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
-                    std::shared_ptr<Function> to_function()
-                    {
-                        return std::make_shared<Function>(get_results(), get_parameters());
-                    }
-                };
 
                 /// \brief Describes a connection between a TensorIterator input and the body.
                 class InputDescription
@@ -333,9 +310,9 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 OutputVector decompose_op() const override;
                 /// \return the body of the iteration
-                std::shared_ptr<BodyLambda> get_body() const { return m_body; }
+                std::shared_ptr<Function> get_body() const { return m_body; }
                 /// \param body set the body of the iteration
-                void set_body(const std::shared_ptr<BodyLambda>& body) { m_body = body; }
+                void set_body(const std::shared_ptr<Function>& body) { m_body = body; }
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
                 {
@@ -374,7 +351,7 @@ namespace ngraph
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 
-                std::shared_ptr<BodyLambda> m_body;
+                std::shared_ptr<Function> m_body;
                 std::vector<std::shared_ptr<InputDescription>> m_input_descriptions;
                 std::vector<std::shared_ptr<OutputDescription>> m_output_descriptions;
 

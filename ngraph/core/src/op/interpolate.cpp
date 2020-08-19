@@ -157,10 +157,8 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     if (inputs.size() <= 3)
     {
         PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-        if (input_shape.rank().is_dynamic())
-        {
-            throw std::invalid_argument(cannot_define_axes);
-        }
+        NODE_VALIDATION_CHECK(this, !input_shape.rank().is_dynamic(), cannot_define_axes);
+
         const auto input_rank = input_shape.rank().get_length();
         std::vector<int64_t> default_value(input_rank);
         for (int64_t i = 0; i < input_rank; ++i)
@@ -281,32 +279,32 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
 
 namespace
 {
-    static constexpr std::size_t data_port = 0;
-    static constexpr std::size_t target_shape_port = 1;
-    static constexpr std::size_t scales_port = 2;
-    static constexpr std::size_t axes_port = 3;
-    static constexpr std::size_t max_num_of_ports = 4;
+    static constexpr size_t data_port = 0;
+    static constexpr size_t target_shape_port = 1;
+    static constexpr size_t scales_port = 2;
+    static constexpr size_t axes_port = 3;
+    static constexpr size_t max_num_of_ports = 4;
 
-    using size_t_vector = std::vector<std::size_t>;
+    using size_t_vector = std::vector<size_t>;
     using int64_vector = std::vector<int64_t>;
 
     int64_vector get_axes_vector(const HostTensorVector& args)
     {
         Shape input_shape{args[data_port]->get_shape()};
-        std::size_t input_rank = input_shape.size();
-        std::size_t num_of_inputs = args.size();
+        size_t input_rank = input_shape.size();
+        size_t num_of_inputs = args.size();
 
         int64_vector axes;
 
         if (num_of_inputs == max_num_of_ports)
         {
             int64_t* axes_data_ptr = args[axes_port]->get_data_ptr<int64_t>();
-            std::size_t num_of_axes = args[axes_port]->get_shape()[0];
+            size_t num_of_axes = args[axes_port]->get_shape()[0];
             axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
         }
         else
         {
-            for (std::size_t i = 0; i < input_rank; ++i)
+            for (size_t i = 0; i < input_rank; ++i)
             {
                 axes.push_back(i);
             }
@@ -315,7 +313,7 @@ namespace
         return axes;
     }
 
-    int64_vector get_target_shape_vector(const HostTensorVector& args, std::size_t num_of_axes)
+    int64_vector get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes)
     {
         int64_vector target_shape;
 
@@ -333,7 +331,7 @@ namespace
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
         std::vector<float> scales;
-        std::size_t num_of_axes = axes.size();
+        size_t num_of_axes = axes.size();
         if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
         {
             float* scales_ptr = args[scales_port]->get_data_ptr<float>();
@@ -342,9 +340,9 @@ namespace
         else
         {
             auto target_shape = get_target_shape_vector(args, num_of_axes);
-            for (std::size_t i = 0; i < num_of_axes; ++i)
+            for (size_t i = 0; i < num_of_axes; ++i)
             {
-                std::size_t axis = axes[i];
+                size_t axis = axes[i];
                 float scale =
                     static_cast<float>(target_shape[i]) / static_cast<float>(input_shape[axis]);
                 scales.push_back(scale);
@@ -358,8 +356,8 @@ namespace
                                          const size_t_vector& pads_end)
     {
         size_t_vector result = input_shape;
-        std::size_t rank = input_shape.size();
-        for (std::size_t i = 0; i < rank; ++i)
+        size_t rank = input_shape.size();
+        for (size_t i = 0; i < rank; ++i)
         {
             result[i] += pads_begin[i] + pads_end[i];
         }
@@ -372,12 +370,12 @@ namespace
                                           const std::vector<float>& scales)
     {
         auto out_shape = padded_shape;
-        std::size_t num_of_axes = axes.size();
-        for (std::size_t i = 0; i < num_of_axes; ++i)
+        size_t num_of_axes = axes.size();
+        for (size_t i = 0; i < num_of_axes; ++i)
         {
             int64_t axis = axes[i];
             float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i];
-            out_shape[axis] = static_cast<std::size_t>(scaled_len);
+            out_shape[axis] = static_cast<size_t>(scaled_len);
         }
         return out_shape;
     }
@@ -387,8 +385,8 @@ namespace
                                                 const int64_vector& target_shape)
     {
         auto out_shape = padded_shape;
-        std::size_t num_of_axes = axes.size();
-        for (std::size_t i = 0; i < num_of_axes; ++i)
+        size_t num_of_axes = axes.size();
+        for (size_t i = 0; i < num_of_axes; ++i)
         {
             out_shape[axes[i]] = target_shape[i];
         }
@@ -396,9 +394,9 @@ namespace
     }
 
     template <typename T>
-    std::vector<T> correct_pad(const std::vector<T>& p, std::size_t rank)
+    std::vector<T> correct_pad(const std::vector<T>& p, size_t rank)
     {
-        std::size_t pad_len = p.size();
+        size_t pad_len = p.size();
         if (pad_len == rank)
         {
             return p;
@@ -438,10 +436,10 @@ namespace
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
         Shape input_shape{args[data_port]->get_shape()};
-        std::size_t input_rank = input_shape.size();
+        size_t input_rank = input_shape.size();
 
         auto axes = get_axes_vector(args);
-        std::size_t num_of_axes = axes.size();
+        size_t num_of_axes = axes.size();
 
         auto scales = get_scales_vector(args, input_shape, attrs, axes);
 
@@ -449,7 +447,7 @@ namespace
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
 
         auto padded_input_shape_vector = get_padded_input_shape(input_shape, pads_begin, pads_end);
-        std::vector<std::size_t> out_shape_vector;
+        std::vector<size_t> out_shape_vector;
 
         if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
         {
@@ -491,8 +489,8 @@ namespace
         for (const Coordinate& input_coord : input_transform)
         {
             auto padded_coord = input_coord;
-            std::size_t i = 0;
-            for (std::size_t pad : info_for_reference.pads_begin)
+            size_t i = 0;
+            for (size_t pad : info_for_reference.pads_begin)
             {
                 padded_coord[i] += pad;
             }

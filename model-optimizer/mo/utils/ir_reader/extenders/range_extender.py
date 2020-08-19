@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,18 +13,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.range import Range
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.graph.graph import Node
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
-class RangeFrontExtractor(FrontExtractorOp):
+class RangeExtender(Extender):
     op = 'Range'
-    enabled = True
 
-    @classmethod
-    def extract(cls, node: Node):
-        Range.update_node_stat(node, {'output_type': tf_dtype_extractor(node.pb.attr['Tidx'].type)})
-        return cls.enabled
-
+    @staticmethod
+    def extend(op: Node):
+        if op.has_valid('output_type'):
+            op['output_type'] = destination_type_to_np_data_type(op.output_type)
