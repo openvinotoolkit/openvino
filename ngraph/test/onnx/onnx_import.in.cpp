@@ -1082,8 +1082,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
-        "onnx/resize10_down_scales_const_linear.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_linear.prototxt"));
 
     // Input data shape (1, 1, 2, 4)
     // Input const scales values {1.0, 1.0, 0.6, 0.6}
@@ -1099,8 +1098,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
-        "onnx/resize10_down_scales_const_nearest.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_nearest.prototxt"));
 
     // Input data shape (1, 1, 2, 4)
     // Input const scales values {1.0, 1.0, 0.6, 0.6}
@@ -1169,8 +1167,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_down_linear)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
-        "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
     auto test_case = test::TestCase<TestEngine>(function);
@@ -1208,8 +1205,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/resize11_scales_nearest_asymmetric_floor_dynamic_scales.prototxt"));
+        SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor_dynamic_scales.prototxt"));
 
     const Shape expected_output_shape{2, 1, 4, 1};
     auto test_case = test::TestCase<TestEngine>(function);
