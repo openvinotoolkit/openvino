@@ -834,7 +834,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<quantize>()) {
         auto layout = node.get_output_layout();
-        if ((layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
+        if (layout.format.spatial_num() == 2 &&
+            (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0)
                 expected = format::b_fs_yx_fsv4;
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
