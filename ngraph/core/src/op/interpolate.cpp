@@ -17,6 +17,7 @@
 #include "ngraph/op/interpolate.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
@@ -153,16 +154,14 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     if (inputs.size() <= 3)
     {
         PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-        NODE_VALIDATION_CHECK(this, !input_shape.rank().is_dynamic(),
+        NODE_VALIDATION_CHECK(this, input_shape.rank().is_static(),
                               "Could not define axes of interpolation because there are "
                               "only three inputs and input data has a dynamic rank.");
 
         const auto input_rank = input_shape.rank().get_length();
         std::vector<int64_t> default_value(input_rank);
-        for (int64_t i = 0; i < input_rank; ++i)
-        {
-            default_value[i] = i;
-        }
+        std::iota(default_value.begin(), default_value.end(), 0);
+
         return default_value;
     }
 
