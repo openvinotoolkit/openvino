@@ -32,6 +32,9 @@ class wait_for_events_gpu : public primitive_impl {
 public:
     explicit wait_for_events_gpu(const program_node& /*node*/) {}
 
+    void set_arguments(primitive_inst& /*instance*/) override {}
+    void cleanup(primitive_inst& /*instance*/) override {}
+
     event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) override {
         uint32_t net_id = instance.get_network().get_id();
         events_waiter events_waiter(instance.get_network().get_engine().get_context());
