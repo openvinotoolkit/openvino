@@ -478,7 +478,7 @@ namespace ngraph
                     CoordinateTransform indices{indices_shape};
                     std::cout << "Base input coordinate: " << input_coord << "\n\n";
                     std::cout << "Cubic coeffs:\n";
-                    for (size_t p : cubic_coeffs)
+                    for (const auto& p : cubic_coeffs)
                     {
                         std::cout << "Axis " << p.first << ": [";
                         for (float c : p.second)
