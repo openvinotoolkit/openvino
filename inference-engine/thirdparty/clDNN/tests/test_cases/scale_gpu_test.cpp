@@ -24,11 +24,153 @@
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include "api/reorder.hpp"
+#include "api/data.hpp"
 
 #include <iostream>
 
 using namespace cldnn;
 using namespace tests;
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp32_out_fp16) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<float> input_vec = { 1.0f, 0.0f,   5.0f,   1.5f,   2.0f,   0.0f,
+                                     6.0f, 5.0f, -10.0f, -11.0f, -12.0f, -13.0f,
+
+                                     3.0f, 0.5f,   7.0f,  12.0f,   4.0f,  -0.5f,
+                                     8.0f, 8.0f, -14.0f, -15.0f, -16.0f, -17.0f };
+    set_values(input, input_vec);
+    set_values(scale_input, { 2.0f, -1.0f });
+    set_values(shift_input, { -5.0f, 10.0f });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f16}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp16_out_fp32) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<half_t> input_vec = { half_t(1.0f), half_t(0.0f), half_t(5.0f),   half_t(1.5f),   half_t(2.0f),   half_t(0.0f),
+                                      half_t(6.0f), half_t(5.0f), half_t(-10.0f), half_t(-11.0f), half_t(-12.0f), half_t(-13.0f),
+
+                                      half_t(3.0f), half_t(0.5f), half_t(  7.0f), half_t(12.0f),  half_t(4.0f),   half_t(-0.5f),
+                                      half_t(8.0f), half_t(8.0f), half_t(-14.0f), half_t(-15.0f), half_t(-16.0f), half_t(-17.0f) };
+    set_values(input, input_vec);
+    set_values(scale_input, { half_t(2.0f), half_t(-1.0f) });
+    set_values(shift_input, { half_t(-5.0f), half_t(10.0f) });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f32}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
+
+TEST(scale_gpu, basic_in2x3x2x2_mixed_types_in_fp32_scale_fp16_out_fp16) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
+    auto scale_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+    auto shift_input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+
+    std::vector<float> input_vec = { 1.0f, 0.0f,   5.0f,   1.5f,   2.0f,   0.0f,
+                                     6.0f, 5.0f, -10.0f, -11.0f, -12.0f, -13.0f,
+
+                                     3.0f, 0.5f,   7.0f,  12.0f,   4.0f,  -0.5f,
+                                     8.0f, 8.0f, -14.0f, -15.0f, -16.0f, -17.0f };
+    set_values(input, input_vec);
+    set_values(scale_input, { half_t(2.0f), half_t(-1.0f) });
+    set_values(shift_input, { half_t(-5.0f), half_t(10.0f) });
+
+    std::vector<float> result_vec = { -3.0f, -5.0f,  5.0f, -2.0f, -1.0f, -5.0f,
+                                       4.0f,  5.0f, 20.0f, 21.0f, 22.0f, 23.0f,
+
+                                       1.0f, -4.0f,  9.0f, 19.0f , 3.0f, -6.0f,
+                                       2.0f,  2.0f, 24.0f, 25.0f, 26.0f, 27.0f };
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_input", scale_input));
+    topology.add(data("shift_input", shift_input));
+    topology.add(scale("scale", "input", "scale_input", "shift_input", optional_data_type{data_types::f16}));
+    topology.add(reorder("reorder", "scale", format::bfyx, data_types::f32));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    ASSERT_EQ(result_vec.size(), output.count());
+
+    for (unsigned int i = 0; i < result_vec.size(); ++i) {
+        EXPECT_NEAR(output_ptr[i], result_vec[i], 1e-05F);
+    }
+}
 
 TEST(scale_gpu, basic_in2x3x2x2_scale_same_size) {
     //  Scale  : 2x3x2x2
@@ -1155,7 +1297,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_yxfb_bfyx_same_size_padding) {
         topology.add(input_layout("input", input.get_layout()));
         topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
         topology.add(input_layout("scale_input", scale_input.get_layout()));
-        topology.add(scale("scale", "reorder", "scale_input", padding( { 0, 0, 2, 2 }, 0 )));
+        topology.add(scale("scale", "reorder", "scale_input", {}, padding( { 0, 0, 2, 2 }, 0 )));
 
         std::vector<float> input_vec = { 1.f, 2.f, 3.f, 4.f };
         set_values(input, input_vec);

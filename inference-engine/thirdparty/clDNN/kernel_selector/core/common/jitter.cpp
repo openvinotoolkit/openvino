@@ -1146,11 +1146,43 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     switch (desc.GetType()) {
         case KernelType::SCALE: {
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " +
-                        in_vars_converted[0] + " * " + ConvertToOutputType(in_var, vec_size) + ";";
+            auto get_acc_t = [&]() -> Datatype {
+                std::vector<Datatype> tensor_types = {desc.output_tensor.GetDType()};
+                for (auto& in : desc.tensors) {
+                    tensor_types.push_back(in.GetDType());
+                }
+
+                std::vector<Datatype> types_prioritized = { Datatype::F32, Datatype::F16 };
+
+                for (auto& type : types_prioritized) {
+                    if (std::any_of(tensor_types.begin(), tensor_types.end(), [=](const Datatype& t) -> bool { return t == type; })) {
+                        return type;
+                    }
+                }
+
+                return Datatype::F32;
+            };
+
+            auto get_input = [&](size_t index) -> std::string {
+                auto in_name = index == 0 ? in_var : GetInputVarName(index - 1, is_shuffled, shuffle_var);
+                auto tensor_type = index == 0 ? in_type : desc.tensors[index - 1].GetDType();
+                auto acc_t = get_acc_t();
+
+                if (tensor_type != acc_t)
+                    return ConvertToType(in_name, acc_t, vec_size);
+                else
+                    return in_name;
+            };
+
+            auto tmp_var = out_var + "_tmp";
             if (desc.tensors.size() > 1) {
-                op_decls += "\\\n\t" + out_var + " += " + in_vars_converted[1] + ";";
+                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
+                          + get_input(0) + " * " + get_input(1) + " + " + get_input(2) + ";";
+            } else {
+                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
+                          + get_input(0) + " * " + get_input(1) + ";";
             }
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
             break;
         }
         case KernelType::ELTWISE: {
