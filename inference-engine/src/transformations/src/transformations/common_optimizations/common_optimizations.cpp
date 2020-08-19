@@ -14,6 +14,7 @@
 #include "transformations/itt.hpp"
 #include "transformations/mish_fusion.hpp"
 #include "transformations/swish_fusion.hpp"
+#include "transformations/hswish_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>
@@ -37,6 +38,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
+    manager.register_pass<ngraph::pass::HSwishFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
 
     manager.set_callback(m_transformation_callback);
