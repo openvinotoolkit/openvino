@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise maximum operation.
-            class NGRAPH_API Maximum : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Maximum instead of "
+                "it.") NGRAPH_API Maximum : public util::BinaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Maximum", 0};

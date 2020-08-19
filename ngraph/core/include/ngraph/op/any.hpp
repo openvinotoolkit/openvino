@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Logical "any" reduction operation.
-            class NGRAPH_API Any : public util::LogicalReduction
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please don't use it.")
+                NGRAPH_API Any : public util::LogicalReduction
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Any", 0};

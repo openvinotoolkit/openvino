@@ -30,7 +30,9 @@ namespace ngraph
             ///        Maps quantized input (q) to real output (r) using scale (s) and zero point
             ///        (z):
             ///        r = (q - o) * s
-            class NGRAPH_API Dequantize : public ngraph::op::Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Dequantize : public ngraph::op::Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Dequantize", 0};

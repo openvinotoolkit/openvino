@@ -27,7 +27,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Generic padding operation.
-            class NGRAPH_API Pad : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Pad instead of it.")
+                NGRAPH_API Pad : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Pad", 0};

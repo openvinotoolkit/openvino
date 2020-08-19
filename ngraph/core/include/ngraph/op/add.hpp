@@ -28,7 +28,9 @@ namespace ngraph
         {
             /// \brief Elementwise addition operation.
             ///
-            class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Add instead of it.")
+                NGRAPH_API Add : public util::BinaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Add", 0};
@@ -105,6 +107,7 @@ namespace ngraph
         using v0::Add;
     } // namespace op
 
+    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
     NGRAPH_API
     std::shared_ptr<Node> operator+(const Output<Node>& arg0, const Output<Node>& arg1);
 } // namespace ngraph

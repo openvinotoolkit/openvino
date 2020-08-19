@@ -24,7 +24,9 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API QuantizedDot : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API QuantizedDot : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"QuantizedDot", 0};

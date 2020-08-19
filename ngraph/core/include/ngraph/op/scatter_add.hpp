@@ -26,7 +26,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Add updates to slices from inputs addressed by indices
-            class NGRAPH_API ScatterAdd : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API ScatterAdd : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"ScatterAdd", 0};

@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Gather slices from params with shapes given by indices
-            class NGRAPH_API GatherND : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API GatherND : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GatherND", 0};

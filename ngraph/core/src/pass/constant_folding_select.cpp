@@ -19,6 +19,8 @@
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

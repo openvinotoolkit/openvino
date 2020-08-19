@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise minimum operation.
-            class NGRAPH_API Minimum : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Minimum instead of "
+                "it.") NGRAPH_API Minimum : public util::BinaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Minimum", 0};

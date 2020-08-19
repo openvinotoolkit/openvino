@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise multiplication operation.
-            class NGRAPH_API Multiply : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Multiply instead "
+                "of it.") NGRAPH_API Multiply : public util::BinaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Multiply", 0};
@@ -87,6 +89,7 @@ namespace ngraph
         using v0::Multiply;
     } // namespace op
 
+    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
     NGRAPH_API
     std::shared_ptr<Node> operator*(const Output<Node>& arg0, const Output<Node>& arg1);
 } // namespace ngraph

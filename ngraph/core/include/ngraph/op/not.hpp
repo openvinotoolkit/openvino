@@ -48,7 +48,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise logical negation operation.
-            class NGRAPH_API Not : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::LogicalNot instead "
+                "of it.") NGRAPH_API Not : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Not", 0};

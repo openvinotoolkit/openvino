@@ -30,7 +30,9 @@ namespace ngraph
         {
             // \brief Computes indices of top k maximum/minimum index along a specified axis for a
             //        given tensor
-            class NGRAPH_API TopK : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::TopK instead of "
+                "it.") NGRAPH_API TopK : public Op
             {
             public:
                 using SortType = TopKSortType;

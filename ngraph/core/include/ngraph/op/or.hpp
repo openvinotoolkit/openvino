@@ -59,7 +59,9 @@ namespace ngraph
         {
             /// \brief Elementwise logical-or operation.
             ///
-            class NGRAPH_API Or : public util::BinaryElementwiseLogical
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::LogicalOr instead "
+                "of it.") NGRAPH_API Or : public util::BinaryElementwiseLogical
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Or", 0};

@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise not-equal operation.
-            class NGRAPH_API NotEqual : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::NotEqual instead "
+                "of it.") NGRAPH_API NotEqual : public util::BinaryElementwiseComparison
             {
             public:
                 static constexpr NodeTypeInfo type_info{"NotEqual", 0};

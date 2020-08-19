@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief create StopGrdient op
-            class NGRAPH_API StopGradient : public util::UnaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API StopGradient : public util::UnaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"StopGradient", 0};

@@ -26,7 +26,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Min-reduction operation.
-            class NGRAPH_API Min : public util::ArithmeticReduction
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::ReduceMin instead "
+                "of it.") NGRAPH_API Min : public util::ArithmeticReduction
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Min", 0};

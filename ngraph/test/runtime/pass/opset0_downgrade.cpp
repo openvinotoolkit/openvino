@@ -36,6 +36,8 @@
 #include "pass/implicit_broadcast_elimination.hpp"
 #include "pass/opset0_downgrade.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

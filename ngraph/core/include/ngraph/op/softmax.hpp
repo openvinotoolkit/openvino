@@ -26,7 +26,9 @@ namespace ngraph
         {
             /// \brief Softmax operation.
             ///
-            class NGRAPH_API Softmax : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Softmax instead of "
+                "it.") NGRAPH_API Softmax : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Softmax", 0};

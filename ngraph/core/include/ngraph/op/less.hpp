@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise less-than operation.
-            class NGRAPH_API Less : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Less instead of "
+                "it.") NGRAPH_API Less : public util::BinaryElementwiseComparison
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Less", 0};

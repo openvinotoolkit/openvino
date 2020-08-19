@@ -28,7 +28,9 @@ namespace ngraph
         {
             /// \brief Takes a slice of an input tensor, i.e., the sub-tensor that resides within a
             ///        bounding box, optionally with stride.
-            class NGRAPH_API Slice : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Slice : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Slice", 0};

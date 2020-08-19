@@ -55,7 +55,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise less-than-or-equal operation.
-            class NGRAPH_API LessEq : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::LessEqual instead "
+                "of it.") NGRAPH_API LessEq : public util::BinaryElementwiseComparison
             {
             public:
                 static constexpr NodeTypeInfo type_info{"LessEq", 0};

@@ -41,7 +41,9 @@ namespace ngraph
             /// | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg1}[i_1,\dots,i_n]\text{ if }\texttt{arg0}[i_1,\dots,i_n] \neq 0\text{, else }\texttt{arg2}[i_1,\dots,i_n]\f$ |
             // clang-format on
-            class NGRAPH_API Select : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Select instead of "
+                "it.") NGRAPH_API Select : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Select", 0};

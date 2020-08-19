@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise greater-than-or-equal operation.
-            class NGRAPH_API GreaterEq : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::GreaterEqual "
+                "instead of it.") NGRAPH_API GreaterEq : public util::BinaryElementwiseComparison
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GreaterEq", 0};
@@ -78,9 +80,6 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-
-            // DO NOT USE. Will be removed once users switch to GreaterEqual
-            using GreaterEq = GreaterEqual;
         } // namespace v1
 
         using v0::GreaterEq;

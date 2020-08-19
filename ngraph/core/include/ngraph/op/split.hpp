@@ -31,7 +31,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Splits the input tensor into a list of smaller tensors ("pieces")
-            class NGRAPH_API Split : public ngraph::op::util::FusedOp
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Split instead of "
+                "it.") NGRAPH_API Split : public ngraph::op::util::FusedOp
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Split", 0};

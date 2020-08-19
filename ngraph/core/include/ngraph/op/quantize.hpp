@@ -30,7 +30,9 @@ namespace ngraph
             ///        Maps real input (r) to quantized output (q) using scale (s), zero point (z)
             ///        and
             ///        round mode: q = ROUND(r / s) + o
-            class NGRAPH_API Quantize : public ngraph::op::Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Quantize : public ngraph::op::Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Quantize", 0};

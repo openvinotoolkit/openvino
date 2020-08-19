@@ -30,6 +30,8 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

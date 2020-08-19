@@ -29,7 +29,9 @@ namespace ngraph
             /// \brief Generalized dot product operation, including scalar-tensor product,
             /// matrix-vector
             ///        product, and matrix multiplication.
-            class NGRAPH_API Dot : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Dot : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Dot", 0};

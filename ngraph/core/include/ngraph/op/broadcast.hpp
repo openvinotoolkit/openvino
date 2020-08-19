@@ -150,7 +150,9 @@ namespace ngraph
         {
             /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
             ///        input as needed along the new axes.
-            class NGRAPH_API Broadcast : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Broadcast instead "
+                "of it.") NGRAPH_API Broadcast : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Broadcast", 0};
@@ -195,7 +197,9 @@ namespace ngraph
             };
 
             /// \brief Broadcast arg to the same shape as like_arg.
-            class NGRAPH_API BroadcastLike : public v0::Broadcast
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please don't use it.")
+                NGRAPH_API BroadcastLike : public v0::Broadcast
             {
             public:
                 static constexpr NodeTypeInfo type_info{"BroadcastLike", 0};

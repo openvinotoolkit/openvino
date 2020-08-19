@@ -25,7 +25,9 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API QuantizedConvolution : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API QuantizedConvolution : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"QuantizedConvolution", 0};

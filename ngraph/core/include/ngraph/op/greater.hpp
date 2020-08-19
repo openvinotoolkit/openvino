@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise greater-than operation.
-            class NGRAPH_API Greater : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Greater instead of "
+                "it.") NGRAPH_API Greater : public util::BinaryElementwiseComparison
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Greater", 0};

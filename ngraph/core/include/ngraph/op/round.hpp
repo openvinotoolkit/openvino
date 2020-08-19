@@ -25,7 +25,9 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise round operation.
-            class NGRAPH_API Round : public util::UnaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Round : public util::UnaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Round", 0};
