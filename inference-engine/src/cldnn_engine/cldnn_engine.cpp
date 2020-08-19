@@ -115,7 +115,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
-        //ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);

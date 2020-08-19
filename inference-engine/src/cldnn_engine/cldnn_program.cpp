@@ -268,23 +268,19 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         transformer.transform(network);
     }
 
-//    NetPass::CombineRNNSeq(network);
-    for (int i = 0; i < 2; i++) {
-        NetPass::UnrollTI(network);
-        NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
-            if (rnn.clip != 0.0f)
-                return true;
-            if (rnn.type == "GRUCell" ||
-                rnn.type == "GRUSequence" ||
-                rnn.type == "RNNCell" ||
-                rnn.type == "RNNSequence")
-                return true;
-            if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
-                rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
-                return false;
+    NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
+        if (rnn.clip != 0.0f)
             return true;
-        });
-    }
+        if (rnn.type == "GRUCell" ||
+            rnn.type == "GRUSequence" ||
+            rnn.type == "RNNCell" ||
+            rnn.type == "RNNSequence")
+            return true;
+        if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
+            rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
+            return false;
+        return true;
+    });
 
     if (m_config.max_dynamic_batch > 1) {
         // check topology for applicability

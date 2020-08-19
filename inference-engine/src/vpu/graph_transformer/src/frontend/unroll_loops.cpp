@@ -34,12 +34,12 @@ void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
         return;
     }
 
-    if (env.config.enableTensorIteratorUnrolling) {
-        ie::NetPass::UnrollTI(network);
-    } else {
-        // Try to convert network to a RNN sequence due to performance reasons
-        ie::NetPass::CombineRNNSeq(network);
-    }
+//    if (env.config.enableTensorIteratorUnrolling) {
+//        ie::NetPass::UnrollTI(network);
+//    } else {
+//        // Try to convert network to a RNN sequence due to performance reasons
+//        ie::NetPass::CombineRNNSeq(network);
+//    }
 }
 
 }  // namespace vpu
