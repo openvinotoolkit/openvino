@@ -48,6 +48,10 @@ class ChangePlaceholderTypes(FrontReplacementPattern):
                             op.out_port(0).connect(dst_port)
 
                         graph.remove_node(convert_node.id)
+            if op.soft_get('data_type') == np.int64:
+                op.data_type = np.int32
+                log.error('Convert data type of Parameter "{}" to int32'.format(op.soft_get('name', op.id)),
+                          extra={'is_warning': True})
 
             if op.soft_get('data_type') == np.uint8:
                 op.data_type = np.float32
