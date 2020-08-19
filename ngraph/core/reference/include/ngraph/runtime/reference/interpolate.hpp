@@ -495,8 +495,11 @@ namespace ngraph
                         for (size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
+                            int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
+                                                    static_cast<int64_t>(idx[i]) -
+                                                    static_cast<int64_t>(1);
                             coords_for_sum[axis] =
-                                helper.clip_coord(input_coord[axis] + idx[i] - 1,
+                                helper.clip_coord(coord_to_clip,
                                                   static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
