@@ -68,7 +68,6 @@ set(SRC
     misc.cpp
     ngraph_api.cpp
     node_input_output.cpp
-    nop_elimination.cpp
     op.cpp
     op_eval/hswish.cpp
     op_eval/matmul.cpp
