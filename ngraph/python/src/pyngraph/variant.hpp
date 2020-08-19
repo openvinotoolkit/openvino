@@ -39,6 +39,13 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
         "ngraph.impl.Variant[typestring] wraps ngraph::VariantWrapper<typestring>";
 
     variant_wrapper.def(py::init<const VT&>());
+
+    variant_wrapper.def("__repr__", [](const ngraph::VariantWrapper<VT> self) {
+        std::stringstream ret;
+        ret << self.get();
+        return ret.str();
+    });
+
     variant_wrapper.def("get",
                         (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get);
     variant_wrapper.def("set", &ngraph::VariantWrapper<VT>::set);

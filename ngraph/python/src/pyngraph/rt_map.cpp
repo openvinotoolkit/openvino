@@ -52,6 +52,7 @@ void regclass_pyngraph_PyRTMap(py::module m)
     py_map.doc() =
         "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
         "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
+
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
         _set_with_variant(m, k, v);
     });
