@@ -26,19 +26,19 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
         as_type_ptr<ngraph::opset1::Multiply>(dataNode) :
         nullptr;
     if (multiply != nullptr) {
-        dataNode = multiply->get_input_node_shared_ptr(0);
+        dataNode = multiply->get_input_source_output(0).get_node_shared_ptr();
     }
 
     const std::shared_ptr<opset1::Subtract> subtract = (dataNode->get_input_size() > 1ul) && is_type<opset1::Constant>(dataNode->get_input_node_ptr(1)) ?
         as_type_ptr<opset1::Subtract>(dataNode) :
         nullptr;
     if (subtract != nullptr) {
-        dataNode = subtract->get_input_node_shared_ptr(0);
+        dataNode = subtract->get_input_source_output(0).get_node_shared_ptr();
     }
 
     const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode);
     if (convert != nullptr) {
-        dataNode = convert->get_input_node_shared_ptr(0);
+        dataNode = convert->get_input_source_output(0).get_node_shared_ptr();
     }
 
     return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
@@ -51,7 +51,6 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     }
 
     FakeQuantizeDequantization dequantization = get(multiply);
-
     // multiply operation is mandatory: subtract without multiply is part of new LPT operation set
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
         return false;
@@ -97,14 +96,21 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         if (lastNewPrecision != precisionAfterDequantization) {
             lastNew = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
-                ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(
+                    dequantization.subtract == nullptr ?
+                        dequantization.multiply->get_input_source_output(0) :
+                        dequantization.subtract->get_input_source_output(0),
+                    element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
 
             NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew), precisionAfterDequantization);
         } else {
-            lastNew = std::make_shared<opset1::Multiply>(lastNew, multiplyConstant);
+            lastNew = std::make_shared<opset1::Multiply>(
+                dequantization.subtract == nullptr ?
+                    dequantization.multiply->get_input_source_output(0) :
+                    dequantization.subtract->get_input_source_output(0),
+                multiplyConstant);
         }
-
         if (dequantization.multiply != nullptr) {
             copy_runtime_info(dequantization.multiply, lastNew);
             //NetworkHelper::copyInfo(dequantization.multiply, lastNew);

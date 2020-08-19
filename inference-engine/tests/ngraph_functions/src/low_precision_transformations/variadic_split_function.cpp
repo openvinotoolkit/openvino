@@ -60,7 +60,8 @@ std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
 
     const auto constantAxis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
     const auto constantLengths = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ splitLengths.size() }, splitLengths);
-    const std::shared_ptr<Node> variadicSplit = std::make_shared<ngraph::opset1::VariadicSplit>(input, constantAxis, constantLengths);
+    const std::shared_ptr<Node> variadicSplit =
+        std::make_shared<ngraph::opset1::VariadicSplit>(fakeQuantize.empty() ? input : fq, constantAxis, constantLengths);
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < splitLengths.size(); ++i) {
