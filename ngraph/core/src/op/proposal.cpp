@@ -143,7 +143,8 @@ void op::v4::Proposal::validate_and_infer_types()
     auto batch_size = class_probs_pshape[0];
     if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
         image_shape_pshape.is_static())
-        set_output_type(1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
+        set_output_type(
+            1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
     else
         set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
 }
