@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-typedef struct {
+typedef struct pwl_gna_slope_scale_t{
     double slope;
     uint64_t slope_scale = 0;
     uint32_t slope_scale_index;

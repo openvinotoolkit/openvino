@@ -36,7 +36,7 @@ if(DEFINED BUILD_DEFINES)
 	endforeach()
 endif()
 
-if(BUILD_SHARED_LIBS)
+if(NOT BUILD_SHARED_LIBS)
 	add_library(pugixml SHARED ${SOURCES})
 else()
 	add_library(pugixml STATIC ${SOURCES})

@@ -1,6 +1,0 @@
-include_directories(".")
-if (MSVC)
-    add_subdirectory("win")
-else ()
-    add_subdirectory("linux")
-endif ()

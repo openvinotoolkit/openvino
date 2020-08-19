@@ -4,6 +4,7 @@
 
 if (LINUX)
     function(get_linux_name res_var)
+		if (NOT DEFINED TARGET_OS)
         if (NOT EXISTS "/etc/lsb-release")
             execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
                     OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
@@ -28,5 +29,9 @@ if (LINUX)
             set(${res_var} NOTFOUND PARENT_SCOPE)
         endif ()
 
+		else()
+			set(os_name ${TARGET_OS})
+			set(${res_var} ${os_name} PARENT_SCOPE)
+		endif()
     endfunction()
 endif ()

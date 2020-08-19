@@ -2083,7 +2083,7 @@ public:
     virtual ~ScatterLayer();
 };
 
-class TanHLayer : public CNNLayer {
+class INFERENCE_ENGINE_API_CLASS(TanHLayer): public CNNLayer {
 public:
     /**
     * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
@@ -2092,9 +2092,7 @@ public:
     //explicit TanHLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
 
     using CNNLayer::CNNLayer;
-#if defined(__ANDROID__)
     virtual ~TanHLayer();
-#endif
 
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
@@ -2102,7 +2100,7 @@ public:
     float negative_slope;
 };
 
-class SigmoidLayer : public CNNLayer {
+class INFERENCE_ENGINE_API_CLASS(SigmoidLayer): public CNNLayer {
 public:
     /**
     * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
@@ -2130,9 +2128,7 @@ public:
 
     using CNNLayer::CNNLayer;
 
-#if defined(__ANDROID__)
     virtual ~DivByNLayer();
-#endif
 
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
@@ -2150,9 +2146,8 @@ public:
 
     using CNNLayer::CNNLayer;
 
-#if defined(__ANDROID__)
     virtual ~ExpLayer();
-#endif
+
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
      */
@@ -2169,9 +2164,7 @@ public:
 
     using CNNLayer::CNNLayer;
 
-#if defined(__ANDROID__)
     virtual ~LogLayer();
-#endif
 
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0

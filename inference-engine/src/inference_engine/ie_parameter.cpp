@@ -172,6 +172,8 @@ template bool InferenceEngine::Parameter::is<std::vector<std::string>>() const;
 
 template bool InferenceEngine::Parameter::is<std::vector<unsigned long>>() const;
 
+template bool InferenceEngine::Parameter::is<std::tuple<unsigned int, unsigned int>>() const;
+template bool InferenceEngine::Parameter::is<std::tuple<unsigned int, unsigned int, unsigned int>>() const;
 template bool InferenceEngine::Parameter::is<std::vector<InferenceEngine::Blob>>() const;
 template bool InferenceEngine::Parameter::is<std::shared_ptr<InferenceEngine::Blob const>>() const;
 template bool InferenceEngine::Parameter::is<std::shared_ptr<InferenceEngine::Blob>>() const;

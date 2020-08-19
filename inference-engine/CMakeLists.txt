@@ -85,11 +85,15 @@ add_cpplint_report_target()
 ie_cpack_add_component(cpp_samples REQUIRED DEPENDS core)
 
 if(UNIX)
+	if (${TARGET_OS} STREQUAL "CHROMEOS")
+		message(STATUS " Skipping  cpp samples")
+	else()
     install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE)
+	endif()
 elseif(WIN32)
     install(DIRECTORY samples
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
@@ -103,15 +107,22 @@ endif()
 ie_cpack_add_component(c_samples REQUIRED DEPENDS core)
 
 if(UNIX)
+	if (${TARGET_OS} STREQUAL "CHROMEOS")
+		message(STATUS " Skipping  cpp samples")
+	else()
     install(PROGRAMS samples/build_samples.sh
             DESTINATION ${IE_CPACK_IE_DIR}/samples/c
             COMPONENT c_samples)
+	endif()
 elseif(WIN32)
     install(PROGRAMS samples/build_samples_msvc.bat
             DESTINATION ${IE_CPACK_IE_DIR}/samples/c
             COMPONENT c_samples)
 endif()
 
+if (${TARGET_OS} STREQUAL "CHROMEOS")
+	message(STATUS " Skipping ie_bridges c/cpp samples")
+else()
 install(DIRECTORY ie_bridges/c/samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples
@@ -120,14 +131,19 @@ install(DIRECTORY ie_bridges/c/samples/
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
+endif()
 
 # install Python samples
 
+if (${TARGET_OS} STREQUAL "CHROMEOS")
+	message(STATUS "Skipping python samples")
+else()
 ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
 
 install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/python
         COMPONENT python_samples)
+endif()
 
 # Custom target to build only Inference Engine Developer Package targets
 
