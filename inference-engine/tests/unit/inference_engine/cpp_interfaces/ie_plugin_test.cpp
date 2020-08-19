@@ -48,7 +48,7 @@ protected:
     }
 
     void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {
-        IExecutableNetwork::Ptr exeNetwork;
+        ExecutableNetwork exeNetwork;
         InputsDataMap inputsInfo;
         mockNotEmptyNet.getInputsInfo(inputsInfo);
         OutputsDataMap outputsInfo;
@@ -57,10 +57,8 @@ protected:
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
-        plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, {});
-        ASSERT_NE(exeNetwork, nullptr) << dsc.msg;
-        sts = exeNetwork->CreateInferRequest(request, &dsc);
-        ASSERT_EQ((int) StatusCode::OK, sts) << dsc.msg;
+        ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(mockNotEmptyNet, {}));
+        ASSERT_NO_THROW(request = exeNetwork.CreateInferRequest());
     }
 };
 
