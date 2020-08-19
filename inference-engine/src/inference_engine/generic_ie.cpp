@@ -21,7 +21,7 @@
 
 constexpr ::ngraph::NodeTypeInfo ngraph::op::GenericIE::type_info;
 
-void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Lambda> func,
+void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Function> func,
                                          const InferenceEngine::IShapeInferExtensionPtr& ext) {
     NodeVector nodes;
 

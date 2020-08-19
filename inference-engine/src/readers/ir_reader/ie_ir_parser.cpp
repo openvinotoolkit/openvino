@@ -560,14 +560,14 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
         }
     }
 
-    // Create ngraph::Function, convert it to ngraph::BodyLambda and set it as TensorIterator body
+    // Create ngraph::Function and set it as body of TensorIterator layer
     IRParser parser(10);
     auto ngraph_function = parser.parse(node.child("body"), binStream)->getFunction();
     auto parameter_nodes = ngraph_function->get_parameters();
     auto result_nodes = ngraph_function->get_results();
     // Disabled reshape for generic operations in the TI body
     ::ngraph::op::GenericIE::DisableReshape noReshape(ngraph_function);
-    auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(result_nodes, parameter_nodes);
+    auto body = std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
     tensor_iterator->set_body(body);
 
     // Parse PortMap: inputs
