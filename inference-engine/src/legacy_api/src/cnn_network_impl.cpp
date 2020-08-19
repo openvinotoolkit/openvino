@@ -435,9 +435,9 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
 
         SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 
-        // 3D input layout doesn't have batch notation
-        if (dims.size() == 3 || dims.size() == 1) {
-            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        // 3D/1D/0D input layouts don't have batch notation
+        if (dims.size() == 3 || dims.size() == 1 || dims.empty()) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
