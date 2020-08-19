@@ -25,7 +25,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
             return false;
         }
 
-        if (!m_transformation_callback(softplus_node)) {
+        if (m_transformation_callback(softplus_node)) {
             return false;
         }
 
