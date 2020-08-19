@@ -16,7 +16,6 @@
 #include <ngraph/specialize_function.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-
 ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());

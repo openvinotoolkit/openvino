@@ -13,10 +13,15 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::RNNSequenceIE::type_info;
 
-op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X, const Output<Node>& H_t,
-                                 const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,
-                                 op::RecurrentSequenceDirection direction, const std::vector<std::string>& activations,
-                                 const std::vector<float>& activations_alpha, const std::vector<float>& activations_beta,
+op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X,
+                                 const Output<Node>& H_t,
+                                 const Output<Node>& WR,
+                                 const Output<Node>& B,
+                                 std::size_t hidden_size,
+                                 op::RecurrentSequenceDirection direction,
+                                 const std::vector<std::string>& activations,
+                                 const std::vector<float>& activations_alpha,
+                                 const std::vector<float>& activations_beta,
                                  float clip)
         : Op({X, H_t, WR, B}),
           RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta),
@@ -29,14 +34,10 @@ void op::RNNSequenceIE::validate_and_infer_types() {
     PartialShape output_shape_0{PartialShape::dynamic(4)};
     PartialShape output_shape_1{PartialShape::dynamic(3)};
     if (get_input_partial_shape(0).is_static()) {
-        int64_t batch_size = get_input_partial_shape(0).get_shape()[0];
-        int64_t seq_lenghts = get_input_partial_shape(0).get_shape()[1];
-        output_shape_0 = {batch_size,
-                          seq_lenghts,
-                          static_cast<int64_t>(m_hidden_size)};
-
-        output_shape_1 = {batch_size,
-                          static_cast<int64_t>(m_hidden_size)};
+        size_t batch_size = get_input_partial_shape(0).get_shape()[0];
+        size_t seq_length = get_input_partial_shape(0).get_shape()[1];
+        output_shape_0 = Shape{batch_size, seq_length, m_hidden_size};
+        output_shape_1 = Shape{batch_size, m_hidden_size};
     }
     set_output_type(0, arg_type, output_shape_0);
     set_output_type(1, arg_type, output_shape_1);

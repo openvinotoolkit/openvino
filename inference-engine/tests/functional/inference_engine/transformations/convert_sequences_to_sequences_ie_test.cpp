@@ -34,7 +34,7 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
     const size_t num_directions = 1;
     {
         const auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32,
-                                                                   ngraph::Shape{batch_size, input_size});
+                                                                   ngraph::Shape{batch_size, 1, input_size});
         const auto W =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{num_directions, gates_count * hidden_size, input_size});
@@ -46,7 +46,7 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions, gates_count * hidden_size});
 
-        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
+        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{batch_size});
         sequence = std::make_shared<ngraph::opset4::GRUSequence>(X, H_t, seq_len, W, R, B, hidden_size,
                                                                  ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");
@@ -61,7 +61,7 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
 
     {
         const auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32,
-                                                                   ngraph::Shape{batch_size, input_size});
+                                                                   ngraph::Shape{batch_size, 1, input_size});
         const auto W =
                 std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{num_directions, gates_count * hidden_size, input_size});
@@ -116,12 +116,12 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
     std::shared_ptr<ngraph::opset4::RNNSequence> sequence;
 
     {
-        auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1, 3});
         auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, num_directions, 3});
         auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
         auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
         auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3});
-        auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{1}, 1);
+        auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{2});
         sequence = std::make_shared<ngraph::opset4::RNNSequence>(X, H, seq_len, W, R, B, hidden_size,
                                                                  ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");
@@ -135,7 +135,7 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
     }
 
     {
-        auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto X = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1, 3});
         auto H = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, num_directions, 3});
         auto W = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
         auto R = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{num_directions, 3, 3});
@@ -203,7 +203,7 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
                                                                                 gates_count * hidden_size});
-        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{1}, 1);
+        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{batch_size});
         sequence = std::make_shared<ngraph::opset4::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
                                                                   ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");

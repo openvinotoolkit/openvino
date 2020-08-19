@@ -24,16 +24,10 @@ namespace pass {
 }  // namespace pass
 }  // namespace ngraph
 
-/*
- * Description:
- * TODO:fill
- *
- * Usage:
- * TODO:fill
- *
- * Callback example:
- * TODO:fill
- *
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Finds all TensorIterator layers, detects the pattern Squeeze->(GRU/RNN/LSTM)Cell->Unsqueeze in body
+ * of TensorIterator, converts this pattern to (GRU/RNN/LSTM)Sequence layer and replaces them TensorIterator.
  */
 
 class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
