@@ -414,7 +414,7 @@ namespace
         return result;
     }
 
-    struct InfoToCallReference
+    struct EvaluationParams
     {
         Shape input_shape;
         Shape padded_input_shape;
@@ -427,8 +427,8 @@ namespace
 
     using InterpolateV4Attrs = op::v4::Interpolate::InterpolateAttrs;
 
-    InfoToCallReference get_info_to_call_reference(const HostTensorVector& args,
-                                                   const InterpolateV4Attrs& attrs)
+    EvaluationParams get_info_to_call_reference(const HostTensorVector& args,
+                                                const InterpolateV4Attrs& attrs)
     {
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
