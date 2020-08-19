@@ -16,16 +16,19 @@
 
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
+#include <ngraph/pass/pass.hpp>
 
-namespace ngraph
-{
-    namespace pass
-    {
-        class NGRAPH_API NopElimination : public FunctionPass
-        {
-        public:
-            bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
-        };
-    }
-}
+#include <transformations_visibility.hpp>
+
+namespace ngraph {
+namespace pass {
+
+class TRANSFORMATIONS_API AlgebraicSimplification;
+
+}  // namespace pass
+}  // namespace ngraph
+
+class NGRAPH_API ngraph::pass::AlgebraicSimplification : public FunctionPass {
+public:
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+};

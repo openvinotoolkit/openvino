@@ -1,61 +1,30 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
-#include <algorithm>
-#include <cstdio>
-#include <iostream>
-#include <list>
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_common.hpp"
+#include <string>
+#include <sstream>
 #include <memory>
+#include <queue>
 
-#include "gtest/gtest.h"
-#include "ngraph/file_util.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/batch_norm.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/exp.hpp"
-#include "ngraph/op/log.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/negative.hpp"
-#include "ngraph/op/product.hpp"
-#include "ngraph/op/sqrt.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/op/sum.hpp"
-#include "ngraph/pass/algebraic_simplification.hpp"
-#include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
-#include "ngraph/pattern/matcher.hpp"
-#include "ngraph/pattern/op/label.hpp"
-#include "ngraph/pattern/op/skip.hpp"
-#include "util/all_close.hpp"
-#include "util/matcher.hpp"
-#include "util/test_tools.hpp"
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <transformations/common_optimizations/algebraic_simplification.hpp>
+#include <transformations/utils/utils.hpp>
+#include <transformations/init_node_info.hpp>
+
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-TEST(algebraic_simplification, add_negative_tests)
-{
+TEST(algebraic_simplification, add_negative_tests) {
     Shape shape{};
     auto type = element::f32;
     pass::Manager pass_manager;
@@ -77,14 +46,12 @@ TEST(algebraic_simplification, add_negative_tests)
 
     auto expected = ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0};
     auto results = f->get_results();
-    for (size_t i = 0; i < results.size(); i++)
-    {
+    for (size_t i = 0; i < results.size(); i++) {
         ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
-TEST(algebraic_simplification, multiply_negative_tests)
-{
+TEST(algebraic_simplification, multiply_negative_tests) {
     Shape shape{};
     auto type = element::f32;
     pass::Manager pass_manager;
@@ -106,14 +73,12 @@ TEST(algebraic_simplification, multiply_negative_tests)
 
     auto expected = ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0};
     auto results = f->get_results();
-    for (size_t i = 0; i < results.size(); i++)
-    {
+    for (size_t i = 0; i < results.size(); i++) {
         ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
-TEST(algebraic_simplification, multiply_prod_negative)
-{
+TEST(algebraic_simplification, multiply_prod_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
     auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
     auto prod_fconst1 = std::make_shared<op::Product>(broadcast, AxisSet{0, 1});
@@ -127,8 +92,7 @@ TEST(algebraic_simplification, multiply_prod_negative)
     ASSERT_EQ(f_prod, prod_fconst1);
 }
 
-TEST(algebraic_simplification, multiply_sum_negative)
-{
+TEST(algebraic_simplification, multiply_sum_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
     auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
     auto sum_fconst1 = std::make_shared<op::Sum>(broadcast, AxisSet{0, 1});
@@ -142,8 +106,7 @@ TEST(algebraic_simplification, multiply_sum_negative)
     ASSERT_EQ(f_sum, sum_fconst1);
 }
 
-TEST(algebraic_simplification, concat_parameter_slices_reversed)
-{
+TEST(algebraic_simplification, concat_parameter_slices_reversed) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{32, 100}, Strides{1, 1});
     auto slice2 = make_shared<op::Slice>(a, Coordinate{32, 0}, Coordinate{64, 100}, Strides{1, 1});
@@ -160,8 +123,7 @@ TEST(algebraic_simplification, concat_parameter_slices_reversed)
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_parameter_slices_element_count)
-{
+TEST(algebraic_simplification, concat_parameter_slices_element_count) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     // slicing 30 elements out of 96; should trigger a check that some elements are missing
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{10, 100}, Strides{1, 1});
@@ -179,8 +141,7 @@ TEST(algebraic_simplification, concat_parameter_slices_element_count)
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_parameter_non_uniform_slices)
-{
+TEST(algebraic_simplification, concat_parameter_non_uniform_slices) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{38, 100}, Strides{1, 1});
     auto slice2 = make_shared<op::Slice>(a, Coordinate{38, 0}, Coordinate{64, 100}, Strides{1, 1});
@@ -197,8 +158,7 @@ TEST(algebraic_simplification, concat_parameter_non_uniform_slices)
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_different_inputs)
-{
+TEST(algebraic_simplification, concat_different_inputs) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto goe1 = -a;
     auto goe2 = -a;
@@ -220,8 +180,7 @@ TEST(algebraic_simplification, concat_different_inputs)
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, log_no_exp)
-{
+TEST(algebraic_simplification, log_no_exp) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto abs_a = make_shared<op::Abs>(a);
@@ -241,8 +200,7 @@ TEST(algebraic_simplification, log_no_exp)
     ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_div);
 }
 
-TEST(algebraic_simplification, log_no_divide)
-{
+TEST(algebraic_simplification, log_no_divide) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto exp_a = make_shared<op::Exp>(a);
@@ -262,15 +220,13 @@ TEST(algebraic_simplification, log_no_divide)
     ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_mul);
 }
 
-TEST(algebraic_simplification, pass_property)
-{
+TEST(algebraic_simplification, pass_property) {
     auto pass = std::make_shared<ngraph::pass::AlgebraicSimplification>();
 
     ASSERT_FALSE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
 
-TEST(algebraic_simplification, replace_transpose_with_reshape)
-{
+TEST(algebraic_simplification, replace_transpose_with_reshape) {
     auto check_usecase = [](const PartialShape& shape,
                             const std::vector<int64_t>& perm_val,
                             bool i32,
@@ -280,25 +236,19 @@ TEST(algebraic_simplification, replace_transpose_with_reshape)
         auto casename = string("usecase #") + to_string(++id);
 
         shared_ptr<Node> perm;
-        if (i32)
-        {
+        if (i32) {
             std::vector<int32_t> perm_val_i32(perm_val.begin(), perm_val.end());
             perm =
                 op::Constant::create<int32_t>(element::i32, Shape{perm_val.size()}, perm_val_i32);
-        }
-        else
-        {
+        } else {
             perm = op::Constant::create<int64_t>(element::i64, Shape{perm_val.size()}, perm_val);
         }
         auto param = make_shared<op::Parameter>(element::f32, shape);
         shared_ptr<Node> A1;
-        if (multiout)
-        {
+        if (multiout) {
             auto last_dim = shape.rank().get_length() - 1;
             A1 = make_shared<op::v0::TopK>(param, last_dim, element::i32);
-        }
-        else
-        {
+        } else {
             A1 = make_shared<op::v0::Abs>(param);
         }
         auto transpose = make_shared<op::v1::Transpose>((multiout ? A1->output(0) : A1), perm);
@@ -324,8 +274,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape)
     };
 
     for (auto& i32 : {true, false})
-        for (auto& multiout : {true, false})
-        {
+        for (auto& multiout : {true, false}) {
             check_usecase(Shape{1, 3}, vector<int64_t>{1, 0}, i32, multiout, 0);
             check_usecase(Shape{2, 3, 1}, vector<int64_t>{2, 0, 1}, i32, multiout, 0);
             check_usecase(Shape{10, 20, 1, 1}, vector<int64_t>{0, 2, 3, 1}, i32, multiout, 0);
@@ -363,8 +312,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape)
 // gather is Nop and will be removed during `simplify_gather`
 // algebraic_simplification pass
 
-TEST(algebraic_simplification, gather_3d_indices_constant_axis_1)
-{
+TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
     auto check_usecase = [](const PartialShape& pshape,
                             bool i32,
                             bool multiout,
@@ -376,15 +324,12 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1)
 
         shared_ptr<Node> indices;
         shared_ptr<Node> axis;
-        if (i32)
-        {
+        if (i32) {
             std::vector<int32_t> indices_val_i32(indices_val.begin(), indices_val.end());
             indices = op::Constant::create<int32_t>(
                 element::i32, Shape{indices_val.size()}, indices_val_i32);
             axis = op::Constant::create<int32_t>(element::i32, Shape{}, {(int32_t)axis_val});
-        }
-        else
-        {
+        } else {
             indices =
                 op::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
             axis = op::Constant::create<int64_t>(element::i64, Shape{}, {axis_val});
@@ -392,13 +337,10 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1)
 
         auto A = make_shared<op::Parameter>(element::f32, pshape);
         shared_ptr<Node> A1;
-        if (multiout)
-        {
+        if (multiout) {
             auto last_dim = pshape.rank().get_length() - 1;
             A1 = make_shared<op::v0::TopK>(A, last_dim, element::i32);
-        }
-        else
-        {
+        } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
         auto G = make_shared<op::v1::Gather>((multiout ? A1->output(0) : A1), indices, axis);
@@ -422,8 +364,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1)
         ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), num) << casename;
     };
     for (auto& i32 : {true, false})
-        for (auto& multiout : {true, false})
-        {
+        for (auto& multiout : {true, false}) {
             check_usecase(PartialShape{1, 3, 2}, i32, multiout, std::vector<int64_t>{1}, 0, 0);
             check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{0, 1}, 1, 0);
             check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{1}, 2, 0);
@@ -431,8 +372,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1)
         }
 }
 
-TEST(algebraic_simplification, gather_shapeof)
-{
+TEST(algebraic_simplification, gather_shapeof) {
     auto check_usecase = [](const PartialShape& pshape,
                             bool is_scalar_index,
                             bool opset2,
@@ -446,17 +386,14 @@ TEST(algebraic_simplification, gather_shapeof)
 
         shared_ptr<Node> indices;
         shared_ptr<Node> axis;
-        if (i32)
-        {
+        if (i32) {
             std::vector<int32_t> indices_val_i32(indices_val.begin(), indices_val.end());
             indices = is_scalar_index
                           ? op::Constant::create<int32_t>(element::i32, Shape{}, indices_val_i32)
                           : op::Constant::create<int32_t>(
                                 element::i32, Shape{indices_val.size()}, indices_val_i32);
             axis = op::Constant::create<int32_t>(element::i32, Shape{}, {(int32_t)axis_val});
-        }
-        else
-        {
+        } else {
             indices = is_scalar_index
                           ? op::Constant::create<int64_t>(element::i64, Shape{}, indices_val)
                           : op::Constant::create<int64_t>(
@@ -471,23 +408,17 @@ TEST(algebraic_simplification, gather_shapeof)
         auto A = make_shared<op::Parameter>(element::f32, pshape);
         auto AA = make_shared<op::Parameter>(element::f64, pshape_1);
         shared_ptr<Node> A1;
-        if (multiout)
-        {
+        if (multiout) {
             A1 = make_shared<TestOpMultiOut>(A, AA);
-        }
-        else
-        {
+        } else {
             A1 = make_shared<op::v0::Abs>(A);
         }
         auto B = make_shared<op::v1::Gather>(
             (multiout ? (multiout_1 ? A1->output(1) : A1->output(0)) : A1), indices, axis);
         shared_ptr<Node> B1;
-        if (opset2)
-        {
+        if (opset2) {
             B1 = make_shared<op::v0::ShapeOf>(B);
-        }
-        else
-        {
+        } else {
             B1 = make_shared<op::v3::ShapeOf>(B);
         }
         auto baseline_f = make_shared<Function>(
@@ -510,16 +441,13 @@ TEST(algebraic_simplification, gather_shapeof)
         ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
 
         auto last_node = optimized_f->get_results()[0]->input_value(0).get_node_shared_ptr();
-        if (is_scalar_index)
-        {
+        if (is_scalar_index) {
             ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(optimized_f), 1) << casename;
             ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), 1) << casename;
             EXPECT_TRUE(
                 as_type_ptr<op::v1::Gather>(last_node->input_value(0).get_node_shared_ptr()))
                 << casename;
-        }
-        else
-        {
+        } else {
             ASSERT_EQ(count_ops_of_type<op::v0::Concat>(optimized_f), 1) << casename;
             EXPECT_TRUE(
                 as_type_ptr<op::v0::Concat>(last_node->input_value(0).get_node_shared_ptr()))
@@ -530,8 +458,7 @@ TEST(algebraic_simplification, gather_shapeof)
     for (auto& opset2 : {true, false})
         for (auto& i32 : {true, false})
             for (auto& multiout : {true, false})
-                for (auto& multiout_1 : {true, false})
-                {
+                for (auto& multiout_1 : {true, false}) {
                     check_usecase(PartialShape{2, 3, 2, 1},
                                   true,
                                   opset2,
@@ -552,8 +479,7 @@ TEST(algebraic_simplification, gather_shapeof)
     for (auto& opset2 : {true, false})
         for (auto& i32 : {true, false})
             for (auto& multiout : {true, false})
-                for (auto& multiout_1 : {true, false})
-                {
+                for (auto& multiout_1 : {true, false}) {
                     check_usecase(PartialShape{2, 3, 2, 1},
                                   false,
                                   opset2,
