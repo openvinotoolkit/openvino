@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2018 - 2019 Intel Corporation
+# Copyright (c) 2018 - 2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,25 +25,13 @@
 #     or motherboard settings
 #
 EXIT_FAILURE=1
+PKGS=
+CENTOS_MINOR=
 UBUNTU_VERSION=
 DISTRO=
-
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 params=$@
-yes_or_no() {
-    if [ "$params" == "-y" ]; then
-        return 1
-    fi
-
-    while true; do
-        read -p "Do you want to continue: " yn
-        case $yn in
-            [Yy]*) return 1 ;;
-            [Nn]*) return 0 ;;
-        esac
-    done
-}
-
 
 _install_prerequisites_centos()
 {
@@ -120,6 +108,7 @@ _deploy_deb()
     eval $cmd
 }
 
+
 _install_user_mode_centos()
 {
     _deploy_rpm "intel*.rpm"
@@ -140,16 +129,20 @@ _install_user_mode_ubuntu()
     fi
 }
 
+
 install_user_mode()
 {
-    echo Installing user mode driver...
-
+    echo "Installing user mode driver..."
+    
     if [[ $DISTRO == "centos" ]]; then
         _install_user_mode_centos
     else
         _install_user_mode_ubuntu
     fi
-
+    # exit from $SCRIPT_DIR/neo folder
+    cd -
+    # clean it up
+    rm -rf $SCRIPT_DIR/neo
 }
 
 _uninstall_user_mode_centos()
@@ -210,6 +203,77 @@ uninstall_user_mode()
     fi
 }
 
+_is_package_installed()
+{
+    if [[ $DISTRO == "centos" ]]; then
+        cmd="rpm -qa | grep $1"
+    else
+        cmd="dpkg-query -W -f='${binary:Package}\n' $pkg"
+    fi
+    echo $cmd
+    eval $cmd
+}
+
+
+_download_packages_ubuntu()
+{
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-gmmlib_19.3.2_amd64.deb
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-core_1.0.2597_amd64.deb
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-opencl_1.0.2597_amd64.deb
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-opencl_19.41.14441_amd64.deb
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.41.14441_amd64.deb
+}
+
+_download_packages_centos()
+{
+    wget -O intel-igc-core-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-core-1.0.2597-1.el7.x86_64.rpm/download
+    wget -O intel-opencl-19.41.14441-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-opencl-19.41.14441-1.el7.x86_64.rpm/download
+    wget -O intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm/download
+    wget -O intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm/download
+    wget -O intel-gmmlib-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download
+    wget -O intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm/download
+}
+
+
+_verify_checksumm_ubuntu()
+{
+    wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/ww41.sum
+    sha256sum -c ww41.sum
+}
+
+_verify_checksumm_centos()
+{
+    sha1sum -c $SCRIPT_DIR/neo_centos_ww41.sum
+}
+
+verify_checksumm()
+{
+    if [[ $DISTRO == "centos" ]]; then
+        _verify_checksumm_centos
+    else
+        _verify_checksumm_ubuntu
+    fi
+}
+
+download_packages()
+{
+    mkdir -p $SCRIPT_DIR/neo
+    cd $SCRIPT_DIR/neo
+    
+    if [[ $DISTRO == "centos" ]]; then
+        _download_packages_centos
+    else
+        _download_packages_ubuntu
+    fi
+    verify_checksumm
+    if [[ $? -ne 0 ]]; then
+        echo "ERROR: checksumm do not match for downloaded packages"
+        echo "       Please verify your Internet connection and make sure you have enough disk space or fix the problem manually and try again "
+        exit $EXIT_FAILURE
+    fi
+}
+
+
 version_gt() {
     # check if first version is greater than second version
     test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1";
@@ -264,18 +328,18 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == centos ]]; then
-        if ! grep -q 'CentOS Linux release 7\.' /etc/centos-release; then
-            echo ERROR: this script is supported only on CentOS 7 >&2
+        CENTOS_MINOR=$(sed 's/CentOS Linux release 7\.\([[:digit:]]\+\).\+/\1/' /etc/centos-release)
+        if [[ $? -ne 0 ]]; then
+            echo ERROR: failed to obtain CentOS version minor. >&2
+            echo This script is supported only on CentOS 7 and above. >&2
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == ubuntu ]]; then
-        grep -q -E "18.04" /etc/lsb-release && UBUNTU_VERSION="18.04"
-        if [[ -z $UBUNTU_VERSION ]]; then
-            echo "Warning: The driver was validated only on Ubuntu 18.04 LTS with stock kernel. \nMore info https://github.com/intel/compute-runtime/releases" >&2
-            if [ ! yes_or_no ]; then
-                echo "Installation of GFX driver interrupted"
-                exit $EXIT_FAILURE
-            fi
+        UBUNTU_VERSION=$(lsb_release -r -s) 
+        if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
+            echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
+            echo "More info https://github.com/intel/compute-runtime/releases" >&2
+            exit "Installation of Intel Compute Runtime interrupted"
         fi
     fi
 }
@@ -291,10 +355,29 @@ distro_init()
     _check_distro_version
 }
 
-install()
+check_agreement()
 {
+    if [ "$params" == "-y" ]; then
+        return 0
+    fi
+
+    echo "This script will download and install Intel(R) Graphics Compute Runtime 19.41.14441, "
+    echo "that was used to validate this OpenVINO package.\n"
+    echo "In case if you already have the driver - script will try to remove it."
+    while true; do
+        read -p "Want to proceed? (y/n): " yn
+        case $yn in
+            [Yy]*) return 0  ;;
+            [Nn]*) exit 1 ;;
+        esac
+    done
+}
+
+install()
+{       
     uninstall_user_mode
     install_prerequisites
+    download_packages
     install_user_mode
     add_user_to_video_group
 }
@@ -304,6 +387,7 @@ main()
     echo "Intel OpenCL graphics driver installer"
     distro_init
     check_root_access
+    check_agreement
     install
     summary
 }
