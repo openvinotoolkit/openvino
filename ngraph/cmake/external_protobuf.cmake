@@ -50,9 +50,15 @@ if(CMAKE_CROSSCOMPILING)
     find_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
-        execute_process(COMMAND ${SYSTEM_PROTOC} --version OUTPUT_VARIABLE PROTOC_VERSION)
+        execute_process(
+            COMMAND ${SYSTEM_PROTOC} --version
+            OUTPUT_VARIABLE PROTOC_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
+
         message("Detected system protoc version: ${PROTOC_VERSION}")
 
         if(${PROTOC_VERSION} VERSION_EQUAL "3.0.0")
