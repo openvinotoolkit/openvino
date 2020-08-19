@@ -14,31 +14,25 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <memory>
+#pragma once
 
-#include "onnx_import/default_opset.hpp"
-#include "round.hpp"
+#include <cmath>
+#include <cstddef>
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace runtime
     {
-        namespace op
+        namespace reference
         {
-            namespace set_1
+            template <typename T>
+            void hswish(const T* arg, T* out, size_t count)
             {
-                OutputVector range(const Node& node)
+                for (size_t i = 0; i < count; i++)
                 {
-                    const Output<ngraph::Node> start{node.get_ng_inputs().at(0)};
-                    const Output<ngraph::Node> stop{node.get_ng_inputs().at(1)};
-                    const Output<ngraph::Node> step{node.get_ng_inputs().at(2)};
-                    return {std::make_shared<default_opset::Range>(
-                        start, stop, step, node.get_ng_inputs().at(0).get_element_type())};
+                    out[i] = arg[i] * std::min<T>(std::max<T>(arg[i] + 3.0f, 0.0f), 6.0f) / 6.0f;
                 }
-            } // namespace set_1
-
-        } // namespace op
-
-    } // namespace onnx_import
-
-} // namespace ngraph
+            }
+        }
+    }
+}

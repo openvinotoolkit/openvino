@@ -21,7 +21,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             return false;
         }
 
-        const auto function = ti->get_body()->to_function();
+        const auto function = ti->get_body();
         auto num_iter = ti->get_num_iterations();
 
         // negative value means inconsistent TI
