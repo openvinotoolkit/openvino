@@ -14,18 +14,13 @@ namespace InferenceEngine {
 namespace Serialization {
 
 /**
-    * @brief Serialize execution network into IE IR-like XML file
-    * @param xmlPath   Path to XML file
-    * @param network   network to be serialized
-    */
-INFERENCE_ENGINE_API_CPP(void) Serialize(const std::string& xmlPath, const InferenceEngine::ICNNNetwork& network);
-
-/**
-    * @brief Returns set of topologically sorted layers
-    * @param network network to be sorted
-    * @return `std::vector` of topologically sorted CNN layers
-    */
-INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) TopologicalSort(const InferenceEngine::ICNNNetwork& network);
+ * @brief Serialize network into IE IR XML file and binary weights file
+ * @param xmlPath   Path to XML file
+ * @param binPath   Path to BIN file
+ * @param network   network to be serialized
+ */
+void Serialize(const std::string& xmlPath, const std::string& binPath,
+               const InferenceEngine::ICNNNetwork& network);
 
 }  // namespace Serialization
 }  // namespace InferenceEngine

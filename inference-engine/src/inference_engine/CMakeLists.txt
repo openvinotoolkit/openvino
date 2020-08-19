@@ -76,6 +76,11 @@ if(ENABLE_SSE42)
     add_definitions(-DHAVE_SSE=1)
 endif()
 
+if(ENABLE_V7_SERIALIZE)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
+endif()
+
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
 
 set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")

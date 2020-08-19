@@ -60,9 +60,6 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
         // try to convert to old representation and check that conversion passed well
         std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedExecGraph;
         ASSERT_NO_THROW(convertedExecGraph = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(execGraphInfo));
-        // serialization for IR-v7 like execution graph is still supported for compatibility
-        ASSERT_NO_THROW(convertedExecGraph->serialize("exeNetwork.xml", "exeNetwork.bin", nullptr));
-        ASSERT_EQ(0, std::remove("exeNetwork.xml"));
 
         for (const auto & op : function->get_ops()) {
             const auto & rtInfo = op->get_rt_info();
