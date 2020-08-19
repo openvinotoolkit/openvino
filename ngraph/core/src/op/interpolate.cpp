@@ -547,6 +547,8 @@ void op::v4::Interpolate::correct_pads()
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
+    element::Type input_et = get_input_element_type(0);
+    size_t type_size = input_et.size();
     return evaluate_interpolate_v4(inputs, outputs[0], m_attrs);
 }
 

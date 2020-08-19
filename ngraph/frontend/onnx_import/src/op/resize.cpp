@@ -68,7 +68,7 @@ namespace ngraph
                 }
 
                 template <typename T>
-                static T convert(const std::map<std::string, T>& converting_map,
+                static T mode_from_str(const std::map<std::string, T>& converting_map,
                                  const std::string& mode)
                 {
                     T result = T{};
@@ -132,10 +132,10 @@ namespace ngraph
                     }
 
                     InterpolateV4Attrs attrs;
-                    attrs.mode = convert(interp_mode_map, mode);
+                    attrs.mode = mode_from_str(interp_mode_map, mode);
                     attrs.coordinate_transformation_mode =
-                        convert(transform_mode_map, transform_mode);
-                    attrs.nearest_mode = convert(nearest_mode_map, nearest_mode);
+                        mode_from_str(transform_mode_map, transform_mode);
+                    attrs.nearest_mode = mode_from_str(nearest_mode_map, nearest_mode);
                     attrs.antialias = false;
                     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
 
@@ -251,21 +251,10 @@ namespace ngraph
                             (sizes_shape.is_static() || data_shape.rank().is_static()),
                             " Data rank or shape of sizes input is required to be static.");
 
-                        size_t axes_size = sizes_shape.is_static() ? sizes_shape[0].get_length()
-                                                                   : data_shape.rank().get_length();
-
-                        std::vector<int64_t> axes;
-                        for (int ax = 0; ax < axes_size; ++ax)
-                        {
-                            axes.push_back(ax);
-                        }
-
-                        const auto axes_const = default_opset::Constant::create(
-                            ngraph::element::i64, Shape({axes.size()}), axes);
                         const auto scales = calculate_scales_based_on_sizes(data, sizes);
 
                         return {std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, sizes, scales, axes_const, attrs)};
+                            data, sizes, scales, attrs)};
                     }
 
                     const auto& scales = inputs.at(2);
@@ -276,20 +265,9 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of scales input is required to be static.");
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
-                                                                : data_shape.rank().get_length();
-
-                    std::vector<int64_t> axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.push_back(ax);
-                    }
-
-                    const auto axes_const = default_opset::Constant::create(
-                        ngraph::element::i64, Shape({axes.size()}), axes);
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, scales, axes_const, attrs)};
+                        data, output_shape, scales, attrs)};
                 }
             } // namespace set_11
 
@@ -311,19 +289,9 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of Scales input is required to be static.");
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
-                                                                : data_shape.rank().get_length();
-                    std::vector<int64_t> axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.push_back(ax);
-                    }
-
-                    const auto axes_const = default_opset::Constant::create(
-                        ngraph::element::i64, Shape({axes.size()}), axes);
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, scales, axes_const, attrs)};
+                        data, output_shape, scales, attrs)};
                 }
 
             } // namespace set_1

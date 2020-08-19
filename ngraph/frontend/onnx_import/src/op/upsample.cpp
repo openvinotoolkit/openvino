@@ -95,12 +95,6 @@ namespace ngraph
                     attrs.pads_begin = zero_pad;
                     attrs.pads_end = zero_pad;
 
-                    std::vector<int64_t> axes;
-                    for (size_t ax = 0; ax < scales.size(); ++ax)
-                    {
-                        axes.push_back(ax);
-                    }
-
                     if (data_shape.is_static())
                     {
                         auto data_static_shape = data_shape.to_shape();
@@ -114,21 +108,16 @@ namespace ngraph
                         auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
 
-                        auto axes_const = default_opset::Constant::create(
-                            element::i64, Shape({axes.size()}), axes);
-
                         const auto scales_const = default_opset::Constant::create(
                             ngraph::element::f32, Shape({scales.size()}), scales);
 
                         return {std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, output_shape_const, scales_const, axes_const, attrs)};
+                            data, output_shape_const, scales_const, attrs)};
                     }
 
                     const auto scales_const = default_opset::Constant::create(
                         ngraph::element::f32, Shape({scales.size()}), scales);
 
-                    auto axes_const = default_opset::Constant::create(
-                        ngraph::element::i64, Shape({axes.size()}), axes);
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
                     auto multiply =
@@ -137,7 +126,7 @@ namespace ngraph
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, scales_const, axes_const, attrs)};
+                        data, output_shape, scales_const, attrs)};
                 }
 
             } // namespace set_1
@@ -174,15 +163,6 @@ namespace ngraph
                     attrs.pads_begin = zero_pad;
                     attrs.pads_end = zero_pad;
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
-                                                                : data_shape.rank().get_length();
-
-                    std::vector<int64_t> axes;
-                    for (size_t ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.push_back(ax);
-                    }
-
                     if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
                     {
                         const auto scales_const =
@@ -200,11 +180,8 @@ namespace ngraph
                         auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
 
-                        auto axes_const = default_opset::Constant::create(
-                            element::i64, Shape({axes.size()}), axes);
-
                         return {std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, output_shape_const, scales, axes_const, attrs)};
+                            data, output_shape_const, scales, attrs)};
                     }
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
@@ -214,10 +191,8 @@ namespace ngraph
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
-                    auto axes_const = default_opset::Constant::create(
-                        ngraph::element::i64, Shape({axes.size()}), axes);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, scales, axes_const, attrs)};
+                        data, output_shape, scales, attrs)};
                 }
 
             } // namespace set_9

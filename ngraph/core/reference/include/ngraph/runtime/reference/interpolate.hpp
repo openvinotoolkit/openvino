@@ -498,8 +498,11 @@ namespace ngraph
                             int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
                                                     static_cast<int64_t>(idx[i]) -
                                                     static_cast<int64_t>(1);
-                            coords_for_sum[axis] = helper.clip_coord(
-                                coord_to_clip, static_cast<float>(m_input_data_shape[axis]));
+                            int64_t clipped_coord = std::max(
+                                static_cast<int64_t>(0),
+                                std::min(coord_to_clip,
+                                         static_cast<int64_t>(m_input_data_shape[axis]) - 1));
+                            coords_for_sum[axis] = clipped_coord;
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
                         std::cout << "summation coordinate (clipped): " << coords_for_sum << "\n";
