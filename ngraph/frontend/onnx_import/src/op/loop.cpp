@@ -157,7 +157,8 @@ namespace ngraph
                             trip_count.get_element_type(), Shape{}, {0}),
                         ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
                         default_opset::Constant::create(
-                            trip_count.get_element_type(), Shape{}, {1}));
+                            trip_count.get_element_type(), Shape{}, {1}),
+                        trip_count.get_element_type());
 
                     // We iterate over trip_count input.
                     // start=0, stride=1, part_size=1, end=-1, axis=0
