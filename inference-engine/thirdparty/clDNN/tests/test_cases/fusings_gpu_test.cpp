@@ -3767,7 +3767,28 @@ using deconv_test_params = bc_test_params;
 #define CASE_DECONV_ELTW_i8_5 {1, 16, 2, 4}, {1, 16, 4, 6}, {1, 16, 4, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 
 
-class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest {};
+class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest {
+public:
+    void execute(deconv_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "deconv")
+                return true;
+            return false;
+        };
+
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+    }
+};
 
 class deconv_actv : public DeconvolutionFusingTest {};
 TEST_P(deconv_actv, basic) {
@@ -3981,9 +4002,7 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
-        // Some fusings disabled under deconvolution -> convolution optimization
-        // Quantize fusing disabled for fp16/fp32 for performance reasons
-        deconv_test_params{ CASE_DECONV_FP32_1, 4, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_1, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_2, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_3, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_4, 3, 5 },
@@ -3992,7 +4011,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
         deconv_test_params{ CASE_DECONV_FP32_7, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_8, 3, 5 },
 
-        deconv_test_params{ CASE_DECONV_FP16_1, 4, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_1, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_2, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_3, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_4, 3, 5 },
@@ -4094,9 +4113,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
-        // Some fusings disabled under deconvolution -> convolution optimization
-        // Quantize fusing disabled for fp16/fp32 for performance reasons
-        deconv_test_params{ CASE_DECONV_FP32_1, 7, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_1, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_2, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_3, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_4, 6, 9 },
@@ -4105,7 +4122,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_
         deconv_test_params{ CASE_DECONV_FP32_7, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_8, 6, 9 },
 
-        deconv_test_params{ CASE_DECONV_FP16_1, 7, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_1, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP16_2, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP16_3, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP16_4, 6, 9 },
