@@ -34,6 +34,3 @@ class TdnnComponent(Op):
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
-
-    def supported_attrs(self):
-        return ['t']

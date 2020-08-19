@@ -221,7 +221,7 @@ class GemmONNX(Op):
 
 
 class FullyConnected(Op):
-    # TODO: remove `infer`, `type` and supported_attrs after op removal from IR Spec
+    # TODO: remove `infer` and `type` after op removal from IR Spec
     op = 'FullyConnected'
     enabled = False
 
@@ -233,11 +233,6 @@ class FullyConnected(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
-
-    def supported_attrs(self):
-        return [
-            'out-size',
-        ]
 
     @staticmethod
     def infer(node: Node):

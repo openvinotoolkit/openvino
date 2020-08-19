@@ -22,7 +22,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
@@ -502,7 +502,7 @@ def parse_specifier(string, graph, layer_node_map):
         return node
     elif spec == b'Scale':
         node_name = parse_specifier(args[1], graph, layer_node_map)
-        scale_value = float(parse_specifier(args[0], graph, layer_node_map))
+        scale_value = float(args[0])
         layer_name = 'Scale_{}_{}'.format(node_name, scale_value)
 
         if layer_name not in layer_node_map:
@@ -512,7 +512,7 @@ def parse_specifier(string, graph, layer_node_map):
             layer_node_map[layer_name] = scale_name
 
             scale_const_name = 'Scale_{}_const_{}'.format(node_name, scale_value)
-            const_node = Const(graph, {'name': scale_const_name, 'value': int64_array([scale_value])}).create_node()
+            const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
 
             node = Node(graph, node_name)
             graph.create_edge(const_node, scale_node, 0, 0)

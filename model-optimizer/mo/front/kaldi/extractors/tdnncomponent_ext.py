@@ -22,6 +22,7 @@ from mo.front.kaldi.loader.utils import read_binary_bool_token, read_binary_inte
 from mo.front.kaldi.utils import read_binary_vector, read_binary_matrix
 from mo.ops.tdnncomponent import TdnnComponent
 
+
 class TdnnComponentFrontExtractor(FrontExtractorOp):
     op = 'tdnncomponent'
     enabled = True
@@ -45,20 +46,20 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         bias_params = read_binary_vector(pb)
 
         collect_until_token(pb, b'<OrthonormalConstraint>')
-        orthonormal_constraint = read_binary_float_token(pb)
+        orthonormal_constraint = read_binary_float_token(pb)  # used only on training
 
         collect_until_token(pb, b'<UseNaturalGradient>')
-        use_natural_grad = read_binary_bool_token(pb)
+        use_natural_grad = read_binary_bool_token(pb)  # used only on training
         collect_until_token(pb, b'<NumSamplesHistory>')
         num_samples_hist = read_binary_float_token(pb)
 
         collect_until_token(pb, b'<AlphaInOut>')
-        alpha_in_out1 = read_binary_float_token(pb)
-        alpha_in_out2 = read_binary_float_token(pb)
+        alpha_in_out = read_binary_float_token(pb), read_binary_float_token(pb)  # for training, usually (4, 4)
 
+        # according to Kaldi documentation http://kaldi-asr.org/doc/classkaldi_1_1nnet3_1_1TdnnComponent.html#details
+        # it looks like it's used only during training (but not 100% sure)
         collect_until_token(pb, b'<RankInOut>')
-        rank_inout1 = read_binary_integer32_token(pb)
-        rank_inout2 = read_binary_integer32_token(pb)
+        rank_in_out = read_binary_integer32_token(pb), read_binary_integer32_token(pb)
 
         biases = np.array(bias_params) if len(bias_params) != 0 else None
         attrs = {

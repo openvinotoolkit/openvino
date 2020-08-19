@@ -45,5 +45,5 @@ class SplitMemoryOffsets(FrontReplacementPattern):
                                            't': offset_node.t, 'has_default': offset_node.has_default}).create_node()
         offset_node['splitted'] = True
         offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
-        res_node = Result(graph, {'name': offset_node.id+"_output"}).create_node()
+        res_node = Result(graph, {'name': offset_node.id + "_output"}).create_node()
         offset_node.out_port(0).connect(res_node.in_port(0))

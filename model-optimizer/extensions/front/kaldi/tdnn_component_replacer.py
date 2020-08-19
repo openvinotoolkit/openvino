@@ -14,17 +14,17 @@
  limitations under the License.
 """
 
+from extensions.ops.MatMul import FullyConnected
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
-from mo.ops.memoryoffset import MemoryOffset
 from mo.ops.concat import Concat
 from mo.ops.const import Const
-from extensions.ops.MatMul import FullyConnected
+from mo.ops.memoryoffset import MemoryOffset
 
 
 class TdnnComponentReplacer(FrontReplacementPattern):
     '''
-    Replace TdnnComponent with MemoryOffsets
+    'unfuse' TdnnComponent into MemoryOffsets, Concats and FullyConected layer
     '''
     enabled = True
     run_not_recursively = True
@@ -35,7 +35,8 @@ class TdnnComponentReplacer(FrontReplacementPattern):
 
     def run_before(self):
         from extensions.front.kaldi.split_memoryoffsets import SplitMemoryOffsets
-        return [SplitMemoryOffsets]
+        from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+        return [SplitMemoryOffsets, MemoryOffsetAdjustment]
 
     def pattern(self):
         return dict(
@@ -45,20 +46,26 @@ class TdnnComponentReplacer(FrontReplacementPattern):
             edges=[]
         )
 
-    def replace_pattern(self, graph: Graph, match: dict):
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
         tdnn_node: Node = match['tdnncomponent']
         tdnn_name = tdnn_node.name
-        concat_node = Concat(graph, {'name': tdnn_name + '_concat', 'axis': 0}).create_node()
+        concat_node = Concat(graph, {'name': tdnn_name + '_concat', 'axis': 1}).create_node()
 
         for i, t in enumerate(tdnn_node['time_offsets']):
-            memory_name = tdnn_name + '_memoryoffset_' + str(t)
-            memoryoffset_node = MemoryOffset(graph, {'name': memory_name, 't': t,
-                                 'pair_name': memory_name + '_out',
-                                 'has_default': False}).create_node()
-            tdnn_node.in_port(0).get_source().connect(memoryoffset_node.in_port(0))
-
             concat_node.add_input_port(i)
-            memoryoffset_node.out_port(0).connect(concat_node.in_port(i))
+            if t != 0:
+                memory_name = tdnn_name + '_memoryoffset_' + str(abs(t))
+                memoryoffset_node = MemoryOffset(graph, {'name': memory_name, 't': t,
+                                     'pair_name': memory_name + '_out',
+                                     'has_default': False, 'splitted': False}).create_node()
+
+                tdnn_node.in_port(0).get_source().connect(memoryoffset_node.in_port(0))
+                memoryoffset_node.out_port(0).connect(concat_node.in_port(i))
+            else:
+                # 0 time delay is not allowed in IE, it's meaningless
+                # if time offset is 0 then connect input of tdnncomponent directly to Concat without memoryoffset
+                tdnn_node.in_port(0).get_source().connect(concat_node.in_port(i))
 
         weights = tdnn_node['weights']
         bias_term = False
@@ -69,7 +76,6 @@ class TdnnComponentReplacer(FrontReplacementPattern):
 
         fc_node = FullyConnected(graph, {'name': tdnn_name + '_fc',
                                          'out-size': weights.shape[0],
-                                         'transpose_weights': False,  # check this
                                          'bias_term': bias_term}).create_node()
         concat_node.out_port(0).connect(fc_node.in_port(0))
         tdnn_node.in_port(0).disconnect()
@@ -81,5 +87,3 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         if bias_term:
             biases_node = Const(graph, {'name': tdnn_name + '_fc_biases', 'value': biases}).create_node()
             biases_node.out_port(0).connect(fc_node.in_port(2))
-
-        print('hey')
