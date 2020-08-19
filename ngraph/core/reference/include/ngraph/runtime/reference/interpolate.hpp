@@ -457,7 +457,7 @@ namespace ngraph
                 for (const Coordinate& output_coord : output_transform)
                 {
                     std::cout << "*******************************************************\n";
-                    std::cout << "Calculating output tensor element with coordinates " <<
+                    std::cout << "Calculating output tensor element with coordinates "
                               << output_coord << "\n\n";
                     auto input_coord = output_coord;
                     std::map<size_t, std::array<float, 4>> cubic_coeffs;
