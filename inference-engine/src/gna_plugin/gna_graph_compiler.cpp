@@ -957,8 +957,30 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     auto outputs = *layer->outData.begin();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs4Bytes, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(inputs4Bytes, 2);
+    auto in_4b_order = getFromIRDimsOrderNCHW(inputs4Bytes->getLayout());
+    auto in_4b_batch = FROM_IR_DIM(inputs4Bytes, in_4b_order[0]);
+    auto in_4b_channels = FROM_IR_DIM(inputs4Bytes, in_4b_order[1]);
+    auto in_4b_height = FROM_IR_DIM(inputs4Bytes, in_4b_order[2]);
+    auto in_4b_width = FROM_IR_DIM(inputs4Bytes, in_4b_order[3]);
+    auto in_4b_total_size = in_4b_batch * in_4b_channels * in_4b_height * in_4b_width;
+
+    auto in_2b_order = getFromIRDimsOrderNCHW(inputs2Bytes->getLayout());
+    auto in_2b_batch = FROM_IR_DIM(inputs2Bytes, in_2b_order[0]);
+    auto in_2b_channels = FROM_IR_DIM(inputs2Bytes, in_2b_order[1]);
+    auto in_2b_height = FROM_IR_DIM(inputs2Bytes, in_2b_order[2]);
+    auto in_2b_width = FROM_IR_DIM(inputs2Bytes, in_2b_order[3]);
+    auto in_2b_total_size = in_2b_batch * in_2b_channels * in_2b_height * in_2b_width;
+
+    if ((in_2b_batch > 1) || (in_4b_batch > 1)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with batch size that not equals 1 is not supported";
+    }
+
+    if (in_4b_total_size != in_2b_total_size) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch " << in_4b_total_size << " != " << in_2b_total_size;
+    }
+
+    uint32_t num_rows_in = in_4b_channels * in_4b_height * in_4b_width;
+    uint32_t num_columns_in = in_4b_batch;
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
