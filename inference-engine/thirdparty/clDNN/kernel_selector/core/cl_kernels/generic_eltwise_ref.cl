@@ -26,7 +26,11 @@
 
 KERNEL(eltwise)(
     INPUTS_DECLS
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
 
 #if OUTPUT_DIMS == 6 // 4D spatial
@@ -112,9 +116,18 @@ KERNEL(eltwise)(
 
     DO_ELTWISE;
 
-#if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(res, ACTIVATION_PARAMS));
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+#elif QUANTIZATION_TERM && !OUTPUT_IS_FP
+    OUTPUT_TYPE out = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
 #else
-    output[output_offset] = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
+    OUTPUT_TYPE out = ACTIVATION_TYPED(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS_TYPED);
+#endif
+
+#if QUANTIZATION_TERM && !OUTPUT_IS_FP
+    output[output_offset] = TO_OUTPUT_TYPE_SAT(out);
+#else
+    output[output_offset] = out;
 #endif
 }
