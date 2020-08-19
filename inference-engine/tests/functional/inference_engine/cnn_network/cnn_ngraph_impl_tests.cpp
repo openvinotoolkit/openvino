@@ -160,6 +160,45 @@ TEST(CNNNGraphImplTests, TestSetBatch) {
     ASSERT_EQ(nullptr, cnnNet.getFunction());
 }
 
+TEST(CNNNGraphImplTests, TestGetBatchScalar) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::Shape shape({});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+}
+
+TEST(CNNNGraphImplTests, TestSetBatchScalar) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::Shape shape({});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
+}
+
 TEST(CNNNGraphImplTests, TestSaveAffinity) {
     const std::string testAffinity = "testAffinity";
     std::shared_ptr<ngraph::Function> ngraph;
