@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <list>
 #include <map>
@@ -454,6 +455,7 @@ namespace ngraph
                 std::cout << "indices_shape: " << indices_shape << "\n";
 
                 std::cout << "size of float: " << sizeof(float) << "\n";
+                std::cout << std::setprecision(10) << "\n";
                 for (const Coordinate& output_coord : output_transform)
                 {
                     std::cout << "*******************************************************\n";
@@ -475,6 +477,16 @@ namespace ngraph
                     float summa = 0.0f;
                     CoordinateTransform indices{indices_shape};
                     std::cout << "Base input coordinate: " << input_coord << "\n\n";
+                    std::cout << "Cubic coeffs:\n";
+                    for (size_t p : cubic_coeffs)
+                    {
+                        std::cout << "Axis " << p.first << ": [";
+                        for (float c : p.second)
+                        {
+                            std::cout << c << " ";
+                        }
+                        std::cout << "]\n\n";
+                    }
                     for (const Coordinate& idx : indices)
                     {
                         std::cout << "summation index: " << idx << "\n";
@@ -488,6 +500,11 @@ namespace ngraph
                                                   static_cast<float>(m_input_data_shape[axis]));
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
+                        std::cout << "summation coordinate (clipped): " << coords_for_sum << "\n";
+                        std::cout << "corresponding input element: "
+                                  << input_data[input_transform.index(coords_for_sum)]
+                                  << "\n";
+                        std::cout << "coeffs_prod: " << coeffs_prod << "\n";
                         summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
                     }
 
