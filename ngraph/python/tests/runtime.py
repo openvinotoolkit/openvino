@@ -109,7 +109,7 @@ class Computation(object):
                 "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
             )
         for parameter, input in zip(self.parameters, input_values):
-            parameter_shape = parameter.get_output_shape(0)
+            parameter_shape = parameter.get_output_partial_shape(0)
             if len(input.shape) > 0 and parameter_shape.compatible(input.shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
