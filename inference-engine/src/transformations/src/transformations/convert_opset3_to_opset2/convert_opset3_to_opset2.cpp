@@ -9,11 +9,8 @@
 #include "transformations/convert_opset3_to_opset2/convert_shapeof3.hpp"
 #include "transformations/convert_opset3_to_opset2/convert_shuffle_channels3.hpp"
 #include "transformations/convert_opset3_to_opset2/convert_topk3.hpp"
-<<<<<<< HEAD
-#include "transformations/softplus_decomposition.hpp"
-=======
 #include "transformations/convert_extract_image_patches_to_reorg_yolo.hpp"
->>>>>>> upstream/master
+#include "transformations/softplus_decomposition.hpp"
 #include "transformations/itt.hpp"
 
 #include <memory>
