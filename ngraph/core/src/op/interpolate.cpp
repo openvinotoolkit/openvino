@@ -147,17 +147,15 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-static const char* cannot_define_axes =
-    "Could not define axes of interpolation because there"
-    "are only three inputs and input data has a dynamic rank.";
-
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
 {
     auto inputs = input_values();
     if (inputs.size() <= 3)
     {
         PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-        NODE_VALIDATION_CHECK(this, !input_shape.rank().is_dynamic(), cannot_define_axes);
+        NODE_VALIDATION_CHECK(this, !input_shape.rank().is_dynamic(),
+                              "Could not define axes of interpolation because there are "
+                              "only three inputs and input data has a dynamic rank.");
 
         const auto input_rank = input_shape.rank().get_length();
         std::vector<int64_t> default_value(input_rank);
