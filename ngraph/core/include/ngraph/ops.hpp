@@ -75,6 +75,7 @@
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/gru_cell.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
+#include "ngraph/op/hswish.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
