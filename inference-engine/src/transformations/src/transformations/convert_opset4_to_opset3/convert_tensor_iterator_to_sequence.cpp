@@ -17,7 +17,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 
-void ngraph::pass::ConvertTensorIteratorToLSTMSequence::convert_ti_to_lstm_sequence() {
+ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
@@ -171,7 +171,7 @@ void ngraph::pass::ConvertTensorIteratorToLSTMSequence::convert_ti_to_lstm_seque
     register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertTensorIteratorToRNNSequence::convert_ti_to_rnn_sequence() {
+ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
@@ -317,7 +317,7 @@ void ngraph::pass::ConvertTensorIteratorToRNNSequence::convert_ti_to_rnn_sequenc
     register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertTensorIteratorToGRUSequence::convert_ti_to_gru_sequence() {
+ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {

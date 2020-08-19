@@ -38,30 +38,15 @@ namespace pass {
 
 class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
 public:
-    ConvertTensorIteratorToLSTMSequence() : MatcherPass() {
-        convert_ti_to_lstm_sequence();
-    }
-
-private:
-    void convert_ti_to_lstm_sequence();
+    ConvertTensorIteratorToLSTMSequence();
 };
 
 class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
 public:
-    ConvertTensorIteratorToRNNSequence() : MatcherPass() {
-        convert_ti_to_rnn_sequence();
-    }
-
-private:
-    void convert_ti_to_rnn_sequence();
+    ConvertTensorIteratorToRNNSequence();
 };
 
 class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
 public:
-    ConvertTensorIteratorToGRUSequence() : MatcherPass() {
-        convert_ti_to_gru_sequence();
-    }
-
-private:
-    void convert_ti_to_gru_sequence();
+    ConvertTensorIteratorToGRUSequence();
 };

@@ -65,6 +65,7 @@ TEST(type_prop, lstm_sequence_forward)
     EXPECT_EQ(lstm_sequence->get_clip_threshold(), 0.f);
     EXPECT_FALSE(lstm_sequence->get_input_forget());
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
+    EXPECT_EQ(lstm_sequence->outputs().size(), 3);
     EXPECT_EQ(lstm_sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);

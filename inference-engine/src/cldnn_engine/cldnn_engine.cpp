@@ -43,6 +43,8 @@
 
 #ifdef __linux__
 #include <dlfcn.h>
+#include <transformations/convert_opset4_to_opset3/convert_opset4_to_opset3.hpp>
+
 #endif
 
 using InferenceEngine::DescriptionBuffer;
@@ -101,6 +103,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet4ToOpSet3>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -112,7 +115,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        //ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
