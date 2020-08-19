@@ -17,7 +17,7 @@ ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     auto tanh = std::make_shared<ngraph::opset4::Tanh>(softplus);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -32,5 +32,5 @@ ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SoftPlusToMishFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }

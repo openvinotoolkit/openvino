@@ -23,8 +23,8 @@ class TRANSFORMATIONS_API SoftPlusToMishFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief MishFusion transformation replaces group of
- * operations: x * tanh(log(exp(x) + 1)) to Mish op.
+ * @brief SoftPlusToMishFusion transformation replaces group of
+ * operations: x * tanh(softplus(x)) to Mish op.
  */
 class ngraph::pass::SoftPlusToMishFusion: public ngraph::pass::MatcherPass {
 public:
