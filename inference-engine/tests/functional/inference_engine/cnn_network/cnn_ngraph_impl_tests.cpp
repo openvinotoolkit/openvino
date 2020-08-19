@@ -28,6 +28,7 @@
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/prelu.hpp>
 #include <ngraph/op/result.hpp>
+#include <common_test_utils/ngraph_test_utils.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -695,6 +696,61 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
     auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
     auto status = convertedNet->setBatchSize(4, nullptr);
     EXPECT_EQ(status, StatusCode::OK);
+}
+
+TEST(CNNNGraphImplTests, addSameOutput) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(param);
+        auto reshape = std::make_shared<ngraph::opset3::Reshape>(relu, shapeof, true);
+        reshape->set_friendly_name("reshape");
+        auto result = std::make_shared<ngraph::op::Result>(reshape);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("reshape");
+    auto outputs = cnnNetwork.getOutputsInfo();
+
+    ASSERT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.count("reshape"), 1);
+    ASSERT_EQ(outputs["reshape"]->getLayout(), InferenceEngine::Layout::NCHW);
+}
+
+TEST(CNNNGraphImplTests, addOutput) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(param);
+        auto reshape = std::make_shared<ngraph::opset3::Reshape>(relu, shapeof, true);
+        reshape->set_friendly_name("reshape");
+        auto relu2 = std::make_shared<ngraph::opset3::Relu>(reshape);
+        auto result = std::make_shared<ngraph::op::Result>(relu2);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("reshape");
+    auto outputs = cnnNetwork.getOutputsInfo();
+
+    ASSERT_EQ(outputs.size(), 2);
+    ASSERT_EQ(outputs.count("reshape"), 1);
+    ASSERT_EQ(outputs["reshape"]->getLayout(), InferenceEngine::Layout::NCHW);
 }
 
 IE_SUPPRESS_DEPRECATED_END
