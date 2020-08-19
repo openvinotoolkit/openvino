@@ -49,7 +49,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         auto axis_unsqueeze = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis_unsqueeze);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -135,7 +135,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto axis_unsqueeze = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis_unsqueeze);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -217,7 +217,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto axis_unsqueeze = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis_unsqueeze);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();

@@ -43,7 +43,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool flag = false;
-        auto func = ti->get_body()->to_function();
+        auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
             flag = matcher.match((res->get_input_source_output(0)));
             if (flag)
@@ -195,7 +195,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool flag = false;
-        auto func = ti->get_body()->to_function();
+        auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
             flag = matcher.match((res->get_input_source_output(0)));
             if (flag)
@@ -341,7 +341,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool flag = false;
-        auto func = ti->get_body()->to_function();
+        auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
             flag = matcher.match((res->get_input_source_output(0)));
             if (flag)
