@@ -154,7 +154,8 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     if (inputs.size() <= 3)
     {
         PartialShape input_shape = PartialShape(get_input_partial_shape(0));
-        NODE_VALIDATION_CHECK(this, input_shape.rank().is_static(),
+        NODE_VALIDATION_CHECK(this,
+                              input_shape.rank().is_static(),
                               "Could not define axes of interpolation because there are "
                               "only three inputs and input data has a dynamic rank.");
 
@@ -221,7 +222,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 {
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || indices_et == element::f16 ||
+                          input_et == element::f32 || input_et == element::f16 ||
                               input_et == element::i8,
                           "Input element type must be f32, f16, or i8");
 
