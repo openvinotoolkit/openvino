@@ -48,13 +48,8 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
         auto strides = extract_image_patches->get_strides();
         auto rates = extract_image_patches->get_rates();
 
-        // Check that ExtractImagePatches input have static shape
-        if (!p_shape_input.rank().is_static()) {
-            return false;
-        }
-
-        // Check that ExtractImagePatches input have shape rank == 4
-        if (p_shape_input.rank().get_length() != 4) {
+        // Check that ExtractImagePatches input have static shape and rank == 4
+        if (!p_shape_input.rank().is_static() || p_shape_input.rank().get_length() != 4) {
             return false;
         }
 
