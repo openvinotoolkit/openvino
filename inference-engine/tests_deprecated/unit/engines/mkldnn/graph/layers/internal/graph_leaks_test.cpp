@@ -258,8 +258,8 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         ASSERT_NE(1, network.getOutputsInfo().size());
 
         std::shared_ptr<MKLDNNTestEngine> score_engine(new MKLDNNTestEngine());
-        InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
+        InferenceEngine::ExecutableNetwork exeNetwork1;
+        ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
         size_t modified_outputs_size = score_engine->getGraph(exeNetwork1).GetOutputNodes().size();
 
@@ -267,8 +267,8 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         ASSERT_NO_THROW(network2 = core.ReadNetwork(model, weights_ptr));
         ASSERT_EQ(1, network2.getOutputsInfo().size());
 
-        InferenceEngine::IExecutableNetwork::Ptr exeNetwork2;
-        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork2, network2, {}));
+        InferenceEngine::ExecutableNetwork exeNetwork2;
+        ASSERT_NO_THROW(exeNetwork2 = score_engine->LoadNetwork(network2, {}));
 
         size_t original_outputs_size = score_engine->getGraph(exeNetwork2).GetOutputNodes().size();
 

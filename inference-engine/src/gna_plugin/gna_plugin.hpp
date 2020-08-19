@@ -103,9 +103,10 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &executableNetwork,
-                     const InferenceEngine::ICNNNetwork &network,
-                     const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
+                                                   const std::map<std::string, std::string> &config_map) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
     InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
