@@ -495,6 +495,9 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
     };
 
     auto isEqualScaleShiftNodes = [](MKLDNNNodePtr node1, MKLDNNNodePtr node2) {
+        if (node1->getParentEdgeAt(0) != node2->getParentEdgeAt(0))
+            return false;
+
         auto *depthwiseNode1 = dynamic_cast<MKLDNNDepthwiseNode *>(node1.get());
         auto *depthwiseNode2 = dynamic_cast<MKLDNNDepthwiseNode *>(node2.get());
 
