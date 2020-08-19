@@ -43,7 +43,6 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1,  0,  1 } },
     { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
     { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
-    { DataLayout::fs_bs_yx_bsv4_fsv32,   {  0,  1, -1, -1,  3,  2 } },
     { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
     { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
@@ -164,11 +163,6 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
         case b_fs_zyx_fsv32:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 32);
-            break;
-        case fs_bs_yx_bsv4_fsv32:
-            assert(newDims.size() == 4);
-            newDims[3] = RoundUp(newDims[3], 32);
-            newDims[2] = RoundUp(newDims[2], 4);
             break;
         case b_fs_yx_32fp:
             assert(newDims.size() == 4);

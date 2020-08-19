@@ -128,8 +128,6 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_f_bsv16__af8;
         case format::winograd_2x3_s1_data:
             return kernel_selector::data_layout::winograd_2x3_s1_data;
-        case format::fs_bs_yx_bsv4_fsv32:
-            return kernel_selector::data_layout::fs_bs_yx_bsv4_fsv32;
         case format::b_fs_yx_fsv4:
             return kernel_selector::data_layout::b_fs_yx_fsv4;
         case format::b_fs_yx_32fp:
@@ -181,8 +179,6 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_x_bsv16;
         case kernel_selector::data_layout::winograd_2x3_s1_data:
             return cldnn::format::winograd_2x3_s1_data;
-        case kernel_selector::data_layout::fs_bs_yx_bsv4_fsv32:
-            return cldnn::format::fs_bs_yx_bsv4_fsv32;
         case kernel_selector::data_layout::b_fs_yx_32fp:
             return cldnn::format::b_fs_yx_32fp;
         case kernel_selector::data_layout::bfzyx:
@@ -500,10 +496,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
     if (ks_layout == kernel_selector::Tensor::b_fs_yx_fsv32) {
         new_vals[1] = align_to(vals[1], 32);
-    }
-    if (ks_layout == kernel_selector::Tensor::fs_bs_yx_bsv4_fsv32) {
-        new_vals[3] = align_to(vals[3], 32);
-        new_vals[2] = align_to(vals[2], 4);
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
         new_vals[0] = align_to(vals[0], 16);

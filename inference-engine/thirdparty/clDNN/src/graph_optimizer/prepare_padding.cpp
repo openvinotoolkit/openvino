@@ -124,7 +124,6 @@ void prepare_padding::run(program_impl& p) {
             conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
             conv_layout.format != cldnn::format::b_fs_zyx_fsv16 &&
             conv_layout.format != cldnn::format::bs_fs_yx_bsv16_fsv16 &&
-            conv_layout.format != cldnn::format::fs_bs_yx_bsv4_fsv32 &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv4 &&
             conv_layout.format != cldnn::format::fs_b_yx_fsv32 &&
             conv_layout.format != cldnn::format::b_fs_yx_32fp) {

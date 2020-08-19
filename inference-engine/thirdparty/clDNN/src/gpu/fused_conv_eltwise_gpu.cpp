@@ -183,9 +183,6 @@ attach_fused_conv_eltwise_gpu::attach_fused_conv_eltwise_gpu() {
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    // MMAD
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32),
-                                                fused_conv_eltwise_gpu::create);
     // IMAD
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
                                                 fused_conv_eltwise_gpu::create);

@@ -105,7 +105,6 @@ struct format {
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        fs_bs_yx_bsv4_fsv32,                    ///< format for batched input for primitives using MMAD
         b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         bs_xs_xsv8_bsv8,                        ///< format used only for fully connected weights: bs - batch slice,
                                                 ///< xs - x slice, bsv8 - 8 values of single slice.
@@ -224,7 +223,6 @@ struct format {
                 { bs_xs_xsv8_bsv16,      { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
                 { bs_x_bsv16,            { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{0, 16}}}},
                 { winograd_2x3_s1_data,  { 1, 1, 2, 0, 0, "bxyf",   "bfxy?",  {}}},
-                { fs_bs_yx_bsv4_fsv32,   { 1, 1, 2, 0, 0, "fbyx",   "bfxy?",  {{0, 4}, {1, 32}}}},
                 { b_fs_yx_fsv4,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
                 { bfzyx,                 { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {}}},
                 { bfwzyx,                { 1, 1, 4, 0, 0, "bfwzyx", "bfxyzw", {}}},

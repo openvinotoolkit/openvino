@@ -209,7 +209,6 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), val_fw);
 
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
