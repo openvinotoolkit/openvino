@@ -64,13 +64,15 @@ namespace ngraph
             void add_provenance_tags(const Node& onnx_node,
                                      const OutputVector& ng_node_vector) const;
 
+        protected:
+            ParameterVector m_parameters;
+
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
             std::unique_ptr<GraphCache> m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
-            ParameterVector m_parameters;
             Model* m_model;
         };
 

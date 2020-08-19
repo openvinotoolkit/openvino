@@ -98,7 +98,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    static void addExtension(std::shared_ptr<const ngraph::Lambda> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
+    static void addExtension(std::shared_ptr<const ngraph::Function> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
     static std::vector<InferenceEngine::IShapeInferExtensionPtr> getExtensions(std::shared_ptr<const ngraph::Function> func);
 
     const std::string& getType() const {

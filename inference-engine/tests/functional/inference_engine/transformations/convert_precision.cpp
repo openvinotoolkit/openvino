@@ -261,7 +261,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -285,8 +285,8 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 
         ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
         ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
-        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(tensor_iterator->get_body()->to_function()));
-        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()->to_function()));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(tensor_iterator->get_body()));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()));
     }
 }
 

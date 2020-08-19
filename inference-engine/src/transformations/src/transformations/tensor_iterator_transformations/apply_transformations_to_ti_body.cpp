@@ -19,7 +19,7 @@ ngraph::pass::ApplyTransformationsToTIBody::ApplyTransformationsToTIBody(ngraph:
             return false;
         }
 
-        manager.run_passes(ti->get_body()->to_function());
+        manager.run_passes(ti->get_body());
         return true;
     };
 

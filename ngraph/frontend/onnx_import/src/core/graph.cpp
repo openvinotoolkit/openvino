@@ -20,6 +20,7 @@
 #include <sstream>
 
 #include "ngraph/log.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/node.hpp"
@@ -291,6 +292,37 @@ namespace ngraph
                   model,
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
+            std::vector<std::shared_ptr<ngraph::Node>> subgraph_root_nodes;
+            const auto& outputs = as_result_vector(get_ng_outputs());
+            for (auto& out : outputs)
+            {
+                subgraph_root_nodes.push_back(out);
+            }
+            const auto& params = get_ng_parameters();
+            for (auto& param : params)
+            {
+                subgraph_root_nodes.push_back(param);
+            }
+            const auto subgraph_nodes = topological_sort(subgraph_root_nodes);
+
+            const auto& parent_graph_parameters = parent_graph.get_ng_parameters();
+            for (const auto& node : subgraph_nodes)
+            {
+                if (op::is_parameter(node))
+                {
+                    const auto sub_it = std::find(m_parameters.begin(), m_parameters.end(), node);
+                    // not present as subgraph parameter
+                    if (sub_it == m_parameters.end())
+                    {
+                        const auto parent_it = std::find(
+                            parent_graph_parameters.begin(), parent_graph_parameters.end(), node);
+                        if (parent_it != m_parameters.end())
+                        {
+                            m_parameters.push_back(*parent_it);
+                        }
+                    }
+                }
+            }
         }
 
     } // namespace onnx_import

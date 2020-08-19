@@ -153,7 +153,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     // This map will save information about data nodes
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
-        CNNNetwork body_net(tensor_iterator->get_body()->to_function());
+        CNNNetwork body_net(tensor_iterator->get_body());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(

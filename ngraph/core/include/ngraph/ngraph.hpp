@@ -78,7 +78,6 @@ namespace ngraph
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/lambda.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"
