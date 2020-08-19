@@ -338,7 +338,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 auto layout_str = toString(layout);
                 index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
-                if (layout == DataLayout::b_fs_yx_fsv16 || layout == DataLayout::b_fs_yx_fsv32 || layout == DataLayout::bs_fs_yx_bsv16_fsv16)
+                if (layout == DataLayout::b_fs_yx_fsv16 ||
+                    layout == DataLayout::b_fs_yx_fsv32 ||
+                    layout == DataLayout::b_fs_yx_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv16_fsv16)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
