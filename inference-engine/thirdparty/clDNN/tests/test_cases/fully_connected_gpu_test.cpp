@@ -1336,7 +1336,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_i8_test::PrintToStringParamName
 );
@@ -1350,7 +1350,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_u8_test::PrintToStringParamName
 );
@@ -1364,7 +1364,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_i8_f32_test::PrintToStringParamName
 );
@@ -1378,7 +1378,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_i8_test::PrintToStringParamName
 );
@@ -1392,7 +1392,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_u8_test::PrintToStringParamName
 );
@@ -1406,7 +1406,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
     fully_connected_u8_f32_test::PrintToStringParamName
 );

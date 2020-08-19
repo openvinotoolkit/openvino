@@ -2619,7 +2619,6 @@ INSTANTIATE_TEST_CASE_P(
                      testing::Values(std::tuple<int, int, int>(0, 0, 0)),
                      testing::Values(format::yxfb,
                                      format::bfyx,
-                                     format::byxf_af32,
                                      format::b_fs_yx_fsv4,
                                      format::b_fs_yx_fsv16,
                                      format::b_fs_yx_fsv32)),
