@@ -162,9 +162,9 @@ def test_convert_to_bool(destination_type, input_data):
 @pytest.mark.parametrize(
     "destination_type, rand_range, in_dtype, expected_type",
     [
-        pytest.param(np.float32, (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param(np.float32, (-8, 8), np.int32, np.float32),
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
-        pytest.param("f32", (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
     ],
 )

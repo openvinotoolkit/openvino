@@ -21,6 +21,7 @@ import numpy as np
 import ngraph as ng
 from ngraph.utils.types import NumericData
 from tests.runtime import get_runtime
+from string import ascii_uppercase
 
 
 def _get_numpy_dtype(scalar):
@@ -45,8 +46,17 @@ def run_op_node(input_data, op_fun, *args):
     comp_args = []
     op_fun_args = []
     comp_inputs = []
-    for data in input_data:
-        op_fun_args.append(ng.constant(data, _get_numpy_dtype(data)))
+
+    for idx, data in enumerate(input_data):
+        node = None
+        if np.isscalar(data):
+            node = ng.parameter([], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
+        else:
+            node = ng.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
+        op_fun_args.append(node)
+        comp_args.append(node)
+        comp_inputs.append(data)
+
     op_fun_args.extend(args)
     node = op_fun(*op_fun_args)
     computation = runtime.computation(node, *comp_args)
