@@ -698,7 +698,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
                                 !quantize_node.get_need_pre_shift();
 
                 if (can_skip) {
-                    fused_prims.erase(curr_itr);
+                    fp_itr = fused_prims.erase(curr_itr);
                 }
             }
         }
