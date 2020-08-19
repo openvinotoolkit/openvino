@@ -540,6 +540,7 @@ extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
+extensions/middle/RandomUniformReplacer.py
 extensions/middle/ReluQuantizeFuse.py
 extensions/middle/RemoveDuplicationMemory.py
 extensions/middle/RemoveIdentity.py
@@ -605,6 +606,7 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
@@ -937,6 +939,7 @@ mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
+mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
