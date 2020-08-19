@@ -193,6 +193,38 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                      \
         CAT(prefix, _PAD_AFTER_SIZE_X), 16)
 
+#define GET_DATA_B_FS_YX_FSV4_INDEX(prefix, b, f, y, x) \
+    FUNC_CALL(get_b_fs_yx_fsv_index)(                   \
+        b, f, y, x,                                     \
+        CAT(prefix, _SIZE_X ),                          \
+        CAT(prefix, _SIZE_Y),                           \
+        CAT(prefix, _FEATURE_NUM),                      \
+        CAT(prefix, _BATCH_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),             \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),              \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),           \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),            \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 4)
+
+#define GET_DATA_B_FS_YX_FSV4_INDEX_SAFE(prefix, b, f, y, x) \
+    FUNC_CALL(get_b_fs_yx_fsv_index_safe)(                   \
+        b, f, y, x,                                          \
+        CAT(prefix, _SIZE_X ),                               \
+        CAT(prefix, _SIZE_Y),                                \
+        CAT(prefix, _FEATURE_NUM),                           \
+        CAT(prefix, _BATCH_NUM),                             \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),                  \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),                   \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 4)
+
 #define GET_DATA_B_FS_YX_FSV32_INDEX(prefix, b, f, y, x) \
     FUNC_CALL(get_b_fs_yx_fsv_index)(                    \
         b, f, y, x,                                      \
@@ -880,42 +912,6 @@ inline uint FUNC(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, u
         CAT(prefix, _SIZE_X),                                             \
         CAT(prefix, _SIZE_Y))
 
-
-#define GET_DATA_B_FS_YX_FSV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv4)(                        \
-        o, i, y, x,                                     \
-        CAT(prefix, _FEATURE_NUM),                      \
-        CAT(prefix, _PAD_BEFORE_SIZE_Y),                \
-        CAT(prefix, _SIZE_Y),                           \
-        CAT(prefix, _PAD_AFTER_SIZE_Y),                 \
-        CAT(prefix, _PAD_BEFORE_SIZE_X),                \
-        CAT(prefix, _SIZE_X),                           \
-        CAT(prefix, _PAD_AFTER_SIZE_X))
-
-inline uint FUNC(get_b_fs_yx_fsv4)(uint o, uint i, uint y, uint x,
-                                   uint feature_num,
-                                   uint pad_before_size_y, uint size_y, uint pad_after_size_y,
-                                   uint pad_before_size_x, uint size_x, uint pad_after_size_x)
-{
-    const uint tile = 4;
-    uint id_tile = i / tile;
-    uint id      = i - id_tile * tile;
-
-    const uint feature_num_aligned4 = ((feature_num + 3) / 4) * 4;
-
-    uint idx = o * (feature_num_aligned4 / tile) *
-                   (pad_before_size_y + size_y + pad_after_size_y) *
-                   (pad_before_size_x + size_x + pad_after_size_x) * tile
-               + id_tile * (pad_before_size_y + size_y + pad_after_size_y) *
-                           (pad_before_size_x + size_x + pad_after_size_x) * tile
-               + pad_before_size_y * (pad_before_size_x + size_x + pad_after_size_x) * tile
-               + y * (pad_before_size_x + size_x + pad_after_size_x) * tile
-               + pad_before_size_x * tile
-               + x * tile
-               + id;
-
-    return idx;
-}
 
 #define GET_FILTER_G_OS_IS_YX_OSV16_ISV4_INDEX(prefix, g, o, i, y, x) \
     FUNC_CALL(get_g_os_is_yx_osv16_isv4)(                         \

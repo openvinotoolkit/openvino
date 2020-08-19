@@ -369,27 +369,32 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
                                                      bool weak_restrictions) {
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for int8 case
     bool i8_dt_case = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8) &&
-        weights_layout.data_type == data_types::i8 &&
-        (conv->activations_zero_points.empty() && conv->weights_zero_points.empty());  // only symmetric
+                       weights_layout.data_type == data_types::i8;
+
     if (i8_dt_case) {
         auto ks_x = weights_layout.size.spatial[0];
         auto ks_y = weights_layout.size.spatial[1];
 
-        // Check for depthwise convolution
+        // Check for non-grouped or depthwise convolution
         if (input_layout.size.spatial[2] == 1 &&
             input_layout.size.batch[0] < 16 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
-             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
+             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
+            ((conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) ||
+             (input_layout.size.feature[0] <= 4)))  // only bfyx -> fsv16 kernel supports asymmetric quantization in fsv16 format
             return true;
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
                  weights_layout.size.batch[0] >= 16 &&
                 ((input_layout.size.feature[0] / conv->groups) % 4 == 0) &&
-                ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) < 16)
+                ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) < 16 &&
+                (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
             return true;
+
+        return false;
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
     auto feature_block_size = 16;
@@ -599,10 +604,6 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 }
 
 format layout_optimizer::imad_case(convolution_node const& node) const {
-    auto stride = node.get_primitive()->stride;
-    auto out_size = node.get_output_layout().size;
-    auto weights_dt = node.get_dependency(1).get_output_layout().data_type;
-
     auto dims_count = format::dimension(node.input().get_output_layout().format);
 
     bool is_grouped = node.get_split() > 1 || node.get_groups() > 1;
@@ -626,15 +627,6 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
 
     if (dims_count == 5) {
         return format::bfzyx;
-    }
-
-    if ((out_size.feature[0] == 8 || out_size.feature[0] == 12) && out_size.spatial[1] > 512) {
-        return format::b_fs_yx_fsv4;
-    }
-
-    if (stride.spatial[0] != stride.spatial[1] || out_size.spatial[0] != out_size.spatial[1] ||
-        (weights_dt != data_types::u8 && weights_dt != data_types::i8)) {
-        return format::byxf_af32;
     }
 
     return format::b_fs_yx_fsv4;

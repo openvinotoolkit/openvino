@@ -14,14 +14,14 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "ngraph/util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/validation_util.hpp"
 
 constexpr ::ngraph::NodeTypeInfo ngraph::op::GenericIE::type_info;
 
-void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Lambda> func,
+void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Function> func,
                                          const InferenceEngine::IShapeInferExtensionPtr& ext) {
     NodeVector nodes;
 

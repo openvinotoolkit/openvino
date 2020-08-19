@@ -17,25 +17,21 @@
 #include "int_executable.hpp"
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
-#include "ngraph/cpio.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/util.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
 #include "pass/fused_op_decomposition.hpp"
 #include "pass/like_replacement.hpp"
 #include "pass/liveness.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-
-using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::OP_TYPEID runtime::interpreter::INTExecutable::get_typeid(const Node& node)
 {

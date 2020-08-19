@@ -44,8 +44,10 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
+#include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
@@ -76,6 +78,8 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
@@ -91,8 +95,6 @@
 #include "op/avg_pool.hpp"
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
-
-#include "reference/detection_output.hpp"
 
 namespace ngraph
 {
@@ -201,8 +203,8 @@ protected:
             reference::any(args[0]->get_data_ptr<const char>(),
                            out[0]->get_data_ptr<char>(),
                            node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           any->get_reduction_axes());
+                           any->get_reduction_axes(),
+                           false);
             break;
         }
         case OP_TYPEID::Asin:
@@ -243,13 +245,6 @@ protected:
                                    avg_pool->get_padding_below(),
                                    avg_pool->get_padding_above(),
                                    avg_pool->get_include_padding_in_avg_computation());
-            break;
-        }
-        case OP_TYPEID::GetOutputElement:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t num_bytes = element_count * node.get_output_element_type(0).size();
-            std::memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), num_bytes);
             break;
         }
         case OP_TYPEID::BatchNormInference:
@@ -392,6 +387,40 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::cosh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            break;
+        }
+        case OP_TYPEID::CTCLoss_v4:
+        {
+            const op::v4::CTCLoss* ctc_loss = static_cast<const op::v4::CTCLoss*>(&node);
+            auto t_int = node.get_input_element_type(1);
+            if (t_int == element::i32)
+            {
+                reference::CTCLoss<T, int32_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    ctc_loss->get_input_shape(0),
+                    args[1]->get_data_ptr<const int32_t>(),
+                    args[2]->get_data_ptr<const int32_t>(),
+                    args[3]->get_data_ptr<const int32_t>(),
+                    args.size() > 4 ? args[4]->get_data_ptr<const int32_t>() : nullptr,
+                    ctc_loss->get_preprocess_collapse_repeated(),
+                    ctc_loss->get_ctc_merge_repeated(),
+                    ctc_loss->get_unique(),
+                    out[0]->get_data_ptr<T>());
+            }
+            else if (t_int == element::i64)
+            {
+                reference::CTCLoss<T, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    ctc_loss->get_input_shape(0),
+                    args[1]->get_data_ptr<const int64_t>(),
+                    args[2]->get_data_ptr<const int64_t>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    args.size() > 4 ? args[4]->get_data_ptr<const int64_t>() : nullptr,
+                    ctc_loss->get_preprocess_collapse_repeated(),
+                    ctc_loss->get_ctc_merge_repeated(),
+                    ctc_loss->get_unique(),
+                    out[0]->get_data_ptr<T>());
+            }
             break;
         }
         case OP_TYPEID::CumSum:
@@ -708,20 +737,6 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
-        case OP_TYPEID::Pad:
-        {
-            const op::Pad* pad = static_cast<const op::Pad*>(&node);
-
-            reference::pad(args[0]->get_data_ptr<const T>(),
-                           args[1]->get_data_ptr<const T>(),
-                           out[0]->get_data_ptr<T>(),
-                           node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           pad->get_padding_below(),
-                           pad->get_padding_above(),
-                           pad->get_pad_mode());
-            break;
-        }
         case OP_TYPEID::Quantize:
         {
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
@@ -989,11 +1004,12 @@ protected:
         case OP_TYPEID::Reverse:
         {
             const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const T>(),
-                               out[0]->get_data_ptr<T>(),
+            reference::reverse(args[0]->get_data_ptr<const char>(),
+                               out[0]->get_data_ptr<char>(),
                                node.get_input_shape(0),
                                node.get_output_shape(0),
-                               reverse->get_reversed_axes());
+                               reverse->get_reversed_axes(),
+                               args[0]->get_element_type().size());
             break;
         }
         case OP_TYPEID::ReverseSequence:
@@ -1144,6 +1160,81 @@ protected:
 
             break;
         }
+        case OP_TYPEID::ScatterNDUpdate_v3:
+        {
+            const op::ScatterNDUpdate* scatterNDUpd =
+                static_cast<const op::v3::ScatterNDUpdate*>(&node);
+            auto idxType = scatterNDUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterNdUpdate<T, int32_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int32_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterNdUpdate<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int64_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterUpdate_v3:
+        {
+            const op::v3::ScatterUpdate* scatterUpd =
+                static_cast<const op::v3::ScatterUpdate*>(&node);
+
+            if (scatterUpd->get_input_element_type(3) != element::i64)
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
+
+            auto idxType = scatterUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterUpdate<T, int32_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int32_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterUpdate<T, int64_t, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    args[1]->get_data_ptr<const int64_t>(),
+                    args[2]->get_data_ptr<const T>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    out[0]->get_data_ptr<T>(),
+                    node.get_input_shape(0),
+                    node.get_input_shape(1),
+                    node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1197,6 +1288,7 @@ protected:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
+        case OP_TYPEID::Pad:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:

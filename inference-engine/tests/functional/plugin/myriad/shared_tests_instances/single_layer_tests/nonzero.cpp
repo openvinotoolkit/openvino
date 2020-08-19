@@ -18,9 +18,9 @@ namespace {
 
 ConfigMap getConfig() {
     ConfigMap config;
-    config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
     }
     return config;
 }

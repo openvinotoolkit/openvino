@@ -110,4 +110,6 @@ INTERPRETER.onnx_model_conv_integer_pads
 INTERPRETER.onnx_model_scatterND
 INTERPRETER.onnx_model_gatherND_int32
 INTERPRETER.onnx_model_gatherND_float
-INTERPRETER.onnx_model_round
+
+# Round op doesn't support some specific cases of rounding
+onnx_model_round_half_nearest_even

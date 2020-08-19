@@ -16,6 +16,7 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -234,4 +235,329 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_TIBody) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset4::Parameter>(element::f16, Shape{2, 1, 16});
+        auto Y = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 128});
+
+        auto Xi = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1, 16});
+        auto Yi = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 128});
+
+        // Body
+        auto axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
+        auto b_val = std::vector<float>(384, 0);
+        auto W = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{384, 16}, w_val);
+        auto R = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{384, 128}, r_val);
+        auto B = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{384}, b_val);
+
+        auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<opset4::Result>(gru_cell);
+        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
+        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
+                                                                         ParameterVector{Xi, Yi});
+
+        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
+        tensor_iterator->set_merged_input(Yi, Y, res_1);
+
+        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
+        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
+
+        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
+        //auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
+                                               ngraph::ParameterVector{X, Y});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(tensor_iterator->get_body()));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(tensor_iterator->get_body()));
+    }
+}
+
+TEST(TransformationTests, ConvertPrecision_Equal) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::Equal>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_NotEqual) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::NotEqual>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Greater) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::Greater>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::GreaterEqual>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Less) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::Less>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_LessEqual) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LessEqual>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalAnd>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_LogicalOr) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalOr>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_LogicalXor) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalXor>(input1, input2);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_LogicalNot) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalNot>(input1);
+
+        f = std::make_shared<Function>(OutputVector{node}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Select) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalNot>(input1);
+        auto select = std::make_shared<ngraph::opset4::Select>(node, input1, input1);
+
+        f = std::make_shared<Function>(OutputVector{select}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::u8);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ngraph::opset4::LogicalNot>(input1);
+        auto select = std::make_shared<ngraph::opset4::Select>(node, input1, input1);
+
+        f = std::make_shared<Function>(OutputVector{select}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i32, ngraph::element::i64);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::i32>(f));
+    ASSERT_TRUE(has_type<ngraph::element::Type_t::i64>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
+    std::shared_ptr<Function> f(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
+        auto select = std::make_shared<ngraph::opset4::Select>(input1, input1, input1);
+        auto type_relaxed = std::make_shared<op::TypeRelaxed<opset4::Select>>(*select, element::TypeVector{}, element::TypeVector{element::i64});
+
+        f = std::make_shared<Function>(OutputVector{type_relaxed}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32);
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i32, ngraph::element::i64);
+        manager.run_passes(f);
+
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::boolean>(f));
+        ASSERT_FALSE(has_type<ngraph::element::Type_t::i32>(f));
+        ASSERT_TRUE(has_type<ngraph::element::Type_t::i64>(f));
+    }
+}
+
+TEST(TransformationTests, ConvertPrecision_Variables) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        Shape shape {1, 10, 2};
+        auto inp = std::make_shared<opset4::Parameter>(element::f16, shape);
+        auto m_i = std::make_shared<opset4::Constant>(element::f16, shape, 1);
+        auto m_r = std::make_shared<opset4::ReadValue>(m_i, "ID");
+        auto sum = std::make_shared<opset4::Add>(inp, m_r);
+        auto m_w = std::make_shared<opset4::Assign>(sum, "ID");
+        auto mul = std::make_shared<opset4::Multiply>(inp, sum);
+
+        mul->add_control_dependency(m_w);
+
+        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{inp});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+        manager.run_passes(f);
+    }
+
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }

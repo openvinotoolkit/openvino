@@ -15,21 +15,29 @@
 */
 
 #include "include/include_all.cl"
-#include "include/unit_type.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 #define FEATURE_SLICE_SIZE 16
 
+#define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
+#define TO_OUTPUT_TYPE_BLOCK(val)       CAT(convert_, OUTPUT_TYPE_BLOCK)(val)
+
 #if BLOCK_SIZE != 1
-    #define READ_FUNC(ptr, offset) CAT(UNIT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
-    #define WRITE_FUNC(ptr, offset, val) CAT(UNIT_BLOCK_WRITE, BLOCK_SIZE)(ptr, offset, val)
+    #define READ_FUNC(ptr, offset) CAT(DT_INPUT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
+    #define WRITE_FUNC(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, BLOCK_SIZE)(ptr, offset, val)
 #else
-    #define READ_FUNC(ptr, offset) UNIT_BLOCK_READ(ptr, offset)
-    #define WRITE_FUNC(ptr, offset, val) UNIT_BLOCK_WRITE(ptr, offset, val)
+    #define READ_FUNC(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
+    #define WRITE_FUNC(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
 #endif
 
 __attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
 KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
-                              __global UNIT_TYPE* output)
+                              __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+, FUSED_OPS_DECLS
+#endif
+)
 {
     const uint f_block = get_group_id(0);
     const uint y = (uint)get_global_id(1) / BLOCKS_COUNT;
@@ -58,22 +66,33 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
 
     DO_ELTWISE
 
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE_BLOCK out = TO_OUTPUT_TYPE_BLOCK(FUSED_OPS_RESULT);
+#else
+#if BLOCK_SIZE != 1
+    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_OUTPUT_TYPE_BLOCK(res), ACTIVATION_PARAMS_TYPED);
+#else
+    OUTPUT_TYPE out = ACTIVATION_TYPED(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS_TYPED);
+#endif
+#endif
+
 #ifdef LEFTOVERS
     if ((f_block + 1) * FEATURE_SLICE_SIZE > OUTPUT_FEATURE_NUM) {
         const uint sglid = get_sub_group_local_id();
         if (sglid < OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE) {
             for (uint block_x = 0; block_x < BLOCK_SIZE; block_x++) {
 #if BLOCK_SIZE != 1
-                output[output_offset + block_x * output_x_pitch + sglid] = ACTIVATION_TYPED(res[block_x], ACTIVATION_PARAMS_TYPED);
+                output[output_offset + block_x * output_x_pitch + sglid] = out[block_x];
 #else
-                output[output_offset + block_x * output_x_pitch + sglid] = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
+                output[output_offset + block_x * output_x_pitch + sglid] = out;
 #endif
             }
         }
     } else
 #endif
     {
-        WRITE_FUNC(output, output_offset, ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED));
+        WRITE_FUNC(output, output_offset, out);
     }
 
 }

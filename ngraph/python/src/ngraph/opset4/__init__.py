@@ -18,10 +18,13 @@
 from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
 from ngraph.opset1.ops import acos
+from ngraph.opset4.ops import acosh
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
+from ngraph.opset4.ops import asinh
 from ngraph.opset3.ops import assign
 from ngraph.opset1.ops import atan
+from ngraph.opset4.ops import atanh
 from ngraph.opset1.ops import avg_pool
 from ngraph.opset1.ops import batch_norm_inference
 from ngraph.opset2.ops import batch_to_space
@@ -69,6 +72,7 @@ from ngraph.opset1.ops import group_convolution
 from ngraph.opset1.ops import group_convolution_backprop_data
 from ngraph.opset3.ops import gru_cell
 from ngraph.opset1.ops import hard_sigmoid
+from ngraph.opset4.ops import hswish
 from ngraph.opset1.ops import interpolate
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
@@ -101,9 +105,11 @@ from ngraph.opset1.ops import prelu
 from ngraph.opset1.ops import prior_box
 from ngraph.opset1.ops import prior_box_clustered
 from ngraph.opset1.ops import psroi_pooling
-from ngraph.opset1.ops import proposal
+from ngraph.opset4.ops import proposal
 from ngraph.opset1.ops import range
 from ngraph.opset3.ops import read_value
+from ngraph.opset4.ops import reduce_l1
+from ngraph.opset4.ops import reduce_l2
 from ngraph.opset1.ops import reduce_logical_and
 from ngraph.opset1.ops import reduce_logical_or
 from ngraph.opset1.ops import reduce_max
@@ -139,6 +145,7 @@ from ngraph.opset1.ops import squared_difference
 from ngraph.opset1.ops import squeeze
 from ngraph.opset1.ops import strided_slice
 from ngraph.opset1.ops import subtract
+from ngraph.opset4.ops import swish
 from ngraph.opset1.ops import tan
 from ngraph.opset1.ops import tanh
 from ngraph.opset1.ops import tensor_iterator

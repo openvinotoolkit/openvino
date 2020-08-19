@@ -95,7 +95,7 @@ TEST_P(myriadCTCDecoderLayerTests_smoke, CTCGreedyDecoder) {
 		GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
 	}
 
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const auto inputTensors = IN_OUT_desc{{dims.c, dims.h, dims.w}, {dims.h, dims.c}};
     const auto outputTensors = IN_OUT_desc{{1, 1, dims.h, dims.c}};
