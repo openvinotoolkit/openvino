@@ -907,9 +907,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Create layers and output data
     for (const auto &layer : nodes) {
-        if (std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(layer)) {
-            std::cout << "TENSOR ITERATOR to PLUGIN!" << std::endl;
-        }
         if (isInternalLayer(layer, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs

@@ -35,7 +35,7 @@ using namespace std;
 using namespace ngraph;
 
 pass::Manager::Manager()
-    : m_visualize(true)
+    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
 {
 }
 
