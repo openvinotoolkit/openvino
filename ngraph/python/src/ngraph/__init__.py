@@ -84,6 +84,7 @@ from ngraph.opset4 import group_convolution
 from ngraph.opset4 import group_convolution_backprop_data
 from ngraph.opset4 import gru_cell
 from ngraph.opset4 import hard_sigmoid
+from ngraph.opset4 import hswish
 from ngraph.opset4 import interpolate
 from ngraph.opset4 import less
 from ngraph.opset4 import less_equal
