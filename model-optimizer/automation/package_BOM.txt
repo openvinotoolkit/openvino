@@ -540,6 +540,7 @@ extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
+extensions/middle/RandomUniformReplacer.py
 extensions/middle/ReluQuantizeFuse.py
 extensions/middle/RemoveDuplicationMemory.py
 extensions/middle/RemoveIdentity.py
