@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pass/pass.hpp>
 
 #include <transformations_visibility.hpp>
@@ -28,7 +29,7 @@ class TRANSFORMATIONS_API AlgebraicSimplification;
 }  // namespace pass
 }  // namespace ngraph
 
-class NGRAPH_API ngraph::pass::AlgebraicSimplification : public FunctionPass {
+class ngraph::pass::AlgebraicSimplification : public FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
