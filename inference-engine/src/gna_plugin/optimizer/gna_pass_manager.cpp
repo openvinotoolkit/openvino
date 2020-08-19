@@ -591,8 +591,10 @@ void RemovePermutationsNHWCToNCHWPass::run() {
     for (auto&& toRemove : permutationsToRemove) {
         gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
 
-        if (getInputTo(toRemove->outData.front()).size()) {
+        if (!getInputTo(toRemove->outData.front()).empty()) {
             auto next = getInputTo(toRemove->outData.front()).begin()->second;
+            IE_ASSERT(next != nullptr);
+
             if (LayerInfo(next).isConvolution()) {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
@@ -600,6 +602,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
 
                 auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+
                 if (convolution._kernel_y != 1) {
                     THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
                 }
