@@ -205,7 +205,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 
     bool break_external_loop = false;
     
-    for (size_t d = 2; d < 16; ++d) {
+    for (size_t d = 1; d < 16; ++d) {
         if (params.output.Z().v % d != 0)
             continue;
         for (size_t h = 2; h < 16; ++h) {
