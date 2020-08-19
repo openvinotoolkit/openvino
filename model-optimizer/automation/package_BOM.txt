@@ -948,6 +948,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
 mo/utils/ir_reader/extenders/shape_of_extender.py

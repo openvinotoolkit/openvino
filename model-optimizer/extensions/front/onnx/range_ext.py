@@ -24,6 +24,7 @@ class RangeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
+        # output_type attribute will be deduced during shape infer
         Range.update_node_stat(node, {})
         return cls.enabled
 
