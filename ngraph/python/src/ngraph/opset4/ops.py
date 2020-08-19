@@ -150,6 +150,16 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 
 @nameable_op
+def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
+    """Return a node which performs HSwish (hard version of Swish).
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs HSwish
+    """
+    return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
+
+
+@nameable_op
 def swish(
     data: NodeInput,
     beta: Optional[NodeInput] = None,

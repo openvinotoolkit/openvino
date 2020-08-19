@@ -275,15 +275,15 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
         return cnnNetwork->getBatchSize();
     }
     auto params = _ngraph_function->get_parameters();
-    if (params.empty() || !params[0]->get_partial_shape().is_static()) return 0;
-
-    auto shape = _ngraph_function->get_parameters()[0]->get_shape();
-
-    // WA: for speech recognition layouts (copy-past from CNNNetwork)
-    if (shape.size() == 3 || shape.size() == 1) {
-        return 1;
+    for (const auto& param : params) {
+        if (param->get_partial_shape().is_dynamic())
+            continue;
+        auto shape = param->get_shape();
+        // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
+        if (!shape.empty() && shape.size() != 3 && shape.size() != 1)
+            return shape[0];
     }
-    return shape[0];
+    return 1;
 }
 
 std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding) const {
@@ -394,8 +394,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    if (!cnnNetwork) {
-        // TODO: once Serialization::Serialize supports true IR v10
+    auto network = cnnNetwork;
+    if (!network) {
+        // TODO: once Serialization::SerializeV10 supports true IR v10
         // remove this conversion and WA for execution graph
         try {
             bool isExecutionGraph = true;
@@ -407,9 +408,13 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
                 }
             }
             if (isExecutionGraph) {
-                Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+                Serialization::SerializeV10(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
                 return OK;
             }
+
+#ifdef ENABLE_V7_SERIALIZE
+            network = std::make_shared<details::CNNNetworkImpl>(*this);
+#endif
         } catch (const InferenceEngineException& e) {
             return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
         } catch (const std::exception& e) {
@@ -419,7 +424,11 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         }
     }
 
+#ifdef ENABLE_V7_SERIALIZE
+    return network->serialize(xmlPath, binPath, resp);
+#else
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
+#endif
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

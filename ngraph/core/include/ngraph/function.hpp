@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/lambda.hpp"
+#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
@@ -31,7 +31,7 @@
 namespace ngraph
 {
     /// A user-defined function.
-    class NGRAPH_API Function : public Lambda
+    class NGRAPH_API Function
     {
     public:
         static constexpr DiscreteTypeInfo type_info{"Function", 0};
@@ -120,6 +120,24 @@ namespace ngraph
             const std::vector<std::shared_ptr<Node>>& root_nodes)>;
         void set_topological_sort(topological_sort_t);
 
+        virtual bool visit_attributes(AttributeVisitor& visitor);
+
+        /// Return the function parameters
+        const ParameterVector& get_parameters() const { return m_parameters; };
+        /// Return a list of function's outputs
+        const ResultVector& get_results() const { return m_results; };
+        /// Index for parameter, or -1
+        int64_t get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const;
+
+        /// Index for value or result referencing it, or -1
+        int64_t get_result_index(const Output<Node>& value) const;
+
+        /// \brief Evaluate the function on inputs, putting results in outputs.
+        /// \param outputs Tensors for the outputs to compute. One for each result
+        /// \param inputs Tensors for the inputs. One for each inputs.
+        bool evaluate(const HostTensorVector& output_tensors,
+                      const HostTensorVector& input_tensors) const;
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
@@ -130,5 +148,22 @@ namespace ngraph
         const std::string m_unique_name;
         size_t m_placement{0};
         topological_sort_t m_topological_sorter;
+
+        ResultVector m_results;
+        ParameterVector m_parameters;
+    };
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(std::shared_ptr<Function>& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<shared_ptr<Function>>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        std::shared_ptr<Function>& m_ref;
     };
 }
