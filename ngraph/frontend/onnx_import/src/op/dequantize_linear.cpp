@@ -40,15 +40,7 @@ namespace ngraph
                 {
                     if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2]))
                     {
-                        auto zero_point = inputs[2];
-
-                        if (zero_point.get_element_type() != element::f32)
-                        {
-                            zero_point =
-                                std::make_shared<default_opset::Convert>(zero_point, element::f32);
-                        }
-
-                        return zero_point;
+                        return std::make_shared<default_opset::Convert>(inputs[2], element::f32);
                     }
                     else
                     {
