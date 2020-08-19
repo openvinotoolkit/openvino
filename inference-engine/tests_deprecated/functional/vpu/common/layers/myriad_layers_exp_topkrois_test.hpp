@@ -105,7 +105,7 @@ TEST_P(myriadLayersTestsExpTopKROIs_smoke, ExpTopKROIs) {
     int inputRoisNum = std::get<0>(GetParam());
     TopKROIsParam opParams = std::get<1>(GetParam());
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     IN_OUT_desc inputTensors, outputTensors;
     inputTensors.push_back({static_cast<size_t>(inputRoisNum), NUM_COORDS}); // input rois

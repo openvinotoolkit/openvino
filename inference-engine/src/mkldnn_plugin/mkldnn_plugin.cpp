@@ -9,7 +9,6 @@
 #include "mkldnn_itt.h"
 
 #include <legacy/net_pass.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
@@ -30,10 +29,9 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
@@ -81,7 +79,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node);
+               std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
@@ -98,6 +99,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
             {ngraph::element::u16, ngraph::element::i32},
             {ngraph::element::u32, ngraph::element::i32},
             {ngraph::element::f16, ngraph::element::f32},
+            {ngraph::element::boolean, ngraph::element::u8},
     };
 
     for (auto & precision : convert_precision_list) {
@@ -116,10 +118,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ti_manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-
-    // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
-    // so we temporary have to call CNNNetwork ConvertPrecision transformation
-    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
@@ -332,15 +330,5 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     }
 }
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-                {{2, 1},
-                 CI_BUILD_NUMBER,
-                 "MKLDNNPlugin"}, std::make_shared<Engine>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

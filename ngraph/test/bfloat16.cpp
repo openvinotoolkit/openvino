@@ -259,3 +259,15 @@ TEST(bfloat16, assigns)
         EXPECT_EQ(f32arr[i], bf16arr[i]);
     }
 }
+
+TEST(bfloat16, operators)
+{
+    bfloat16 a(2.0);
+    bfloat16 b(3.5);
+    bfloat16 c(5.5);
+    bfloat16 d(7.0);
+    ASSERT_TRUE(a + b == c);
+    ASSERT_TRUE(a == c - b);
+    ASSERT_TRUE(a * b == d);
+    ASSERT_TRUE(a == d / b);
+}

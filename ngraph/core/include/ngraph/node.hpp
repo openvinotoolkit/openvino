@@ -100,6 +100,7 @@ namespace ngraph
     NGRAPH_API
     NodeVector as_node_vector(const OutputVector& values);
     /// Returns a ResultVector referencing values.
+    NGRAPH_API
     ResultVector as_result_vector(const OutputVector& values);
 
     /// Alias useful for cloning
@@ -155,6 +156,9 @@ namespace ngraph
     protected:
         /// \brief Construct an unitialized Node
         Node() {}
+        /// \brief Copying a node
+        Node(const Node&);
+
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
         Node(size_t output_size);
@@ -233,7 +237,7 @@ namespace ngraph
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
-        virtual const std::string& description() const;
+        virtual std::string description() const;
         /// \brief Get the unique name of the node.
         /// \returns A const reference to the node's unique name.
         const std::string& get_name() const;

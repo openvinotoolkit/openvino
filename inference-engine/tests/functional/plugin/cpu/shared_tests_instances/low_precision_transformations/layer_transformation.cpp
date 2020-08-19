@@ -22,7 +22,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
 

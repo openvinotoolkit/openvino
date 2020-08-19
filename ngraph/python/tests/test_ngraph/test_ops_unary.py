@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
+from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
 from tests import xfail_issue_35929, xfail_issue_34323
 
@@ -28,8 +29,11 @@ from tests import xfail_issue_35929, xfail_issue_34323
         (ng.absolute, np.abs, -1, 1),
         (ng.abs, np.abs, -1, 1),
         (ng.acos, np.arccos, -1, 1),
+        (ng.acosh, np.arccosh, -1, 1),
         (ng.asin, np.arcsin, -1, 1),
+        (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
+        (ng.atanh, np.arctanh, -100.0, 100.0),
         (ng.ceiling, np.ceil, -100.0, 100.0),
         (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
@@ -65,8 +69,11 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         (ng.absolute, np.abs, np.float32(-3)),
         (ng.abs, np.abs, np.float32(-3)),
         (ng.acos, np.arccos, np.float32(-0.5)),
+        (ng.acosh, np.arccosh, np.float32(-0.5)),
         (ng.asin, np.arcsin, np.float32(-0.5)),
+        (ng.asinh, np.arcsinh, np.float32(-0.5)),
         (ng.atan, np.arctan, np.float32(-0.5)),
+        (ng.atanh, np.arctanh, np.float32(-0.5)),
         (ng.ceiling, np.ceil, np.float32(1.5)),
         (ng.ceil, np.ceil, np.float32(1.5)),
         (ng.cos, np.cos, np.float32(np.pi / 4.0)),
@@ -142,3 +149,14 @@ def test_erf():
 
     result = run_op_numeric_data(input_tensor, ng.erf)
     assert np.allclose(result, expected)
+
+
+def test_hswish():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.hswish(data)
+    assert node.get_type_name() == "HSwish"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32

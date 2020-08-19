@@ -16,31 +16,6 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-
-unset(OpenVINODeveloperPackageTargets CACHE)
-
-function(openvino_developer_export_targets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets};${ARGV}")
-
-    # to allow exporting of aliased targets with the original names
-    foreach(target_name ${OpenVINODeveloperPackageTargets})
-        if(TARGET "${target_name}")
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET "${original_name}")
-                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
-                list(REMOVE_ITEM OpenVINODeveloperPackageTargets ${target_name})
-                list(APPEND OpenVINODeveloperPackageTargets ${original_name})
-            endif()
-        endif()
-    endforeach()
-
-    list(REMOVE_DUPLICATES OpenVINODeveloperPackageTargets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets}" CACHE INTERNAL
-        "Paths to extra Inference Engine plugins" FORCE)
-endfunction()
-
 add_subdirectory(itt)
 
 openvino_developer_export_targets(openvino::itt)
