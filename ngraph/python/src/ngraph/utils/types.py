@@ -125,7 +125,7 @@ def get_ndarray(data: NumericData) -> np.ndarray:
 
 
 def get_shape(data: NumericData) -> TensorShape:
-    """Wrap data into a numpy ndarray."""
+    """Return a shape of NumericData."""
     if type(data) == np.ndarray:
         return data.shape  # type: ignore
     return []

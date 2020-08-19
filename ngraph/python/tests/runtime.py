@@ -21,7 +21,7 @@ import numpy as np
 from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node
+from ngraph.impl import Function, Node, PartialShape
 from ngraph.utils.types import NumericData, get_shape
 import tests
 
@@ -110,11 +110,12 @@ class Computation(object):
             )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
-            if len(input.shape) > 0 and parameter_shape.compatible(input.shape):
+            input_shape = PartialShape(input.shape)
+            if len(input.shape) > 0 and not parameter_shape.compatible(input_shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
-                    list(input.shape),
-                    list(parameter_shape),
+                    input_shape,
+                    parameter_shape,
                 )
 
         request = executable_network.requests[0]
