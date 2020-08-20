@@ -290,16 +290,13 @@ namespace
     static constexpr size_t axes_port = 3;
     static constexpr size_t max_num_of_ports = 4;
 
-    using size_t_vector = std::vector<size_t>;
-    using int64_vector = std::vector<int64_t>;
-
-    int64_vector get_axes_vector(const HostTensorVector& args)
+    std::vector<int64_t> get_axes_vector(const HostTensorVector& args)
     {
         Shape input_shape{args[data_port]->get_shape()};
         size_t input_rank = input_shape.size();
         size_t num_of_inputs = args.size();
 
-        int64_vector axes;
+        std::vector<int64_t> axes;
 
         if (num_of_inputs == max_num_of_ports)
         {
@@ -318,9 +315,9 @@ namespace
         return axes;
     }
 
-    int64_vector get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes)
+    std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes)
     {
-        int64_vector target_shape;
+        std::vector<int64_t> target_shape;
 
         int64_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<int64_t>();
         target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
@@ -331,7 +328,7 @@ namespace
     std::vector<float> get_scales_vector(const HostTensorVector& args,
                                          const Shape& input_shape,
                                          const op::v4::Interpolate::InterpolateAttrs& attrs,
-                                         int64_vector axes)
+                                         std::vector<int64_t> axes)
     {
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
@@ -356,11 +353,11 @@ namespace
         return scales;
     }
 
-    size_t_vector get_padded_input_shape(const Shape& input_shape,
-                                         const size_t_vector& pads_begin,
-                                         const size_t_vector& pads_end)
+    std::vector<size_t> get_padded_input_shape(const Shape& input_shape,
+                                               const std::vector<size_t>& pads_begin,
+                                               const std::vector<size_t>& pads_end)
     {
-        size_t_vector result = input_shape;
+        std::vector<size_t> result = input_shape;
         size_t rank = input_shape.size();
         for (size_t i = 0; i < rank; ++i)
         {
@@ -370,9 +367,9 @@ namespace
         return result;
     }
 
-    size_t_vector shape_infer_with_scales(const size_t_vector& padded_shape,
-                                          const int64_vector& axes,
-                                          const std::vector<float>& scales)
+    std::vector<size_t> shape_infer_with_scales(const std::vector<size_t>& padded_shape,
+                                                const std::vector<int64_t>& axes,
+                                                const std::vector<float>& scales)
     {
         auto out_shape = padded_shape;
         size_t num_of_axes = axes.size();
@@ -385,9 +382,9 @@ namespace
         return out_shape;
     }
 
-    size_t_vector shape_infer_with_target_shape(const size_t_vector& padded_shape,
-                                                const int64_vector& axes,
-                                                const int64_vector& target_shape)
+    std::vector<size_t> shape_infer_with_target_shape(const std::vector<size_t>& padded_shape,
+                                                      const std::vector<int64_t>& axes,
+                                                      const std::vector<int64_t>& target_shape)
     {
         auto out_shape = padded_shape;
         size_t num_of_axes = axes.size();
@@ -470,66 +467,6 @@ namespace
 
         return {input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
     }
-
-//     template <element::Type_t ET>
-//     inline bool evaluate(const HostTensorVector& args,
-//                          const HostTensorPtr& out,
-//                          const op::v4::Interpolate::InterpolateAttrs& attrs)
-//     {
-//         using T = typename element_type_traits<ET>::value_type;
-//
-//         auto info_for_reference = get_info_to_call_reference(args, attrs);
-//
-//         out->set_element_type(args[0]->get_element_type());
-//         out->set_shape(info_for_reference.out_shape);
-//
-//         std::vector<T> padded_input_data(shape_size(info_for_reference.padded_input_shape), T{});
-//
-//         CoordinateTransform input_transform(info_for_reference.input_shape);
-//         CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
-//
-//         const T* data_ptr = args[0]->get_data_ptr<ET>();
-//         T* padded_data_ptr = padded_input_data.data();
-//
-//         for (const Coordinate& input_coord : input_transform)
-//         {
-//             auto padded_coord = input_coord;
-//             size_t i = 0;
-//             for (size_t pad : info_for_reference.pads_begin)
-//             {
-//                 padded_coord[i] += pad;
-//             }
-//             padded_data_ptr[padded_transform.index(padded_coord)] =
-//                 data_ptr[input_transform.index(input_coord)];
-//         }
-//
-//         runtime::reference::interpolate<T>(padded_input_data.data(),
-//                                            info_for_reference.padded_input_shape,
-//                                            info_for_reference.scales,
-//                                            info_for_reference.axes,
-//                                            out->get_data_ptr<ET>(),
-//                                            info_for_reference.out_shape,
-//                                            attrs);
-//         return true;
-//     }
-//
-//     bool evaluate_interpolate_v4(const HostTensorVector& args,
-//                                  const HostTensorPtr& out,
-//                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
-//     {
-//         bool rc = true;
-//         switch (args[0]->get_element_type())
-//         {
-//             TYPE_CASE(i8)(args, out, attrs);
-//             break;
-//             TYPE_CASE(f16)(args, out, attrs);
-//             break;
-//             TYPE_CASE(f32)(args, out, attrs);
-//             break;
-//         default: rc = false; break;
-//         }
-//         return rc;
-//     }
 }
 
 void op::v4::Interpolate::correct_pads()
