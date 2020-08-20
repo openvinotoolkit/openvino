@@ -575,14 +575,14 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
             padded_coord[i] += pad;
         }
         uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
+        const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
         memcpy(dst_ptr, src_ptr, type_size);
     }
 
     switch(input_et)
     {
-    case element::f32:
-        runtime::reference::interpolate<float>(static_cast<float*>(padded_input_data.data()),
+    case element::Type_t::f32:
+        runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
                                                info_for_reference.padded_input_shape,
                                                info_for_reference.scales,
                                                info_for_reference.axes,
@@ -590,8 +590,8 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                info_for_reference.out_shape,
                                                m_attrs);
         break;
-    case element::f16:
-        runtime::reference::interpolate<float16>(static_cast<float16*>(padded_input_data.data()),
+    case element::Type_t::f16:
+        runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
                                                  info_for_reference.padded_input_shape,
                                                  info_for_reference.scales,
                                                  info_for_reference.axes,
@@ -599,8 +599,8 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                  info_for_reference.out_shape,
                                                  m_attrs);
         break;
-    case element::i8:
-        runtime::reference::interpolate<int8_t>(static_cast<int8_t*>(padded_input_data.data()),
+    case element::Type_t::i8:
+        runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
                                                 info_for_reference.padded_input_shape,
                                                 info_for_reference.scales,
                                                 info_for_reference.axes,
