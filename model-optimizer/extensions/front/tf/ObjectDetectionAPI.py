@@ -25,6 +25,7 @@ from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
     mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
@@ -967,7 +968,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         return [ObjectDetectionAPIPreprocessorReplacement, FakeQuantWithMinMaxVarsToQuantize]
 
     def run_before(self):
-        return [StandaloneConstEraser, TransposeOrderNormalizer]
+        return [StandaloneConstEraser, TransposeOrderNormalizer, TFSliceToSliceReplacer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
