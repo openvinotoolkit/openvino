@@ -169,7 +169,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             if (optimizedSubtract != nullptr) {
                 subtractFromWeights = as_type_ptr<opset1::Subtract>(optimizedSubtract);
 
-                const Shape weightsShape = subtractFromWeights->input(1).get_shape();
+                const Shape weightsShape = subtractFromWeights->input(0).get_shape();
                 Shape zeroPointShape(weightsShape.size(), 1ul);
                 zeroPointShape[0] = weightsShape[0];
 
