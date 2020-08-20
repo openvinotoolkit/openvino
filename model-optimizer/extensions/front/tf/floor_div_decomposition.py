@@ -14,16 +14,13 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.activation_ops import Floor
-from extensions.ops.elementwise import Mul, Pow, Div
+from extensions.ops.elementwise import Div
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_node
 
 
-class FloorDiv(FrontReplacementPattern):
+class FloorDivDecomposition(FrontReplacementPattern):
     """
     BEFORE:                     AFTER:
     input_0     input_1         input_0     input_1
@@ -40,16 +37,16 @@ class FloorDiv(FrontReplacementPattern):
     def floor_div_replacement(floor_div: Node):
         graph = floor_div.graph
         name = floor_div.soft_get('name', floor_div.id)
-        rename_node(node=floor_div, name=name + '/to_be_removed')
 
         div = Div(graph, {'name': name + '/Div'}).create_node()
         floor = Floor(graph, {'name': name}).create_node()
         div.out_port(0).connect(floor.in_port(0))
 
-        div.in_port(0).get_connection().set_source(floor_div.in_port(0).get_source())
-        div.in_port(1).get_connection().set_source(floor_div.in_port(1).get_source())
+        div.in_port(0).connect(floor_div.in_port(0).get_source())
+        div.in_port(1).connect(floor_div.in_port(1).get_source())
         floor_div.out_port(0).get_connection().set_source(floor.out_port(0))
 
+        graph.remove_node(floor_div.id)
         rename_node(floor, name)
 
     def find_and_replace_pattern(self, graph: Graph):

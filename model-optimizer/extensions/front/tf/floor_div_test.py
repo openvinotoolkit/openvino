@@ -16,7 +16,7 @@
 
 import unittest
 
-from extensions.front.tf.floor_div import FloorDiv
+from extensions.front.tf.floor_div_decomposition import FloorDivDecomposition
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, connect, \
     connect_data, regular_op_with_empty_data
@@ -41,7 +41,7 @@ class TestFloorDiv(unittest.TestCase):
             *connect('placeholder_2:0', '1:floor_div'),
             *connect('floor_div:0', '0:output'),
         ], nodes_with_edges_only=True)
-        FloorDiv().find_and_replace_pattern(graph)
+        FloorDivDecomposition().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes, [
             *connect('placeholder_1:0', '0:div'),
@@ -49,8 +49,7 @@ class TestFloorDiv(unittest.TestCase):
             *connect('div:0', '0:floor'),
             *connect('floor:0', '0:output'),
         ], nodes_with_edges_only=True)
-        graph.clean_up()
-        graph_ref.clean_up()
+
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
         self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Floor')[0]]['name'] == 'my_floor_div')
@@ -62,7 +61,7 @@ class TestFloorDiv(unittest.TestCase):
             *connect_data('placeholder_1:0', '1:floor_div'),
             *connect('floor_div', 'output'),
         ], nodes_with_edges_only=True)
-        FloorDiv().find_and_replace_pattern(graph)
+        FloorDivDecomposition().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes, [
             *connect('placeholder_1:0', '0:div'),
@@ -70,8 +69,6 @@ class TestFloorDiv(unittest.TestCase):
             *connect('div', 'floor'),
             *connect('floor', 'output'),
         ], nodes_with_edges_only=True)
-        graph.clean_up()
-        graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
