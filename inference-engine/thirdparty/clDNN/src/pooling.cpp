@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -149,26 +149,32 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                           0,
                           "Input offset in batch is not supported");
 
-    if (input_layout.format == format::bfzyx) {
+    if (input_layout.format.spatial_num() == 3) {
         // 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                       "stride spatial Z",
-                                       stride.spatial[1],
-                                       "",
-                                       0,
-                                       "Stride spatial Z must be positive (>= 1)");
+                               "stride spatial Z",
+                               stride.spatial[1],
+                               "",
+                               0,
+                               "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                       "window size spatial Z",
-                                       window_size.spatial[2],
-                                       "",
-                                       0,
-                                       "Size Z (of pooling window) must be positive (>= 1)");
+                               "window size spatial Z",
+                               window_size.spatial[2],
+                               "",
+                               0,
+                               "Size Z (of pooling window) must be positive (>= 1)");
         CLDNN_ERROR_GREATER_THAN(node.id(),
-                                 "Input offset spatial Z",
-                                 2 * input_offset.spatial[2],
-                                 "input layout size spatial Z",
-                                 input_layout.size.spatial[2],
-                                 "Input offset is greater than input data range. There is no input data to process");
+                               "Input offset spatial Z",
+                               2 * input_offset.spatial[2],
+                               "input layout size spatial Z",
+                               input_layout.size.spatial[2],
+                               "Input offset is greater than input data range. There is no input data to process");
+        CLDNN_ERROR_GREATER_THAN(node.id(),
+                               "Negate input offset spatial Z",
+                               -input_offset.spatial[2],
+                               "input window size spatial Z",
+                               window_size.spatial[2],
+                               "First pool is outside of image. please reduce input offset Z");
     }
 
     if (desc->with_output_size) {
