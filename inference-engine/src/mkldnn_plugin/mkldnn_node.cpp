@@ -441,6 +441,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
             } else {
                 str_type += "_I8";
             }
+        } else {
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision().name());
+            } else {
+                str_type += "_I8";
+            }
         }
     }
 

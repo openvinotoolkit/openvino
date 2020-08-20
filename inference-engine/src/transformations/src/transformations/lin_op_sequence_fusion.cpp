@@ -3,7 +3,6 @@
 //
 
 #include "transformations/lin_op_sequence_fusoin.hpp"
-#include "transformations/mul_add_squence_fusion.hpp"
 
 #include <memory>
 #include <vector>

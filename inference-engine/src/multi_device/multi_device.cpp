@@ -14,7 +14,6 @@
 
 #include "ie_metric_helpers.hpp"
 #include <legacy/ie_util_internal.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_plugin_config.hpp>
@@ -425,20 +424,8 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
     }
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePlugin *&plugin,
-        InferenceEngine::ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-                {{2, 1},
-                 CI_BUILD_NUMBER,
-                 "MultiDevicePlugin"}, std::make_shared<MultiDeviceInferencePlugin>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(MultiDeviceInferencePlugin, version)
 
 MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
     _pluginName = "MULTI";

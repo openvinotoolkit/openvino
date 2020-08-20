@@ -17,10 +17,10 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
 
+#include <transformations/utils/utils.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -47,12 +47,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     if (constFolding) {
         ngraph::pass::ConstantFolding().run_on_function(specialized_function);
     }
-    // TODO: remove this code after the fix on the nGraph side
-    ::ngraph::pass::GetOutputElementElimination goe_elimination;
-    for (auto n : specialized_function->get_ops()) {
-        goe_elimination.run_on_node(n);
-    }
-    specialized_function->set_friendly_name(func->get_friendly_name());
     return specialized_function;
 }
 
@@ -73,20 +67,41 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
 
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
+    const auto isCompatible = [](size_t size, const Layout& l) -> bool {
+        switch (size) {
+        case 0:
+            return l == Layout::SCALAR;
+        case 1:
+            return l == Layout::C;
+        case 2:
+            return l == Layout::CN || l == Layout::HW || l == Layout::NC;
+        case 3:
+            return l == Layout::CHW;
+        case 4:
+            return l == Layout::NCHW || l == Layout::NHWC;
+        case 5:
+            return l == Layout::NCDHW || l == Layout::NDHWC;
+        default:
+            return false;
+        }
+    };
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     SizeVector dims;
     if (output.get_partial_shape().is_static()) {
         dims = output.get_shape();
     }
     for (const auto& dim : dims) {
-        if (!dim) THROW_IE_EXCEPTION << outName << " has zero dimension that is not allowable";
+        if (!dim)
+            THROW_IE_EXCEPTION << outName << " has zero dimension that is not allowable";
     }
 
     if (ptr) {
-        ptr->reshape(dims, ptr->getTensorDesc().getLayout());
+        const auto origLayout = ptr->getTensorDesc().getLayout();
+        const auto layout = isCompatible(dims.size(), origLayout) ? origLayout : TensorDesc::getLayoutByDims(dims);
+        ptr->reshape(dims, layout);
     } else {
-        const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
+        const auto precision = details::convertPrecision(output.get_element_type());
         ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
@@ -232,7 +247,6 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 }
                 if (_outputData.count(outputName) == 0) {
                     reshape();
-                    addOutput(layer->output(outputIndex));
                 }
                 return OK;
             }
@@ -244,12 +258,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
 }
 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
-    auto outputNode = output.get_node_shared_ptr();
-    auto dataName = outputNode->get_friendly_name();
-    if (outputNode->get_output_size() != 1) {
-        dataName += "." + std::to_string(output.get_index());
-    }
-
+    auto dataName = ngraph::op::util::create_ie_output_name(output);
     DataPtr data;
     createDataForResult(output, dataName, data);
     _data[dataName] = data;
@@ -265,15 +274,15 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
         return cnnNetwork->getBatchSize();
     }
     auto params = _ngraph_function->get_parameters();
-    if (params.empty() || !params[0]->get_partial_shape().is_static()) return 0;
-
-    auto shape = _ngraph_function->get_parameters()[0]->get_shape();
-
-    // WA: for speech recognition layouts (copy-past from CNNNetwork)
-    if (shape.size() == 3 || shape.size() == 1) {
-        return 1;
+    for (const auto& param : params) {
+        if (param->get_partial_shape().is_dynamic())
+            continue;
+        auto shape = param->get_shape();
+        // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
+        if (!shape.empty() && shape.size() != 3 && shape.size() != 1)
+            return shape[0];
     }
-    return shape[0];
+    return 1;
 }
 
 std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding) const {
@@ -317,7 +326,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
                 ::ngraph::pass::Manager manager;
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
+                        specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
@@ -361,12 +371,12 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             }
 #endif
             std::unordered_set<std::string> opName;
-            for (const auto & result : specialized_ngraph_function->get_results()) {
+            for (const auto &result : specialized_ngraph_function->get_results()) {
                 addOutput(result->input_value(0));
             }
 
-            for (const auto & parameter : specialized_ngraph_function->get_parameters()) {
-                const auto & outName = parameter->get_friendly_name();
+            for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
+                const auto &outName = parameter->get_friendly_name();
                 if (opName.find(outName) != opName.end()) {
                     THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
                 }
@@ -383,8 +393,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    if (!cnnNetwork) {
-        // TODO: once Serialization::Serialize supports true IR v10
+    auto network = cnnNetwork;
+    if (!network) {
+        // TODO: once Serialization::SerializeV10 supports true IR v10
         // remove this conversion and WA for execution graph
         try {
             bool isExecutionGraph = true;
@@ -396,9 +407,13 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
                 }
             }
             if (isExecutionGraph) {
-                Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+                Serialization::SerializeV10(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
                 return OK;
             }
+
+#ifdef ENABLE_V7_SERIALIZE
+            network = std::make_shared<details::CNNNetworkImpl>(*this);
+#endif
         } catch (const InferenceEngineException& e) {
             return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
         } catch (const std::exception& e) {
@@ -408,7 +423,11 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         }
     }
 
+#ifdef ENABLE_V7_SERIALIZE
+    return network->serialize(xmlPath, binPath, resp);
+#else
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
+#endif
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

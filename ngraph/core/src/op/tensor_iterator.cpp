@@ -17,11 +17,12 @@
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
 using namespace ngraph;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
 
@@ -31,13 +32,6 @@ constexpr DiscreteTypeInfo op::v0::TensorIterator::InvariantInputDescription::ty
 
 constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyOutputDescription::type_info;
 constexpr DiscreteTypeInfo op::v0::TensorIterator::ConcatOutputDescription::type_info;
-
-constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyLambda::type_info;
-
-bool op::v0::TensorIterator::BodyLambda::visit_attributes(AttributeVisitor& visitor)
-{
-    return true;
-}
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
     : op::util::FusedOp(values)
@@ -309,12 +303,7 @@ namespace ngraph
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
-    if (!m_body)
-    {
-        m_body = make_shared<BodyLambda>();
-    }
-    shared_ptr<Lambda> lambda = m_body;
-    visitor.on_attribute("body", lambda);
+    visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
@@ -662,15 +651,7 @@ std::shared_ptr<Node>
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body =
-        std::make_shared<BodyLambda>(spec_func->get_results(), spec_func->get_parameters());
-
-    // TODO: remove this code after the fix on the nGraph side (GetOutputElements)
-    ::ngraph::pass::GetOutputElementElimination goe_elimination;
-    for (const auto& n : spec_func->get_ops())
-    {
-        goe_elimination.run_on_node(n);
-    }
+    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {

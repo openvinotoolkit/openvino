@@ -29,11 +29,6 @@ namespace ngraph
 
     namespace descriptor
     {
-        namespace layout
-        {
-            class TensorLayout;
-        }
-
         /// \brief Compile-time descriptor of a first-class value that is a tensor.
         class NGRAPH_API Tensor
         {
@@ -50,6 +45,7 @@ namespace ngraph
                    size_t node_output_number);
 
             const std::string& get_name() const;
+            void set_name(const std::string& name);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
@@ -57,13 +53,6 @@ namespace ngraph
             const element::Type& get_element_type() const { return m_element_type; }
             const Shape& get_shape() const;
             const PartialShape& get_partial_shape() const { return m_partial_shape; }
-            const std::shared_ptr<layout::TensorLayout>& get_tensor_layout() const
-            {
-                return m_tensor_layout;
-            }
-
-            void set_tensor_layout(const std::shared_ptr<layout::TensorLayout>& tensor_layout);
-
             void set_pool_offset(size_t);
             size_t get_pool_offset() const;
 
@@ -82,7 +71,6 @@ namespace ngraph
             size_t m_node_output_number{0};
 
             std::string m_name;
-            std::shared_ptr<layout::TensorLayout> m_tensor_layout;
             size_t m_pool_offset{0};
         };
 

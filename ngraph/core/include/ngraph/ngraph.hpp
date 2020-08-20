@@ -70,10 +70,7 @@ namespace ngraph
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/dimension.hpp"
@@ -81,7 +78,6 @@ namespace ngraph
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/lambda.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -98,7 +94,6 @@ namespace ngraph
 #include "ngraph/opsets/opset.hpp"
 
 // nGraph passes
-#include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"

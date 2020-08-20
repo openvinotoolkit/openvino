@@ -436,7 +436,7 @@ void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
     
-    size_t weightsSize = 440*3;
+    size_t weightsSize = 656384;
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
     fillWeights(weights);
@@ -480,10 +480,10 @@ void GNAPluginAOTMatcher :: match() {
 }
 
 
-void GNADumpXNNMatcher::load(GNAPlugin & plugin) {
+void GNADumpXNNMatcher::load(std::shared_ptr<GNAPlugin> & plugin) {
 
     // matching gna DumpXNN forward call.
-    plugin = GNAPlugin(_env.config);
+    plugin = std::make_shared<GNAPlugin>(_env.config);
 
     auto loadNetworkFromIR = [&]() {
         MockICNNNetwork net;
@@ -501,11 +501,11 @@ void GNADumpXNNMatcher::load(GNAPlugin & plugin) {
             _env.cb(network);
         }
 
-        plugin.LoadNetwork(network);
+        plugin->LoadNetwork(network);
     };
 
     auto loadNetworkFromAOT = [&]() {
-        plugin.ImportNetwork(_env.importedModelFileName);
+        plugin->ImportNetwork(_env.importedModelFileName);
     };
 
     auto loadNetwork = [&]() {
@@ -537,7 +537,7 @@ void GNADumpXNNMatcher::match() {
 
     try {
         // matching gna DumpXNN forward call.
-        GNAPluginNS::GNAPlugin plugin;
+        auto plugin = std::make_shared<GNAPluginNS::GNAPlugin>();
         load(plugin);
     }
     catch(std::exception &ex) {

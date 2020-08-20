@@ -20,6 +20,7 @@ import numpy as np
 from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
+from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
@@ -43,6 +44,7 @@ class ApplyPermutation(MiddleReplacementPattern):
         self.merge_nodes_permutations(graph)
         self.permute_data_nodes_attrs(graph)
         self.permute_op_nodes_attrs(graph)
+        self.shape_of_sub_graph_reinference(graph)
         self.permute_input_data(graph)
 
     @staticmethod
@@ -136,3 +138,15 @@ class ApplyPermutation(MiddleReplacementPattern):
                 if not is_input_data_in_correct_layout(node, in_port) and len(port_to_check.data.get_shape()) >= 4:
                     permutation(node, port_info, in_port)
         graph.graph['layout'] = 'NCHW'
+
+    @staticmethod
+    def shape_of_sub_graph_reinference(graph: Graph):
+        """
+        After layout permutation (shape change in data nodes) shape sub-graphs contain values in the old layout
+        To change that we execute full partial inference on the shape-of sub-graphs
+        """
+        shape_ops = graph.get_op_nodes(op='ShapeOf')
+        for shape in shape_ops:
+            shape.infer(shape)
+        LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
+            [shape.out_port(0) for shape in shape_ops], None, lambda in_port: in_port.node.infer(in_port.node))

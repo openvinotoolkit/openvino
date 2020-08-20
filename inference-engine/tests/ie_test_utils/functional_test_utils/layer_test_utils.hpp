@@ -56,6 +56,8 @@ public:
 
     virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
 
+    virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
+
     virtual void SetRefMode(RefMode mode);
 
 protected:
@@ -110,15 +112,15 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
+    std::shared_ptr<InferenceEngine::Core> core;
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
-    std::shared_ptr<InferenceEngine::Core> core;
     RefMode refMode = RefMode::INTERPRETER;
 };
 

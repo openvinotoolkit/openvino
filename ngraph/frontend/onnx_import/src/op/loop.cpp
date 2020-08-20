@@ -26,6 +26,8 @@
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace onnx_import
@@ -114,15 +116,15 @@ namespace ngraph
                     const auto& graph_outputs = body_graph.get_ng_outputs();
                     const auto& graph_inputs = body_graph.get_ng_parameters();
 
-                    CHECK_VALID_NODE(
-                        node,
-                        graph_inputs.size() == loop_carried_dependencies.size() + 2,
-                        "The provided loop body graph inputs size (",
-                        graph_inputs.size(),
-                        "), is not equal to the sum of loop carried dependencies and two mandatory"
-                        " inputs (",
-                        loop_carried_dependencies.size() + 2,
-                        ")");
+                    CHECK_VALID_NODE(node,
+                                     graph_inputs.size() >= loop_carried_dependencies.size() + 2,
+                                     "The provided loop body graph inputs size (",
+                                     graph_inputs.size(),
+                                     "), is not greater than the sum of loop carried dependencies "
+                                     "and two mandatory"
+                                     " inputs (",
+                                     loop_carried_dependencies.size() + 2,
+                                     ")");
 
                     CHECK_VALID_NODE(node,
                                      graph_outputs.size() >= loop_carried_dependencies.size() + 1,
@@ -142,8 +144,8 @@ namespace ngraph
                         default_opset::Constant::create(element::boolean, Shape{}, {true});
 
                     // create the loop body
-                    const auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
-                        graph_outputs, graph_inputs);
+                    const auto body =
+                        std::make_shared<ngraph::Function>(graph_outputs, graph_inputs);
                     auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
                     tensor_iterator->set_body(body);
 
@@ -155,7 +157,8 @@ namespace ngraph
                             trip_count.get_element_type(), Shape{}, {0}),
                         ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
                         default_opset::Constant::create(
-                            trip_count.get_element_type(), Shape{}, {1}));
+                            trip_count.get_element_type(), Shape{}, {1}),
+                        trip_count.get_element_type());
 
                     // We iterate over trip_count input.
                     // start=0, stride=1, part_size=1, end=-1, axis=0
@@ -193,15 +196,11 @@ namespace ngraph
                     OutputVector node_outputs;
                     for (const auto& v : final_values)
                     {
-                        NGRAPH_SUPPRESS_DEPRECATED_START
-                        node_outputs.push_back(v.as_single_output_node());
-                        NGRAPH_SUPPRESS_DEPRECATED_END
+                        node_outputs.push_back(v);
                     }
                     for (const auto& v : scan_outputs)
                     {
-                        NGRAPH_SUPPRESS_DEPRECATED_START
-                        node_outputs.push_back(v.as_single_output_node());
-                        NGRAPH_SUPPRESS_DEPRECATED_END
+                        node_outputs.push_back(v);
                     }
                     return node_outputs;
                 }

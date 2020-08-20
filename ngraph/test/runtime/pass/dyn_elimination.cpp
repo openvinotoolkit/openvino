@@ -21,13 +21,14 @@
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/reverse.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/slice_plan.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

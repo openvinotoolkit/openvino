@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"

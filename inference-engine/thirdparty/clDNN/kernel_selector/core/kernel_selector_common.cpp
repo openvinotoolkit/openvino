@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -306,6 +306,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::yxio:                                        return "YXIO";
         case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";
         case WeightsLayout::os_is_yx_osv16_isv16:                        return "OS_IS_YX_OSV16_ISV16";
+        case WeightsLayout::os_is_zyx_osv16_isv16:                       return "OS_IS_ZYX_OSV16_ISV16";
         case WeightsLayout::os_is_zyx_osv32_isv16:                       return "OS_IS_ZYX_OSV32_ISV16";
         case WeightsLayout::os_is_zyx_osv64_isv16:                       return "OS_IS_ZYX_OSV64_ISV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
@@ -371,6 +372,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::gs_oi_yxs_gsv32_yxsv4:                       return "GS_OI_YXS_GSV32_YXSV4";
         case WeightsLayout::g_os_is_yx_isv16_osv16:                      return "G_OS_IS_YX_ISV16_OSV16";
         case WeightsLayout::g_os_is_yx_osv16_isv4:                       return "G_OS_IS_YX_OSV16_ISV4";
+        case WeightsLayout::g_os_is_zyx_osv16_isv16:                     return "G_OS_IS_ZYX_OSV16_ISV16";
         case WeightsLayout::g_os_zyx_is_osv16_isv4:                      return "G_OS_ZYX_IS_OSV16_ISV4";
         case WeightsLayout::g_os_zyx_is_osv16_isv16:                     return "G_OS_ZYX_IS_OSV16_ISV16";
         case WeightsLayout::g_os_zyx_is_osv16_isv32:                     return "G_OS_ZYX_IS_OSV16_ISV32";

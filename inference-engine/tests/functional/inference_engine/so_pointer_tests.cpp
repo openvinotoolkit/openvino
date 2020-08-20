@@ -12,7 +12,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <details/ie_so_pointer.hpp>
 #include <details/ie_irelease.hpp>
-#include <cpp_interfaces/interface/ie_plugin.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <ie_plugin_ptr.hpp>
 
 using namespace InferenceEngine;
@@ -118,6 +118,7 @@ TEST_F(SymbolLoaderTests, instantiateSymbol) {
     std::shared_ptr<SharedObjectLoader> sharedLoader(new SharedObjectLoader(name.c_str()));
     SymbolLoader<SharedObjectLoader> loader(sharedLoader);
     IInferencePlugin * value = nullptr;
-    ASSERT_NE(nullptr, value = loader.instantiateSymbol<IInferencePlugin>(SOCreatorTrait<IInferencePlugin>::name));
+    ASSERT_NE(nullptr, value = loader.instantiateSymbol<IInferencePlugin>(
+        SOCreatorTrait<IInferencePlugin>::name));
     value->Release();
 }

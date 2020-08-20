@@ -564,6 +564,56 @@ void ReversePermutationsPass::run() {
     }
 }
 
+void RemovePermutationsNHWCToNCHWPass::run() {
+    std::list<CNNLayerPtr> permutationsToRemove;
+
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConvolution()) {
+            continue;
+        }
+
+        if (getInputTo(l->outData.front()).empty()) {
+            continue;
+        }
+        auto next = getInputTo(l->outData.front()).begin()->second;
+        auto prev = CNNNetPrevLayer(l);
+
+        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+            continue;
+        }
+
+        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutationsToRemove.push_back(prev);
+        }
+        permutationsToRemove.push_back(next);
+    }
+
+    for (auto&& toRemove : permutationsToRemove) {
+        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+
+        auto next = getInputTo(toRemove->outData.front()).begin()->second;
+        if (LayerInfo(next).isConvolution()) {
+            next->input()->setDims(toRemove->input()->getDims());
+            next->input()->setLayout(Layout::NHWC);
+            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+            if (convolution._kernel_y != 1) {
+                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+            }
+            auto in_channels = next->input()->getDims()[3];
+            convolution._kernel_y = in_channels;
+        }
+        auto prev = CNNNetPrevLayer(toRemove);
+        if (LayerInfo(prev).isConvolution()) {
+            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
+            prev->outData[0]->setLayout(Layout::NHWC);
+        }
+        CNNNetworkRemoveLayer(toRemove, false);
+    }
+}
+
 void InsertIdentityLayerPass::run() {
     int numOfIdentityLayers = 0;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
@@ -936,12 +986,27 @@ void InsertSplitAligningFilterPass::run() {
                 CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
             }
 
-
             // search data that starts from unaligned location
             currentOffset += outputSize * bytesPerSplitElement;
             splitOutIndex++;
         }
     }
+}
+
+static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
+    auto weightsElements = blob->size();
+    auto weightsBytes = blob->byteSize();
+    if (weightsElements == 0) {
+        THROW_IE_EXCEPTION << "Blob size is 0";
+    }
+
+    auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), { TileTo });
+    tiledBlob->allocate();
+
+    for (int i = 0; i < (TileTo / weightsElements); ++i) {
+        ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
+    }
+    return tiledBlob;
 }
 
 void SubstituteScaleShiftBroadCastPass::run() {
@@ -986,34 +1051,15 @@ void SubstituteScaleShiftBroadCastPass::run() {
         gnalog() << "Substitution ScaleShift broadcast for layer: " << l->name << "\n";
         // approach 1 - weights tiling
         if (getPassManager()->getPolicy().ScaleShiftPolicy == Policy::ScaleShift::WEIGHTS_TILING) {
-            auto tileBlob = [](Blob::Ptr &blob, size_t TileTo){
-                auto weightsElements = blob->size();
-                auto weightsBytes = blob->byteSize();
-                if (weightsElements == 0) {
-                    THROW_IE_EXCEPTION << "Blob size is 0";
-                }
-                if (TileTo % weightsElements) {
-                    return false;
-                }
-
-                auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), {TileTo});
-                tiledBlob->allocate();
-
-
-                for (int i=0; i != TileTo / weightsElements; i++) {
-                    ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
-                }
-                blob = tiledBlob;
-                return true;
-            };
-
-            if (!tileBlob(scaleShift->_weights, nElements)) {
+            if (nElements % scaleShift->_weights->size()) {
                 THROW_GNA_EXCEPTION << "Cannot tile weights for layer: " << l->name << ", due to weights size not GCD of dims product";
             }
+            scaleShift->_weights = tileBlob(scaleShift->_weights, nElements);
             if (scaleShift->_biases) {
-                if (!tileBlob(scaleShift->_biases, nElements)) {
+                if (nElements % scaleShift->_biases->size()) {
                     THROW_GNA_EXCEPTION << "Cannot tile biases for layer: " << l->name << ", due to biases size not GCD of dims product";
                 }
+                scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
             }
 
             // currently data type no providing reshape method of tensor desc
@@ -1023,6 +1069,51 @@ void SubstituteScaleShiftBroadCastPass::run() {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
         }
+    }
+}
+
+void BroadcastConstPass::run() {
+    for (auto& constLayer : *pLayers) {
+        if (!LayerInfo(constLayer).isConst()) {
+            continue;
+        }
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+        if (!CNNNetHasNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional)) {
+            continue;
+        }
+
+        auto nextLayer = CNNNetGetNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional).first;
+
+        if (!LayerInfo(nextLayer).isEltwise()) {
+            continue;
+        }
+
+        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+        auto constDimsSize = product(constDims.begin(), constDims.end());
+        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
+        auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
+
+        if (constDimsSize == eltwiseDimsSize) {
+            continue;
+        }
+
+        if (eltwiseDimsSize % constDimsSize) {
+            continue;
+        }
+
+        if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+            THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " is missing 'custom' parameter";
+        }
+
+        auto currentConstBlob = constLayer->blobs.find("custom")->second;
+
+        constLayer->blobs.find("custom")->second = tileBlob(currentConstBlob, eltwiseDimsSize);
+
+        constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+        constLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
 }
 
