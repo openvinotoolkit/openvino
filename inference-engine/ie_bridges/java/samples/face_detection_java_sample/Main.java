@@ -52,14 +52,13 @@ public class Main {
         }
 
         Mat image = Imgcodecs.imread(imgPath);
-
-        byte[] buff = new byte[(int) (image.total() * image.channels())];
-        image.get(0, 0, buff);
         
         int[] dimsArr = {1, image.channels(), image.height(), image.width()};
         TensorDesc tDesc = new TensorDesc(Precision.U8, dimsArr, Layout.NHWC);
 
-        Blob imgBlob = new Blob(tDesc, buff);
+        // The source image is also used at the end of the program to display the detection results, 
+        // therefore the Mat object won't be destroyed by Garbage Collector while the network is running.
+        Blob imgBlob = new Blob(tDesc, image.dataAddr());
    
         IECore core = new IECore();
 
