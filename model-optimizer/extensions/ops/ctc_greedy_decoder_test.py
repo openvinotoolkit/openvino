@@ -19,36 +19,77 @@ import unittest
 import numpy as np
 
 from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
-                    'node_2': {'type': 'Identity', 'kind': 'op'},
-                    'ctc': {'type': 'CTCGreedyDecoder', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'},
-                    'op_output': { 'kind': 'op', 'op': 'Result'},
-                    }
 
+nodes_attributes = {'logits': {'kind': 'op'},
+                    'logits_data': {'shape': None, 'value': None, 'kind': 'data'},
+                    'seq_mask': {'kind': 'op'},
+                    'seq_mask_data': {'shape': None, 'value': None, 'kind': 'data'},
+                    'ctcgreedydecoder_node': {'op': 'CTCGreedyDecoder', 'kind': 'op',
+                                              'ctc_merge_repeated': True},
+                    'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
-class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_concat_infer(self):
-        graph = build_graph(nodes_attributes,
-                            [
-                                ('node_1', 'ctc'),
-                                ('node_2', 'ctc'),
-                                ('ctc', 'node_3'),
-                                ('node_3', 'op_output')
-                            ],
-                            {
-                                'node_3': {'shape': None},
-                                'node_1': {'shape': np.array([88, 2, 71])},
-                                'node_2': {'shape': np.array([88, 2])},
-                                'ctc': {'ctc_merge_repeated': 1}
-                            })
+# graph 1
+edges1 = [('logits', 'logits_data'),
+          ('seq_mask', 'seq_mask_data'),
+          ('logits_data', 'ctcgreedydecoder_node', {'in': 0}),
+          ('seq_mask_data', 'ctcgreedydecoder_node', {'in': 1}),
+          ('ctcgreedydecoder_node', 'output', {'out': 0})]
 
-        ctc_node = Node(graph, 'ctc')
-        CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
-        exp_shape = np.array([2, 88, 1, 1])
-        res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+# valid test case
+inputs1 = {'logits_data': {'shape': int64_array([100, 4, 5])},
+           'seq_mask_data': {'shape': int64_array([100, 4])}}
+
+# invalid test case with incorrect rank for the first input tensor
+inputs1_inv = {'logits_data': {'shape': int64_array([100, 4, 5, 6])},
+               'seq_mask_data': {'shape': int64_array([100, 4])}}
+
+# invalid test case with incorrect rank for the second input tensor
+inputs2_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([100])}}
+
+# invalid test case with incorrect time dimension
+inputs3_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([101, 4])}}
+
+# invalid test case with incorrect batch dimension
+inputs4_inv = {'logits_data': {'shape': int64_array([100, 4, 5])},
+               'seq_mask_data': {'shape': int64_array([100, 14])}}
+
+class TestCTCGreedyDecoder(unittest.TestCase):
+    def test_infer1(self):
+        graph = build_graph(nodes_attributes, edges1, inputs1)
+        ctcgreedydecoder_node = Node(graph, 'ctcgreedydecoder_node')
+        CTCGreedyDecoderOp.infer(ctcgreedydecoder_node)
+
+        # prepare reference results
+        ref_output_shape = int64_array([4, 100, 1, 1])
+
+        # get the result
+        res_output_shape = graph.node['output']['shape']
+
+        self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
+                        'shapes do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
+
+    def test_infer_invalid1(self):
+        graph = build_graph(nodes_attributes, edges1, inputs1_inv)
+        ctcgreedydecoder_node = Node(graph, 'ctcgreedydecoder_node')
+        self.assertRaises(AssertionError, CTCGreedyDecoderOp.infer, ctcgreedydecoder_node)
+
+    def test_infer_invalid2(self):
+        graph = build_graph(nodes_attributes, edges1, inputs2_inv)
+        ctcgreedydecoder_node = Node(graph, 'ctcgreedydecoder_node')
+        self.assertRaises(AssertionError, CTCGreedyDecoderOp.infer, ctcgreedydecoder_node)
+
+    def test_infer_invalid3(self):
+        graph = build_graph(nodes_attributes, edges1, inputs3_inv)
+        ctcgreedydecoder_node = Node(graph, 'ctcgreedydecoder_node')
+        self.assertRaises(AssertionError, CTCGreedyDecoderOp.infer, ctcgreedydecoder_node)
+
+    def test_infer_invalid4(self):
+        graph = build_graph(nodes_attributes, edges1, inputs4_inv)
+        ctcgreedydecoder_node = Node(graph, 'ctcgreedydecoder_node')
+        self.assertRaises(AssertionError, CTCGreedyDecoderOp.infer, ctcgreedydecoder_node)

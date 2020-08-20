@@ -80,7 +80,7 @@ void Basic_LSTM_S::SetUp() {
     auto C_o = lstm1->output(1);
 
     //TensorIterator [1, 10, 49] [1, 118], [1, 118] -> [1, 118]
-    auto body = std::make_shared<ngraph::opset1::TensorIterator::BodyLambda>(
+    auto body = std::make_shared<ngraph::Function>(
         ngraph::OutputVector{ H_o, C_o }, ngraph::ParameterVector{ X, H_t, C_t });
 
     auto tensor_iterator = std::make_shared<ngraph::opset1::TensorIterator>();

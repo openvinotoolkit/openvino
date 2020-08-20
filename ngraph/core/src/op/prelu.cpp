@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/prelu.hpp"
-#include <runtime/reference/prelu.hpp>
-#include "ngraph/itt.hpp"
+#include <ngraph/runtime/reference/prelu.hpp>
+#include "itt.hpp"
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/add.hpp"

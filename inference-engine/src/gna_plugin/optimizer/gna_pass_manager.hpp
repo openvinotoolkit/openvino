@@ -160,6 +160,11 @@ DECL_PASS_BEFORE_COPY(RemoveConst);
  */
 DECL_PASS(FuseMultipleIdentities);
 
+/**
+* @brief Brodcast data in Const layer
+*/
+DECL_PASS(BroadcastConst);
+
 struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy
