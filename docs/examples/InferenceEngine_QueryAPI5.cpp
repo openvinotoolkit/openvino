@@ -2,11 +2,10 @@
 
 int main() {
 using namespace InferenceEngine;
+//! [part5]
 InferenceEngine::Core core;
-
 auto exeNetwork = core.LoadNetwork(network, "CPU");
-
 auto ncores = exeNetwork.GetConfig(PluginConfigParams::KEY_CPU_THREADS_NUM).as<std::string>();
-
+//! [part5]
 return 0;
 }

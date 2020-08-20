@@ -27,15 +27,15 @@ Common migration process includes the following steps:
 
 1. Migrate from the `InferenceEngine::InferencePlugin` initialization:
 
-@snippet openvino/docs/examples/Migration_CoreAPI0.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI0.cpp part0
 
 to the `InferenceEngine::Core` class initialization:
 
-@snippet openvino/docs/examples/Migration_CoreAPI1.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI1.cpp part1
 
 2. Instead of using `InferenceEngine::CNNNetReader` to read IR:
 
-@snippet openvino/docs/examples/Migration_CoreAPI2.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI2.cpp part2
 
 read networks using the Core class:
 ```cpp
@@ -48,24 +48,24 @@ CNNNetwork network = core.ReadNetwork("model.onnx");
 
 3. Instead of adding CPU device extensions to the plugin:
 
-@snippet openvino/docs/examples/Migration_CoreAPI5.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI5.cpp part5
 
 add extensions to CPU device using the Core class:
 
-@snippet openvino/docs/examples/Migration_CoreAPI6.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI6.cpp part6
 
 4. Instead of setting configuration keys to a particular plugin, set (key, value) pairs via `InferenceEngine::Core::SetConfig`
 
-@snippet openvino/docs/examples/Migration_CoreAPI7.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI7.cpp part7
 
 > **NOTE**: If `deviceName` is omitted as the last argument, configuration is set for all Inference Engine devices.
 
 5. Migrate from loading the network to a particular plugin:
 
-@snippet openvino/docs/examples/Migration_CoreAPI8.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI8.cpp part8
 
 to `InferenceEngine::Core::LoadNetwork` to a particular device:
 
-@snippet openvino/docs/examples/Migration_CoreAPI9.cpp
+@snippet openvino/docs/examples/Migration_CoreAPI9.cpp part9
 
 After you have an instance of `InferenceEngine::ExecutableNetwork`, all other steps are as usual.

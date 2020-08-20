@@ -11,14 +11,14 @@ the `-DNGRAPH_DEBUG_ENABLE=ON` option.
 To visualize the nGraph function to the xDot format or to an image file, use the 
 `ngraph::pass::VisualizeTree` graph transformation pass:
 
-@snippet openvino/docs/examples/Graph_debug_capabilities0.cpp
+@snippet openvino/docs/examples/Graph_debug_capabilities0.cpp part0
 
 ## CNNNetwork
 
 To serialize the CNNNetwork to the Inference Engine Intermediate Representation (IR) format, use the 
 `CNNNetwork::serialize(...)` method:
 
-@snippet openvino/docs/examples/Graph_debug_capabilities1.cpp
+@snippet openvino/docs/examples/Graph_debug_capabilities1.cpp part1
 
 > **NOTE**: CNNNetwork created from the nGraph function might differ from the original nGraph 
 > function because the Inference Engine applies some graph transformation.

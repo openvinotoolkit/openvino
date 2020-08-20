@@ -28,15 +28,15 @@ Default fallback policy decides which layer goes to which device automatically a
 
 Another way to annotate a network is to set affinity manually using <code>ngraph::Node::get_rt_info</code> with key `"affinity"`:
 
-@snippet openvino/docs/examples/HETERO0.cpp
+@snippet openvino/docs/examples/HETERO0.cpp part0
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling of automating affinity settings and then fix manually.
 
-@snippet openvino/docs/examples/HETERO1.cpp
+@snippet openvino/docs/examples/HETERO1.cpp part1
 
 If you rely on the default affinity distribution, you can avoid calling <code>InferenceEngine::Core::QueryNetwork</code> and just call <code>InferenceEngine::Core::LoadNetwork</code> instead:
 
-@snippet openvino/docs/examples/HETERO2.cpp
+@snippet openvino/docs/examples/HETERO2.cpp part2
 
 > **NOTE**: `InferenceEngine::Core::QueryNetwork` does not depend on affinities set by a user, but queries for layer support based on device capabilities.
 
@@ -72,7 +72,7 @@ Heterogeneous plugin can generate two files:
 * `hetero_affinity_<network name>.dot` - annotation of affinities per layer. This file is written to the disk only if default fallback policy was executed
 * `hetero_subgraphs_<network name>.dot` - annotation of affinities per graph. This file is written to the disk during execution of <code>ICNNNetwork::LoadNetwork()</code> for heterogeneous plugin
 
-@snippet openvino/docs/examples/HETERO3.cpp
+@snippet openvino/docs/examples/HETERO3.cpp part3
 
 You can use GraphViz* utility or converters to `.png` formats. On Ubuntu* operating system, you can use the following utilities:
 * `sudo apt-get install xdot`
@@ -83,7 +83,7 @@ You can use performance data (in samples, it is an option `-pc`) to get performa
 
 Here is an example of the output: for Googlenet v1 running on FPGA with fallback to CPU:
 
-@snippet openvino/docs/examples/HETERO4.cpp
+@snippet openvino/docs/examples/HETERO4.cpp part4
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
