@@ -516,7 +516,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
         memcpy(dst_ptr, src_ptr, type_size);
     }
 
-    switch(input_et)
+    switch (input_et)
     {
     case element::Type_t::f32:
         runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
