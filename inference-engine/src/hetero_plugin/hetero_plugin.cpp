@@ -86,12 +86,8 @@ ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Con
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    IExecutableNetwork::Ptr executableNetwork;
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this)),
-                            [](InferenceEngine::details::IRelease *p) {p->Release();});
-
-    return ExecutableNetwork{executableNetwork};
+    return make_executable_network(std::make_shared<HeteroExecutableNetwork>(heteroModel,
+        mergeConfigs(_config, config), this));
 }
 
 Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
