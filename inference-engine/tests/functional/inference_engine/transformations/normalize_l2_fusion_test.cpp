@@ -23,10 +23,10 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
     const float eps_value = 0.000099f;
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
-
-        auto multiply = std::make_shared<ngraph::opset4::Multiply>(input, input);
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(multiply, axes_const);
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
         auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
         auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
@@ -58,10 +58,10 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
     const float eps_value = 0.000099f;
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
-
-        auto multiply = std::make_shared<ngraph::opset4::Multiply>(input, input);
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
         auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(multiply, axes_const);
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
         auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
         auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
