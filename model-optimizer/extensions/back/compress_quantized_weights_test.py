@@ -527,9 +527,6 @@ class WeightQuantizeTest(unittest.TestCase):
                              },
                             nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
-
         graph.clean_up()
         graph_ref.clean_up()
 
@@ -619,9 +616,6 @@ class WeightQuantizeTest(unittest.TestCase):
                                  'ac_output_high': {'shape': np.array([1]), 'value': 2.8},
                                  },
                                 nodes_with_edges_only=True)
-
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph.clean_up()
         graph_ref.clean_up()
@@ -713,9 +707,6 @@ class WeightQuantizeTest(unittest.TestCase):
                                  },
                                 nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
-
         graph.clean_up()
         graph_ref.clean_up()
 
@@ -804,9 +795,6 @@ class WeightQuantizeTest(unittest.TestCase):
                                  },
                                 nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
-
         graph.clean_up()
         graph_ref.clean_up()
 
@@ -859,8 +847,7 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('ol:0', '3:FQ'),
             *connect('oh:0', '4:FQ'),
             *connect('FQ:0', 'output'),
-        ], nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(data_type=model_dtype, keep_shape_ops=True)
+        ], nodes_with_edges_only=True, cli=Namespace(data_type=model_dtype, static_shape=True))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()

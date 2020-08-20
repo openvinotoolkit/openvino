@@ -30,7 +30,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC',
-                       lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+                       lambda graph: not graph.graph['cmd_params'].static_shape]
     force_clean_up = True
 
     def run_after(self):
@@ -46,15 +46,22 @@ class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
             next_in_ports.update(out_port.get_destinations())
         return next_in_ports
 
-    def find_shape_subgraph_endpoints(self, out_ports: List[Port], visited: set = None) -> Set[Port]:
+    def mark_node_as_in_correct_layout_by_in_port(self, in_port):
+        next_in_ports = self.get_next_in_ports(in_port)
+        in_port.__setattr__('input_permutation', None)
+        mark_input_as_in_correct_layout(in_port.node, in_port.idx)
+        for port in next_in_ports:
+            mark_output_as_in_correct_layout(port.get_source().node, port.get_source().idx)
+
+    def find_shape_subgraph_endpoints(self, out_ports: List[Port], visited: set = None,
+                                      action: callable = None) -> Set[Port]:
         """
         Searches for input ports of data dependent operations starting from output ports passed to the function.
         Condition for data dependent operations is absence of node output value.
 
-        Side action: marking the sub-graph as it is in the correct layout
-
         :param out_ports: list of output ports to start search from
         :param visited: set of input ports that were visited to avoid visiting them more than once
+        :param action: function to call on the each input port of shape sub-graph
         :return: set of input ports of data dependent operations
         """
         if visited is None:
@@ -73,11 +80,9 @@ class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
             if any([port.data.get_value() is None for port in next_in_ports]):
                 end_points_in_ports.add(in_port)
             else:
-                in_port.__setattr__('input_permutation', None)
-                mark_input_as_in_correct_layout(in_port.node, in_port.idx)
-                for port in next_in_ports:
-                    mark_output_as_in_correct_layout(port.get_source().node, port.get_source().idx)
                 deque_of_in_ports.extend(next_in_ports)
+                if action is not None:
+                    action(in_port)
             visited.add(in_port)
         return end_points_in_ports
 
@@ -103,7 +108,8 @@ class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
             shape.out_port(0).get_connection().insert_node(gather)
 
         # 2. Inserting Gather/Transpose to NC* format
-        shape_sub_graph_end_points = self.find_shape_subgraph_endpoints([shape.out_port(0) for shape in shape_ops])
+        shape_sub_graph_end_points = self.find_shape_subgraph_endpoints(
+            [shape.out_port(0) for shape in shape_ops], None, self.mark_node_as_in_correct_layout_by_in_port)
         for in_port in shape_sub_graph_end_points:
             name = in_port.node.soft_get('name', in_port.node.id)
             shape = in_port.data.get_shape()

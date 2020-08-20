@@ -20,7 +20,7 @@ from mo.graph.graph import Graph
 
 class EnableConstantStridedSlice(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
 
     @staticmethod
     def pattern():
