@@ -86,23 +86,24 @@ namespace ngraph
                 if (initializer_tensor.has_name())
                 {
                     Tensor tensor = Tensor{initializer_tensor};
-
+                    std::shared_ptr<default_opset::Constant> ng_constant;
                     // For each initializer create a Constant node and store it in cache
                     try
                     {
-                        auto ng_constant = tensor.get_ng_constant();
-                        initializers.emplace(initializer_tensor.name(), tensor);
-                        add_provenance_tag_to_initializer(tensor, ng_constant);
-                        m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
+                        ng_constant = tensor.get_ng_constant();
                     }
                     catch (const ngraph::ngraph_error& exc)
                     {
                         NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
                                     << initializer_tensor.name()
-                                    << "'. Each input referencing it will be replaced with a "
-                                       "NullNode. Detailed error:\n"
+                                    << "'. Detailed error:\n"
                                     << exc.what();
+                        ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
                     }
+
+                    initializers.emplace(initializer_tensor.name(), tensor);
+                    add_provenance_tag_to_initializer(tensor, ng_constant);
+                    m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
                 }
             }
 
