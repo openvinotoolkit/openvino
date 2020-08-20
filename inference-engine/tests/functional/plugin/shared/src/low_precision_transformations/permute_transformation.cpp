@@ -21,6 +21,19 @@
 
 namespace LayerTestsDefinitions {
 
+inline std::ostream &operator << (std::ostream &os, const std::vector<size_t>& values) {
+    os << "{";
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) {
+            os << values[i];
+        } else {
+            os << ", " << values[i];
+        }
+    }
+    os << "}";
+    return os;
+}
+
 std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<PermuteTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -29,9 +42,14 @@ std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<Permut
 
     std::ostringstream result;
     result << netPrecision.name() << "_" << targetDevice << "_" << toString(testValues.params) <<
-        testValues.expected.permutePrecision << "_" <<
+        testValues.inputShape.size() << "D_" <<
+        testValues.reshapeValue << "_" <<
+        testValues.permuteValue << "_" <<
         testValues.actual.fqOutputLowIntervals.size() << "_" <<
-        testValues.actual.fqOutputHighIntervals.size();
+        testValues.actual.fqOutputHighIntervals.size() << "_" <<
+        testValues.expected.permutePrecision << "_" <<
+        testValues.expected.scales << "_" <<
+        testValues.expected.shifts;
     return result.str();
 }
 
@@ -42,7 +60,7 @@ void PermuteTransformation::SetUp() {
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     {
-        const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(testValues.shape));
+        const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(testValues.inputShape));
         input1->set_friendly_name("input");
 
         const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
@@ -55,25 +73,18 @@ void PermuteTransformation::SetUp() {
             testValues.actual.fqOutputLowIntervals,
             testValues.actual.fqOutputHighIntervals);
 
-        const std::vector<size_t> kernel = { 3, 3 };
-        const std::vector<size_t> stride = { 1, 1 };
-        const std::vector<size_t> padBegin = { 0, 0 };
-        const std::vector<size_t> padEnd = { 0, 0 };
-        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
-        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+        const std::shared_ptr<ngraph::Node> relu = std::make_shared<ngraph::opset1::Relu>(fakeQuantize);
 
-        const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
-            fakeQuantize,
-            stride,
-            padBegin,
-            padEnd,
-            kernel,
-            roundingType,
-            padType);
+        const std::shared_ptr<ngraph::Node> reshape = testValues.reshapeValue.empty() ?
+            nullptr :
+            std::make_shared<ngraph::opset1::Reshape>(
+                relu,
+                std::make_shared<ngraph::opset1::Constant>(ngraph::element::u32, ngraph::Shape { testValues.reshapeValue.size() }, testValues.reshapeValue),
+                false);
 
         const auto transpose = std::make_shared<ngraph::opset1::Transpose>(
-            maxPool,
-            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ testValues.order.size() }, testValues.order));
+            reshape == nullptr ? relu : reshape,
+            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ testValues.permuteValue.size() }, testValues.permuteValue));
         transpose->set_friendly_name("transpose");
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
@@ -147,7 +158,7 @@ void PermuteTransformation::validate() {
     EXPECT_EQ("Permute", permute->type);
 
     const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    checkPrecisions(*layer, testValues.expected.permutePrecision);
+    checkPrecisions(*permute, testValues.expected.permutePrecision);
 }
 
 IE_SUPPRESS_DEPRECATED_END

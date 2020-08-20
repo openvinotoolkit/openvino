@@ -29,8 +29,9 @@ public:
     };
 
     InferenceEngine::details::LayerTransformation::Params params;
-    InferenceEngine::SizeVector shape;
-    InferenceEngine::SizeVector order;
+    InferenceEngine::SizeVector inputShape;
+    std::vector<size_t> reshapeValue;
+    std::vector<size_t> permuteValue;
     Actual actual;
     Expected expected;
 };

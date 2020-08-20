@@ -14,16 +14,49 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32
 };
 
-const std::vector<bool> perTensorValues = { true, false };
-
-const std::vector<bool> transposeChannelDimValues = { true, false };
-
 const std::vector<PermuteTransformationTestValues> testValues = {
-    // per-tensor: channels are permuted
+    // 6D: per-tensor: channels are permuted
     {
-        LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-        InferenceEngine::SizeVector({ 1, 3, 16, 16 }),
-        InferenceEngine::SizeVector({ 0, 2, 1, 3 }),
+        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
+        { 1, 64, 38, 38 },
+        { 1, 64, 19, 2, 19, 2 },
+        { 0, 3, 5, 1, 2, 4 },
+        {
+            { 0.f },
+            { 25.5f},
+            { 0.f },
+            { 25.5f }
+        },
+        {
+            InferenceEngine::Precision::FP32,
+            false,
+            false
+        }
+    },
+    // 6D: per-tensor: channels are not permuted
+    {
+        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
+        { 1, 64, 38, 38 },
+        { 1, 64, 19, 2, 19, 2 },
+        { 0, 1, 5, 3, 2, 4 },
+        {
+            { 0.f },
+            { 25.5f},
+            { 0.f },
+            { 25.5f }
+        },
+        {
+            InferenceEngine::Precision::FP32,
+            false,
+            false
+        }
+    },
+    // 4D: per-tensor: channels are permuted
+    {
+        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        {},
+        { 0, 2, 1, 3 },
         {
             { 0.f },
             { 25.5f},
@@ -36,11 +69,12 @@ const std::vector<PermuteTransformationTestValues> testValues = {
             false
         }
     },
-    // per-channel: channels are permuted
+    // 4D: per-channel: channels are permuted
     {
-        LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-        InferenceEngine::SizeVector({ 1, 3, 16, 16 }),
-        InferenceEngine::SizeVector({ 0, 2, 1, 3 }),
+        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        {},
+        { 0, 2, 1, 3 },
         {
             { 0.f, 0.f, 0.f },
             { 25.5f, 25.5f / 2.f, 25.5f / 4.f },
@@ -53,11 +87,12 @@ const std::vector<PermuteTransformationTestValues> testValues = {
             false
         }
     },
-    // per-channel: channels are not permuted
+    // 4D: per-channel: channels are not permuted
     {
-        LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-        InferenceEngine::SizeVector({ 1, 3, 16, 16 }),
-        InferenceEngine::SizeVector({ 0, 1, 3, 2 }),
+        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        {},
+        { 0, 1, 3, 2 },
         {
             { 0.f, 0.f, 0.f },
             { 25.5f, 25.5f / 2.f, 25.5f / 4.f },

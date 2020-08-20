@@ -873,31 +873,34 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
 }
 
 bool CNNNetworkHelper::isLayoutSupported(const CNNLayer& layer) {
-    if (layer.insData.size() == 0) {
-        return false;
-    }
+    auto isSupported = [](const Data& data) -> bool {
+        switch (data.getLayout()) {
+            case Layout::NC:
+            case Layout::NCHW:
+            case Layout::NCDHW: {
+                return true;
+            }
+            case Layout::CHW: {
+                if (data.getDims().size() != 3lu) {
+                    return false;
+                }
+                return true;
+            }
+            default: {
+                return false;
+            }
+        }
 
-    const DataPtr insertData = layer.insData[0].lock();
-    if (insertData == nullptr) {
-        return false;
-    }
-
-    switch (insertData->getLayout()) {
-    case Layout::NC:
-    case Layout::NCHW:
-    case Layout::NCDHW: {
         return true;
-    }
-    case Layout::CHW: {
-        if (insertData->getDims().size() != 3lu) {
+    };
+
+    for (const auto& data : layer.outData) {
+        if (!isSupported(*data)) {
             return false;
         }
-        return true;
     }
-    default: {
-        return false;
-    }
-    }
+
+    return true;
 }
 size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
     if (!isLayoutSupported(layer)) {
