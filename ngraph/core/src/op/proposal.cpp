@@ -90,35 +90,20 @@ shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
 {
-    //    temporary workaround, remove after #35906 is fixed
-    //    visitor.on_attribute("attrs", m_attrs);
-    visitor.on_attribute("the_proposal", m_attrs);
-    return true;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::ProposalAttrs>::type_info;
-
-AttributeAdapter<op::ProposalAttrs>::AttributeAdapter(op::ProposalAttrs& ref)
-    : m_ref(ref)
-{
-}
-
-bool AttributeAdapter<op::ProposalAttrs>::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("base_size", m_ref.base_size);
-    visitor.on_attribute("pre_nms_topn", m_ref.pre_nms_topn);
-    visitor.on_attribute("post_nms_topn", m_ref.post_nms_topn);
-    visitor.on_attribute("nms_thresh", m_ref.nms_thresh);
-    visitor.on_attribute("feat_stride", m_ref.feat_stride);
-    visitor.on_attribute("min_size", m_ref.min_size);
-    visitor.on_attribute("ratio", m_ref.ratio);
-    visitor.on_attribute("scale", m_ref.scale);
-    visitor.on_attribute("clip_before_nms", m_ref.clip_before_nms);
-    visitor.on_attribute("clip_after_nms", m_ref.clip_after_nms);
-    visitor.on_attribute("normalize", m_ref.normalize);
-    visitor.on_attribute("box_size_scale", m_ref.box_size_scale);
-    visitor.on_attribute("box_coordinate_scale", m_ref.box_coordinate_scale);
-    visitor.on_attribute("framework", m_ref.framework);
+    visitor.on_attribute("base_size", m_attrs.base_size);
+    visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
+    visitor.on_attribute("post_nms_topn", m_attrs.post_nms_topn);
+    visitor.on_attribute("nms_thresh", m_attrs.nms_thresh);
+    visitor.on_attribute("feat_stride", m_attrs.feat_stride);
+    visitor.on_attribute("min_size", m_attrs.min_size);
+    visitor.on_attribute("ratio", m_attrs.ratio);
+    visitor.on_attribute("scale", m_attrs.scale);
+    visitor.on_attribute("clip_before_nms", m_attrs.clip_before_nms);
+    visitor.on_attribute("clip_after_nms", m_attrs.clip_after_nms);
+    visitor.on_attribute("normalize", m_attrs.normalize);
+    visitor.on_attribute("box_size_scale", m_attrs.box_size_scale);
+    visitor.on_attribute("box_coordinate_scale", m_attrs.box_coordinate_scale);
+    visitor.on_attribute("framework", m_attrs.framework);
     return true;
 }
 
