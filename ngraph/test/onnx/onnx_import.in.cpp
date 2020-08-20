@@ -51,6 +51,8 @@
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";

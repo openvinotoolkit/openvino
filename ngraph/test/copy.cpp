@@ -23,6 +23,8 @@
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

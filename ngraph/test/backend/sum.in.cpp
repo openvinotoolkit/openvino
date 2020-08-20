@@ -35,6 +35,8 @@
 
 static std::mt19937_64 random_generator;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

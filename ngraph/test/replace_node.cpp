@@ -19,6 +19,8 @@
 
 #include "ngraph/ngraph.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

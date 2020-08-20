@@ -28,6 +28,7 @@ namespace ngraph
             {
                 OutputVector qlinear_matmul(const Node& node)
                 {
+                    NGRAPH_SUPPRESS_DEPRECATED_START
                     auto ng_inputs = node.get_ng_inputs();
                     auto factory = builder::QLinearMatmulFactory(
                         (OutputVector(std::begin(ng_inputs), std::end(ng_inputs))));
@@ -43,6 +44,7 @@ namespace ngraph
                                "to conform with ONNX standard.";
                     }
                     return factory.make_matmul_op();
+                    NGRAPH_SUPPRESS_DEPRECATED_END
                 }
             } // namespace set_1
 

@@ -54,6 +54,7 @@ namespace ngraph
         ///
         /// \return     Vector of broadcasted values.
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         OutputVector numpy_broadcast_outputs(const OutputVector& values);
 
@@ -66,6 +67,7 @@ namespace ngraph
         ///
         /// \return     Node producing values with requested shape.
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         std::shared_ptr<Node> numpy_broadcast(const Output<Node>& value, const Shape& shape);
 
@@ -97,6 +99,7 @@ namespace ngraph
         ///   elements point to ngraph::Node objects whose output values have the same shape.
         ///
         /// \exception ngraph::builder::numpy_autobroadcast_incompatible_shapes
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>>
             numpy_broadcast(const std::pair<Output<Node>, Output<Node>>& args);
@@ -116,12 +119,14 @@ namespace ngraph
         ///
         /// \exception ngraph::builder::numpy_autobroadcast_incompatible_shapes
         template <typename NodeType>
-        std::shared_ptr<NodeType>
-            make_with_numpy_broadcast(const Output<Node>& operand1_reshapeable,
-                                      const Output<Node>& operand2_reshapeable)
+        NGRAPH_DEPRECATED("This builder was deprecated.")
+        std::shared_ptr<NodeType> make_with_numpy_broadcast(
+            const Output<Node>& operand1_reshapeable, const Output<Node>& operand2_reshapeable)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto shaped_op1_op2 = numpy_broadcast({operand1_reshapeable, operand2_reshapeable});
             return std::make_shared<NodeType>(shaped_op1_op2.first, shaped_op1_op2.second);
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
         /// Create a new \p NodeType node, and any additional nodes required to simulate NumPy-style
@@ -143,13 +148,16 @@ namespace ngraph
         ///
         /// \exception ngraph::builder::numpy_autobroadcast_incompatible_shapes
         template <typename NodeType>
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         std::shared_ptr<Node> make_with_numpy_broadcast(const Output<Node>& operand1,
                                                         const Output<Node>& operand2_reshapeable,
                                                         const Output<Node>& operand3_reshapeable)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto shaped_op2_op3 = numpy_broadcast({operand2_reshapeable, operand3_reshapeable});
             return std::make_shared<NodeType>(
                 operand1, shaped_op2_op3.first, shaped_op2_op3.second);
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
         /// \brief      Broadcast shape of two nodes to make them compatible for a matrix
@@ -168,6 +176,7 @@ namespace ngraph
         ///
         /// \return     The vector containing both outputs broadcasted.
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         OutputVector numpy_broadcast_for_matmul_operation(const Output<Node>& left,
                                                           const Output<Node>& right);
@@ -179,6 +188,7 @@ namespace ngraph
         /// \param axis Index starting to align
         ///
         /// \return pdpd-style broadcasted list of nodes.
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis);
 
@@ -196,6 +206,7 @@ namespace ngraph
         ///                          matches the desired new shape.
         ///
         /// \return The indices of added axes.
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         AxisSet calculate_broadcast_axes(const Shape& output_shape,
                                          const Shape& input_shape,
@@ -217,6 +228,7 @@ namespace ngraph
         /// \return     A pair that contains the target shape as its first object and a vector of
         ///             padded input shapes ready to be broadcasted as the second object
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         std::pair<Shape, std::vector<Shape>>
             get_numpy_broadcast_shapes(const std::vector<Shape>& input_shapes);
@@ -235,27 +247,36 @@ namespace ngraph
         /// \param input_shape  The shape of input tensor.
         ///
         /// \return             The indices of added axes.
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         inline AxisSet calculate_broadcast_axes(const Shape& output_shape, const Shape& input_shape)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             return calculate_broadcast_axes(
                 output_shape, input_shape, output_shape.size() - input_shape.size());
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         inline std::shared_ptr<Node> make_broadcast_node(const Output<Node>& output,
                                                          Shape new_shape)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             return std::make_shared<op::Broadcast>(
                 output, new_shape, calculate_broadcast_axes(new_shape, output.get_shape()));
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         inline std::shared_ptr<Node> make_broadcast_node(const Output<Node>& value,
                                                          const Shape& new_shape,
                                                          std::size_t start_match_axis)
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             return std::make_shared<op::Broadcast>(
                 value,
                 new_shape,
                 calculate_broadcast_axes(new_shape, value.get_shape(), start_match_axis));
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
         namespace opset1

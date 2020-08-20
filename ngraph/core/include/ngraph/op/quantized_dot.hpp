@@ -24,8 +24,11 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API QuantizedDot : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API QuantizedDot : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"QuantizedDot", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -80,8 +83,11 @@ namespace ngraph
                 ngraph::AxisSet m_input0_axes;
                 ngraph::AxisSet m_input1_axes;
                 ngraph::AxisSet m_output_axes;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::QuantizedDot;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

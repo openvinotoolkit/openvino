@@ -25,8 +25,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise division operation.
-            class NGRAPH_API Divide : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Divide instead of it.") NGRAPH_API Divide
+                : public util::BinaryElementwiseArithmetic
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Divide", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -65,6 +69,7 @@ namespace ngraph
 
             protected:
                 bool m_pythondiv{true};
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
@@ -117,9 +122,12 @@ namespace ngraph
             };
         } // namespace v1
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Divide;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 
+    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
     NGRAPH_API
     std::shared_ptr<Node> operator/(const Output<Node>& arg0, const Output<Node>& arg1);
 } // namespace ngraph

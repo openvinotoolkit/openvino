@@ -24,6 +24,8 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

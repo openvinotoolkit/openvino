@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "autobroadcast.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
@@ -110,7 +111,7 @@ namespace ngraph
                 {
                     axes.insert(i);
                 }
-                val = std::make_shared<ngraph::op::Broadcast>(val, shape, axes);
+                val = builder::opset1::make_broadcast(val, shape, axes).get_node_shared_ptr();
             }
 
             return val->add_provenance_group_members_above({});

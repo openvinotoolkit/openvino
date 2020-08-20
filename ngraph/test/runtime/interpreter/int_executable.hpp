@@ -96,6 +96,8 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace runtime
@@ -1251,7 +1253,6 @@ protected:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
         case OP_TYPEID::Selu:
@@ -1311,3 +1312,5 @@ protected:
         }
     }
 };
+
+NGRAPH_SUPPRESS_DEPRECATED_END

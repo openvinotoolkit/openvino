@@ -29,6 +29,8 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/slice.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace std;
 

@@ -31,6 +31,7 @@ namespace ngraph
         ///
         /// \return     The vector containing multiple nodes we split input node into.
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         OutputVector split(const Output<Node>& value,
                            const std::vector<size_t>& length_parts,
                            size_t axis = 0);
@@ -49,6 +50,7 @@ namespace ngraph
         ///
         /// \return     The vector containing multiple outputs we split input node into.
         ///
+        NGRAPH_DEPRECATED("This builder was deprecated.")
         NGRAPH_API
         OutputVector split(const Output<Node>& value, size_t split_parts, int axis = 0);
 

@@ -25,8 +25,11 @@ namespace ngraph
         namespace v0
         {
             /// \brief Gather slices from axis of params according to indices
-            class NGRAPH_API Gather : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Gather instead of it.") NGRAPH_API Gather : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Gather", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -47,6 +50,7 @@ namespace ngraph
 
             protected:
                 size_t m_axis;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -81,6 +85,8 @@ namespace ngraph
         }
 
         // latest stable opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Gather;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

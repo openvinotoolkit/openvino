@@ -23,6 +23,7 @@
 
 namespace ngraph
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     namespace opset0
     {
 #ifdef NGRAPH_OP
@@ -33,4 +34,5 @@ namespace ngraph
 #undef NGRAPH_OP
 #endif
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

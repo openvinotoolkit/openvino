@@ -59,8 +59,12 @@ namespace ngraph
         {
             /// \brief Elementwise logical-or operation.
             ///
-            class NGRAPH_API Or : public util::BinaryElementwiseLogical
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::LogicalOr instead of it.") NGRAPH_API Or
+                : public util::BinaryElementwiseLogical
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Or", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -84,9 +88,12 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Or;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 } // namespace ngraph

@@ -30,6 +30,8 @@
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

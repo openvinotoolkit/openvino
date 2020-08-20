@@ -623,15 +623,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-    void op_is_Passthrough()
-    {
-        op::Passthrough node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
     void op_is_Power()
     {
         op::Power node;
@@ -995,7 +986,9 @@ namespace
 
 TEST(op_is, check)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
 #define NGRAPH_OP(a, b) op_is_##a();
 #include "opset0_tbl.hpp"
 #undef NGRAPH_OP
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

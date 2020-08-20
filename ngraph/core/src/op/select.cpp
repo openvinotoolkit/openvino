@@ -23,6 +23,8 @@
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
