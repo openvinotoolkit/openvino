@@ -107,7 +107,7 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
     }
     catch(const ngraph::ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Failure opening file:"), error.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Error during import of ONNX model expected to be in file:"), error.what());
     }
     catch(...) {
         FAIL() << "Expected 'ngraph::ngraph_error' exception was not thrown despite the ONNX model file does not exist";
