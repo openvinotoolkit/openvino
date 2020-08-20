@@ -24,7 +24,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         std::shared_ptr<Node> childchild = child->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
         if (is_type<opset1::Convolution>(child) ||
             is_type<opset1::GroupConvolution>(child) ||
-            is_type<opset1::Reshape>(child) && is_type<opset1::GroupConvolution>(childchild)) {
+            (is_type<opset1::Reshape>(child) && is_type<opset1::GroupConvolution>(childchild))) {
             const auto input1Type = sub->input(0).get_element_type();
             const auto input2Type = sub->input(1).get_element_type();
             if (((input1Type == element::u8) && (input2Type == element::u8)) ||
