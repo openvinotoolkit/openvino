@@ -463,7 +463,7 @@ def parse_specifier(string, graph, layer_node_map):
             out_port = len(Node(graph, node).out_nodes())
             in_port = len(Node(graph, memory_name).in_nodes())
             Node(graph, memory_name).add_input_port(in_port)
-            Node(graph, node).add_output_port(out_port)
+            Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             graph.create_edge(Node(graph, node), Node(graph, memory_name), out_port, in_port)
         else:
             memory_name = layer_node_map[layer_name]

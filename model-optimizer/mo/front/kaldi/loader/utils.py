@@ -41,6 +41,7 @@ supported_components = [
     'fixedaffinecomponent',
     'fixedscalecomponent',
     'fixedbiascomponent',
+    'generaldropoutcomponent',
     'linearcomponent',
     'logsoftmaxcomponent',
     'lstmnonlinearitycomponent',
@@ -59,11 +60,11 @@ supported_components = [
     'sigmoidcomponent',
     'softmax',
     'softmaxcomponent',
+    'specaugmenttimemaskcomponent',
     'splicecomponent',
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',
-    'generaldropoutcomponent'
 ]
 
 
