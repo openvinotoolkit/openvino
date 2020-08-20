@@ -27,8 +27,11 @@ namespace ngraph
         namespace v0
         {
             /// \brief Generic padding operation.
-            class NGRAPH_API Pad : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Pad instead of it.")
+                NGRAPH_API Pad : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Pad", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -85,6 +88,7 @@ namespace ngraph
                 CoordinateDiff m_padding_above;
                 Shape m_padding_interior_fake; // LEGACY: This is all zeros.
                 PadMode m_pad_mode;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -157,6 +161,8 @@ namespace ngraph
         }
 
         // latest stable opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Pad;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

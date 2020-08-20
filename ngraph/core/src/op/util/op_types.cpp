@@ -35,6 +35,8 @@
 #include "ngraph/op/xor.hpp"
 #include "ngraph/type.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 bool ngraph::op::is_unary_elementwise_arithmetic(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::util::UnaryElementwiseArithmetic*>(node) != nullptr;

@@ -29,8 +29,11 @@ namespace ngraph
             /// \brief Generalized dot product operation, including scalar-tensor product,
             /// matrix-vector
             ///        product, and matrix multiplication.
-            class NGRAPH_API Dot : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Dot : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Dot", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -89,8 +92,11 @@ namespace ngraph
             protected:
                 size_t m_reduction_axes_count;
                 bool m_has_reduction_axes_count;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Dot;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
