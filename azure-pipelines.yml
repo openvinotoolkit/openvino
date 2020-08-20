@@ -280,6 +280,20 @@ jobs:
     displayName: 'Build Win'
   - script: dir $(REPO_DIR)\bin\ /s /b
     displayName: 'List files'
+
+  - script: |
+      git clone https://github.com/openvinotoolkit/testdata.git
+      git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Clone testdata & gtest-parallel'
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" "$(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*" /test=gtest /MaxCPUS=40 /ShowAgent
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: false
+
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
       $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
