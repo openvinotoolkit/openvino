@@ -215,6 +215,7 @@ bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBox::evaluate");
     return false;
-    // Todo (itikhono): enable the use of the reference implementation after supporting constants as outputs in plugins
+    // Todo (itikhono): enable the use of the reference implementation after supporting constants as
+    // outputs in plugins
     // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
