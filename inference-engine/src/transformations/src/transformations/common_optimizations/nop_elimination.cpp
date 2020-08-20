@@ -25,6 +25,8 @@
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
