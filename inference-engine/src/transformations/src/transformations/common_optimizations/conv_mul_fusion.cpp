@@ -136,6 +136,11 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         const auto & m_input = pattern_to_output.at(input);
         const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
         const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+#ifdef LPT_SUPPORT
+        if (IsConvInLowPrecision(m_conv)) {
+            return false;
+        }
+#endif
 
         const auto & G = m_weights.get_partial_shape()[0].get_length();
         const auto & O = m_weights.get_partial_shape()[1].get_length();
