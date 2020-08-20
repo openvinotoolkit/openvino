@@ -455,27 +455,15 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
     }
 
-    std::shared_ptr<ngraph::Node> sub = shift == nullptr ? nullptr :
-        make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-            convert2 == nullptr ? newFQ : convert2,
-            shift);
+    const std::shared_ptr<ngraph::Node> sub = shift == nullptr ?
+        nullptr :
+        make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert2 == nullptr ? newFQ : convert2, shift);
 
-    // const auto subShape = sub->get_shape();
-    // const auto scaleShape = scale->get_shape();
-    // auto dequantize = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
-    auto dequantize = make_shared<ngraph::opset1::Multiply>(
-        sub == nullptr ?
-            convert2 == nullptr ? newFQ : convert2:
-            sub,
+    const std::shared_ptr<ngraph::opset1::Multiply> dequantize = make_shared<ngraph::opset1::Multiply>(
+        sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
         scale);
 
-    //NetworkHelper::setOutDataPrecision(newFQ, precision);
-
-    // sub->set_overriden_output_type(element::f32);
-    // std::dynamic_pointer_cast<ngraph::Node>(sub)->validate_and_infer_types();
-
     replace_node(fq, dequantize);
-    // Make type-relaxed node
 
     return std::make_tuple(newFQ, dequantize);
 }
@@ -702,33 +690,6 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
     // }
 
     return replacement;
-}
-
-// TODO: don't use it
-void NetworkHelper::moveDequantization(
-    const std::shared_ptr<ngraph::Node> operation,
-    const std::shared_ptr<ngraph::Node> dequantization,
-    const std::shared_ptr<ngraph::Node> scalesConst,
-    const std::shared_ptr<ngraph::Node> shiftsConst) {
-    const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
-
-    // TODO: refactor: the second operation input is passed obviously
-    auto newOperation =
-        operation->get_input_size() == 1ul ?
-        operation->copy_with_new_inputs({ dequantizationParent }) :
-        operation->copy_with_new_inputs({ dequantizationParent, operation->input_value(1).get_node_shared_ptr() });
-
-    const auto newDequantization = dequantization->copy_with_new_inputs({
-        newOperation,
-        scalesConst == nullptr ? dequantization->input_value(1) : scalesConst,
-        shiftsConst == nullptr ? dequantization->input_value(2) : shiftsConst });
-
-    const std::string friendlyName = operation->get_friendly_name();
-    // TODO: new operation name has to be unique
-    newOperation->set_friendly_name(friendlyName + "_original");
-    newDequantization->set_friendly_name(friendlyName);
-
-    replace_node(operation, newDequantization);
 }
 
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter(

@@ -114,12 +114,6 @@ public:
 
     static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
-    static void moveDequantization(
-        const std::shared_ptr<ngraph::Node> operation,
-        const std::shared_ptr<ngraph::Node> dequantization,
-        const std::shared_ptr<ngraph::Node> scalesConst = nullptr,
-        const std::shared_ptr<ngraph::Node> shiftsConst = nullptr);
-
     class InsertDequantizationResult {
     public:
         InsertDequantizationResult(
