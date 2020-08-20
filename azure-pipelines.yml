@@ -305,12 +305,12 @@ jobs:
 
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" cpuFuncTests.exe /testlevel=deep
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=deep
     displayName: 'CPU FuncTests /testlevel=deep'
     continueOnError: true
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" cpuFuncTests.exe /testlevel=Auto
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=Auto
     displayName: 'CPU FuncTests /testlevel=deep'
     continueOnError: true
 
@@ -321,6 +321,7 @@ jobs:
       "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=deep
     displayName: 'MklDnnFunctionalTests /testlevel=deep'
     continueOnError: true
+    enabled: false
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
