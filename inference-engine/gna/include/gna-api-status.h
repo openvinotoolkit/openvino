@@ -34,7 +34,7 @@ extern "C" {
 
 /** Library API import/export macros */
 #if !defined(GNAAPI)
-#    if 1 == _WIN32
+#    if defined _WIN32
 #       if 1 == INTEL_GNA_DLLEXPORT
 #           define GNAAPI __declspec(dllexport)
 #       else

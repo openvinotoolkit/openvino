@@ -53,7 +53,7 @@
    Library API import/export macro.
    */
 #if !defined(GNA2_API_EXPORT)
-#    if 1 == _WIN32
+#    if defined _WIN32
 #       if 1 == INTEL_GNA_DLLEXPORT
 #           define GNA2_API_EXPORT __declspec(dllexport)
 #       else
