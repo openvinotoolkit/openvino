@@ -14,3 +14,7 @@ jobs:
       - name: ls lfs
         run: |
           git lfs ls-files --size
+
+      - uses: actionsdesk/lfs-warning@v1.1
+        with:
+          filesizelimit: '10' # 10 MB is 10485760 Bytes
