@@ -67,5 +67,32 @@ namespace ngraph
             return
                 [=](Output<Node> output) -> bool { return output.get_target_inputs().size() == n; };
         }
+
+        std::function<bool(Output<Node>)> has_static_dim(size_t pos)
+        {
+            return [=](Output<Node> output) -> bool {
+                const auto& shape = output.get_partial_shape();
+                return shape.rank().is_static() && shape.rank().get_length() > pos &&
+                       shape[pos].is_static();
+            };
+        }
+
+        std::function<bool(Output<Node>)> has_static_dims(const std::vector<size_t>& dims)
+        {
+            return [=](Output<Node> output) -> bool {
+                const auto& shape = output.get_partial_shape();
+                return shape.rank().is_static() &&
+                       shape.rank().get_length() > *std::max_element(dims.begin(), dims.end()) &&
+                       std::all_of(dims.begin(), dims.end(), [&shape](size_t pos) {
+                           return shape[pos].is_static();
+                       });
+            };
+        }
+
+        std::function<bool(Output<Node>)> has_static_shape()
+        {
+            return
+                [=](Output<Node> output) -> bool { return output.get_partial_shape().is_static(); };
+        }
     }
 }

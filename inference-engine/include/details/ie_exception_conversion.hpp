@@ -36,7 +36,7 @@
 namespace InferenceEngine {
 namespace details {
 
-inline void extract_exception(StatusCode status, char* msg) {
+inline void extract_exception(StatusCode status, const char* msg) {
     switch (status) {
     case NOT_IMPLEMENTED:
         throw NotImplemented(msg);

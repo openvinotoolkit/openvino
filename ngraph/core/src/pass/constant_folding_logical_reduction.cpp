@@ -15,11 +15,14 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/any.hpp"
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"
 #include "ngraph/runtime/reference/any.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -34,9 +37,9 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     {
         runtime::reference::any(constant->get_data_ptr<char>(),
                                 data_ptr,
-                                constant->get_output_shape(0),
-                                reduction_node->get_shape(),
-                                any->get_reduction_axes());
+                                reduction_node->get_input_shape(0),
+                                any->get_reduction_axes(),
+                                false);
     }
     else if (auto reduce_and = as_type_ptr<::ngraph::op::v1::ReduceLogicalAnd>(reduction_node))
     {
@@ -44,7 +47,8 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto input_shape = reduce_and->get_input_shape(0);
         const char* arg = constant->get_data_ptr<char>();
 
-        runtime::reference::reduce_logical_and(arg, data_ptr, input_shape, reduction_axes);
+        runtime::reference::reduce_logical_and(
+            arg, data_ptr, input_shape, reduction_axes, reduce_and->get_keep_dims());
     }
     else if (auto reduce_or = as_type_ptr<::ngraph::op::v1::ReduceLogicalOr>(reduction_node))
     {
@@ -52,7 +56,8 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto input_shape = reduce_or->get_input_shape(0);
         const char* arg = constant->get_data_ptr<char>();
 
-        runtime::reference::reduce_logical_or(arg, data_ptr, input_shape, reduction_axes);
+        runtime::reference::reduce_logical_or(
+            arg, data_ptr, input_shape, reduction_axes, reduce_or->get_keep_dims());
     }
     else
     {
@@ -83,7 +88,7 @@ void pass::ConstantFolding::construct_constant_logical_reduction()
                                            is_supported_reduction,
                                            NodeVector{constant_data_label, constant_axes_label});
 
-    auto constant_logical_reduction_callback = [constant_data_label](pattern::Matcher& m) {
+    auto constant_logical_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_logical_reduction_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -91,6 +96,9 @@ void pass::ConstantFolding::construct_constant_logical_reduction()
 
         auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
         auto reduction_match = m.get_match_root();
+
+        if (cf_is_disabled(reduction_match))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
 

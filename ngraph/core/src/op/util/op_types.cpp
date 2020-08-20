@@ -35,6 +35,8 @@
 #include "ngraph/op/xor.hpp"
 #include "ngraph/type.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 bool ngraph::op::is_unary_elementwise_arithmetic(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::util::UnaryElementwiseArithmetic*>(node) != nullptr;
@@ -65,7 +67,9 @@ bool ngraph::op::supports_auto_broadcast(const ngraph::Node* node)
 
 bool ngraph::op::supports_decompose(const ngraph::Node* node)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     return dynamic_cast<const ngraph::op::util::FusedOp*>(node) != nullptr;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool ngraph::op::is_op(const ngraph::Node* node)

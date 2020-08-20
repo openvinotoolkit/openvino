@@ -72,12 +72,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
                                 _lo.is_format_optimized(node->as<deconvolution>(), format::b_fs_yx_fsv16));
                 // int8/uint8 input
-                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8) &&
-                               // imad convolution kernel limitation for groups
-                               (groups == 1 || weights_node.get_output_layout().size.feature[0] % 4 == 0 ||
-                                groups == static_cast<uint32_t>(input_node.get_output_layout().size.feature[0])) &&
-                               // no uint8/int8 3D convolution support
-                               input_node.get_output_layout().format.dimension() == 4;
+                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8);
 
                 if (!perform_opt)
                     continue;

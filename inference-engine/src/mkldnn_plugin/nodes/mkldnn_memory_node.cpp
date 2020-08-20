@@ -31,47 +31,87 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::any);
+    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, memory::format::any);
-}
-
-const MKLDNNEdgePtr MKLDNNMemoryOutputNode::getChildEdgeAt(size_t idx) const {
-    if (inputNode != nullptr) {
-        return inputNode->getChildEdgeAt(idx);
-    }
-    return MKLDNNNode::getChildEdgeAt(idx);
 }
 
 void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
-    const float *src_ptr = reinterpret_cast<const float*>(srcMemory.GetData()) +
-            srcMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-    // TODO: this can be eliminated by completely removing MKLDNN memory output NODE, to fuse it with output of prev layer
-    memcpy(dst_ptr, src_ptr, srcMemory.GetSize());
+    auto inputMemoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(inputNode);
+    IE_ASSERT(inputMemoryNode != nullptr);
+    inputMemoryNode->storeState(srcMemory);
 }
 
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer) {
+        : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
     }
 }
 
+void MKLDNNMemoryInputNode::createPrimitive() {
+    MKLDNNInputNode::createPrimitive();
+
+    auto mem_desc = getChildEdgeAt(0)->getMemoryPtr()->GetDescriptor();
+    dataStore->Create(mem_desc);
+
+    // default memory state is zero filled
+    dataStore->FillZero();
+}
+
+/**
+ * Copy data from one tensor into other.
+ * As is. Assume that data is dense tensor with same layout.
+ * @param dst destination memory object
+ * @param src source memory object
+ */
+inline
+static void simple_copy(MKLDNNMemory& dst, const MKLDNNMemory& src) {
+    auto getDataWithOff = [] (const MKLDNNMemory& mem) {
+        auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(mem.GetDataType());
+        return static_cast<uint8_t*>(mem.GetData()) +
+                mem.GetDescriptor().data.layout_desc.blocking.offset_padding * elemSize;
+    };
+
+    auto srcPtr = getDataWithOff(src);
+    auto dstPtr = getDataWithOff(dst);
+    auto srcSizeInByte = src.GetSize();
+    auto dstSizeInByte = dst.GetSize();
+
+    IE_ASSERT(srcSizeInByte == dstSizeInByte) << "Memory objects are not compatible. Has different sizes.";
+
+    memcpy(dstPtr, srcPtr, srcSizeInByte);
+}
+
 MKLDNNMemoryInputNode::~MKLDNNMemoryInputNode() {
     MKLDNNMemoryNodeVirtualEdge::remove(this, holder);
+}
+
+MKLDNNMemoryPtr MKLDNNMemoryInputNode::getStore() {
+    return dataStore;
+}
+
+void MKLDNNMemoryInputNode::storeState(const MKLDNNMemory &new_state) {
+    // TODO: Should be next one call:
+    //           dataStore.SetData(new_state, false);
+    //       But because of performance reason we use simple manual copy
+    simple_copy(*dataStore, new_state);
+}
+
+void MKLDNNMemoryInputNode::execute(mkldnn::stream strm) {
+    auto dst_mem = getChildEdgeAt(0)->getMemory();
+    // TODO: Should be simple call of:
+    //           dst_mem.SetData(dataStore, false);
+    //       But because of performance reason we use simple manual copy
+    simple_copy(dst_mem, *dataStore);
 }
 
 MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode * node) {

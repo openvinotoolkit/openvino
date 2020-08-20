@@ -102,6 +102,10 @@ endif()
 
 add_subdirectory(ie_bridges/c)
 
+if (ENABLE_JAVA)
+    add_subdirectory(ie_bridges/java)
+endif()
+
 add_cpplint_report_target()
 
 #
