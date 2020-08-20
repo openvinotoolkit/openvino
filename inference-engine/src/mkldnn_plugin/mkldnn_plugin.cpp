@@ -95,6 +95,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            {ngraph::element::i16, ngraph::element::i32},
             {ngraph::element::i64, ngraph::element::i32},
             {ngraph::element::u64, ngraph::element::i32},
             {ngraph::element::u16, ngraph::element::i32},
