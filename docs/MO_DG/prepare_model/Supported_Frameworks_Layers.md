@@ -153,6 +153,7 @@ Standard TensorFlow\* operations:
 | EuclideanNorm | No |
 | Fill | No |
 | Floor | No |
+| FloorDiv | No |
 | FusedBatchNorm | No |
 | Gather | No |
 | GatherNd | Supported if it can be replaced with Gather |
