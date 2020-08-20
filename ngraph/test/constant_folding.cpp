@@ -22,6 +22,8 @@
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace std;
 

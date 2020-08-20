@@ -23,6 +23,8 @@
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
