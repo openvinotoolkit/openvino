@@ -10,3 +10,7 @@ jobs:
       - name: ls
         run: |
           git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
+
+      - name: ls lfs
+        run: |
+          git lfs ls-files --size
