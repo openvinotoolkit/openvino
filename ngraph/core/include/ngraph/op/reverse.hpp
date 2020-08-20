@@ -48,8 +48,11 @@ namespace ngraph
             /// | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg}[j_1,\dots,j_n]\f$ and \f$j_k = d_k - i_k - 1\f$ if axis \f$k\f$ is in the reverse set; else \f$j_k = i_k\f$. |
             // clang-format on
-            class NGRAPH_API Reverse : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Reverse instead of it.") NGRAPH_API Reverse : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Reverse", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -76,6 +79,7 @@ namespace ngraph
 
             protected:
                 AxisSet m_reversed_axes;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -133,7 +137,9 @@ namespace ngraph
             };
         }
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Reverse;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     NGRAPH_API
