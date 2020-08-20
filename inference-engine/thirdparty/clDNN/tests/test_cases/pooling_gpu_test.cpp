@@ -86,7 +86,7 @@ struct pooling_accumulator<InputT, pooling_mode::max> {
         _acc = max(_acc, val);
     }
 
-    output_t get(size_t /*pool_x*/, size_t /*pool_y*/) {
+    output_t get(size_t /*pool_x*/, size_t /*pool_y*/, size_t /*pool_z*/) {
         return static_cast<output_t>(_acc);
     }
 
@@ -105,7 +105,7 @@ struct pooling_accumulator<InputT, pooling_mode::average_no_padding> {
         _acc += static_cast<output_t>(val);
     }
 
-    output_t get(size_t /*pool_x*/, size_t /*pool_y*/) {
+    output_t get(size_t /*pool_x*/, size_t /*pool_y*/, size_t /*pool_z*/) {
         return _acc / _cnt;
     }
 
@@ -128,8 +128,8 @@ struct pooling_accumulator<InputT, pooling_mode::average> {
         _acc += static_cast<output_t>(val);
     }
 
-    output_t get(size_t pool_x, size_t pool_y) {
-        return static_cast<output_t>(_acc / static_cast<InputT>(pool_x * pool_y));
+    output_t get(size_t pool_x, size_t pool_y, size_t pool_z) {
+        return static_cast<output_t>(_acc / static_cast<InputT>(pool_x * pool_y * pool_z));
     }
 
     void reset() {
@@ -140,46 +140,59 @@ struct pooling_accumulator<InputT, pooling_mode::average> {
 };
 
 template <typename InputT, pooling_mode Mode>
-VVF<typename pooling_mode_output<InputT, Mode>::type> reference_pooling(const VVF<InputT>& input, size_t pool_x, size_t pool_y, int stride_x, int stride_y, int offset_x, int offset_y) {
+VVVF<typename pooling_mode_output<InputT, Mode>::type> reference_pooling(const VVVF<InputT>& input, size_t pool_x, size_t pool_y, size_t pool_z, int stride_x, int stride_y, int stride_z, int offset_x, int offset_y, int offset_z) {
     using output_t = typename pooling_mode_output<InputT, Mode>::type;
-    VVF<output_t> result;
-    auto size_x = input[0].size();
-    auto size_y = input.size();
+    VVVF<output_t> result;
+    auto size_x = input[0][0].size();
+    auto size_y = input[0].size();
+    auto size_z = input.size();
 
     auto accumulator = pooling_accumulator<InputT, Mode>();
 
-    for (int yi = offset_y; yi + static_cast<int>(pool_y) <= static_cast<int>(size_y) - offset_y; yi += stride_y) {
-        VF<output_t> result_row;
-        for (int xi = offset_x; xi + static_cast<int>(pool_x) <= static_cast<int>(size_x) - offset_x; xi += stride_x) {
-            accumulator.reset();
-            for (int fyi = 0; fyi < static_cast<int>(pool_y); ++fyi) {
-                int index_y = yi + fyi;
-                if (index_y < 0 || index_y >= static_cast<int>(size_y))
-                    continue;
-                for (int fxi = 0; fxi < static_cast<int>(pool_x); ++fxi) {
-                    int index_x = xi + fxi;
-                    if (index_x < 0 || index_x >= static_cast<int>(size_x))
+    for (int zi = offset_z; zi + static_cast<int>(pool_z) <= static_cast<int>(size_z) - offset_z; zi += stride_z) {
+        VVF<output_t> result_matrix;
+        for (int yi = offset_y; yi + static_cast<int>(pool_y) <= static_cast<int>(size_y) - offset_y; yi += stride_y) {
+            VF<output_t> result_row;
+            for (int xi = offset_x; xi + static_cast<int>(pool_x) <= static_cast<int>(size_x) - offset_x; xi += stride_x) {
+                accumulator.reset();
+                for (int fzi = 0; fzi < static_cast<int>(pool_z); ++fzi) {
+                    int index_z = zi + fzi;
+                    if (index_z < 0 || index_z >= static_cast<int>(size_z))
                         continue;
+                    for (int fyi = 0; fyi < static_cast<int>(pool_y); ++fyi) {
+                        int index_y = yi + fyi;
+                        if (index_y < 0 || index_y >= static_cast<int>(size_y))
+                            continue;
+                        for (int fxi = 0; fxi < static_cast<int>(pool_x); ++fxi) {
+                            int index_x = xi + fxi;
+                            if (index_x < 0 || index_x >= static_cast<int>(size_x))
+                                continue;
 
-                    auto input_val = input[static_cast<size_t>(index_y)][static_cast<size_t>(index_x)];
-                    accumulator.accumulate(input_val);
+                            auto input_val = input[static_cast<size_t>(index_z)][static_cast<size_t>(index_y)][static_cast<size_t>(index_x)];
+                            accumulator.accumulate(input_val);
+                        }
+                    }
                 }
+                result_row.push_back(accumulator.get(pool_x, pool_y, pool_z));
             }
-            result_row.push_back(accumulator.get(pool_x, pool_y));
+            result_matrix.emplace_back(std::move(result_row));
         }
-        result.emplace_back(std::move(result_row));
+        result.emplace_back(std::move(result_matrix));
     }
     return result;
 }
 
 template <typename T>
-VVF<T> reference_scale_post_op(const VVF<T>& input, const T& scale, const T& shift) {
+VVVF<T> reference_scale_post_op(const VVVF<T>& input, const T& scale, const T& shift) {
     auto output = input;
-    auto size_y = input.size();
-    auto size_x = input[0].size();
-    for (size_t yi = 0; yi < size_y; ++yi) {
-        for (size_t xi = 0; xi < size_x; ++xi) {
-            output[yi][xi] = output[yi][xi] * scale + shift;
+    auto size_z = input.size();
+    auto size_y = input[0].size();
+    auto size_x = input[0][0].size();
+    for (size_t zi = 0; zi < size_z; ++zi) {
+        for (size_t yi = 0; yi < size_y; ++yi) {
+            for (size_t xi = 0; xi < size_x; ++xi) {
+                output[zi][yi][xi] = output[zi][yi][xi] * scale + shift;
+            }
         }
     }
     return output;
@@ -2355,7 +2368,7 @@ public:
     using output_t = typename pooling_mode_output<InputT, Mode>::type;
 
     virtual topology build_topology(const engine& /*eng*/) {
-        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y()));
+        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
         auto input_lay = layout(input_type(),
                                 input_format(),
                                 input_size);
@@ -2365,9 +2378,9 @@ public:
             pooling("pool",
                     "input",
                     pool_mode(),
-                    tensor(batch(0), feature(0), spatial(pool_x(), pool_y())),
-                    tensor(batch(0), feature(0), spatial(stride_x(), stride_y())),
-                    tensor(batch(0), feature(0), spatial(offset_x(), offset_y())))
+                    tensor(batch(0), feature(0), spatial(pool_x(), pool_y(), pool_z())),
+                    tensor(batch(0), feature(0), spatial(stride_x(), stride_y(), stride_z())),
+                    tensor(batch(0), feature(0), spatial(offset_x(), offset_y(), offset_z())))
         );
         return topo;
     }
@@ -2376,7 +2389,8 @@ public:
         return "pool";
     }
 
-    virtual void run_expect(const VVVVF<output_t>& expected) {
+    virtual void run_expect(const VVVVVF<output_t>& expected) {
+
         auto eng = get_test_engine();
         auto topo = build_topology(eng);
         auto opts = build_options(
@@ -2384,7 +2398,7 @@ public:
         );
         auto net = network(eng, topo, opts);
 
-        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y()));
+        auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
         auto input_lay = layout(input_type(),
                                 input_format(),
                                 input_size);
@@ -2392,12 +2406,13 @@ public:
         std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
         for (size_t bi = 0; bi < batch_num(); ++bi)
             for (size_t fi = 0; fi < input_features(); ++fi)
-                for (size_t yi = 0; yi < input_y(); ++yi)
-                    for (size_t xi = 0; xi < input_x(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = input_lay.get_linear_offset(coords);
-                        input_flat[offset] = _input[bi][fi][yi][xi];
-                    }
+                for (size_t zi = 0; zi < input_z(); ++zi)
+                    for (size_t yi = 0; yi < input_y(); ++yi)
+                        for (size_t xi = 0; xi < input_x(); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = input_lay.get_linear_offset(coords);
+                            input_flat[offset] = _input[bi][fi][zi][yi][xi];
+                        }
         set_values(input_mem, input_flat);
 
         net.set_input_data("input", input_mem);
@@ -2418,35 +2433,37 @@ public:
         ASSERT_EQ(out_lay.data_type, output_type());
         ASSERT_EQ(out_lay.size.batch[0], expected.size());
         ASSERT_EQ(out_lay.size.feature[0], expected[0].size());
-        ASSERT_EQ(out_lay.size.spatial[1], expected[0][0].size());
-        ASSERT_EQ(out_lay.size.spatial[0], expected[0][0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[2], expected[0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[1], expected[0][0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[0], expected[0][0][0][0].size());
 
         bool compare_with_tolerance = input_type() == data_types::f16;
 
         for (size_t bi = 0; bi < batch_num(); ++bi)
             for (size_t fi = 0; fi < expected[0].size(); ++fi)
-                for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
-                    for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = out_lay.get_linear_offset(coords);
-                        auto ref_val = static_cast<float>(expected[bi][fi][yi][xi]);
-                        auto actual_val = static_cast<float>(out_ptr[offset]);
-                        if (compare_with_tolerance) {
-                            auto tolerance = 1;
-                            ASSERT_NEAR(ref_val, actual_val, tolerance)
-                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi;
-                        } else {
-                            EXPECT_TRUE(are_equal(ref_val, actual_val))
-                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi;
+                for (size_t zi = 0; zi < expected[0][0].size(); ++zi)
+                    for (size_t yi = 0; yi < expected[0][0][0].size(); ++yi)
+                        for (size_t xi = 0; xi < expected[0][0][0][0].size(); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            size_t offset = out_lay.get_linear_offset(coords);
+                            auto ref_val = static_cast<float>(expected[bi][fi][zi][yi][xi]);
+                            auto actual_val = static_cast<float>(out_ptr[offset]);
+                            if (compare_with_tolerance) {
+                                auto tolerance = 1;
+                                ASSERT_NEAR(ref_val, actual_val, tolerance)
+                                    << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
+                            } else {
+                                EXPECT_TRUE(are_equal(ref_val, actual_val))
+                                    << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
+                            }
                         }
-                    }
-
     }
 
     size_t batch_num() { return _input.size(); }
     size_t input_features() { return _input[0].size(); }
-    size_t input_x() { return _input[0][0][0].size(); }
-    size_t input_y() { return _input[0][0].size(); }
+    size_t input_x() { return _input[0][0][0][0].size(); }
+    size_t input_y() { return _input[0][0][0].size(); }
+    size_t input_z() { return _input[0][0].size(); }
 
     format::type input_format() { return _input_fmt; }
     data_types input_type() {
@@ -2460,46 +2477,52 @@ public:
     pooling_mode pool_mode() { return Mode; }
     size_t pool_x() { return _pool_x; }
     size_t pool_y() { return _pool_y; }
+    size_t pool_z() { return _pool_z; }
     int stride_x() { return _stride_x; }
     int stride_y() { return _stride_y; }
+    int stride_z() { return _stride_z; }
     int offset_x() { return _offset_x; }
     int offset_y() { return _offset_y; }
+    int offset_z() { return _offset_z; }
 
-    void set_input(format::type input_fmt, VVVVF<InputT> input_data) {
+    void set_input(format::type input_fmt, VVVVVF<InputT> input_data) {
         _input_fmt = input_fmt;
         _input = std::move(input_data);
     }
 
-    void set_pool_size(size_t x, size_t y) {
+    void set_pool_size(size_t x, size_t y, size_t z) {
         _pool_x = x;
         _pool_y = y;
+        _pool_z = z;
     }
 
-    void set_strides(int x, int y) {
+    void set_strides(int x, int y, int z) {
         _stride_x = x;
         _stride_y = y;
+        _stride_z = z;
     }
 
-    void set_offsets(int x, int y) {
+    void set_offsets(int x, int y, int z) {
         _offset_x = x;
         _offset_y = y;
+        _offset_z = z;
     }
 
-    VVVVF<InputT> _input;
+    VVVVVF<InputT> _input;
     format::type _input_fmt;
-    size_t _pool_x, _pool_y;
-    int _stride_x, _stride_y;
-    int _offset_x, _offset_y;
+    size_t _pool_x, _pool_y, _pool_z;
+    int _stride_x, _stride_y, _stride_z;
+    int _offset_x, _offset_y, _offset_z;
 };
 
 using pooling_random_test_params = std::tuple<
-    size_t,                      // batch
-    size_t,                      // features
-    std::tuple<size_t, size_t>,  // input x, y
-    std::tuple<size_t, size_t>,  // pool x, y
-    std::tuple<int, int>,        // stride x, y
-    std::tuple<int, int>,        // offset x, y
-    format::type                 // input format
+    size_t,                             // batch
+    size_t,                             // features
+    std::tuple<size_t, size_t, size_t>, // input x, y, z
+    std::tuple<size_t, size_t, size_t>, // pool x, y, z
+    std::tuple<int, int, int>,          // stride x, y, z
+    std::tuple<int, int, int>,          // offset x, y, z
+    format::type                        // input format
 >;
 
 template <typename InputT, pooling_mode Mode>
@@ -2508,44 +2531,47 @@ public:
     using parent = pooling_test_base<InputT, Mode>;
     using output_t = typename parent::output_t;
 
-    virtual VVVVF<output_t> calculate_reference() {
-        VVVVF<output_t> reference(this->batch_num(), VVVF<output_t>(this->input_features()));
+    virtual VVVVVF<output_t> calculate_reference() {
+        VVVVVF<output_t> reference(this->batch_num(), VVVVF<output_t>(this->input_features()));
         for (size_t bi = 0; bi < this->batch_num(); ++bi) {
             for (size_t fi = 0; fi < this->input_features(); ++fi) {
                 reference[bi][fi] = reference_pooling<InputT, Mode>(
                     this->_input[bi][fi],
                     this->pool_x(),
                     this->pool_y(),
+                    this->pool_z(),
                     this->stride_x(),
                     this->stride_y(),
+                    this->stride_z(),
                     this->offset_x(),
-                    this->offset_y());
+                    this->offset_y(),
+                    this->offset_z());
             }
         }
         return reference;
     }
 
     virtual void param_set_up(const pooling_random_test_params& params) {
-        size_t b, f, in_x, in_y, p_x, p_y;
-        int s_x, s_y, o_x, o_y;
+        size_t b, f, in_x, in_y, in_z, p_x, p_y, p_z;
+        int s_x, s_y, s_z, o_x, o_y, o_z;
         format::type in_fmt;
 
         std::forward_as_tuple(
             b,
             f,
-            std::forward_as_tuple(in_x, in_y),
-            std::forward_as_tuple(p_x, p_y),
-            std::forward_as_tuple(s_x, s_y),
-            std::forward_as_tuple(o_x, o_y),
+            std::forward_as_tuple(in_x, in_y, in_z),
+            std::forward_as_tuple(p_x, p_y, p_z),
+            std::forward_as_tuple(s_x, s_y, s_z),
+            std::forward_as_tuple(o_x, o_y, o_z),
             in_fmt
         ) = params;
 
-        auto input_data = generate_random_4d<InputT>(b, f, in_y, in_x, -256, 256);
+        auto input_data = generate_random_5d<InputT>(b, f, in_z, in_y, in_x, -256, 256);
 
         this->set_input(in_fmt, std::move(input_data));
-        this->set_pool_size(p_x, p_y);
-        this->set_strides(s_x, s_y);
-        this->set_offsets(o_x, o_y);
+        this->set_pool_size(p_x, p_y, p_z);
+        this->set_strides(s_x, s_y, s_z);
+        this->set_offsets(o_x, o_y, o_z);
     }
 
     void run_random(const pooling_random_test_params& params) {
@@ -2583,14 +2609,14 @@ TEST_P(pooling_random_test, avg_u8) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    smoke_low_precision,
+    smoke_low_precision_2d_spatial,
     pooling_random_test,
     testing::Combine(testing::Values(1, 2),
                      testing::Values(3, 8, 64),
-                     testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
-                     testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
-                     testing::Values(std::tuple<int, int>(2, 2)),
-                     testing::Values(std::tuple<int, int>(0, 0)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1), std::tuple<size_t, size_t, size_t>(24, 24, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1), std::tuple<size_t, size_t, size_t>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
                      testing::Values(format::yxfb,
                                      format::bfyx,
                                      format::byxf_af32,
@@ -2600,15 +2626,28 @@ INSTANTIATE_TEST_CASE_P(
                     testing::internal::DefaultParamName<pooling_random_test_params>);
 
 INSTANTIATE_TEST_CASE_P(
+    smoke_low_precision_3d_spatial,
+    pooling_random_test,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8, 64),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 12), std::tuple<size_t, size_t, size_t>(24, 24, 24)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 4), std::tuple<size_t, size_t, size_t>(2, 2, 2)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 2)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::bfzyx,
+                                     format::b_fs_zyx_fsv16)),
+                    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+INSTANTIATE_TEST_CASE_P(
     batched_low_precision,
     pooling_random_test,
     testing::Combine(
         testing::Values(16),
         testing::Values(16, 32),
-        testing::Values(std::tuple<size_t, size_t>(3, 3), std::tuple<size_t, size_t>(8, 8)),
-        testing::Values(std::tuple<size_t, size_t>(1, 1), std::tuple<size_t, size_t>(3, 3)),
-        testing::Values(std::tuple<int, int>(1, 1)),
-        testing::Values(std::tuple<int, int>(0, 0)),
+        testing::Values(std::tuple<size_t, size_t, size_t>(3, 3, 1), std::tuple<size_t, size_t, size_t>(8, 8, 1)),
+        testing::Values(std::tuple<size_t, size_t, size_t>(1, 1, 1), std::tuple<size_t, size_t, size_t>(3, 3, 1)),
+        testing::Values(std::tuple<int, int, int>(1, 1, 1)),
+        testing::Values(std::tuple<int, int, int>(0, 0, 0)),
         testing::Values(format::bs_fs_yx_bsv16_fsv16)
     ),
     testing::internal::DefaultParamName<pooling_random_test_params>);
@@ -2622,7 +2661,7 @@ public:
     topology build_topology(const engine& eng) override {
         topology topo = parent::build_topology(eng);
 
-        auto scale_lay = layout(this->output_type(), format::bfyx, tensor(batch(1), feature(this->input_features()), spatial(1, 1)));
+        auto scale_lay = layout(this->output_type(), format::bfyx, tensor(batch(1), feature(this->input_features()), spatial(1, 1, 1, 1)));
         auto scale_mem = memory::allocate(eng, scale_lay);
         auto shift_mem = memory::allocate(eng, scale_lay);
         set_values(scale_mem, _scale);
@@ -2640,7 +2679,7 @@ public:
         return "scale_wa_out";
     }
 
-    VVVVF<output_t> calculate_reference() override {
+    VVVVVF<output_t> calculate_reference() override {
         auto expected = parent::calculate_reference();
 
         for (size_t bi = 0; bi < this->batch_num(); ++bi)
@@ -2688,10 +2727,10 @@ INSTANTIATE_TEST_CASE_P(
     pooling_random_test_fp16_fp32,
     testing::Combine(testing::Values(1, 2),
                      testing::Values(3, 8),
-                     testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
-                     testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
-                     testing::Values(std::tuple<int, int>(2, 2)),
-                     testing::Values(std::tuple<int, int>(0, 0)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1), std::tuple<size_t, size_t, size_t>(24, 24, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1), std::tuple<size_t, size_t, size_t>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
                      testing::Values(format::yxfb,
                                      format::bfyx,
                                      format::byxf,
