@@ -12,9 +12,8 @@ InferenceEngine::SizeVector dims_src = {
 	(size_t) frame_in->Info.Width    /* Width */,
 	3 /*Channels,*/,
 	};
-
 TensorDesc desc(InferenceEngine::Precision::U8, dims_src, InferenceEngine::NHWC);
-/* wrapping the surface data, as RGB is interleaved, need to pass only ptr to the R, notice that this wouldn�t work with planar formats as these are 3 separate planes/pointers*/
+/* wrapping the surface data, as RGB is interleaved, need to pass only ptr to the R, notice that this wouldn’t work with planar formats as these are 3 separate planes/pointers*/
 InferenceEngine::TBlob<uint8_t>::Ptr p = InferenceEngine::make_shared_blob<uint8_t>( desc, (uint8_t*) frame_in->Data.R);
 inferRequest.SetBlob(“input”, p);
 inferRequest.Infer();

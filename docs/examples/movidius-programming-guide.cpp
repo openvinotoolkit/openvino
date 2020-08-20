@@ -15,7 +15,7 @@ vector<Request> request(numRequests);
 //! [part1]
 
 //! [part2]
-// initialize infer request pointer � Consult IE API for more detail.
+// initialize infer request pointer – Consult IE API for more detail.
 request[i].inferRequest = executable_network.CreateInferRequestPtr();
 //! [part2]
 
