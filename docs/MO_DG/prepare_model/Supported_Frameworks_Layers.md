@@ -150,8 +150,10 @@ Standard TensorFlow\* operations:
 | ExpandDims | No |
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
+| EuclideanNorm | No |
 | Fill | No |
 | Floor | No |
+| FloorDiv | No |
 | FusedBatchNorm | No |
 | Gather | No |
 | GatherNd | Supported if it can be replaced with Gather |
@@ -365,6 +367,8 @@ Standard ONNX\* operators:
 | ROIAlign | No |
 | Range | No |
 | Reciprocal | No |
+| ReduceL1 | No |
+| ReduceL2 | No |
 | ReduceMax | No |
 | ReduceMean | No |
 | ReduceMin | No |
@@ -375,6 +379,7 @@ Standard ONNX\* operators:
 | Resize | Opset-10 version is supported |
 | ReverseSequence | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
+| ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | Select | No |
 | Shape | No |

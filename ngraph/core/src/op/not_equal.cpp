@@ -15,9 +15,11 @@
 //*****************************************************************************
 
 #include "ngraph/op/not_equal.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not_equal.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -95,7 +97,7 @@ bool op::v0::NotEqual::evaluate(const HostTensorVector& outputs,
 
 // ----------------------------------- v1 --------------------------------------
 
-constexpr NodeTypeInfo op::v1::NotEqual::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1);
 
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0,
                            const Output<Node>& arg1,

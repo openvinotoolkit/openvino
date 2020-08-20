@@ -36,9 +36,9 @@ TEST_P(myriadLayersTestsIOConvert_smoke, TestsIOConvert) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
-    _config[VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES)] = CONFIG_VALUE(YES);
+    _config[InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES] = CONFIG_VALUE(YES);
 
     SetInputTensors({dims});
     SetOutputTensors({dims});

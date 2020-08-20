@@ -44,8 +44,10 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
+#include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
@@ -76,6 +78,8 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
@@ -92,10 +96,7 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
-#include "reference/ctc_loss.hpp"
-#include "reference/detection_output.hpp"
-#include "reference/scatter_nd_update.hpp"
-#include "reference/scatter_update.hpp"
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -204,8 +205,8 @@ protected:
             reference::any(args[0]->get_data_ptr<const char>(),
                            out[0]->get_data_ptr<char>(),
                            node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           any->get_reduction_axes());
+                           any->get_reduction_axes(),
+                           false);
             break;
         }
         case OP_TYPEID::Asin:
@@ -738,20 +739,6 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
-        case OP_TYPEID::Pad:
-        {
-            const op::Pad* pad = static_cast<const op::Pad*>(&node);
-
-            reference::pad(args[0]->get_data_ptr<const T>(),
-                           args[1]->get_data_ptr<const T>(),
-                           out[0]->get_data_ptr<T>(),
-                           node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           pad->get_padding_below(),
-                           pad->get_padding_above(),
-                           pad->get_pad_mode());
-            break;
-        }
         case OP_TYPEID::Quantize:
         {
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
@@ -1266,7 +1253,6 @@ protected:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
         case OP_TYPEID::Selu:
@@ -1303,6 +1289,7 @@ protected:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
+        case OP_TYPEID::Pad:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:
@@ -1325,3 +1312,5 @@ protected:
         }
     }
 };
+
+NGRAPH_SUPPRESS_DEPRECATED_END
