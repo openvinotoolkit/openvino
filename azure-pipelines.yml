@@ -286,13 +286,48 @@ jobs:
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata & gtest-parallel'
+
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=deep
+    displayName: 'IE UT old /testlevel=deep'
+    continueOnError: true
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=Auto
+    displayName: 'IE UT old /testlevel=Auto'
+    continueOnError: true
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_print_time=1 /testlevel=Auto
+    displayName: 'IE UT old --gtest_print_time=1'
+    continueOnError: true
+
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" cpuFuncTests.exe /testlevel=deep
+    displayName: 'CPU FuncTests /testlevel=deep'
+    continueOnError: true
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" cpuFuncTests.exe /testlevel=Auto
+    displayName: 'CPU FuncTests /testlevel=deep'
+    continueOnError: true
+
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /test=gtest
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: false
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=deep
+    displayName: 'MklDnnFunctionalTests /testlevel=deep'
+    continueOnError: true
+  - script: |
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=Auto
+    displayName: 'MklDnnFunctionalTests /testlevel=Auto'
+    continueOnError: true
 
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
@@ -301,7 +336,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" /COMMAND="$(BIN_DIR)\InferenceEngineUnitTests.exe" /test=gtest /MaxCPUS=40 /ShowAgent
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /test=gtest
     displayName: 'IE UT old'
     continueOnError: false
   - script: |
@@ -331,7 +366,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" /COMMAND="$(BIN_DIR)\cpuFuncTests.exe --gtest_print_time=1" /test=gtest /MaxCPUS=40 /ShowAgent
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /test=gtest
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -340,8 +375,8 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
   - script: |
-      git clone https://github.com/openvinotoolkit/testdata.git
-      git clone https://github.com/google/gtest-parallel.git
+      #git clone https://github.com/openvinotoolkit/testdata.git
+      #git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata & gtest-parallel'
     # Add for gtest-parallel, it hangs now (CVS-33386)
@@ -350,7 +385,7 @@ jobs:
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" /COMMAND="$(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*" /test=gtest /MaxCPUS=40 /ShowAgent
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /test=gtest
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
