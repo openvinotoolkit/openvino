@@ -202,12 +202,12 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
     }
 
     if(!executeCommandFound) {
-        mvLog(MVLOG_ERROR, "Fail to find execute command");
+        mvLog(MVLOG_WARN, "Fail to find execute command");
         return NC_ERROR;
+    } else {
+        return patchFirmware(firmware, length, executeCommandIdx,
+                             g_setWdSwitchCommandMX, sizeof(g_setWdSwitchCommandMX), wdEnable);
     }
-
-    return patchFirmware(firmware, length, executeCommandIdx,
-                         g_setWdSwitchCommandMX, sizeof(g_setWdSwitchCommandMX), wdEnable);
 }
 
 // 0x98 the write command for 8bit
@@ -241,12 +241,12 @@ static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const 
     }
 
     if(!callCommandFound) {
-        mvLog(MVLOG_ERROR, "Fail to find call command");
+        mvLog(MVLOG_WARN, "Fail to find call command");
         return NC_ERROR;
+    } else {
+        return patchFirmware(firmware, length, callCommandIdx,
+                             g_setMemTypeCommandMX, sizeof(g_setMemTypeCommandMX), memType);
     }
-
-    return patchFirmware(firmware, length, callCommandIdx,
-                         g_setMemTypeCommandMX, sizeof(g_setMemTypeCommandMX), memType);
 }
 
 ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
@@ -266,16 +266,12 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
         if(deviceDescToBoot->protocol != X_LINK_PCIE) {
             sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
             if(sc) {
-                mvLog(MVLOG_ERROR, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
-                free(firmware);
-                return sc;
+                mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
             }
             
             sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
             if(sc) {
-                mvLog(MVLOG_ERROR, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
-                free(firmware);
-                return sc;
+                mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
             }
         }       
     }
