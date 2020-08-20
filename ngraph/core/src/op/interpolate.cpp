@@ -17,6 +17,7 @@
 #include "ngraph/op/interpolate.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <numeric>
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
@@ -470,65 +471,65 @@ namespace
         return {input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
     }
 
-    template <element::Type_t ET>
-    inline bool evaluate(const HostTensorVector& args,
-                         const HostTensorPtr& out,
-                         const op::v4::Interpolate::InterpolateAttrs& attrs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-
-        auto info_for_reference = get_info_to_call_reference(args, attrs);
-
-        out->set_element_type(args[0]->get_element_type());
-        out->set_shape(info_for_reference.out_shape);
-
-        std::vector<T> padded_input_data(shape_size(info_for_reference.padded_input_shape), T{});
-
-        CoordinateTransform input_transform(info_for_reference.input_shape);
-        CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
-
-        const T* data_ptr = args[0]->get_data_ptr<ET>();
-        T* padded_data_ptr = padded_input_data.data();
-
-        for (const Coordinate& input_coord : input_transform)
-        {
-            auto padded_coord = input_coord;
-            size_t i = 0;
-            for (size_t pad : info_for_reference.pads_begin)
-            {
-                padded_coord[i] += pad;
-            }
-            padded_data_ptr[padded_transform.index(padded_coord)] =
-                data_ptr[input_transform.index(input_coord)];
-        }
-
-        runtime::reference::interpolate<T>(padded_input_data.data(),
-                                           info_for_reference.padded_input_shape,
-                                           info_for_reference.scales,
-                                           info_for_reference.axes,
-                                           out->get_data_ptr<ET>(),
-                                           info_for_reference.out_shape,
-                                           attrs);
-        return true;
-    }
-
-    bool evaluate_interpolate_v4(const HostTensorVector& args,
-                                 const HostTensorPtr& out,
-                                 const op::v4::Interpolate::InterpolateAttrs& attrs)
-    {
-        bool rc = true;
-        switch (args[0]->get_element_type())
-        {
-            TYPE_CASE(i8)(args, out, attrs);
-            break;
-            TYPE_CASE(f16)(args, out, attrs);
-            break;
-            TYPE_CASE(f32)(args, out, attrs);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
-    }
+//     template <element::Type_t ET>
+//     inline bool evaluate(const HostTensorVector& args,
+//                          const HostTensorPtr& out,
+//                          const op::v4::Interpolate::InterpolateAttrs& attrs)
+//     {
+//         using T = typename element_type_traits<ET>::value_type;
+//
+//         auto info_for_reference = get_info_to_call_reference(args, attrs);
+//
+//         out->set_element_type(args[0]->get_element_type());
+//         out->set_shape(info_for_reference.out_shape);
+//
+//         std::vector<T> padded_input_data(shape_size(info_for_reference.padded_input_shape), T{});
+//
+//         CoordinateTransform input_transform(info_for_reference.input_shape);
+//         CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
+//
+//         const T* data_ptr = args[0]->get_data_ptr<ET>();
+//         T* padded_data_ptr = padded_input_data.data();
+//
+//         for (const Coordinate& input_coord : input_transform)
+//         {
+//             auto padded_coord = input_coord;
+//             size_t i = 0;
+//             for (size_t pad : info_for_reference.pads_begin)
+//             {
+//                 padded_coord[i] += pad;
+//             }
+//             padded_data_ptr[padded_transform.index(padded_coord)] =
+//                 data_ptr[input_transform.index(input_coord)];
+//         }
+//
+//         runtime::reference::interpolate<T>(padded_input_data.data(),
+//                                            info_for_reference.padded_input_shape,
+//                                            info_for_reference.scales,
+//                                            info_for_reference.axes,
+//                                            out->get_data_ptr<ET>(),
+//                                            info_for_reference.out_shape,
+//                                            attrs);
+//         return true;
+//     }
+//
+//     bool evaluate_interpolate_v4(const HostTensorVector& args,
+//                                  const HostTensorPtr& out,
+//                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
+//     {
+//         bool rc = true;
+//         switch (args[0]->get_element_type())
+//         {
+//             TYPE_CASE(i8)(args, out, attrs);
+//             break;
+//             TYPE_CASE(f16)(args, out, attrs);
+//             break;
+//             TYPE_CASE(f32)(args, out, attrs);
+//             break;
+//         default: rc = false; break;
+//         }
+//         return rc;
+//     }
 }
 
 void op::v4::Interpolate::correct_pads()
@@ -549,7 +550,68 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
 {
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
-    return evaluate_interpolate_v4(inputs, outputs[0], m_attrs);
+
+    auto info_for_reference = get_info_to_call_reference(inputs, attrs);
+
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+    outputs[0]->set_shape(info_for_reference.out_shape);
+
+    size_t bytes_in_padded_input = shape_size(info_for_reference.padded_input_shape) * type_size;
+
+    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+
+    CoordinateTransform input_transform(info_for_reference.input_shape);
+    CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
+
+    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
+    uint8_t* padded_data_ptr = padded_input_data.data();
+
+    for (const Coordinate& input_coord : input_transform)
+    {
+        auto padded_coord = input_coord;
+        size_t i = 0;
+        for (size_t pad : info_for_reference.pads_begin)
+        {
+            padded_coord[i] += pad;
+        }
+        uint8_t dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
+        uint8_t src_ptr = data_ptr + type_size * input_transform.index(input_coord);
+        memcpy(dst_ptr, src_ptr, type_size);
+    }
+
+    switch(input_et)
+    {
+    case element::f32:
+        runtime::reference::interpolate<float>(static_cast<float*>(padded_input_data.data()),
+                                               info_for_reference.padded_input_shape,
+                                               info_for_reference.scales,
+                                               info_for_reference.axes,
+                                               outputs[0]->get_data_ptr<float>(),
+                                               info_for_reference.out_shape,
+                                               attrs);
+        break;
+    case element::f16:
+        runtime::reference::interpolate<float16>(static_cast<float16*>(padded_input_data.data()),
+                                                 info_for_reference.padded_input_shape,
+                                                 info_for_reference.scales,
+                                                 info_for_reference.axes,
+                                                 outputs[0]->get_data_ptr<float16>(),
+                                                 info_for_reference.out_shape,
+                                                 attrs);
+        break;
+    case element::i8:
+        runtime::reference::interpolate<int8_t>(static_cast<int8_t*>(padded_input_data.data()),
+                                                info_for_reference.padded_input_shape,
+                                                info_for_reference.scales,
+                                                info_for_reference.axes,
+                                                outputs[0]->get_data_ptr<int8_t>(),
+                                                info_for_reference.out_shape,
+                                                attrs);
+        break;
+    default:;
+    }
+
+    return true;
 }
 
 namespace ngraph

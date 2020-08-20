@@ -69,7 +69,7 @@ namespace ngraph
 
                 template <typename T>
                 static T mode_from_str(const std::map<std::string, T>& converting_map,
-                                 const std::string& mode)
+                                       const std::string& mode)
                 {
                     T result = T{};
                     auto it = converting_map.find(mode);
