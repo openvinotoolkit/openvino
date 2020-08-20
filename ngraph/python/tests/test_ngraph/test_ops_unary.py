@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_35929, xfail_issue_34323, xfail_issue_36483
+from tests import xfail_issue_35914, xfail_issue_35929, xfail_issue_34323, xfail_issue_36483
 
 
 @xfail_issue_35929
@@ -93,7 +93,7 @@ def test_unary_op_array_using_constants(ng_api_fn, numpy_fn, range_start, range_
     assert np.allclose(result, expected, rtol=0.001)
 
 
-@pytest.mark.skip(reason="Segmentation fault")
+@xfail_issue_35914
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
