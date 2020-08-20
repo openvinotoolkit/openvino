@@ -551,7 +551,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
 
-    auto info_for_reference = get_info_to_call_reference(inputs, attrs);
+    auto info_for_reference = get_info_to_call_reference(inputs, m_attrs);
 
     outputs[0]->set_element_type(inputs[0]->get_element_type());
     outputs[0]->set_shape(info_for_reference.out_shape);
@@ -588,7 +588,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                info_for_reference.axes,
                                                outputs[0]->get_data_ptr<float>(),
                                                info_for_reference.out_shape,
-                                               attrs);
+                                               m_attrs);
         break;
     case element::f16:
         runtime::reference::interpolate<float16>(static_cast<float16*>(padded_input_data.data()),
@@ -597,7 +597,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                  info_for_reference.axes,
                                                  outputs[0]->get_data_ptr<float16>(),
                                                  info_for_reference.out_shape,
-                                                 attrs);
+                                                 m_attrs);
         break;
     case element::i8:
         runtime::reference::interpolate<int8_t>(static_cast<int8_t*>(padded_input_data.data()),
@@ -606,7 +606,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                 info_for_reference.axes,
                                                 outputs[0]->get_data_ptr<int8_t>(),
                                                 info_for_reference.out_shape,
-                                                attrs);
+                                                m_attrs);
         break;
     default:;
     }
