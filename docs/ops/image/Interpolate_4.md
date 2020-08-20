@@ -460,7 +460,7 @@ class InterpolateCalculation:
 
 ```xml
 <layer ... type="Interpolate" ...>
-    <data axes="2,3" align_corners="0" pads_begin="0" pads_end="0" mode="linear"/>
+    <data shape_calculation_mode="scales" pads_begin="0" pads_end="0" mode="linear"/>
     <input>
         <port id="0">
             <dim>1</dim>
@@ -469,15 +469,21 @@ class InterpolateCalculation:
             <dim>80</dim>
         </port>
         <port id="1">
-            <dim>2</dim>  <!--The values in this input are [50, 60] -->
+            <dim>2</dim>  <!--The values in this input are [24, 160] -->
+        </port>
+        <port id="2">
+            <dim>2</dim>  <!--The values in this input are [0.5, 2.0] -->
+        </port>
+        <port id="3">
+            <dim>2</dim>  <!--The values in this input are [2, 3] (axes). -->
         </port>
     </input>
     <output>
-        <port id="0">
+        <port id="0"  precision="FP32">
             <dim>1</dim>
             <dim>2</dim>
-            <dim>50</dim>
-            <dim>60</dim>
+            <dim>24</dim>
+            <dim>160</dim>
         </port>
     </output>
 </layer>
