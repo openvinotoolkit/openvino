@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "convolution_kernel_b_fs_yx_fsv16_imad.h"
+#include "convolution_kernel_b_fs_zyx_fsv16_imad.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
 #include <vector>
@@ -63,8 +63,8 @@ static size_t getOutBlock_X(const size_t output_size_x, const size_t stride_x, c
 
 namespace kernel_selector {
 
-Convolution_kernel_b_fs_yx_fsv16_imad::BlockParams
-Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
+Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
+Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
     constexpr float max_reg_pressure = 0.75f;
 
     // TODO Investigate whether below algorithm for selecting optimal block params could be reduced to:
@@ -85,9 +85,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
     size_t block_features = simd;
     {
         size_t tmp_block_features = simd * 2;
-        auto block2_params = BlockParams{ block_width, 1, tmp_block_features, in_block_width, 1, 1 };
+        auto block2_params = BlockParams{ block_width, 1, 1, tmp_block_features, in_block_width, 1, 1, 1 };
 
-        bool c_mul_f = params.output.Feature().v % tmp_block_features == 0;
+        bool c_mul_f = params.weights.OFM().v % tmp_block_features == 0;
         bool c_reg_pressure = EstimateRegPressure(params, block2_params) <= max_reg_pressure;
 
         if (c_mul_f && c_reg_pressure) {
@@ -97,7 +97,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
 
     // If not enough occupancy try to perform feature split or/and block reduction
     size_t feature_slm_split = 1;
-    auto no_split_params = BlockParams{ block_width, 1, block_features, in_block_width, 1, 1 };
+
+    auto no_split_params = BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, 1 };
+
     if (EstimateOccupancy(params, no_split_params) < 1.f) {
         // Temporary variables for possible reductions in block sizes
         bool update_block_params = false;
@@ -107,7 +109,8 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
 
         // Feature split requires extra registers, so check if it can be done with current block sizes
         bool can_split =
-            EstimateRegPressure(params, BlockParams{ block_width, 1, block_features, in_block_width, 1, 2 }) <= max_reg_pressure;
+            EstimateRegPressure(params, BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, 2 }) <= max_reg_pressure;
+
         // Has the occupancy reached sufficient level
         bool enough_occupancy = false;
         // Reductions to reduce register pressure
@@ -116,7 +119,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
             // At most twice reduction in output block width is acceptable
             for (size_t w = block_width; w >= CeilDiv(block_width, 2); w -= 1) {
                 size_t tmp_in_width = (w - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
-                auto dummy_split_params = BlockParams{ w, 1, block_features, tmp_in_width, 1, 2 };
+                auto dummy_split_params = BlockParams{ w, 1, 1, block_features, tmp_in_width, 1, 1, 2 };
 
                 bool c_reg_pressure = EstimateRegPressure(params, dummy_split_params) <= max_reg_pressure;
                 bool c_mul_x = params.output.X().v % w == 0;
@@ -139,7 +142,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
         }
         // Check if previous reductions haven't improved occupancy enough
         {
-            auto reduced_params = BlockParams{ split_block_width, 1, split_block_features, split_in_block_width, 1, 1 };
+            auto reduced_params = BlockParams{ split_block_width, 1, 1, split_block_features, split_in_block_width, 1, 1, 1 };
             enough_occupancy = EstimateOccupancy(params, reduced_params) >= 1.f;
             update_block_params = enough_occupancy;
         }
@@ -147,7 +150,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
         if (can_split && !enough_occupancy) {
             // TODO Try other split sizes
             for (size_t split = 4; split < 5; ++split) {
-                auto tmp_params = BlockParams{ block_width, 1, block_features, in_block_width, 1, split };
+                auto tmp_params = BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, split };
 
                 bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
                 bool c_slm = EstimateSLMUsage(params, tmp_params) <= 1.f;
@@ -172,7 +175,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
             // At most twice reduction in output block width is acceptable
             for (size_t w = block_width; w >= CeilDiv(block_width, 2); w -= 1) {
                 size_t tmp_in_width = (w - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
-                auto tmp_params = BlockParams{ w, 1, split_block_features, tmp_in_width, 1, feature_slm_split };
+                auto tmp_params = BlockParams{ w, 1, 1, split_block_features, tmp_in_width, 1, 1,  feature_slm_split };
 
                 bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
                 bool c_mul_x = params.output.X().v % w == 0;
@@ -194,44 +197,60 @@ Convolution_kernel_b_fs_yx_fsv16_imad::GetBlockParams(const convolution_params& 
         }
     }
 
-    // Select biggest block height that fits into registers
+    // Select biggest block height and depth that fits into registers
     size_t block_height = 1;
+    size_t block_depth = 1;
     size_t in_block_height = 1;
-    for (size_t h = 2; h < 16; ++h) {
-        if (params.output.Y().v % h != 0)
+    size_t in_block_depth = 1;
+
+    bool break_external_loop = false;
+    
+    for (size_t d = 1; d < 16; ++d) {
+        if (params.output.Z().v % d != 0)
             continue;
+        for (size_t h = 2; h < 16; ++h) {
+            if (params.output.Y().v % h != 0)
+                continue;
+            size_t tmp_in_block_depth = (d - 1) * params.stride.z + (params.filterSize.z - 1) * params.dilation.z + 1;
+            size_t tmp_in_block_height = (h - 1) * params.stride.y + (params.filterSize.y - 1) * params.dilation.y + 1;
+            auto tmp_params = BlockParams{ block_width, h, d, block_features, in_block_width, tmp_in_block_height, tmp_in_block_depth, feature_slm_split };
 
-        size_t tmp_in_block_height = (h - 1) * params.stride.y + (params.filterSize.y - 1) * params.dilation.y + 1;
-        auto tmp_params = BlockParams{ block_width, h, block_features, in_block_width, tmp_in_block_height, feature_slm_split };
+            bool c_reg_pressure = EstimateRegPressure(params, tmp_params) <= max_reg_pressure;
+            bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
+            bool c_slm = EstimateSLMUsage(params, tmp_params) <= 1.f;
 
-        bool c_reg_pressure = EstimateRegPressure(params, tmp_params) <= max_reg_pressure;
-        bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
-        bool c_slm = EstimateSLMUsage(params, tmp_params) <= 1.f;
+            if (c_reg_pressure && c_occupancy && c_slm) {
+                block_height = h;
+                block_depth = d;
+                in_block_height = tmp_in_block_height;
+                in_block_depth = tmp_in_block_depth;
+            } else {
+                break_external_loop = true;
+                break;
+            }
+        }
 
-        if (c_reg_pressure && c_occupancy && c_slm) {
-            block_height = h;
-            in_block_height = tmp_in_block_height;
-        } else {
+        if (break_external_loop) {
             break;
         }
     }
 
-    return BlockParams{ block_width, block_height, block_features, in_block_width, in_block_height, feature_slm_split };
+    return BlockParams{ block_width, block_height, block_depth, block_features, in_block_width, in_block_height, in_block_depth, feature_slm_split };
 }
 
-float Convolution_kernel_b_fs_yx_fsv16_imad::EstimateRegPressure(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolution_params& params, const BlockParams& block) const {
     size_t bytes_used = 0;
     // accumulator
-    size_t accumulator_elements = block.output_block_width * block.output_block_height * block.output_block_features;
+    size_t accumulator_elements = block.output_block_width * block.output_block_height * block.output_block_depth * block.output_block_features;
     bytes_used += accumulator_elements * BytesPerElement(GetAccumulatorType(params));
     // input block
-    size_t input_block_elements = block.input_block_height * Align(block.input_block_width, simd) * fsv;
+    size_t input_block_elements = block.input_block_depth * block.input_block_height * Align(block.input_block_width, simd) * fsv;
     bytes_used += input_block_elements * BytesPerElement(params.inputs[0].GetDType());
     // weights block
     size_t weights_block_elements = block.output_block_features * fsv;
     bytes_used += weights_block_elements * BytesPerElement(params.weights.GetDType());
 
-    // Experimentally selected number of registers needed for extra variables (eg. out_x, out_y, filter_idx, etc.)
+    // Experimentally selected number of registers needed for extra variables (eg. out_x, out_y, out_z, filter_idx, etc.)
     constexpr size_t experimental_extra_regs = 8 * 32;
     bytes_used += experimental_extra_regs;
 
@@ -248,13 +267,14 @@ float Convolution_kernel_b_fs_yx_fsv16_imad::EstimateRegPressure(const convoluti
     return static_cast<float>(bytes_used) / static_cast<float>(max_reg_bytes);
 }
 
-float Convolution_kernel_b_fs_yx_fsv16_imad::EstimateOccupancy(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolution_params& params, const BlockParams& block) const {
     size_t blocks_w = CeilDiv(params.output.X().v, block.output_block_width);
     size_t blocks_h = CeilDiv(params.output.Y().v, block.output_block_height);
-    size_t blocks_f = CeilDiv(params.output.Feature().v, block.output_block_features) * block.feature_slm_split;
+    size_t blocks_d = CeilDiv(params.output.Z().v, block.output_block_depth);
+    size_t blocks_f = CeilDiv(params.weights.OFM().v, block.output_block_features) * params.groups * block.feature_slm_split;
     size_t block_b = params.output.Batch().v;
 
-    auto threads = blocks_w * blocks_h * blocks_f * block_b;
+    auto threads = blocks_w * blocks_h * blocks_d * blocks_f * block_b;
     constexpr size_t max_threads_per_cu = 7;
     size_t compute_units = params.engineInfo.computeUnitsCount;
     size_t max_threads = compute_units * max_threads_per_cu;
@@ -262,17 +282,18 @@ float Convolution_kernel_b_fs_yx_fsv16_imad::EstimateOccupancy(const convolution
     return static_cast<float>(threads) / static_cast<float>(max_threads);
 }
 
-float Convolution_kernel_b_fs_yx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_features * (block.feature_slm_split - 1);
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
+    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth * 
+                          block.output_block_features * (block.feature_slm_split - 1);
     size_t slm_bytes = slm_elements * BytesPerElement(GetAccumulatorType(params));
 
-    // TODO Actual maximum slm should also depend on number of work-groups, but this is device specific
+    // TODO:  Actual maximum slm should also depend on number of work-groups, but this is device specific
     size_t max_slm_bytes = params.engineInfo.maxLocalMemSize;
 
     return static_cast<float>(slm_bytes) / static_cast<float>(max_slm_bytes);
 }
 
-ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
+ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -284,6 +305,9 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
 
     k.EnableInputWeightsType(WeightsType::INT8);
 
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
 
@@ -294,31 +318,36 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
+    k.EnableGroupedConvolution();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDilation();
     k.DisableTuning();
     return k;
 }
 
-KernelsData Convolution_kernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params,
+KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 
-JitConstants Convolution_kernel_b_fs_yx_fsv16_imad::GetJitConstants(const convolution_params& params,
+JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params,
                                                                      const DispatchData& kd) const {
     auto mem_consts = Parent::GetJitConstants(params, kd);
 
     auto block_params = GetBlockParams(params);
 
     bool unroll_filter_y = block_params.output_block_height != 1;
+    bool unroll_filter_z = block_params.output_block_depth != 1;
 
     mem_consts.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block_params.output_block_width));
     mem_consts.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", block_params.input_block_width));
     mem_consts.AddConstant(MakeJitConstant("OUT_BLOCK_HEIGHT", block_params.output_block_height));
     mem_consts.AddConstant(MakeJitConstant("IN_BLOCK_HEIGHT", block_params.input_block_height));
+    mem_consts.AddConstant(MakeJitConstant("OUT_BLOCK_DEPTH", block_params.output_block_depth));
+    mem_consts.AddConstant(MakeJitConstant("IN_BLOCK_DEPTH", block_params.input_block_depth));
     mem_consts.AddConstant(MakeJitConstant("FILTER_SIZE_Y_UNROLL", unroll_filter_y ? params.filterSize.y : 1));
-    mem_consts.AddConstant(MakeJitConstant("OFM_BLOCKS_PER_SIMD", block_params.output_block_features / simd));
+    mem_consts.AddConstant(MakeJitConstant("FILTER_SIZE_Z_UNROLL", unroll_filter_z ? params.filterSize.z : 1));
+    mem_consts.AddConstant(MakeJitConstant("OFM_BLOCKS_PER_SIMD", static_cast<int>(std::ceil(block_params.output_block_features / simd))));
     mem_consts.AddConstant(MakeJitConstant("OFM_SIZE_PER_SIMD", block_params.output_block_features));
     mem_consts.AddConstant(MakeJitConstant("FEATURE_SLM_SPLIT", block_params.feature_slm_split));
     mem_consts.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
@@ -327,7 +356,20 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad::GetJitConstants(const convol
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)" };
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = { "out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)" };
+        }
+
         std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
+
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            if (block_params.output_block_depth != 1) {
+                loop_axes.push_back(Tensor::DataChannelName::Z);
+            } else {
+                idx_order[idx_order.size() - 3] = "out_z";
+            }
+        }
+        
         if (block_params.output_block_height != 1) {
             loop_axes.push_back(Tensor::DataChannelName::Y);
         } else {
@@ -349,15 +391,16 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad::GetJitConstants(const convol
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad::SetDefault(const convolution_params& params,
+ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
                                                                            int) const {
     DispatchData kd;
     const auto& output = params.output;
+    const auto& weights = params.weights;
     auto block_params = GetBlockParams(params);
 
     kd.gws0 = CeilDiv(output.X().v, block_params.output_block_width);
-    kd.gws1 = CeilDiv(output.Y().v, block_params.output_block_height);
-    kd.gws2 = output.Batch().v * CeilDiv(output.Feature().v, block_params.output_block_features) * simd * block_params.feature_slm_split;
+    kd.gws1 = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
+    kd.gws2 = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
 
     kd.lws0 = 1;
     kd.lws1 = 1;
@@ -367,16 +410,13 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad::SetDe
     kd.gemmStyle = {0, 0, 0, 0, 0, 0};
 
     kd.efficiency = FORCE_PRIORITY_2;
-    // TODO Optimize 1x1, because this kernel is better in most cases
-    //if (params.filterSize.x == 1 && params.filterSize.y == 1)
-    //    kd.efficiency = FORCE_PRIORITY_1;
     if (static_cast<float>(params.weights.IFM().v) / static_cast<float>(Align(params.weights.IFM().v, fsv)) < 0.5f)
         kd.efficiency = FORCE_PRIORITY_4;
 
     return kd;
 }  // SetDefault
 
-bool Convolution_kernel_b_fs_yx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
+bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {
         return false;
     }
@@ -384,7 +424,7 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad::Validate(const Params& params, const
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.groups != 1 || newParams.split != 1)
+    if (newParams.split != 1)
         return false;
 
     return true;

@@ -199,6 +199,8 @@ attach_convolution_gpu::attach_convolution_gpu() {
     // block i8 format
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw);
     // MMAD
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf_af32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf_af32), val_fw);

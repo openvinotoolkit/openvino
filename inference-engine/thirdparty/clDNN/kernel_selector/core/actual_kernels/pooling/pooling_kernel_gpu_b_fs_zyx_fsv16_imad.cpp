@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "pooling_kernel_gpu_b_fs_yx_fsv16_imad.h"
+#include "pooling_kernel_gpu_b_fs_zyx_fsv16_imad.h"
 #include "kernel_selector_utils.h"
 
 #define FEATURE_SLICE_SIZE 16
 
 namespace kernel_selector {
-ParamsKey PoolingKernelGPU_b_fs_yx_fsv16_imad::GetSupportedKey() const {
+ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -27,6 +27,8 @@ ParamsKey PoolingKernelGPU_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -41,17 +43,18 @@ ParamsKey PoolingKernelGPU_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
-PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_yx_fsv16_imad::SetDefault(const pooling_params& params) const {
+PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault(const pooling_params& params) const {
     DispatchData runInfo = PoolingKernelBase::SetDefault(params);
 
     const auto& out = params.output;
     auto x = out.X().v;
     auto y = out.Y().v;
+    auto z = out.Z().v;
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
     runInfo.gws0 = x;
-    runInfo.gws1 = y;
+    runInfo.gws1 = y * z;
     // we got b_fs_yx_fsv16 format, we process 16 features per workitem
     runInfo.gws2 = CeilDiv(f, FEATURE_SLICE_SIZE) * b;
 
@@ -64,19 +67,24 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_yx_fsv16_imad::SetDefault(
     return runInfo;
 }
 
-JitConstants PoolingKernelGPU_b_fs_yx_fsv16_imad::GetJitConstants(const pooling_params& params, DispatchData kd) const {
+JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling_params& params, DispatchData kd) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, kd);
 
     const size_t in_x_pitch = FEATURE_SLICE_SIZE;
     const size_t in_y_pitch = FEATURE_SLICE_SIZE * params.inputs[0].X().LogicalDimPadded();
+    const size_t in_z_pitch = FEATURE_SLICE_SIZE * params.inputs[0].Y().LogicalDimPadded() * params.inputs[0].X().LogicalDimPadded();
     jit.AddConstant(MakeJitConstant("IN_X_PITCH", in_x_pitch));
     jit.AddConstant(MakeJitConstant("IN_Y_PITCH", in_y_pitch));
+    jit.AddConstant(MakeJitConstant("IN_Z_PITCH", in_z_pitch));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "(f+i)", "y", "x"}, "pool_result[i]", input_dt, 1};
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            conf = {"", {"b", "(f+i)", "z", "y", "x"}, "pool_result[i]", input_dt, 1 };
+        }
         conf.SetLoopAxes({ Tensor::DataChannelName::FEATURE }, true);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
@@ -84,19 +92,11 @@ JitConstants PoolingKernelGPU_b_fs_yx_fsv16_imad::GetJitConstants(const pooling_
     return jit;
 }
 
-KernelsData PoolingKernelGPU_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
 }
 
-bool PoolingKernelGPU_b_fs_yx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
-    if (!PoolingKernelBase::Validate(params, options)) {
-        return false;
-    }
-    auto p = dynamic_cast<const pooling_params&>(params);
-
-    if (p.inputs[0].Feature().v % FEATURE_SLICE_SIZE != 0)
-        return false;
-
-    return true;
+bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
+    return PoolingKernelBase::Validate(params, options);
 }
 }  // namespace kernel_selector

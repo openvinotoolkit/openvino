@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,7 +118,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     //     window size spatial Y", filter_size.spatial[1], "First convolution is outside of image. please reduce input
     //     offset Y");
 
-    if (input_layout.format == format::bfzyx) {
+    if (input_layout.format.spatial_num() == 3) {
         // convolution 3D
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "Stride spatial Z",

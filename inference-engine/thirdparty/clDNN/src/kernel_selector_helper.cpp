@@ -327,6 +327,10 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16;
         case format::g_os_is_yx_osv16_isv4:
             return kernel_selector::weights_layout::g_os_is_yx_osv16_isv4;
+        case format::os_is_zyx_osv16_isv16:
+            return kernel_selector::weights_layout::os_is_zyx_osv16_isv16;
+        case format::g_os_is_zyx_osv16_isv16:
+            return kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16;
         case format::g_os_zyx_is_osv16_isv4:
             return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4;
         case format::g_os_zyx_is_osv16_isv16:
@@ -450,6 +454,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_zyx_isv16_osv16;
         case kernel_selector::weights_layout::os_is_yx_osv16_isv4:
             return cldnn::format::g_os_is_yx_osv16_isv4;
+        case kernel_selector::weights_layout::os_is_zyx_osv16_isv16:
+            return cldnn::format::os_is_zyx_osv16_isv16;
+        case kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16:
+            return cldnn::format::g_os_is_zyx_osv16_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4:
             return cldnn::format::g_os_zyx_is_osv16_isv4;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16:
