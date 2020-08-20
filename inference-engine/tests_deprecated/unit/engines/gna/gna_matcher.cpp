@@ -164,7 +164,12 @@ void GNAPropagateMatcher :: match() {
         };
 
         auto loadNetworkFromAOT = [&] () {
-            auto sp = plugin.ImportNetwork(_env.importedModelFileName);
+            std::fstream inputStream(_env.importedModelFileName, std::ios_base::in | std::ios_base::binary);
+            if (inputStream.fail()) {
+                THROW_GNA_EXCEPTION << "Cannot open file to import model: " << _env.importedModelFileName;
+            }
+
+            auto sp = plugin.ImportNetwork(inputStream);
             inputsInfo = plugin.GetInputs();
             outputsInfo = plugin.GetOutputs();
         };
@@ -505,7 +510,12 @@ void GNADumpXNNMatcher::load(std::shared_ptr<GNAPlugin> & plugin) {
     };
 
     auto loadNetworkFromAOT = [&]() {
-        plugin->ImportNetwork(_env.importedModelFileName);
+        std::fstream inputStream(_env.importedModelFileName, std::ios_base::in | std::ios_base::binary);
+        if (inputStream.fail()) {
+            THROW_GNA_EXCEPTION << "Cannot open file to import model: " << _env.importedModelFileName;
+        }
+
+        plugin->ImportNetwork(inputStream);
     };
 
     auto loadNetwork = [&]() {
