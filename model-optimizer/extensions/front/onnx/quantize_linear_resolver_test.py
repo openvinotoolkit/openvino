@@ -58,7 +58,6 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                             {'scale_param_q': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              'zerop_param_q': {'shape': np.array([]), 'value': np.uint8(128)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'f_quantize'),
@@ -96,7 +95,6 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                             {'scale_param_q': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              'zerop_param_q': {'shape': np.array([]), 'value': np.int8(0)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'f_quantize'),
@@ -132,7 +130,6 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                              ],
                             {'scale_param_q': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'f_quantize'),
