@@ -574,8 +574,8 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
         {
             padded_coord[i] += pad;
         }
-        uint8_t dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        uint8_t src_ptr = data_ptr + type_size * input_transform.index(input_coord);
+        uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
+        uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
         memcpy(dst_ptr, src_ptr, type_size);
     }
 
