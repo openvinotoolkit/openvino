@@ -27,12 +27,11 @@ class ProposalOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
-            'version': 'opset1',
+            'version': 'opset4',
             'post_nms_topn': 300,  # default in caffe-shared
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
             'out_ports_count': 2,
-            'for_deformable': 0,
             'normalize': 0,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -65,7 +64,6 @@ class ProposalOp(Op):
             'normalize',
             'clip_after_nms',
             'clip_before_nms',
-            'for_deformable',
         ]
 
     @staticmethod

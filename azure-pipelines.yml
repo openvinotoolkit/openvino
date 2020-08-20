@@ -1,3 +1,36 @@
+Skip to content
+Search or jump to…
+
+Pull requests
+Issues
+Marketplace
+Explore
+ 
+@azhogov 
+azhogov
+/
+openvino
+forked from openvinotoolkit/openvino
+0
+0
+630
+Code
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+openvino/azure-pipelines.yml
+@azhogov
+azhogov Update azure-pipelines.yml
+Latest commit 7a6096b 6 days ago
+ History
+ 2 contributors
+@azhogov@SDxKeeper
+60 lines (58 sloc)  1002 Bytes
+  
 jobs:
 - job: TestLin
   timeoutInMinutes: 10
@@ -18,7 +51,6 @@ jobs:
       ls .
       echo $?
     displayName: 'Exit code'
-
 - job: TestMac
   timeoutInMinutes: 10
   pool:
@@ -38,7 +70,6 @@ jobs:
       ls .
       echo $?
     displayName: 'Exit code'
-
 - job: TestWin
   timeoutInMinutes: 10
   pool:
@@ -58,3 +89,15 @@ jobs:
       cd .
       echo %errorlevel%
     displayName: 'Exit code'
+© 2020 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Help
+Contact GitHub
+Pricing
+API
+Training
+Blog
+About

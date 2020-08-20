@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/power.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"

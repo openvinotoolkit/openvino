@@ -16,7 +16,6 @@
 #include <ie_parameter.hpp>
 #include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include <blob_factory.hpp>
 
@@ -84,21 +83,70 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
 }
 
 /**
- * @interface IInferencePluginInternal
- * @brief An internal API of plugin to be implemented by a plugin, which is used in PluginBase forwarding mechanism
+ * @interface IInferencePlugin
+ * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePluginInternal {
-public:
-    /**
-     * @brief A shared pointer to IInferencePluginInternal interface
-     */
-    using Ptr = std::shared_ptr<IInferencePluginInternal>;
+class IInferencePlugin : public details::IRelease,
+                         public std::enable_shared_from_this<IInferencePlugin> {
+    class VersionStore : public Version {
+        std::string _dsc;
+        std::string _buildNumber;
 
+        void copyFrom(const Version & v) {
+            _dsc = v.description;
+            _buildNumber = v.buildNumber;
+            description = _dsc.c_str();
+            buildNumber = _buildNumber.c_str();
+            apiVersion = v.apiVersion;
+        }
+
+    public:
+        VersionStore() = default;
+
+        explicit VersionStore(const Version& v) {
+            copyFrom(v);
+        }
+
+        VersionStore & operator = (const VersionStore & v) {
+            if (&v != this) {
+                copyFrom(v);
+            }
+            return *this;
+        }
+    } _version;
+
+protected:
     /**
      * @brief      Destroys the object.
      */
-    virtual ~IInferencePluginInternal() = default;
+    ~IInferencePlugin() override = default;
+
+public:
+    /**
+     * @brief A shared pointer to IInferencePlugin interface
+     */
+    using Ptr = std::shared_ptr<IInferencePlugin>;
+
+    /**
+     * @brief Sets a plugin version
+     * @param version A version to set
+     */
+    void SetVersion(const Version & version) {
+        _version = VersionStore(version);
+    }
+
+    /**
+     * @brief Gets a plugin version
+     * @return A const InferenceEngine::Version object
+     */
+    Version GetVersion() const {
+        return _version;
+    }
+
+    void Release() noexcept override {
+        delete this;
+    }
 
     /**
      * @brief      Provides a name of a plugin
@@ -115,12 +163,12 @@ public:
     /**
      * @brief Creates an executable network from an pares network object, users can create as many networks as they need
      * and use them simultaneously (up to the limitation of the HW resources)
-     * @param executableNetwork - a reference to a shared ptr of the returned network interface
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
-     * @param config string-string map of config parameters relevant only for this load operation
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param config A string-string map of config parameters relevant only for this load operation
+     * @return Created Executable Network object
      */
-    virtual void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
-                             const std::map<std::string, std::string>& config) = 0;
+    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+                                          const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
@@ -130,7 +178,8 @@ public:
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+                                          const std::map<std::string, std::string>& config,
                                           RemoteContext::Ptr context) = 0;
     /**
      * @brief Registers extension within plugin
@@ -218,7 +267,7 @@ public:
     virtual ICore* GetCore() const noexcept = 0;
 
     /**
-     * @brief      Queries a plugin about support layers in network
+     * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
      * @param      res      The result of query operator containing supported layers map
@@ -234,16 +283,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)    \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine( \
-            InferenceEngine::IInferencePlugin *&plugin, \
-            InferenceEngine::ResponseDesc *resp) noexcept { \
-        try { \
-            InferenceEngine::Version _version = version; \
-            plugin = make_ie_compatible_plugin(_version, std::make_shared<PluginType>(__VA_ARGS__)); \
-            return OK; \
-        } \
-        catch (std::exception &ex) { \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
+    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
+            InferenceEngine::IInferencePlugin *&plugin,                                  \
+            InferenceEngine::ResponseDesc *resp) noexcept {                              \
+        try {                                                                            \
+            plugin = new PluginType(__VA_ARGS__);                                        \
+            plugin->SetVersion(version);                                                 \
+            return OK;                                                                   \
+        }                                                                                \
+        catch (std::exception &ex) {                                                     \
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
-        } \
+        }                                                                                \
     }

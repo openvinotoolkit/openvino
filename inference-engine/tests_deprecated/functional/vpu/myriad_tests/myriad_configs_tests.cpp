@@ -84,45 +84,37 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
 static const std::vector<config_t> myriadCorrectPlatformConfigValues = {
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}},
-        // Deprecated
-        {{VPU_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2450)}},
-        {{VPU_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2480)}},
-        {{VPU_CONFIG_KEY(PLATFORM), ""}}
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
 };
 
 static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}},
-        // Deprecated
-        {{VPU_CONFIG_KEY(PLATFORM), "-1"}},
-        {{VPU_CONFIG_KEY(PLATFORM), " 0"}},
-        {{VPU_CONFIG_KEY(PLATFORM), "MyriadX"}},
-        // Deprecated key & value from current
-        {{VPU_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
-        {{VPU_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-        // Current key & deprecated value
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2450)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2480)}},
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
 };
 
 static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
     // Please do not use other types of DDR in tests with a real device, because it may hang.
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}},
+
+    // Deprecated
     {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}}
 };
 
 static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
+    {{InferenceEngine::MYRIAD_DDR_TYPE, "-1"}},
+    {{InferenceEngine::MYRIAD_DDR_TYPE, "-MICRON_1GB"}},
 
+    // Deprecated
     {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}},
     {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
 };
 
 INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly,
-    ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
+                        ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
 
 INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly,
-    ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
+                        ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
 
 INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
     ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));

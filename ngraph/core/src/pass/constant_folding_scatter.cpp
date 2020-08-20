@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "ngraph/validation_util.hpp"
@@ -173,7 +174,8 @@ void pass::ConstantFolding::construct_constant_scatter_elements_update()
     auto scatter_elem_updt = make_shared<op::v3::ScatterElementsUpdate>(
         data_label, indices_label, updates_label, axis_label);
 
-    auto constant_scatter_elem_updt_callback = [data_label,
+    auto constant_scatter_elem_updt_callback = [this,
+                                                data_label,
                                                 indices_label,
                                                 updates_label,
                                                 axis_label](pattern::Matcher& m) {
@@ -187,6 +189,9 @@ void pass::ConstantFolding::construct_constant_scatter_elements_update()
         const auto updates = static_pointer_cast<op::Constant>(pattern_map[updates_label]);
         const auto axis = static_pointer_cast<op::Constant>(pattern_map[axis_label]);
         const auto scatter_elem_updt = m.get_match_root();
+
+        if (cf_is_disabled(scatter_elem_updt))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(scatter_elem_updt));
 

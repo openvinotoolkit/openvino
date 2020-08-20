@@ -68,7 +68,8 @@ namespace ngraph
                 return std::make_shared<default_opset::Range>(
                     default_opset::Constant::create(element::i64, {}, {start_value}),
                     std::make_shared<default_opset::ShapeOf>(value_shape),
-                    default_opset::Constant::create(element::i64, {}, {step}));
+                    default_opset::Constant::create(element::i64, {}, {step}),
+                    element::i64);
             }
 
             void validate_scalar_input(const char* input_name,

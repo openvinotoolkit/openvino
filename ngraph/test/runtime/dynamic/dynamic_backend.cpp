@@ -329,13 +329,6 @@ runtime::dynamic::DynamicTensor::DynamicTensor(
 {
 }
 
-Strides runtime::dynamic::DynamicTensor::get_strides() const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "asked for strides of a dynamic tensor with no allocated storage");
-    return ngraph::row_major_strides(m_wrapped_tensor->get_shape());
-}
-
 size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
