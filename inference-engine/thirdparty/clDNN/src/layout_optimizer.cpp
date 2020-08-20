@@ -478,10 +478,11 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
     bool data_type_ver = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     bool w_layout = weights_layout.data_type == input_layout.data_type;
     bool single_dilation = conv->dilation == tensor(1);
+    bool groups_ver = conv->groups == 1 || weights_layout.size.batch[0] % 16 == 0
+        || (conv->groups > 1 && weights_layout.size.batch[0] == 8);
 
-    return format_ver && data_type_ver && w_layout && single_dilation;
+    return format_ver && data_type_ver && w_layout && single_dilation && groups_ver;
 }
-
 bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
                                                             const layout& weights_layout,
                                                             std::shared_ptr<const convolution> conv) {
