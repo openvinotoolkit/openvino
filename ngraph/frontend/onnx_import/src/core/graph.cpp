@@ -96,10 +96,10 @@ namespace ngraph
                     catch (const ngraph::ngraph_error& exc)
                     {
                         NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
-                                    << initializer_tensor.name()
-                                    << "'. Detailed error:\n"
+                                    << initializer_tensor.name() << "'. Detailed error:\n"
                                     << exc.what();
-                        ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
+                        ng_constant =
+                            default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
                     }
 
                     initializers.emplace(initializer_tensor.name(), tensor);
