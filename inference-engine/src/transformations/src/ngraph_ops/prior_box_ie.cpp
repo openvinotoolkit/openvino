@@ -27,7 +27,7 @@ void op::PriorBoxIE::validate_and_infer_types() {
     auto image_shape = get_input_shape(1);
 
     set_output_type(0, element::f32, Shape {
-        1, 2, 4 * input_shape[2] * input_shape[3] * op::PriorBox::number_of_priors(m_attrs)});
+        1, 2, 4 * input_shape[2] * input_shape[3] * static_cast<size_t>(op::PriorBox::number_of_priors(m_attrs))});
 }
 
 std::shared_ptr<Node> op::PriorBoxIE::clone_with_new_inputs(const OutputVector& new_args) const {
