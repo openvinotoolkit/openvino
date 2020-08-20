@@ -25,23 +25,25 @@ from mo.ops.memoryoffset import MemoryOffset
 
 class TdnnComponentReplacer(FrontReplacementPattern):
     '''
-    'unfuse' TdnnComponent into MemoryOffsets, Concats and FullyConected layer
+    Expand TdnnComponent into MemoryOffsets, Concat and FullyConected nodes
 
-    BEFORE:                 john-doe
-                               |
-                          TDNN-Component
-                               |
-    _________________________________________________________________________
+    BEFORE:
+                          placeholder
+                              |
+                      TdnnComponent('time_offsets': t1, t2,... tk)
+                              |
+    _______________________________________________________________
 
-    After:                  john-doe
-            ___________________|___________________________
-           /                   |                           \
-    memoryOffset(t1)     MemoryOffset(t2)    ...    MemoryOffset(tk)
-           \_____________ _____|__________________________/
-                            Concat
-                               |
-                          FullyConnected
-                               |
+    AFTER:
+                          placeholder
+            __________________|___________________________
+           /                  |              \            \
+   MemoryOffset(t1)     MemoryOffset(t2)    ...    MemoryOffset(tk)
+          \_____________ _____|______________/____________/
+                           Concat
+                             |
+                        FullyConnected
+                             |
     '''
     enabled = True
     run_not_recursively = True
