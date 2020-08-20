@@ -28,6 +28,8 @@
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/shape_util.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 
 namespace ngraph
@@ -272,3 +274,5 @@ namespace ngraph
         }
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END

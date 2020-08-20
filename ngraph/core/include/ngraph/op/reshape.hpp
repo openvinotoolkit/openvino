@@ -65,8 +65,11 @@ namespace ngraph
         /// | ------------------------ | ------------------------------------------------------------------------------------------------------ |
         /// | \f$E[d'_1,\dots,d'_m]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with its elements rearranged as described above. |
             // clang-format on
-            class NGRAPH_API Reshape : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Reshape instead of it.") NGRAPH_API Reshape : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Reshape", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -108,6 +111,7 @@ namespace ngraph
                 AxisVector m_input_order;
                 Shape m_output_shape;
                 bool m_is_transpose{false};
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -154,6 +158,8 @@ namespace ngraph
                 bool m_special_zero;
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Reshape;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

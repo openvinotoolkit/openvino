@@ -78,81 +78,167 @@ struct convolution_accumulator<uint8_t> {
 };
 
 template<typename InputT, typename OutputT = InputT, typename WeightsT = InputT,  typename AccT = typename convolution_accumulator<InputT>::type>
-VVF<OutputT> reference_convolve(VVVF<InputT> &input, VVVF<WeightsT> &filter, int stride_y, int stride_x, float bias, int dilation_y = 1, int dilation_x = 1,
-        int input_padding_y = 0, int input_padding_x = 0, int output_padding_y = 0,
-        int output_padding_x = 0, size_t f_begin = 0, size_t f_end = 0, bool depthwise = false, bool grouped = false,
+VVVF<OutputT> reference_convolve(VVVVF<InputT> &input, VVVVF<WeightsT> &filter,
+        int stride_z, int stride_y, int stride_x,
+        float bias,
+        int dilation_z = 1, int dilation_y = 1, int dilation_x = 1,
+        int input_padding_z = 0, int input_padding_y = 0, int input_padding_x = 0,
+        int output_padding_z = 0, int output_padding_y = 0, int output_padding_x = 0,
+        size_t f_begin = 0, size_t f_end = 0, bool depthwise = false, bool grouped = false,
         const VF<InputT>& data_zp = {}, const WeightsT& weights_zp = 0)
 {
-    size_t kernel_extent_y = dilation_y * (filter[0].size() - 1) + 1;
-    size_t kernel_extent_x = dilation_x * (filter[0][0].size() - 1) + 1;
-    size_t output_y = 1 + (input[0].size() - kernel_extent_y + 2 * input_padding_y) / stride_y + 2 * output_padding_y;
-    size_t output_x = 1 + (input[0][0].size() - kernel_extent_x + 2 * input_padding_x) / stride_x + 2 * output_padding_x;
+    size_t kernel_extent_z = dilation_z * (filter[0].size() - 1) + 1;
+    size_t kernel_extent_y = dilation_y * (filter[0][0].size() - 1) + 1;
+    size_t kernel_extent_x = dilation_x * (filter[0][0][0].size() - 1) + 1;
+
+    size_t output_z = 1 + (input[0].size() - kernel_extent_z + 2 * input_padding_z) / stride_z + 2 * output_padding_z;
+    size_t output_y = 1 + (input[0][0].size() - kernel_extent_y + 2 * input_padding_y) / stride_y + 2 * output_padding_y;
+    size_t output_x = 1 + (input[0][0][0].size() - kernel_extent_x + 2 * input_padding_x) / stride_x + 2 * output_padding_x;
+
     bool asymm_data = !data_zp.empty();
     bool asymm_weights = weights_zp != static_cast<WeightsT>(0);
-    VVF<OutputT> output(output_y, VF<OutputT>(output_x, 0));
+    VVVF<OutputT> output(output_z, VVF<OutputT>(output_y, VF<OutputT>(output_x, 0)));
     size_t filter_begin = f_begin ? f_begin : 0;
     size_t filter_end = f_end ? f_end : filter.size();
     for (size_t f = filter_begin; f < filter_end; ++f) {
-        for (size_t y = 0; y < (output_y - 2 * output_padding_y); ++y) {
-            for (size_t x = 0; x < (output_x - 2 * output_padding_x); ++x) {
-                VF<AccT> values;
-                values.reserve(filter[0].size() * filter[0][0].size());
-                for (size_t yf = 0; yf < filter[0].size(); ++yf) {
-                    int yi = -input_padding_y + (int)yf * dilation_y + stride_y * (int)y;
-                    bool yi_inside = yi >= 0 && (int)input[0].size() > yi;
-                    if (!yi_inside) continue;
-                    for (size_t xf = 0; xf < filter[0][0].size(); ++xf) {
-                        int xi = -input_padding_x + (int)xf * dilation_x + stride_x * (int)x;
-                        bool xi_inside = xi >= 0 && (int)input[0][0].size() > xi;
-                        if (!xi_inside) continue;
+        for (size_t z = 0; z < (output_z - 2 * output_padding_z); ++z) {
+            for (size_t y = 0; y < (output_y - 2 * output_padding_y); ++y) {
+                for (size_t x = 0; x < (output_x - 2 * output_padding_x); ++x) {
+                    VF<AccT> values;
+                    values.reserve(filter[0].size() * filter[0][0].size() * filter[0][0][0].size());
+                    for (size_t zf = 0; zf < filter[0].size(); ++zf) {
+                        int zi = -input_padding_z + (int)zf * dilation_z + stride_z * (int)z;
+                        bool zi_inside = zi >= 0 && (int)input[0].size() > zi;
+                        if (!zi_inside) continue;
+                        for (size_t yf = 0; yf < filter[0][0].size(); ++yf) {
+                            int yi = -input_padding_y + (int)yf * dilation_y + stride_y * (int)y;
+                            bool yi_inside = yi >= 0 && (int)input[0][0].size() > yi;
+                            if (!yi_inside) continue;
+                            for (size_t xf = 0; xf < filter[0][0][0].size(); ++xf) {
+                                int xi = -input_padding_x + (int)xf * dilation_x + stride_x * (int)x;
+                                bool xi_inside = xi >= 0 && (int)input[0][0][0].size() > xi;
+                                if (!xi_inside) continue;
 
-                        auto input_val = static_cast<AccT>(input[f][yi][xi]);
+                                auto input_val = static_cast<AccT>(input[f][zi][yi][xi]);
 
-                        if (asymm_data) {
-                            input_val = input_val - static_cast<AccT>(data_zp[f]);
+                                if (asymm_data) {
+                                    input_val = input_val - static_cast<AccT>(data_zp[f]);
+                                }
+
+                                AccT weights_val;
+                                if (!depthwise && !grouped) {
+                                    weights_val = static_cast<AccT>(filter[f][zf][yf][xf]);
+                                } else if (grouped) {
+                                    weights_val = static_cast<AccT>(filter[f - filter_begin][zf][yf][xf]);
+                                }
+                                else {
+                                    weights_val = static_cast<AccT>(filter[0][zf][yf][xf]);
+                                }
+
+                                if (asymm_weights) {
+                                    weights_val = weights_val - static_cast<AccT>(weights_zp);
+                                }
+
+                                //std::cout << std::endl << "f=" << f << ", z=" << z << ", y=" << y << ", x=" << x << ", zf=" << zf << ", yf=" << yf << ", xf=" << xf << ": " << (int)input_val << " * " << (int)weights_val;
+
+                                values.push_back(input_val * weights_val);
+                            }
                         }
-
-                        AccT weights_val;
-                        if (!depthwise && !grouped) {
-                            weights_val = static_cast<AccT>(filter[f][yf][xf]);
-                        } else if (grouped) {
-                            weights_val = static_cast<AccT>(filter[f - filter_begin][yf][xf]);
-                        }
-                        else {
-                            weights_val = static_cast<AccT>(filter[0][yf][xf]);
-                        }
-
-                        if (asymm_weights) {
-                            weights_val = weights_val - static_cast<AccT>(weights_zp);
-                        }
-
-                        values.push_back(input_val * weights_val);
                     }
+                    output[z + output_padding_z][y + output_padding_y][x + output_padding_x] += static_cast<OutputT>(kahan_summation<AccT>(values));
                 }
-                output[y + output_padding_y][x + output_padding_x] += static_cast<OutputT>(kahan_summation<AccT>(values));
             }
         }
     }
 
-    for (size_t y = 0; y < (output_y - 2 * output_padding_y); ++y) {
-        for (size_t x = 0; x < (output_x - 2 * output_padding_x); ++x) {
-            output[y + output_padding_y][x + output_padding_x] += static_cast<OutputT>(bias);
+    for (size_t z = 0; z < (output_z - 2 * output_padding_z); ++z) {
+        for (size_t y = 0; y < (output_y - 2 * output_padding_y); ++y) {
+            for (size_t x = 0; x < (output_x - 2 * output_padding_x); ++x) {
+                output[z + output_padding_z][y + output_padding_y][x + output_padding_x] += static_cast<OutputT>(bias);
+            }
         }
     }
     return output;
 }
 
+template<typename InputT, typename OutputT = InputT, typename WeightsT = InputT,  typename AccT = typename convolution_accumulator<InputT>::type>
+VVF<OutputT> reference_convolve(VVVF<InputT> &input, VVVF<WeightsT> &filter, int stride_y, int stride_x, float bias, int dilation_y = 1, int dilation_x = 1,
+        int input_padding_y = 0, int input_padding_x = 0, int output_padding_y = 0,
+        int output_padding_x = 0, size_t f_begin = 0, size_t f_end = 0, bool depthwise = false, bool grouped = false,
+        const VF<InputT>& data_zp = {}, const WeightsT& weights_zp = 0)
+{
+    VVVVF<InputT> input_extended(input.size(), VVVF<InputT>(1, VVF<InputT>(input[0].size(), VF<InputT>(input[0][0].size(), 0))));
+    for (size_t fi = 0; fi < input.size(); fi++) {
+        for (size_t yi = 0; yi < input[0].size(); yi++) {
+            for (size_t xi = 0; xi < input[0][0].size(); xi++) {
+                input_extended[fi][0][yi][xi] = input[fi][yi][xi];
+            }
+        }
+    }
+
+    VVVVF<WeightsT> filter_extended(filter.size(), VVVF<WeightsT>(1, VVF<WeightsT>(filter[0].size(), VF<WeightsT>(filter[0][0].size(), 0))));
+    for (size_t fi = 0; fi < filter.size(); fi++) {
+        for (size_t yi = 0; yi < filter[0].size(); yi++) {
+            for (size_t xi = 0; xi < filter[0][0].size(); xi++) {
+                filter_extended[fi][0][yi][xi] = filter[fi][yi][xi];
+            }
+        }
+    }
+
+    VVVF<OutputT> output = reference_convolve<InputT, OutputT, WeightsT, AccT>(input_extended, filter_extended,
+        1, stride_y, stride_x,
+        bias,
+        1, dilation_y, dilation_x,
+        0, input_padding_y, input_padding_x,
+        0, output_padding_y, output_padding_x,
+        f_begin, f_end, depthwise, grouped,
+        data_zp, weights_zp);
+
+    VVF<OutputT> output_shrinked(output[0].size(), VF<OutputT>(output[0][0].size(), 0));
+
+    for (size_t yi = 0; yi < output[0].size(); yi++) {
+        for (size_t xi = 0; xi < output[0][0].size(); xi++) {
+            output_shrinked[yi][xi] = output[0][yi][xi];
+        }
+    }
+
+    return output_shrinked;
+}
+
 template <typename T>
-VVF<T> reference_scale_post_op(const VVF<T>& input, const T& scale, const T& shift) {
+VVVF<T> reference_scale_post_op(const VVVF<T>& input, const T& scale, const T& shift) {
     auto output = input;
-    auto size_y = input.size();
-    auto size_x = input[0].size();
-    for (size_t yi = 0; yi < size_y; ++yi) {
-        for (size_t xi = 0; xi < size_x; ++xi) {
-            output[yi][xi] = output[yi][xi] * scale + shift;
+    auto size_z = input.size();
+    auto size_y = input[0].size();
+    auto size_x = input[0][0].size();
+    for (size_t zi = 0; zi < size_z; ++zi) {
+        for (size_t yi = 0; yi < size_y; ++yi) {
+            for (size_t xi = 0; xi < size_x; ++xi) {
+                output[zi][yi][xi] = output[zi][yi][xi] * scale + shift;
+            }
         }
     }
     return output;
+}
+
+
+template <typename T>
+VVF<T> reference_scale_post_op(const VVF<T>& input, const T& scale, const T& shift) {
+    VVVF<T> input_extended(1, VVF<T>(input.size(), VF<T>(input[0].size(), 0)));
+    for (size_t yi = 0; yi < input.size(); yi++) {
+        for (size_t xi = 0; xi < input[0].size(); xi++) {
+            input_extended[0][yi][xi] = input[yi][xi];
+        }
+    }
+    VVVF<T> output = reference_scale_post_op<T>(input_extended, scale, shift);
+    VVF<T> output_shrinked(output[0].size(), VF<T>(output[0][0].size(), 0));
+    for (size_t yi = 0; yi < output[0].size(); yi++) {
+        for (size_t xi = 0; xi < output[0][0].size(); xi++) {
+            output_shrinked[yi][xi] = output[0][yi][xi];
+        }
+    }
+
+    return output_shrinked;
 }
 
 void dump_buffer(memory const& mem, std::string const& name)
@@ -172,14 +258,17 @@ void dump_buffer(memory const& mem, std::string const& name)
         for (int f = 0; f < size.feature[0]; ++f)
         {
             out << "feature " << f << ":\n";
-            for (int y = 0; y < size.spatial[1]; ++y)
+            for (int z = 0; z < size.spatial[2]; ++z)
             {
-                for (int x = 0; x < size.spatial[0]; ++x)
+                for (int y = 0; y < size.spatial[1]; ++y)
                 {
-                    size_t idx = b * pitches.batch[0] + f * pitches.feature[0] + y * pitches.spatial[1] + x * pitches.spatial[0];
-                    out << ptr[idx] << " ";
+                    for (int x = 0; x < size.spatial[0]; ++x)
+                    {
+                        size_t idx = b * pitches.batch[0] + f * pitches.feature[0] + z * pitches.spatial[2] + y * pitches.spatial[1] + x * pitches.spatial[0];
+                        out << ptr[idx] << " ";
+                    }
+                    out << "\n";
                 }
-                out << "\n";
             }
 
             out << "\n";
@@ -4798,15 +4887,18 @@ using TestParamType_convolution_depthwise_gpu = ::testing::tuple<int,   // 0 - I
         bool>; // 6 - With bias
 
 using TestParamType_grouped_convolution_gpu = ::testing::tuple<  int,    // 0 - Input X size
-        int,        // 1 - Input Y size
-        int,        // 2 - Input features
-        int,        // 3 - Output features
-        int,        // 4 - Kernel sizeX
-        int,        // 5 - Kernel sizeY
-        int,        // 6 - Groups number
-        int,        // 7 - Stride
-        int,        // 8 - Batch
-        format>;    // 9 - Input data format
+        int,            // 1  - Input Y size
+        int,            // 2  - Input Z size
+        int,            // 3  - Input features
+        int,            // 4  - Output features
+        int,            // 5  - Kernel sizeX
+        int,            // 6  - Kernel sizeY
+        int,            // 7  - Kernel sizeZ
+        int,            // 8  - Groups number
+        int,            // 9  - Stride
+        int,            // 10  - Batch
+        format,         // 11  - Input data format
+        std::string>;   // 12 - Implementation name
 
 struct convolution_gpu : public ::testing::TestWithParam<TestParamType_convolution_gpu>
 {
@@ -4880,16 +4972,24 @@ struct convolution_grouped_gpu : public ::testing::TestWithParam<TestParamType_g
     static std::string PrintToStringParamName(
         testing::TestParamInfo<TestParamType_grouped_convolution_gpu> param_info) {
         // construct a readable name
-        return "in" + std::to_string(testing::get<0>(param_info.param)) + "x" +
-               std::to_string(testing::get<1>(param_info.param)) + "y" +
-               std::to_string(testing::get<2>(param_info.param)) + "f" +
-               "_output" + std::to_string(testing::get<3>(param_info.param)) + "f" +
-               "_filter" + std::to_string(testing::get<4>(param_info.param)) + "x" +
-                           std::to_string(testing::get<5>(param_info.param)) + "y" +
-               "_groups" + std::to_string(testing::get<6>(param_info.param)) +
-               "_stride" + std::to_string(testing::get<7>(param_info.param)) +
-               "_batch"  + std::to_string(testing::get<8>(param_info.param)) +
-               "_format" + std::to_string(testing::get<9>(param_info.param));
+        std::string res = "in" + std::to_string(testing::get<0>(param_info.param)) + "x" +
+            std::to_string(testing::get<1>(param_info.param)) + "y" +
+            std::to_string(testing::get<2>(param_info.param)) + "z" +
+            std::to_string(testing::get<3>(param_info.param)) + "f" +
+            "_output" + std::to_string(testing::get<4>(param_info.param)) + "f" +
+            "_filter" + std::to_string(testing::get<5>(param_info.param)) + "x" +
+            std::to_string(testing::get<6>(param_info.param)) + "y" +
+            std::to_string(testing::get<7>(param_info.param)) + "z" +
+            "_groups" + std::to_string(testing::get<8>(param_info.param)) +
+            "_stride" + std::to_string(testing::get<9>(param_info.param)) +
+            "_batch" + std::to_string(testing::get<10>(param_info.param)) +
+            "_format" + std::to_string(testing::get<11>(param_info.param));
+
+        if (testing::get<12>(param_info.param) != "") {
+            res += "_impl_" + testing::get<12>(param_info.param);
+        }
+
+        return res;
     }
 };
 
@@ -6957,26 +7057,47 @@ INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
 INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                         convolution_grouped_gpu,
                         ::testing::Values(
-                            // Input X size, Input Y size, Input features, Output features, Kernel size X, Kernel size Y,
-                            // Groups number, Stride, Output padding, Batch, Input data format
+                            // Input X size, Input Y size, Input Z size, Input features, Output features,
+                            // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
+                            // Input data format, Implementation name
+
                             // Format: b_fs_yx_fsv4
-                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(17, 17, 32, 96, 3, 3, 2, 2, 2, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(16, 16, 8, 48, 2, 2, 2, 2, 1, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(3, 3, 48, 96, 2, 2, 2, 8, 1, format::b_fs_yx_fsv4),
-                            TestParamType_grouped_convolution_gpu(6, 6, 8, 26, 3, 3, 2, 4, 1, format::b_fs_yx_fsv4),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, format::b_fs_yx_fsv4, ""),
+
                             // Format: b_fs_yx_fsv16
-                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(17, 17, 32, 96, 3, 3, 2, 2, 2, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(16, 16, 8, 48, 2, 2, 2, 2, 1, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(3, 3, 48, 96, 2, 2, 2, 8, 1, format::b_fs_yx_fsv16),
-                            TestParamType_grouped_convolution_gpu(6, 6, 8, 26, 3, 3, 2, 4, 1, format::b_fs_yx_fsv16)
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, format::b_fs_yx_fsv16, ""),
+                            
+                            // Format: b_fs_zyx_fsv16
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 17, 3, 3, 3, 1, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 16, 3, 3, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 8, 4, 2, 2, 2, 2, 1, 4, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 8, 16, 16, 4, 4, 4, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 17, 32, 96, 3, 3, 3, 2, 2, 2, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 16, 8, 48, 2, 2, 2, 2, 2, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 3, 48, 96, 2, 2, 2, 2, 8, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 6, 8, 26, 3, 3, 3, 2, 4, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(7, 5, 3, 51, 99, 3, 3, 3, 3, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 6, 4, 32, 64, 2, 2, 2, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(33, 6, 4, 16, 32, 4, 3, 2, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(33, 1, 1, 30, 62, 1, 1, 1, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 1, 5, 196, 252, 3, 1, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 256, 2, 1, 2, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, format::b_fs_zyx_fsv16, "")
                         ),
                         convolution_grouped_gpu::PrintToStringParamName);
 
@@ -6985,42 +7106,66 @@ TEST_P(convolution_grouped_gpu, base) {
 
     const int input_x = testing::get<0>(GetParam()),
               input_y = testing::get<1>(GetParam()),
-              input_f = testing::get<2>(GetParam()),
-              output_f = testing::get<3>(GetParam()),
-              filter_x = testing::get<4>(GetParam()),
-              filter_y = testing::get<5>(GetParam()),
-              groups = testing::get<6>(GetParam()),
-              stride = testing::get<7>(GetParam()),
-              batch_num = testing::get<8>(GetParam()),
+              input_z = testing::get<2>(GetParam()),
+              input_f = testing::get<3>(GetParam()),
+              output_f = testing::get<4>(GetParam()),
+              filter_x = testing::get<5>(GetParam()),
+              filter_y = testing::get<6>(GetParam()),
+              filter_z = testing::get<7>(GetParam()),
+              groups = testing::get<8>(GetParam()),
+              stride = testing::get<9>(GetParam()),
+              batch_num = testing::get<10>(GetParam()),
               output_padding = 0,
-              input_offset_y = (filter_x - 1) / 2,
-              input_offset_x = (filter_y - 1) / 2;
-    auto input_data_format = testing::get<9>(GetParam());
+              input_offset_z = (filter_z - 1) / 2,
+              input_offset_y = (filter_y - 1) / 2,
+              input_offset_x = (filter_x - 1) / 2;
+    auto input_data_format = testing::get<11>(GetParam());
+    auto impl_name = testing::get<12>(GetParam());
 
-    auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y));
-    auto input_rnd = generate_random_4d<uint8_t>(batch_num, input_f, input_y, input_x, 0, 255);
-    auto input_rnd_vec = flatten_4d<uint8_t>(format::bfyx, input_rnd);
-    auto input = memory::allocate(engine, {data_types::u8, format::bfyx, input_size});
-    set_values(input, input_rnd_vec);
+    auto num_in_spatial_dims = input_data_format.spatial_num();
 
-    auto weights_size = tensor(group(groups), batch(output_f / groups), feature(input_f / groups), spatial(filter_x, filter_y));
-    VVVVVF<int8_t> weights_rnd = generate_random_5d<int8_t>(groups, output_f / groups, input_f / groups, filter_y, filter_x, -127, 127);
-    auto weights_lay = layout(data_types::i8, format::goiyx, weights_size);
+    auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z));
+    auto input_rnd = generate_random_5d<uint8_t>(batch_num, input_f, input_z, input_y, input_x, 0, 255);
 
+    auto input_lay = layout(data_types::u8, format::bfzyx, input_size);
+    if (num_in_spatial_dims == 2) {
+        input_lay = layout(data_types::u8, format::bfyx, input_size);
+    }
+    std::vector<uint8_t> input_flat(input_lay.get_linear_size());
+    for (int b = 0; b < batch_num; b++)
+        for (int f = 0; f < input_f; f++)
+            for (int z = 0; z < input_z; z++)
+                for (int y = 0; y < input_y; y++)
+                    for (int x = 0; x < input_x; x++) {
+                        tensor coords = tensor(batch(b), feature(f), spatial(x, y, z, 0));
+                        size_t offset = input_lay.get_linear_offset(coords);
+                        input_flat[offset] = input_rnd[b][f][z][y][x];
+                    }
+    auto input = memory::allocate(engine, input_lay);
+    set_values(input, input_flat);
+
+    auto weights_size = tensor(group(groups), batch(output_f / groups), feature(input_f / groups), spatial(filter_x, filter_y, filter_z));
+
+    VVVVVVF<int8_t> weights_rnd = generate_random_6d<int8_t>(groups, output_f / groups, input_f / groups, filter_z, filter_y, filter_x, -127, 127);
+    auto weights_lay = layout(data_types::i8, format::goizyx, weights_size);
+    if (num_in_spatial_dims == 2) {
+        weights_lay = layout(data_types::i8, format::goiyx, weights_size);
+    }
     std::vector<int8_t> weights_flat(weights_lay.get_linear_size());
     for (int gi = 0; gi < groups; ++gi)
         for (int ofi = 0; ofi < output_f / groups; ++ofi)
             for (int ifi = 0; ifi < input_f / groups; ++ifi)
-                for (int kyi = 0; kyi < filter_y; ++kyi)
-                    for (int kxi = 0; kxi < filter_x; ++kxi) {
-                        tensor coords = tensor(group(gi), batch(ofi), feature(ifi), spatial(kxi, kyi, 0, 0));
-                        size_t offset = weights_lay.get_linear_offset(coords);
-                        weights_flat[offset] = weights_rnd[gi][ofi][ifi][kyi][kxi];
-                    }
-    auto weights = memory::allocate(engine, {data_types::i8, format::goiyx, weights_size});
+                for (int kzi = 0; kzi < filter_z; ++kzi)
+                    for (int kyi = 0; kyi < filter_y; ++kyi)
+                        for (int kxi = 0; kxi < filter_x; ++kxi) {
+                            tensor coords = tensor(group(gi), batch(ofi), feature(ifi), spatial(kxi, kyi, kzi, 0));
+                            size_t offset = weights_lay.get_linear_offset(coords);
+                            weights_flat[offset] = weights_rnd[gi][ofi][ifi][kzi][kyi][kxi];
+                        }
+    auto weights = memory::allocate(engine, weights_lay);
     set_values(weights, weights_flat);
 
-    VVVVF<float> expected_result(batch_num, VVVF<float>(output_f));
+    VVVVVF<float> expected_result(batch_num, VVVVF<float>(output_f));
 
     // Calculate reference values without bias
     for (int bi = 0; bi < batch_num; ++bi)
@@ -7031,15 +7176,15 @@ TEST_P(convolution_grouped_gpu, base) {
                 int f_end = gi * input_f / groups + input_f / groups;
 
                 expected_result[bi][ofi + gi * output_f / groups] = reference_convolve<uint8_t, float, int8_t>(
-                    input_rnd[bi], weights_rnd[gi][ofi],  // input, weights
-                    stride, stride,                       // strides
-                    0,                                    // bias
-                    1, 1,                                 // dilation
-                    input_offset_y, input_offset_x,       // input padding
-                    0, 0,                                 // output_padding
-                    f_begin, f_end,                       // f_begin, f_end
-                    false,                                // depthwise
-                    grouped);                             // grouped
+                    input_rnd[bi], weights_rnd[gi][ofi],            // input, weights
+                    stride, stride, stride,                         // strides
+                    0,                                              // bias
+                    1, 1, 1,                                        // dilation
+                    input_offset_z, input_offset_y, input_offset_x, // input padding
+                    0, 0, 0,                                        // output_padding
+                    f_begin, f_end,                                 // f_begin, f_end
+                    false,                                          // depthwise
+                    grouped);                                       // grouped
             }
 
     topology topology(input_layout("input", input.get_layout()),
@@ -7049,14 +7194,14 @@ TEST_P(convolution_grouped_gpu, base) {
                                   "input_fsv",
                                   {"weights"},
                                   groups,
-                                  {1, 1, stride, stride},
-                                  {0, 0, -input_offset_x, -input_offset_y},
-                                  {1, 1, 1, 1},
-                                  padding({0, 0, output_padding, output_padding}, 0.f)));
+                                  tensor(batch(1), feature(1), spatial(stride, stride, stride, 1)),
+                                  tensor(batch(0), feature(0), spatial(-input_offset_x, -input_offset_y, -input_offset_z, 0)),
+                                  tensor(batch(1), feature(1), spatial(1, 1, 1, 1)),
+                                  padding({0, 0, output_padding, output_padding, output_padding}, 0.f)));
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
-    implementation_desc conv_impl = {input_data_format, "fused_conv_eltwise_gpu_imad"};
+    implementation_desc conv_impl = {input_data_format, impl_name};
     options.set_option(build_option::force_implementations({{"conv", conv_impl}}));
 
     network network(engine, topology, options);
@@ -7070,24 +7215,26 @@ TEST_P(convolution_grouped_gpu, base) {
     ASSERT_EQ(out_mem.get_layout().format, input_data_format);
     ASSERT_EQ(out_lay.size.batch[0], expected_result.size());
     ASSERT_EQ(out_lay.size.feature[0], expected_result[0].size());
-    ASSERT_EQ(out_lay.size.spatial[1], expected_result[0][0].size());
-    ASSERT_EQ(out_lay.size.spatial[0], expected_result[0][0][0].size());
+    ASSERT_EQ(out_lay.size.spatial[2], expected_result[0][0].size());
+    ASSERT_EQ(out_lay.size.spatial[1], expected_result[0][0][0].size());
+    ASSERT_EQ(out_lay.size.spatial[0], expected_result[0][0][0][0].size());
 
     for (int bi = 0; bi < batch_num; ++bi)
         for (int ofi = 0; ofi < output_f; ++ofi)
-            for (int yi = 0; yi < (int)expected_result[0][0].size(); ++yi)
-                for (int xi = 0; xi < (int)expected_result[0][0][0].size(); ++xi) {
-                    tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, 0, 0));
-                    auto offset = out_lay.get_linear_offset(coords);
-                    auto val = out_ptr[offset];
-                    auto val_ref = expected_result[bi][ofi][yi][xi];
-                    auto equal = are_equal(val_ref, val, 1e-2f);
-                    if (!equal) {
-                        std::cout << "Value at batch: " << bi << ", output_f: " << ofi << ", y: " << yi << ", x: " << xi << " = " << val << std::endl;
-                        std::cout << "Reference value at batch: " << bi << ", output_f: " << ofi << ", y: " << yi << ", x: " << xi << " = " << val_ref << std::endl;
+            for (int zi = 0; zi < (int)expected_result[0][0].size(); ++zi)
+                for (int yi = 0; yi < (int)expected_result[0][0][0].size(); ++yi)
+                    for (int xi = 0; xi < (int)expected_result[0][0][0][0].size(); ++xi) {
+                        tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, zi, 0));
+                        auto offset = out_lay.get_linear_offset(coords);
+                        auto val = out_ptr[offset];
+                        auto val_ref = expected_result[bi][ofi][zi][yi][xi];
+                        auto equal = are_equal(val_ref, val, 1e-2f);
+                        if (!equal) {
+                            std::cout << "Value at batch: " << bi << ", output_f: " << ofi << ", z: " << zi << ", y: " << yi << ", x: " << xi << " = " << val << std::endl;
+                            std::cout << "Reference value at batch: " << bi << ", output_f: " << ofi << ", z: " << zi << ", y: " << yi << ", x: " << xi << " = " << val_ref << std::endl;
+                        }
+                        EXPECT_TRUE(equal);
                     }
-                    EXPECT_TRUE(equal);
-                }
 }
 
 template <typename InputT, typename WeightsT, typename OutputT>
