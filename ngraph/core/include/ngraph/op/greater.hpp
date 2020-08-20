@@ -25,8 +25,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise greater-than operation.
-            class NGRAPH_API Greater : public util::BinaryElementwiseComparison
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Greater instead of it.") NGRAPH_API Greater
+                : public util::BinaryElementwiseComparison
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Greater", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -48,6 +52,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
@@ -80,6 +85,8 @@ namespace ngraph
             };
         } // namespace v1
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Greater;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
