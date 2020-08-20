@@ -1207,11 +1207,11 @@ protected:
             auto idxType = scatterUpd->get_input_element_type(1);
             if (idxType == element::i32)
             {
-                reference::scatterUpdate<T, int32_t, int64_t>(
+                reference::scatter_update<T, int32_t>(
                     args[0]->get_data_ptr<const T>(),
                     args[1]->get_data_ptr<const int32_t>(),
                     args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
+                    *args[3]->get_data_ptr<const int64_t>(),
                     out[0]->get_data_ptr<T>(),
                     node.get_input_shape(0),
                     node.get_input_shape(1),
@@ -1219,11 +1219,11 @@ protected:
             }
             else if (idxType == element::i64)
             {
-                reference::scatterUpdate<T, int64_t, int64_t>(
+                reference::scatter_update<T, int64_t>(
                     args[0]->get_data_ptr<const T>(),
                     args[1]->get_data_ptr<const int64_t>(),
                     args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
+                    *args[3]->get_data_ptr<const int64_t>(),
                     out[0]->get_data_ptr<T>(),
                     node.get_input_shape(0),
                     node.get_input_shape(1),
