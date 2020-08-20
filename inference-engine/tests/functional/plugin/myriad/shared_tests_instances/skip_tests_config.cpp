@@ -15,7 +15,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
-        ".*Behavior.*ExecGraphTests.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
