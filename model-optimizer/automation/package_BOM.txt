@@ -375,6 +375,7 @@ extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
+extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
 extensions/front/tf/GatherTree_ext.py
