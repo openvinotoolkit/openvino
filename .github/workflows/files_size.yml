@@ -6,10 +6,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
-        with:
-          lfs: false
-          submodules: false
-
+        
       - name: ls
         run: |
           git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
