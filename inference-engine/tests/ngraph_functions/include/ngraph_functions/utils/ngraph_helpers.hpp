@@ -108,7 +108,8 @@ enum ActivationTypes {
     Selu,
     Ceiling,
     PReLu,
-    Mish
+    Mish,
+    HSwish
 };
 
 enum EltwiseTypes {
