@@ -986,7 +986,9 @@ namespace
 
 TEST(op_is, check)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
 #define NGRAPH_OP(a, b) op_is_##a();
 #include "opset0_tbl.hpp"
 #undef NGRAPH_OP
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

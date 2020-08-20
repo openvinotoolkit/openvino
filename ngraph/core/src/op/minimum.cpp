@@ -25,6 +25,8 @@
 #include "ngraph/runtime/reference/minimum.hpp"
 #include "ngraph/type/element_type.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

@@ -22,6 +22,8 @@ namespace ngraph
 {
     namespace builder
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+
         /// \brief  Factory class which generates an nGraph sub-graph performing MatMul operation.
         ///
         /// This default implementation `MatmulFactory` creates a `MatMul` operation for
@@ -86,5 +88,7 @@ namespace ngraph
         protected:
             Output<Node> make_dot(const Output<Node>& left, const Output<Node>& right) override;
         };
+
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace builder
 } // namespace ngraph

@@ -34,6 +34,7 @@ namespace ngraph
                 "This operation is deprecated and will be removed soon. Please do not use it.")
                 NGRAPH_API Dequantize : public ngraph::op::Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Dequantize", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -64,8 +65,11 @@ namespace ngraph
             private:
                 element::Type m_type;
                 AxisSet m_axes;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Dequantize;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

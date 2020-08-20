@@ -32,9 +32,10 @@ namespace ngraph
         {
             /// \brief Splits the input tensor into a list of smaller tensors ("pieces")
             class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. Use v1::Split instead of "
-                "it.") NGRAPH_API Split : public ngraph::op::util::FusedOp
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Split instead of it.") NGRAPH_API Split : public ngraph::op::util::FusedOp
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Split", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -78,6 +79,7 @@ namespace ngraph
                 size_t m_num_split;
                 /// contains lengths of chunks that the input tensor will be split into
                 std::vector<size_t> m_splits;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -114,7 +116,9 @@ namespace ngraph
             };
         }
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Split;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
 

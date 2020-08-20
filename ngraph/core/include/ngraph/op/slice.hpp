@@ -32,6 +32,7 @@ namespace ngraph
                 "This operation is deprecated and will be removed soon. Please do not use it.")
                 NGRAPH_API Slice : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Slice", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -77,9 +78,12 @@ namespace ngraph
                 Coordinate m_lower_bounds;
                 Coordinate m_upper_bounds;
                 Strides m_strides;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Slice;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

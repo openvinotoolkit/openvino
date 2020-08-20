@@ -56,6 +56,7 @@ namespace ngraph
                 "This operation is deprecated and will be removed soon. Please do not use it.")
                 NGRAPH_API ReplaceSlice : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"ReplaceSlice", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -111,8 +112,11 @@ namespace ngraph
                 Coordinate m_lower_bounds;
                 Coordinate m_upper_bounds;
                 Strides m_strides;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::ReplaceSlice;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

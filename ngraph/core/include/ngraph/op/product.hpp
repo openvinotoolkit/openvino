@@ -28,9 +28,11 @@ namespace ngraph
             ///
             /// Reduces the tensor, eliminating the specified reduction axes by taking the product.
             class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. Please do not use it.")
-                NGRAPH_API Product : public util::ArithmeticReduction
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::ReduceProd instead of it.") NGRAPH_API Product
+                : public util::ArithmeticReduction
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Product", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -55,9 +57,12 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Product;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

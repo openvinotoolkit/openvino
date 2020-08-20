@@ -148,11 +148,12 @@ namespace ngraph
 
         namespace v0
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
             ///        input as needed along the new axes.
             class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. Use v1::Broadcast instead "
-                "of it.") NGRAPH_API Broadcast : public Op
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Broadcast instead of it.") NGRAPH_API Broadcast : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Broadcast", 0};
@@ -235,9 +236,12 @@ namespace ngraph
             protected:
                 AxisSet m_initial_broadcast_axes;
             };
+            NGRAPH_SUPPRESS_DEPRECATED_END
         } // namespace v0
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Broadcast;
         using v0::BroadcastLike;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
