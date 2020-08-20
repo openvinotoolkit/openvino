@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/depth_to_space_fusion.hpp"
 #include "transformations/optimize_strided_slice.hpp"
@@ -18,8 +20,6 @@
 #include "transformations/hswish_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/nop_elimination.hpp>
-#include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
