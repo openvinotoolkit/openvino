@@ -479,12 +479,14 @@ namespace ngraph
                               << output_coord << "\n\n";
                     auto input_coord = output_coord;
                     std::map<size_t, std::array<float, 4>> cubic_coeffs;
+                    std::vector<int64_t> base_coords(input_rank, 0);
                     for (size_t i = 0; i < num_of_axes; ++i)
                     {
                         int64_t axis = m_axes[i];
                         float coordinate = static_cast<float>(output_coord[axis]);
                         float in_coord = helper.get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
+                        base_coords[axis] = in_coord_int;
                         input_coord[axis] = in_coord_int;
                         auto s = static_cast<float>(in_coord - in_coord_int);
                         cubic_coeffs[axis] = helper.get_cubic_coeff(s, m_cube_coeff);
@@ -492,6 +494,12 @@ namespace ngraph
 
                     float summa = 0.0f;
                     CoordinateTransform indices{indices_shape};
+                    std::cout << "base_coords: [";
+                    for (int64_t c : base_coords)
+                    {
+                        std::cout << c << " ";
+                    }
+                    std::cout << "]\n";
                     std::cout << "Base input coordinate: " << input_coord << "\n\n";
                     std::cout << "Cubic coeffs:\n";
                     for (const auto& p : cubic_coeffs)
@@ -512,7 +520,10 @@ namespace ngraph
                         {
                             int64_t axis = m_axes[i];
                             std::cout << "    current axis:         " << axis << "\n";
-                            int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
+                            // int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
+                            //                         static_cast<int64_t>(idx[i]) -
+                            //                         static_cast<int64_t>(1);
+                            int64_t coord_to_clip = static_cast<int64_t>(base_coords[axis]) +
                                                     static_cast<int64_t>(idx[i]) -
                                                     static_cast<int64_t>(1);
                             std::cout << "    coord_to_clip:        " << coord_to_clip << "\n";
