@@ -15,7 +15,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto input = ngraph::pattern::any_input();
 
     auto multiply = std::make_shared<ngraph::opset4::Multiply>(input, input);
-    auto axes = ngraph::pattern::any_input();
+    auto axes = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(multiply, axes);
     auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
     auto eps_const = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -26,7 +26,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto axes_input = pattern_to_output.at(input);
+        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         if (!is_scalar(eps_attr->get_shape())) {
             return false;
@@ -55,7 +55,7 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     auto input = ngraph::pattern::any_input();
 
     auto multiply = std::make_shared<ngraph::opset4::Multiply>(input, input);
-    auto axes = ngraph::pattern::any_input();
+    auto axes = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(multiply, axes);
     auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
     auto eps_const = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -66,7 +66,7 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto axes_input = pattern_to_output.at(input);
+        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         if (!is_scalar(eps_attr->get_shape())) {
             return false;
