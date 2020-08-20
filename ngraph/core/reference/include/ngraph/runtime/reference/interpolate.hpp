@@ -315,7 +315,23 @@ namespace ngraph
                     case InterpolateMode::nearest: nearest_func(input_data, out); break;
                     case InterpolateMode::linear: linear_func(input_data, out); break;
                     case InterpolateMode::linear_onnx: linear_onnx_func(input_data, out); break;
-                    case InterpolateMode::cubic: cubic_func(input_data, out); break;
+                    case InterpolateMode::cubic:
+                        std::cout << "coordinate_transformation_mode: "
+                                  << m_attrs.coordinate_transformation_mode << "\n";
+                        std::cout << "scales: ";
+                        for (float scale : m_scales)
+                        {
+                            std::cout << scale << " ";
+                        }
+                        std::cout << "\n";
+                        std::cout << "shape_calculation_mode:         "
+                                  << m_attrs.shape_calculation_mode << "\n";
+                        std::cout << "nearest_mode:                   "
+                                  << m_attrs.nearest_mode << "\n";
+                        std::cout << "cube_coeff:                     "
+                                  << m_attrs.cube_coeff << "\n\n\n";
+                        cubic_func(input_data, out);
+                        break;
                     }
                 }
 
@@ -480,7 +496,7 @@ namespace ngraph
                     std::cout << "Cubic coeffs:\n";
                     for (const auto& p : cubic_coeffs)
                     {
-                        std::cout << "Axis " << p.first << ": [";
+                        std::cout << "    Axis " << p.first << ": [";
                         for (float c : p.second)
                         {
                             std::cout << c << " ";
@@ -495,14 +511,18 @@ namespace ngraph
                         for (size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
+                            std::cout << "    current axis:         " << axis << "\n";
                             int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
                                                     static_cast<int64_t>(idx[i]) -
                                                     static_cast<int64_t>(1);
+                            std::cout << "    coord_to_clip:        " << coord_to_clip << "\n";
                             int64_t clipped_coord = std::max(
                                 static_cast<int64_t>(0),
                                 std::min(coord_to_clip,
                                          static_cast<int64_t>(m_input_data_shape[axis]) - 1));
+                            std::cout << "    clipped_coord:        " << clipped_coord << "\n";
                             coords_for_sum[axis] = clipped_coord;
+                            std::cout << "    coords_for_sum[axis]: " << coords_for_sum[axis] << "\n";
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
                         std::cout << "summation coordinate (clipped): " << coords_for_sum << "\n";
