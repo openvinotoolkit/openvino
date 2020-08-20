@@ -59,7 +59,7 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        return InferenceEngine::ExecutableNetwork{ make_executable_network(std::make_shared<GNAExecutableNetwork>(networkModel, plg)) };
+        return make_executable_network(std::make_shared<GNAExecutableNetwork>(networkModel, plg));
     }
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
