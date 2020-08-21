@@ -34,7 +34,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         }
         const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
-        if (!is_scalar(eps_attr->get_shape())) {
+        if (shape_size(eps_attr->get_shape()) > 1) {
             return false;
         }
         const auto eps_attr_value = eps_attr->cast_vector<float>()[0];
@@ -80,7 +80,7 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         }
         const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
-        if (!is_scalar(eps_attr->get_shape())) {
+        if (shape_size(eps_attr->get_shape()) > 1) {
             return false;
         }
         const auto eps_attr_value = eps_attr->cast_vector<float>()[0];
