@@ -429,13 +429,11 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
 std::vector<std::string> ParseBlobName(std::string str) {
     std::vector<std::string> blobName;
     if (!str.empty()) {
-        size_t pos;
-        std::string outputLayer;
-        while ((pos = str.find(",")) != std::string::npos) {
+        size_t pos = 0;
+        while ((pos = str.find(",", pos)) != std::string::npos) {
             blobName.push_back(str.substr(0, pos));
-            str.erase(0, pos + 1);
         }
-        blobName.push_back(str.substr(0, str.length()));
+        blobName.push_back(str);
     }
     return blobName;
 }
@@ -689,31 +687,35 @@ int main(int argc, char *argv[]) {
         auto t0 = Time::now();
         std::vector<std::string> outputs;
         ExecutableNetwork executableNet;
-        if (!FLAGS_m.empty()) {
-            if (!FLAGS_oname.empty()) {
-                std::vector<std::string> outputs_names = ParseBlobName(FLAGS_oname);
-                std::vector<size_t> ports;
-                for (const std::string& outBlobName : outputs_names) {
-                    size_t pos_layer = outBlobName.rfind(":");
-                    outputs.push_back(outBlobName.substr(0, pos_layer));
-                    try {
-                        ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1, outBlobName.length())));
-                    } catch (std::exception) {
-                        throw std::logic_error("Ports should have integer type");
-                    }
-                }
 
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    network.addOutput(outputs[i], ports[i]);
+        if (!FLAGS_oname.empty()) {
+            std::vector<std::string> output_names = ParseBlobName(FLAGS_oname);
+            std::vector<size_t> ports;
+            for (const auto& outBlobName : output_names) {
+                int pos_layer = outBlobName.rfind(":");
+                if (pos_layer == -1) {
+                    throw std::logic_error(std::string("Output ") + std::string(outBlobName)
+                    + std::string(" doesn't have a port"));
+                }
+                outputs.push_back(outBlobName.substr(0, pos_layer));
+                try {
+                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
+                } catch (std::exception) {
+                    throw std::logic_error("Ports should have integer type");
                 }
             }
+
+            for (size_t i = 0; i < outputs.size(); i++) {
+                network.addOutput(outputs[i], ports[i]);
+            }
+        }
+        if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;
             executableNet = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
         } else {
             slog::info << "Importing model to the device" << slog::endl;
             executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
         }
-
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
 
@@ -749,8 +751,14 @@ int main(int argc, char *argv[]) {
         /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
         if (!FLAGS_iname.empty()) {
-            std::vector<std::string> string_input = ParseBlobName(FLAGS_iname);
-            for (std::string input : string_input) {
+            std::vector<std::string> inputNameBlobs = ParseBlobName(FLAGS_iname);
+            if (inputNameBlobs.size() != cInputInfo.size()) {
+                std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
+                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       std::to_string(inputNameBlobs.size()) + " ).");
+                throw std::logic_error(errMessage);
+            }
+            for (const auto& input : inputNameBlobs) {
                 Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(input);
                 if (!blob) {
                     std::string errMessage("No blob with name : " + input);
@@ -759,7 +767,7 @@ int main(int argc, char *argv[]) {
                 ptrInputBlobs.push_back(blob);
             }
         } else {
-            for (auto &input : cInputInfo) {
+            for (const auto& input : cInputInfo) {
                 ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
             }
         }
@@ -782,8 +790,8 @@ int main(int argc, char *argv[]) {
             outputInfo = network.getOutputsInfo();
         }
         std::vector<Blob::Ptr> ptrOutputBlob;
-        if (!FLAGS_oname.empty()) {
-            for (std::string output : outputs) {
+        if (!outputs.empty()) {
+            for (const auto& output : outputs) {
                 Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(output);
                 if (!blob) {
                     std::string errMessage("No blob with name : " + output);
@@ -932,45 +940,57 @@ int main(int argc, char *argv[]) {
                         if (inferRequest.frameIndex >= 0) {
                             if (!FLAGS_o.empty()) {
                                 outputFrame =
-                                        &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                if (!FLAGS_oname.empty()) {
-                                    for (std::string output : outputs) {
+                                        &ptrScores.front() +
+                                        numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
+                                if (!outputs.empty()) {
+                                    for (auto output : outputs) {
                                         newOutputInfo[output] = cOutputInfo[output];
                                     }
                                 } else {
                                     newOutputInfo = cOutputInfo;
                                 }
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first));
+                                for (const auto &output : newOutputInfo) {
+                                    Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(output.first);
+                                    MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
 
-                                if (!moutput) {
-                                    throw std::logic_error("We expect output to be inherited from MemoryBlob, "
-                                                           "but by fact we were not able to cast output to MemoryBlob");
+                                    if (!moutput) {
+                                        throw std::logic_error("We expect output to be inherited from MemoryBlob, "
+                                                               "but in fact we were not able to cast output to MemoryBlob");
+                                    }
+                                    // locked memory holder should be alive all time while access to its buffer happens
+                                    auto moutputHolder = moutput->rmap();
+                                    auto byteSize = inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
+                                    std::memcpy(outputFrame,
+                                                moutputHolder.as<const void *>(),
+                                                byteSize);
                                 }
-                                // locked memory holder should be alive all time while access to its buffer happens
-                                auto moutputHolder = moutput->rmap();
-                                auto byteSize = inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
-                                std::memcpy(outputFrame,
-                                            moutputHolder.as<const void *>(),
-                                            byteSize);
                             }
-
                             if (!FLAGS_r.empty()) {
-                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
-                                if (!moutput) {
-                                    throw std::logic_error("We expect output to be inherited from MemoryBlob, "
-                                                           "but by fact we were not able to cast output to MemoryBlob");
+                                if (!outputs.empty()) {
+                                    for (const auto& output : outputs) {
+                                        newOutputInfo[output] = cOutputInfo[output];
+                                    }
+                                } else {
+                                    newOutputInfo = cOutputInfo;
                                 }
-                                // locked memory holder should be alive all time while access to its buffer happens
-                                auto moutputHolder = moutput->rmap();
-                                CompareScores(moutputHolder.as<float *>(),
-                                              &ptrReferenceScores[inferRequest.frameIndex *
-                                                                  numFrameElementsReference *
-                                                                  numBytesPerElementReference],
-                                              &frameError,
-                                              inferRequest.numFramesThisBatch,
-                                              numFrameElementsReference);
-                                UpdateScoreError(&frameError, &totalError);
+                                for (const auto& output : newOutputInfo) {
+                                    Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(output.first);
+                                    MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
+                                    if (!moutput) {
+                                        throw std::logic_error("We expect output to be inherited from MemoryBlob, "
+                                                               "but in fact we were not able to cast output to MemoryBlob");
+                                    }
+                                    // locked memory holder should be alive all time while access to its buffer happens
+                                    auto moutputHolder = moutput->rmap();
+                                    CompareScores(moutputHolder.as<float *>(),
+                                                  &ptrReferenceScores[inferRequest.frameIndex *
+                                                                      numFrameElementsReference *
+                                                                      numBytesPerElementReference],
+                                                  &frameError,
+                                                  inferRequest.numFramesThisBatch,
+                                                  numFrameElementsReference);
+                                    UpdateScoreError(&frameError, &totalError);
+                                }
                             }
                             if (FLAGS_pc) {
                                 // retrieve new counters
@@ -986,19 +1006,22 @@ int main(int argc, char *argv[]) {
                         continue;
                     }
 
-                    for (size_t i = 0; i < numInputArkFiles; ++i) {
-                        MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
-                        if (!minput) {
-                            slog::err << "We expect ptrInputBlobs[" << i << "] to be inherited from MemoryBlob, " <<
-                                "but by fact we were not able to cast input blob to MemoryBlob" << slog::endl;
-                            return 1;
-                        }
-                        // locked memory holder should be alive all time while access to its buffer happens
-                        auto minputHolder = minput->wmap();
+                    if (FLAGS_iname.empty()) {
+                        size_t num_files = FLAGS_iname.empty() ? numInputArkFiles: ptrInputBlobs.size();
+                        for (size_t i = 0; i < num_files; ++i) {
+                            MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
+                            if (!minput) {
+                                slog::err << "We expect ptrInputBlobs[" << i << "] to be inherited from MemoryBlob, " <<
+                                          "but in fact we were not able to cast input blob to MemoryBlob" << slog::endl;
+                                return 1;
+                            }
+                            // locked memory holder should be alive all time while access to its buffer happens
+                            auto minputHolder = minput->wmap();
 
-                        std::memcpy(minputHolder.as<void*>(),
-                                    inputFrame[i],
-                                    minput  ->byteSize());
+                            std::memcpy(minputHolder.as<void *>(),
+                                        inputFrame[i],
+                                        minput->byteSize());
+                        }
                     }
 
                     int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);

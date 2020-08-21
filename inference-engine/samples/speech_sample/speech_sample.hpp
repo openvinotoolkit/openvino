@@ -81,13 +81,13 @@ static const char context_window_message_r[] = "Optional. Number of frames for r
                                                "Works only with context window networks."
                                                " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
 
-/// @brief message for output layers names
-static const char output_layers_names_message[] = "Optional. Layer names for output blobs. " \
+/// @brief message for output layer names
+static const char output_layer_names_message[] = "Optional. Layer names for output blobs. " \
                                           "The names are separated with \",\" " \
                                           "Example: input1:port,input2:port ";
 
-/// @brief message for inputs layers names
-static const char input_layers_names_message[] = "Optional. Layer names for input blobs. " \
+/// @brief message for inputs layer names
+static const char input_layer_names_message[] = "Optional. Layer names for input blobs. " \
                                           "The names are separated with \",\" " \
                                           "Example: Input1,Input2 ";
 
@@ -155,11 +155,11 @@ DEFINE_int32(cw_r, 0, context_window_message_r);
 /// @brief Left context window size (default 0)
 DEFINE_int32(cw_l, 0, context_window_message_l);
 
-/// @brief Outputs layers name
-DEFINE_string(oname, "", output_layers_names_message);
+/// @brief Output layer name
+DEFINE_string(oname, "", output_layer_names_message);
 
-/// @brief Inputs layers name
-DEFINE_string(iname, "", input_layers_names_message);
+/// @brief Input layer name
+DEFINE_string(iname, "", input_layer_names_message);
 
 /**
  * \brief This function show a help message
@@ -189,7 +189,7 @@ static void showUsage() {
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
-    std::cout << "    -oname \"<string>\"       " << output_layers_names_message << std::endl;
-    std::cout << "    -iname \"<string>\"       " << input_layers_names_message << std::endl;
+    std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
+    std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
 }
 
