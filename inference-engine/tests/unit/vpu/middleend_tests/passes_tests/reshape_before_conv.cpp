@@ -57,15 +57,17 @@ protected:
         convLayer->_kernel_y = kernel_y;
         convLayer->_stride_x = 1;
         convLayer->_stride_y = 1;
-        convLayer->_padding_x = 0;
-        convLayer->_padding_y = 0;
 
-        convLayer->_weights = ie::make_shared_blob<fp16_t>({
-                ie::Precision::FP16, {static_cast<size_t>(convLayer->_kernel_x * convLayer->_kernel_y *
-                input->desc().dim(Dim::C) * output->desc().dim(Dim::C))}, ie::Layout::C });
-        convLayer->_weights->allocate();
+        Stage stage = stageBuilder->addConvolutionStage(_model, "TestConvolution", convLayer, input, output,
+                InitNewData(DimValues{ {Dim::N, output->desc().dim(Dim::C)}, {Dim::C, input->desc().dim(Dim::C)}, {Dim::H, kernel_y}, {Dim::W, kernel_x} },
+                "TestConvolution@weights@conv"),
+                _model->addFakeData(), _model->addFakeData());
 
-        frontEnd->parseConvolution(_model, convLayer, { input }, { output });
+        stage->attrs().set<int>("kernelSizeX", kernel_x);
+        stage->attrs().set<int>("kernelSizeY", kernel_y);
+        stage->attrs().set<int>("kernelStrideX", 1);
+        stage->attrs().set<int>("kernelStrideY", 1);
+        stage->attrs().set<bool>("tryHW", true);
     }
 
     void Validate(const details::ContainerRange<DataList, false>& datas, const details::ContainerRange<StageList, false>& stages) {
@@ -115,8 +117,8 @@ protected:
         pattern_datas.push_back(input);
         pattern_datas.push_back(output);
         pattern_datas.push_back(fake);
-        pattern_datas.push_back(weights);
         pattern_datas.push_back(fake);
+        pattern_datas.push_back(weights);
         pattern_datas.push_back(inputAfterReshape);
         pattern_datas.push_back(outputBeforeReshape);
 
@@ -134,16 +136,16 @@ protected:
 
 class NoReshapeBeforeConvCases : public ReshapeBeforeConvTests {
 protected:
-    void CreateIncorrectPattern(const Data& input, const Data& output, size_t kernelH = 1, size_t kernelW = 1) {
+    void CreateIncorrectPattern(const Data& input, const Data& output, size_t kernelx = 1, size_t kernely = 1) {
         const Data fake = _model->addFakeData();
         const Data weights = InitNewData(DimValues{ {Dim::N, output->desc().dim(Dim::C)}, {Dim::C, input->desc().dim(Dim::C)},
-                {Dim::H, kernelH}, {Dim::W, kernelW} }, "TestConvolution@weights@conv");
+                {Dim::H, kernely}, {Dim::W, kernelx} }, "TestConvolution@weights@conv");
 
         pattern_datas.push_back(input);
         pattern_datas.push_back(output);
         pattern_datas.push_back(fake);
-        pattern_datas.push_back(weights);
         pattern_datas.push_back(fake);
+        pattern_datas.push_back(weights);
 
         // duplicate to pattern additional not connected data
         pattern_datas.push_back(fake);
@@ -208,14 +210,14 @@ TEST_F(NoReshapeBeforeConvCases, NoChangesForOtherConvKernel) {
     _model->attrs().set<int>("numInputs", 1);
     const auto output = InitOutputData(outDims);
 
-    InitConvStage(input, output, 3, 3);
+    InitConvStage(input, output, 3, 5);
 
     ASSERT_NO_THROW(Compile());
 
     const auto datas = _model->datas();
     const auto stages = _model->getStages();
 
-    CreateIncorrectPattern(input, output, 3, 3);
+    CreateIncorrectPattern(input, output, 3, 5);
 
     Validate(datas, stages);
 }
@@ -329,11 +331,11 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     pattern_datas.push_back(firstOutput);
     pattern_datas.push_back(secondOutput);
     pattern_datas.push_back(fake);
+    pattern_datas.push_back(fake);
     pattern_datas.push_back(firstWeights);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(fake);
     pattern_datas.push_back(firstInputAfterReshape);
     pattern_datas.push_back(firstOutputBeforeReshape);
     pattern_datas.push_back(secondInputAfterReshape);
@@ -407,11 +409,11 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     pattern_datas.push_back(firstOutput);
     pattern_datas.push_back(secondOutput);
     pattern_datas.push_back(fake);
+    pattern_datas.push_back(fake);
     pattern_datas.push_back(firstWeights);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(fake);
     pattern_datas.push_back(inputAfterReshape);
     pattern_datas.push_back(outputBeforeReshape);
 
@@ -474,11 +476,11 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     pattern_datas.push_back(layerData);
     pattern_datas.push_back(output);
     pattern_datas.push_back(fake);
+    pattern_datas.push_back(fake);
     pattern_datas.push_back(firstWeights);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(fake);
     pattern_datas.push_back(inputAfterReshape);
     pattern_datas.push_back(layerDataBeforeReshape);
 
@@ -541,11 +543,11 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     pattern_datas.push_back(layerData);
     pattern_datas.push_back(output);
     pattern_datas.push_back(fake);
+    pattern_datas.push_back(fake);
     pattern_datas.push_back(firstWeights);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(fake);
     pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(fake);
     pattern_datas.push_back(layerDataAfterReshape);
     pattern_datas.push_back(outputBeforeReshape);
 
