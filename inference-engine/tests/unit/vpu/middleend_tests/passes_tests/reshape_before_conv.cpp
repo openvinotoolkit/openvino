@@ -70,7 +70,9 @@ protected:
         stage->attrs().set<bool>("tryHW", true);
     }
 
-    void Validate(const details::ContainerRange<DataList, false>& datas, const details::ContainerRange<StageList, false>& stages) {
+    void Validate() {
+        const auto datas = _model->datas();
+        const auto stages = _model->getStages();
         ASSERT_EQ(datas.size(), pattern_datas.size());
         ASSERT_EQ(stages.size(), pattern_stages.size());
 
@@ -174,12 +176,9 @@ TEST_P(ReshapeBeforeConvCases, CompareCountOfLayersPatternCaseTest) {
 
     ASSERT_NO_THROW(Compile());
 
-    auto datas = _model->datas();
-    auto stages = _model->getStages();
-
     CreateCorrectPattern(input, output);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 static const std::vector<DimValues> patternInputDims = {
@@ -214,12 +213,9 @@ TEST_F(NoReshapeBeforeConvCases, NoChangesForOtherConvKernel) {
 
     ASSERT_NO_THROW(Compile());
 
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
-
     CreateIncorrectPattern(input, output, 3, 5);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
@@ -241,12 +237,9 @@ TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
 
     ASSERT_NO_THROW(Compile());
 
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
-
     CreateIncorrectPattern(input, output);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 static const std::vector<DimValues> noPatternDims = {
@@ -303,9 +296,6 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
 
     ASSERT_NO_THROW(Compile());
 
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
-
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
             DimValues{ {Dim::N, 10}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
@@ -357,7 +347,7 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions) {
@@ -386,9 +376,6 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     InitConvStage(secondInput, secondOutput);
 
     ASSERT_NO_THROW(Compile());
-
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
 
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
@@ -429,7 +416,7 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
@@ -454,9 +441,6 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     InitConvStage(layerData, output);
 
     ASSERT_NO_THROW(Compile());
-
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
 
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
@@ -496,7 +480,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     pattern_stages.push_back(StageType::Reshape);
     pattern_stages.push_back(StageType::StubConv);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
@@ -521,9 +505,6 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     InitConvStage(layerData, output);
 
     ASSERT_NO_THROW(Compile());
-
-    const auto datas = _model->datas();
-    const auto stages = _model->getStages();
 
     const Data fake = _model->addFakeData();
     const Data firstWeights = InitNewData(
@@ -563,7 +544,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    Validate(datas, stages);
+    Validate();
 }
 
 } // namespace vpu
