@@ -22,9 +22,6 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
-#include <iomanip>
-#include <iostream>
-#include <list>
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
@@ -315,23 +312,7 @@ namespace ngraph
                     case InterpolateMode::nearest: nearest_func(input_data, out); break;
                     case InterpolateMode::linear: linear_func(input_data, out); break;
                     case InterpolateMode::linear_onnx: linear_onnx_func(input_data, out); break;
-                    case InterpolateMode::cubic:
-                        std::cout << "coordinate_transformation_mode: "
-                                  << m_attrs.coordinate_transformation_mode << "\n";
-                        std::cout << "scales: ";
-                        for (float scale : m_scales)
-                        {
-                            std::cout << scale << " ";
-                        }
-                        std::cout << "\n";
-                        std::cout << "shape_calculation_mode:         "
-                                  << m_attrs.shape_calculation_mode << "\n";
-                        std::cout << "nearest_mode:                   "
-                                  << m_attrs.nearest_mode << "\n";
-                        std::cout << "cube_coeff:                     "
-                                  << m_attrs.cube_coeff << "\n\n\n";
-                        cubic_func(input_data, out);
-                        break;
+                    case InterpolateMode::cubic: cubic_func(input_data, out); break;
                     }
                 }
 
@@ -404,11 +385,20 @@ namespace ngraph
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
+                size_t num_of_axes = m_axes.size();
 
                 assert((input_rank == 2) || (input_rank == 4));
-                assert(m_axes.size() == 2);
+                assert((num_of_axes == 2) || (num_of_axes == input_rank));
+
                 bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1)) ||
                                     ((m_axes[0] == 2) && (m_axes[1] == 3));
+
+                if ((num_of_axes == 4) && (input_rank == 4))
+                {
+                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) &&
+                                   (m_axes[2] == 2) && (m_axes[3] == 3);
+                }
+
                 assert(correct_axes);
 
                 const auto info = helper.get_info_for_linear_onnx_mode();
@@ -454,30 +444,12 @@ namespace ngraph
                 size_t input_rank = m_input_data_shape.size();
                 size_t num_of_axes = m_axes.size();
 
-                std::cout << "Calculation for the cubic mode\n";
-                std::cout << "Axes: ";
-                for (const size_t axis : m_axes)
-                {
-                    std::cout << axis << " ";
-                }
-                std::cout << "\ninput rank: " << input_rank << "\n";
-                std::cout << "input shape:  " << m_input_data_shape << "\n";
-                std::cout << "output shape: " << m_out_shape << "\n";
-
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
                 Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
 
-                std::cout << "indices_shape: " << indices_shape << "\n";
-
-                std::cout << "size of float: " << sizeof(float) << "\n";
-                std::cout << std::setprecision(10) << "\n";
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    std::cout << "*******************************************************\n";
-                    std::cout << "Calculating output tensor element with coordinates "
-                              << output_coord << "\n\n";
-                    auto input_coord = output_coord;
                     std::map<size_t, std::array<float, 4>> cubic_coeffs;
                     std::vector<int64_t> base_coords(input_rank, 0);
                     for (size_t i = 0; i < num_of_axes; ++i)
@@ -487,59 +459,31 @@ namespace ngraph
                         float in_coord = helper.get_in_coord(coordinate, i);
                         int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
                         base_coords[axis] = in_coord_int;
-                        input_coord[axis] = in_coord_int;
                         auto s = static_cast<float>(in_coord - in_coord_int);
                         cubic_coeffs[axis] = helper.get_cubic_coeff(s, m_cube_coeff);
                     }
 
                     float summa = 0.0f;
                     CoordinateTransform indices{indices_shape};
-                    std::cout << "base_coords: [";
-                    for (int64_t c : base_coords)
-                    {
-                        std::cout << c << " ";
-                    }
-                    std::cout << "]\n";
-                    std::cout << "Base input coordinate: " << input_coord << "\n\n";
-                    std::cout << "Cubic coeffs:\n";
-                    for (const auto& p : cubic_coeffs)
-                    {
-                        std::cout << "    Axis " << p.first << ": [";
-                        for (float c : p.second)
-                        {
-                            std::cout << c << " ";
-                        }
-                        std::cout << "]\n\n";
-                    }
+
                     for (const Coordinate& idx : indices)
                     {
-                        std::cout << "summation index: " << idx << "\n";
-                        auto coords_for_sum = input_coord;
+                        auto coords_for_sum = output_coord;
                         float coeffs_prod = 1.0;
                         for (size_t i = 0; i < num_of_axes; ++i)
                         {
                             int64_t axis = m_axes[i];
-                            std::cout << "    current axis:         " << axis << "\n";
-                            // int64_t coord_to_clip = static_cast<int64_t>(input_coord[axis]) +
-                            //                         static_cast<int64_t>(idx[i]) -
-                            //                         static_cast<int64_t>(1);
                             int64_t coord_to_clip = static_cast<int64_t>(base_coords[axis]) +
                                                     static_cast<int64_t>(idx[i]) -
                                                     static_cast<int64_t>(1);
-                            std::cout << "    coord_to_clip:        " << coord_to_clip << "\n";
                             int64_t clipped_coord = std::max(
                                 static_cast<int64_t>(0),
                                 std::min(coord_to_clip,
                                          static_cast<int64_t>(m_input_data_shape[axis]) - 1));
-                            std::cout << "    clipped_coord:        " << clipped_coord << "\n";
                             coords_for_sum[axis] = clipped_coord;
-                            std::cout << "    coords_for_sum[axis]: " << coords_for_sum[axis] << "\n";
                             coeffs_prod *= cubic_coeffs[axis][idx[i]];
                         }
-                        std::cout << "summation coordinate (clipped): " << coords_for_sum << "\n";
-                        std::cout << "corresponding input element: "
-                                  << input_data[input_transform.index(coords_for_sum)] << "\n";
-                        std::cout << "coeffs_prod: " << coeffs_prod << "\n";
+
                         summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
                     }
 

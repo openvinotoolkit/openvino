@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -144,9 +143,6 @@ TEST(op_eval, interpolate_v4_cubic)
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
-        std::cout << "*******************************************************\n";
-        std::cout << "*******************************************************\n";
-        std::cout << "test info number " << i << "\n";
         auto image = std::make_shared<op::Parameter>(element::f32, data_shape);
         auto target_spatial_shape =
             op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
