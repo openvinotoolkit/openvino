@@ -29,6 +29,9 @@ bool PoolingKernelBase::Validate(const Params& p, const optional_params& o) cons
             return false;
     }
 
+    if (params.inputs[0].Dimentions() > 5)
+        return false;
+
     return true;
 }
 
@@ -157,7 +160,7 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
         // Determine global work sizes.
         kd.gws0 = output.Batch().v * output.Feature().v;  // B, F
         kd.gws1 = output.X().v;                           // X
-        kd.gws2 = output.Y().v;                           // Y
+        kd.gws2 = output.Y().v * output.Z().v;            // Y * Z
 
         kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
         while (kd.gws0 % kd.lws0 != 0) {

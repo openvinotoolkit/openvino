@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
@@ -28,6 +29,8 @@
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -46,14 +49,16 @@ static shared_ptr<op::Constant>
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   max->get_reduction_axes());
+                                   max->get_reduction_axes(),
+                                   false);
     }
     else if (auto reduce_max = as_type_ptr<op::v1::ReduceMax>(reduction_node))
     {
         runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   reduce_max->get_reduction_axes());
+                                   reduce_max->get_reduction_axes(),
+                                   reduce_max->get_keep_dims());
     }
     else if (auto min = as_type_ptr<op::Min>(reduction_node))
     {
@@ -74,35 +79,40 @@ static shared_ptr<op::Constant>
         runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
-                                       prod->get_reduction_axes());
+                                       prod->get_reduction_axes(),
+                                       false);
     }
     else if (auto reduce_prod = as_type_ptr<op::v1::ReduceProd>(reduction_node))
     {
         runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
-                                       reduce_prod->get_reduction_axes());
+                                       reduce_prod->get_reduction_axes(),
+                                       reduce_prod->get_keep_dims());
     }
     else if (auto sum = as_type_ptr<op::Sum>(reduction_node))
     {
         runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   sum->get_reduction_axes());
+                                   sum->get_reduction_axes(),
+                                   false);
     }
     else if (auto reduce_sum = as_type_ptr<op::v1::ReduceSum>(reduction_node))
     {
         runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   reduce_sum->get_reduction_axes());
+                                   reduce_sum->get_reduction_axes(),
+                                   reduce_sum->get_keep_dims());
     }
     else if (auto reduce_mean = as_type_ptr<op::v1::ReduceMean>(reduction_node))
     {
         runtime::reference::mean<T>(constant->get_data_ptr<T>(),
                                     data_ptr,
                                     constant->get_output_shape(0),
-                                    reduce_mean->get_reduction_axes());
+                                    reduce_mean->get_reduction_axes(),
+                                    reduce_mean->get_keep_dims());
     }
     else
     {
@@ -187,7 +197,7 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
                                            is_supported_reduction,
                                            NodeVector{constant_data_label, constant_axes_label});
 
-    auto constant_arithmetic_reduction_callback = [constant_data_label](pattern::Matcher& m) {
+    auto constant_arithmetic_reduction_callback = [this, constant_data_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for constant_arithmetic_reduction_callback against node = "
                      << m.get_match_root()->get_name();
 
@@ -195,6 +205,9 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
 
         auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_data_label]);
         auto reduction_match = m.get_match_root();
+
+        if (cf_is_disabled(reduction_match))
+            return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
 

@@ -62,7 +62,6 @@ class TestInterpolateConcat(unittest.TestCase):
         ], nodes_with_edges_only=True)
 
         InterpolateWithConcat().find_and_replace_pattern(graph)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
         graph.clean_up()
         graph_ref = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),
@@ -92,7 +91,6 @@ class TestInterpolateConcat(unittest.TestCase):
         ], nodes_with_edges_only=True)
 
         InterpolateWithConcat().find_and_replace_pattern(graph)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
         graph.clean_up()
         graph_ref = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),

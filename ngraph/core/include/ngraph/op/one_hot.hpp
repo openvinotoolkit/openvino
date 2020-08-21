@@ -46,8 +46,11 @@ namespace ngraph
             /// | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T'\f$, where \f$T'[i_1,\dots,i_{m-1},i_m,i_{m+1},\dots,i_n] = 1\f$ if \f$T[i_1,\dots,i_{m-1},i_{m+1},\dots,i_n] = i_m\f$, else \f$0\f$. However, \f$T'\f$ is undefined if any non-integral value or any out-of-bounds value is detected in the input tensor. |
             // clang-format on
-            class NGRAPH_API OneHot : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::OneHot instead of it.") NGRAPH_API OneHot : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"OneHot", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -71,6 +74,7 @@ namespace ngraph
             protected:
                 PartialShape m_shape;
                 size_t m_one_hot_axis;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
         namespace v1
@@ -111,6 +115,8 @@ namespace ngraph
             };
         }
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::OneHot;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

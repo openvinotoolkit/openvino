@@ -54,7 +54,6 @@ class TestInterpolateReshapeWA(unittest.TestCase):
             *connect('interpolate', 'output'),
         ], nodes_with_edges_only=True)
         InterpolateReshapeWA().find_and_replace_pattern(graph)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
         graph.clean_up()
         graph_ref = build_graph(nodes, [
             *connect('placeholder', '0:interpolate'),
@@ -80,7 +79,7 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('placeholder_1', '1:concat'),
             *connect('concat', 'output'),
         ], nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+
         InterpolateConcat().find_and_replace_pattern(graph)
         graph.clean_up()
         graph_ref = build_graph(nodes, [

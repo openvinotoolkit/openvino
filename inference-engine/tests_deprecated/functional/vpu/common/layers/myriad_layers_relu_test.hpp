@@ -28,8 +28,9 @@ public:
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["relu"]->setPrecision(Precision::FP16);
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, { {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                                                                                  {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)} },
+        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+                { {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
+                  {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
                                                           &_resp));
         ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
         ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
@@ -68,7 +69,7 @@ static std::vector<ReLULayerDef> s_reluLayerParams = {
 typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, ReLULayerDef>> myriadLayerReLU_smoke;
 
 TEST_P(myriadLayerReLU_smoke, ReLU) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     auto input_dims = std::get<0>(GetParam());
     auto extraLayerParams = std::get<1>(GetParam());
     IN_OUT_desc input_tensor;
