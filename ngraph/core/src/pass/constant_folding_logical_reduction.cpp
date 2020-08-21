@@ -22,6 +22,8 @@
 #include "ngraph/runtime/reference/any.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

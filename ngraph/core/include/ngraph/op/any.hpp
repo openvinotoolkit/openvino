@@ -25,8 +25,11 @@ namespace ngraph
         namespace v0
         {
             /// \brief Logical "any" reduction operation.
-            class NGRAPH_API Any : public util::LogicalReduction
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please don't use it.")
+                NGRAPH_API Any : public util::LogicalReduction
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Any", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -48,8 +51,11 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override { return true; }
                 /// \return The default value for Any.
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Any;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
