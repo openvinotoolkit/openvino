@@ -73,8 +73,8 @@ protected:
 
         auto dataIter = datas.begin();
         for (auto patternIter = pattern_datas.begin(); patternIter != pattern_datas.end();
-                std::advance(dataIter, 1),
-                std::advance(patternIter, 1)) {
+                ++dataIter,
+                ++patternIter) {
             ASSERT_EQ((*dataIter)->desc(), (*patternIter)->desc());
             ASSERT_EQ((*dataIter)->name(), (*patternIter)->name());
         }
@@ -85,8 +85,8 @@ protected:
 
         auto patternIter = pattern_stages.begin();
         for (auto stageIter = stages.begin(); stageIter != stages.end();
-                std::advance(stageIter, 1),
-                std::advance(patternIter, 1)) {
+                ++stageIter,
+                ++patternIter) {
             ASSERT_EQ((*stageIter)->type(), *patternIter);
         }
     }
