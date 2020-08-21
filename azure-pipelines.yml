@@ -289,28 +289,28 @@ jobs:
 
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=deep
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=300 /test=gtest
     displayName: 'IE UT old /testlevel=deep'
     continueOnError: true
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=Auto
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=Auto /test=gtest
     displayName: 'IE UT old /testlevel=Auto'
     continueOnError: true
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_print_time=1 /testlevel=Auto
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_print_time=1 /testlevel=Auto /test=gtest
     displayName: 'IE UT old --gtest_print_time=1'
     continueOnError: true
 
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=deep
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=300 /test=gtest
     displayName: 'CPU FuncTests /testlevel=deep'
     continueOnError: true
   - script: |
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=Auto
+      "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" $(BIN_DIR)\cpuFuncTests.exe /testlevel=Auto /test=gtest
     displayName: 'CPU FuncTests /testlevel=deep'
     continueOnError: true
 
@@ -318,7 +318,7 @@ jobs:
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=deep
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=300 /test=gtest
     displayName: 'MklDnnFunctionalTests /testlevel=deep'
     continueOnError: true
     enabled: false
@@ -326,7 +326,7 @@ jobs:
       set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=Auto
+      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\MklDnnFunctionalTests.exe /testlevel=Auto /test=gtest
     displayName: 'MklDnnFunctionalTests /testlevel=Auto'
     continueOnError: true
 
