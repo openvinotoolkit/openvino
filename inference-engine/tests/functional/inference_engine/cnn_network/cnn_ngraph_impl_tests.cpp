@@ -753,4 +753,37 @@ TEST(CNNNGraphImplTests, addOutput) {
     ASSERT_EQ(outputs["reshape"]->getLayout(), InferenceEngine::Layout::NCHW);
 }
 
+TEST(CNNNGraphImplTests, addOutputForParameter) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("param");
+    {
+        auto output_info = cnnNetwork.getOutputsInfo();
+        ASSERT_EQ(output_info.count("param"), 1);
+        ASSERT_EQ(output_info["param"]->getTensorDesc().getDims(), SizeVector({1, 3, 22, 22}));
+    }
+
+    cnnNetwork.reshape({{"param", SizeVector({1, 3, 32, 64})}});
+    cnnNetwork.addOutput("param");
+    {
+        auto output_info = cnnNetwork.getOutputsInfo();
+        ASSERT_EQ(output_info.count("param"), 1);
+        ASSERT_EQ(output_info["param"]->getTensorDesc().getDims(), SizeVector({1, 3, 32, 64}));
+    }
+}
+
 IE_SUPPRESS_DEPRECATED_END
