@@ -28,6 +28,7 @@ from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.shape import node_to_get_shape_value_of_indices
 
 
@@ -81,6 +82,9 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         self.squeeze_initial_states(graph, match)
         self.reordering_inputs(graph, match)
         match['rnn_layer']['override_output_shape'] = True
+        import os
+        os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
+        graph.dump_graph_for_graphviz(save_to_svg=True)
         # some additional checks for ports number and similar stuff
 
     def repack_weights(self, graph: Graph, match: dict):
@@ -152,19 +156,23 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         # please refer to docs in this transform
 
         direction_dim = [1, 0, 0]  # index of dimension with direction index
-        rnn_layer_name = rnn_layer.soft_get('name', rnn_layer.id)
         for i in rnn_layer.out_nodes():
-            shape = Shape(graph, dict(name=rnn_layer_name + '/ShapeOf/{}'.format(i))).create_node()
-            squeeze = create_op_node_with_second_input(graph, Squeeze, int64_array(direction_dim[i]),
-                                                       op_attrs=dict(name=rnn_layer_name + '/SqueezeNumDirections/{}'.format(i), override_output_shape=True))
-            reshape = Reshape(graph, dict(name=squeeze.name + '/Reshape')).create_node()
-            next_op_input_port = rnn_layer.out_port(i).get_destination()
-            next_op_input_port.get_connection().set_destination(squeeze.in_port(0))
-            reshape.in_port(0).connect(squeeze.out_port(0))
-            rnn_layer.out_port(i).connect(shape.in_port(0))
-            shape.out_port(0).connect(reshape.in_port(1))
-            reshape.out_port(0).connect(next_op_input_port)
+            old_data_node = rnn_layer.out_node(i)
+            old_shape = old_data_node.shape.copy()
+            new_shape = np.delete(old_shape, direction_dim[i])
 
+            data = Op._create_data_node(graph, name=rnn_layer.name + '/Out/{}/'.format(i), attrs={'shape': new_shape})
+            graph.remove_edge(rnn_layer.id, old_data_node.id)
+            graph.add_edge(rnn_layer.id, data.id, key=0, out=i)
+
+            reshape = Unsqueeze(graph, dict())
+
+            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/SqueezeNumDirections/{}/Dim'.format(i),
+                                             'value': int64_array([direction_dim[i]])}).create_node_with_data()
+
+            reshape.create_node_with_data([data, reshape_dim_data],
+                                          dict(name=rnn_layer.name + '/SqueezeNumDirections/{}'.format(i)),
+                                          data_nodes=[old_data_node])
     @staticmethod
     def squeeze_initial_states(graph: Graph, match: dict):
         """
@@ -182,14 +190,19 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         hidden_size = rnn_layer.hidden_size
         shape = Shape(graph, dict(name=rnn_layer_name + '/ShapeOf')).create_node()
         rnn_layer.in_port(0).get_source().connect(shape.in_port(0))
+        # shape.infer(shape)
 
         batch = node_to_get_shape_value_of_indices(shape, [rnn_layer.batch_dim])
         new_dim = create_op_node_with_second_input(graph, Concat, second_input_value=int64_array([hidden_size]),
                                                    op_attrs=dict(name=rnn_layer_name + '/HiddenStateResizeDim',
                                                                  in_ports_count=2, axis=0), input_node=batch)
+        batch.infer(batch)
         reshape_h = Reshape(graph, dict(name=rnn_layer_name + '/HiddenStateResize', override_output_shape=True)).create_node()
         new_dim.out_port(0).connect(reshape_h.in_port(1))
         rnn_layer.in_port(hidden_init_port).get_connection().insert_node(reshape_h)
+
+        new_dim.infer(new_dim)
+        reshape_h.infer(reshape_h)
 
         if rnn_layer.op == 'LSTM':
             assert cell_init_port in rnn_layer.in_nodes()
@@ -197,6 +210,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             reshape_c = Reshape(graph, dict(name=rnn_layer_name + '/CellStateResize', override_output_shape=True)).create_node()
             new_dim.out_port(0).connect(reshape_c.in_port(1))
             rnn_layer.in_port(cell_init_port).get_connection().insert_node(reshape_c)
+            reshape_c.infer(reshape_c)
 
     @staticmethod
     def reordering_inputs(graph: Graph, match: dict):
