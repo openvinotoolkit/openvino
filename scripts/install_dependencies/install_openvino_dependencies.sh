@@ -79,8 +79,6 @@ if [ -f /etc/lsb-release ]; then
     else
         if [ "$system_ver" = "20.04" ]; then
             PKGS+=( libgstreamer1.0-0 
-                    gstreamer1.0-tools 
-                    gstreamer1.0-doc 
                     gstreamer1.0-plugins-base 
                     gstreamer1.0-plugins-good  
                     gstreamer1.0-plugins-bad 
@@ -95,6 +93,8 @@ if [ -f /etc/lsb-release ]; then
                     gstreamer1.0-gtk3 
                     gstreamer1.0-qt5 
                     gstreamer1.0-pulseaudio 
+                    libgstrtspserver-1.0-dev
+                    python3-gst-1.0
                 )
         fi
         PKGS+=( libgtk-3-0
