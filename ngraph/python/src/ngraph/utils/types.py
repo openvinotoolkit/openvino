@@ -128,6 +128,8 @@ def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
     if type(data) == np.ndarray:
         return data.shape  # type: ignore
+    elif type(data) == list:
+        return [len(data)]  # type: ignore
     return []
 
 

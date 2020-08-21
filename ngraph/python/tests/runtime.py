@@ -94,9 +94,9 @@ class Computation(object):
         if self.network_cache.get(str(input_shapes)) is None:
             capsule = Function.to_capsule(self.function)
             cnn_network = IENetwork(capsule)
-
-            param_names = [param.friendly_name for param in self.parameters]
-            cnn_network.reshape(dict(zip(param_names, input_shapes)))
+            if self.function.is_dynamic():
+                param_names = [param.friendly_name for param in self.parameters]
+                cnn_network.reshape(dict(zip(param_names, input_shapes)))
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
