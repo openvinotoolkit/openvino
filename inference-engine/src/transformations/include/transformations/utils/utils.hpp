@@ -56,8 +56,8 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
 
 template <typename T>
 bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
-                          const T value,
-                          T epsilon = std::numeric_limits<T>::epsilon()) {
+                        const T value,
+                        T epsilon = std::numeric_limits<T>::epsilon()) {
     if (!constant) {
         return false;
     }
@@ -66,10 +66,10 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
         return false;
     }
 
-    if (constant->get_element_type() == ngraph::element::f16
-        ||constant->get_element_type() == ngraph::element::f32
-        || constant->get_element_type() == ngraph::element::f64
-        || constant->get_element_type() == ngraph::element::bf16) {
+    if (constant->get_element_type() == ngraph::element::f16 ||
+        constant->get_element_type() == ngraph::element::f32 ||
+        constant->get_element_type() == ngraph::element::f64 ||
+        constant->get_element_type() == ngraph::element::bf16) {
             const auto data = constant->cast_vector<T>();
             if (std::fabs(data[0] - value) > epsilon) {
                 return false;
