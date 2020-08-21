@@ -12,6 +12,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
+    // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = ngraph::pattern::any_input();
     auto exp = std::make_shared<ngraph::opset4::Exp>(input);
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
