@@ -2231,23 +2231,52 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
     }
 };
 
-GAPI_FLUID_KERNEL(FU16toF32, U16toF32, false) {
+namespace {
+    template <typename src_t, typename dst_t>
+    void convert_precision(const uint8_t* src, uint8_t* dst, const int width) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i]);
+        }
+    }
+}
+
+GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
     static const int Window = 1;
 
-    static void run(const cv::gapi::fluid::View& src, cv::gapi::fluid::Buffer& dst) {
-        GAPI_Assert(src.meta().depth == CV_16U);
-        GAPI_Assert(dst.meta().depth == CV_32F);
+    static void run(const cv::gapi::fluid::View& src, int depth, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_16U || src.meta().depth == CV_32F);
+        GAPI_Assert(dst.meta().depth == CV_32F || dst.meta().depth == CV_16U);
         GAPI_Assert(src.meta().chan == 1);
         GAPI_Assert(dst.meta().chan == 1);
         GAPI_Assert(src.length() == dst.length());
 
-        const auto *in  = src.InLine<uint16_t>(0);
-              auto *out = dst.OutLine<float>();
+        constexpr unsigned supported_types_n = 2;
+        using p_f = void (*)( const uint8_t* src,  uint8_t* dst, const int width);
+        using table_string_t = std::array<p_f, supported_types_n>;
+
+        constexpr std::array<table_string_t, supported_types_n> func_table = {
+                table_string_t{convert_precision<uint16_t, uint16_t>, convert_precision<uint16_t, float>},
+                table_string_t{convert_precision<float,    uint16_t>, convert_precision<float,    float>}
+        };
+
+        auto depth_to_index = [](int depth){
+            switch (depth) {
+                case  CV_16U: return 0;
+                case  CV_32F: return 1;
+                default: GAPI_Assert(!"not supported depth"); return -1;
+            }
+        };
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
 
         auto const width = dst.length();
-        for (int i = 0; i < width; i++) {
-            out[i] = in[i];
-        }
+        auto const src_index = depth_to_index(src.meta().depth);
+        auto const dst_index = depth_to_index(dst.meta().depth);
+
+        (func_table[src_index][dst_index])(in, out, width);
     }
 };
 
@@ -2277,7 +2306,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
-        , FU16toF32
+        , FConvertDepth
         >();
 }
 
