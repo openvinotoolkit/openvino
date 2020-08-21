@@ -23,9 +23,7 @@ class TRANSFORMATIONS_API NormalizeL2FusionWithAdd;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief NormalizeL2Fusion transformation replaces group of
- * operations: 
- * out[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(eps_mode(sum(x[j0, ..., jN]**2), eps)
+ * @brief NormalizeL2Fusion transformation replaces various sub-graphs with a NormalizeL2 op.
  */
 class ngraph::pass::NormalizeL2Fusion: public ngraph::pass::GraphRewrite {
 public:
@@ -37,7 +35,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6))) / 6 with a HSwish op.
+ * @brief NormalizeL2FusionWithMax transformation replaces a sub-graph
+ * x/(max(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
  class ngraph::pass::NormalizeL2FusionWithMax: public ngraph::pass::MatcherPass {
 public:
@@ -46,7 +45,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6))) / 6 with a HSwish op.
+ * @brief NormalizeL2FusionWithAdd transformation replaces a sub-graph
+ * x/(add(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
  class ngraph::pass::NormalizeL2FusionWithAdd: public ngraph::pass::MatcherPass {
 public:
