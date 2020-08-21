@@ -58,8 +58,7 @@ namespace ngraph
                     {"round_prefer_floor", Nearest_mode::round_prefer_floor},
                     {"round_prefer_ceil", Nearest_mode::round_prefer_ceil},
                     {"floor", Nearest_mode::floor},
-                    {"ceil", Nearest_mode::ceil},
-                    {"simple", Nearest_mode::simple}};
+                    {"ceil", Nearest_mode::ceil}};
 
                 static bool is_supported_str_value(const std::unordered_set<std::string>& modes,
                                                    const std::string& checked_mode)
