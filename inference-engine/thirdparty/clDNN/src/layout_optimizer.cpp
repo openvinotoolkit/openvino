@@ -473,6 +473,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
         (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
         return true;
+
     bool format_ver = (input_layout.format == format::bfzyx || input_layout.format == format::b_fs_zyx_fsv16 ||
                       input_layout.format == format::bs_fs_zyx_bsv16_fsv16);
     bool data_type_ver = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
