@@ -46,7 +46,7 @@ class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
             edges=[])
 
     def replace_pattern(self, graph: Graph, match: dict):
-        log.debug("Converting of ONNX Resize-11 to Interpolate-3 is triggered.")
+        log.debug("Converting of ONNX Resize-11 to Interpolate-4 is triggered.")
         resize = match['op']
 
         input_shape = resize.in_port(0).data.get_shape()
@@ -101,7 +101,7 @@ class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
         interpolate_node = Interpolate(graph, {'version': 'opset4',
                                                'mode': convert_mode(resize.mode),
                                                'coordinate_transformation_mode': resize.coordinate_transformation_mode,
-                                               'cube_coeff': resize.cubic_coeff,
+                                               'cube_coeff': resize.cube_coeff,
                                                'nearest_mode': resize.nearest_mode,
                                                'pads_begin': int64_array([0]),
                                                'pads_end': int64_array([0]),
