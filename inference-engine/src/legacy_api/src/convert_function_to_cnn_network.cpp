@@ -260,6 +260,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         // res->params = params;
 
         auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(node);
+        IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
+            << node->get_friendly_name() << " cannot be casted to ngraph::op::v1::BinaryConvolution";
 
         std::string value;
         for (const auto& val : castedLayer->get_pads_begin()) {
@@ -319,6 +321,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 res->params["mode"] = "xnor-popcount";
         }
 
+        IE_ASSERT(castedLayer->input(1).get_partial_shape().is_static()) << " Weights for binary convolution "
+            << castedLayer->get_friendly_name() << " should have static shapes!";
         auto weights_shape = castedLayer->input(1).get_source_output().get_shape();
         res->params["input"] = Builder::asString(weights_shape[1]);
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
@@ -838,6 +842,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
+            IE_ASSERT(layer->get_output_partial_shape(i).is_static()) << " nGraph "
+                << layer->description() << " operation with name: "
+                << layer->get_friendly_name() << " cannot be converted to " << cnnLayer->type
+                << " layer with name: " << cnnLayer->name << " because output with index "
+                << i << " contains dynamic shapes: " << layer->get_output_partial_shape(i)
+                << ". Try to use CNNNetwork::reshape() method in order to specialize shapes "
+                << "before the conversion.";
             SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
                 if (!dim)

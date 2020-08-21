@@ -143,7 +143,8 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     return graph
 
 
-def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False):
+def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False,
+                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -151,6 +152,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
     :param nodes_with_edges_only: add nodes which has at least one incoming or outcoming edge.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -207,17 +209,19 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         for attr in out_edges.values():
             node.add_output_port(idx=attr['out'])
 
-    graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
+    graph.graph['cmd_params'] = cli
     return graph
 
 
-def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None):
+def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None,
+                                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
     :param edges: list of pairs with start and end node names of the edge.
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -232,6 +236,7 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
             assert (node_name in graph.nodes())
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
+    graph.graph['cmd_params'] = cli
     return graph
 
 

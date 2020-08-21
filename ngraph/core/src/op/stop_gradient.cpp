@@ -17,6 +17,8 @@
 #include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/broadcast.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

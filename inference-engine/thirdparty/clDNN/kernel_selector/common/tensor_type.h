@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,6 +92,7 @@ enum WeightsLayout {
     os_i_osv16__ai8,
     os_i_osv16,
     os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
     i_yxs_os_yxsv2_osv16,
@@ -142,6 +143,7 @@ enum WeightsLayout {
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
+    g_os_is_zyx_osv16_isv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
     g_os_is_yx_isv16_osv16,
