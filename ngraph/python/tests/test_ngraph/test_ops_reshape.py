@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_34323, xfail_issue_35929, xfail_issue_35926
+from tests import xfail_issue_34323, xfail_issue_35929, xfail_issue_35926, xfail_issue_36535
 
 
 def test_concat():
@@ -124,6 +124,7 @@ def test_broadcast_bidirectional():
 
 
 @xfail_issue_35926
+@xfail_issue_36535
 def test_gather():
     input_data = np.array([1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32).reshape((3, 3))
     input_indices = np.array([0, 2], np.int64).reshape(1, 2)
@@ -132,18 +133,6 @@ def test_gather():
     expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape((3, 1, 2))
 
     result = run_op_node([input_data, input_indices, input_axes], ng.gather)
-    assert np.allclose(result, expected)
-
-
-@xfail_issue_34323
-def test_gather_using_constants():
-    input_data = np.array([1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32).reshape((3, 3))
-    input_indices = np.array([0, 2], np.int64).reshape(1, 2)
-    input_axes = np.array([1], np.int64)
-
-    expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape((3, 1, 2))
-
-    result = run_op_numeric_data(input_data, ng.gather, input_indices, input_axes)
     assert np.allclose(result, expected)
 
 
