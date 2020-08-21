@@ -3,6 +3,7 @@
 //
 
 #include "transformations/normalize_l2_fusion.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -28,12 +29,17 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
 
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const bool is_square_pow = shape_size(exp_input->get_shape()) <= 1 && exp_input->cast_vector<int64_t>()[0] == 2;
+        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+
+        if (!exp_input || !axes_input || !eps_attr) {
+            return false;
+        }
+
+        const bool is_square_pow = op::util::has_constant_value<float>(exp_input, 2.0f);
         if (!is_square_pow) {
             return false;
         }
-        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         if (shape_size(eps_attr->get_shape()) > 1) {
             return false;
         }
@@ -74,16 +80,21 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
 
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
+        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+
+        if (!exp_input || !axes_input || !eps_attr) {
+            return false;
+        }
+
         const bool is_square_pow = shape_size(exp_input->get_shape()) <= 1 && exp_input->cast_vector<int64_t>()[0] == 2;
         if (!is_square_pow) {
             return false;
         }
-        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         if (shape_size(eps_attr->get_shape()) > 1) {
             return false;
         }
-        const auto eps_attr_value = eps_attr->cast_vector<float>()[0];
+        const auto eps_attr_value = op::util::has_constant_value<float>(exp_input, 2.0f);
 
         auto normalize_l2 = std::make_shared<ngraph::opset4::NormalizeL2>(data_input, axes_input, eps_attr_value, op::EpsMode::ADD);
 
