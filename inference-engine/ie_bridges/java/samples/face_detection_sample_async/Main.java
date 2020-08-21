@@ -28,15 +28,10 @@ To get the list of command line parameters run the application with `--help` par
 public class Main {
  
     public static Blob imageToBlob(Mat image) {
-        if (buff == null) 
-            buff = new byte[(int) (image.total() * image.channels())];
-
-        image.get(0, 0, buff);
-
         int[] dimsArr = {1, image.channels(), image.height(), image.width()};
         TensorDesc tDesc = new TensorDesc(Precision.U8, dimsArr, Layout.NHWC);
 
-        return new Blob(tDesc, buff);
+        return new Blob(tDesc, image.dataAddr());
     }
 
     static void processInferRequets(WaitMode wait) {
@@ -164,6 +159,9 @@ public class Main {
                             asyncInferIsFree.setElementAt(false, i);
                             processedFramesQueue.add(frame);  // predictionsQueue is used in rendering
 
+                            // The source frame is kept in processedFramesQueue, 
+                            // so the frame will be removed by java Garbage Collector only after completion of inference,
+                            // and we can create Blob object using Mat object data address.
                             Blob imgBlob = imageToBlob(frame);
                             request.SetBlob(inputName, imgBlob); 
 
@@ -193,7 +191,7 @@ public class Main {
                 if (detection == null)
                   continue;
                                 
-                Mat img = processedFramesQueue.poll(waitingTime, TimeUnit.SECONDS);   
+                Mat img = processedFramesQueue.poll(waitingTime, TimeUnit.SECONDS); 
                 int maxProposalCount = detection.length / 7;
 
                 for (int curProposal = 0; curProposal < maxProposalCount; curProposal++) {
@@ -256,8 +254,6 @@ public class Main {
     static Queue<Integer> startedRequestsIds = new LinkedList<Integer>();
     static Vector<InferRequest> inferRequests = new Vector<InferRequest>();
     static Vector<Boolean> asyncInferIsFree;
-
-    static byte[] buff = null;
 
     static int framesCounter = 0;
     static int resultCounter = 0;
