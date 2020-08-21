@@ -68,8 +68,9 @@ protected:
         frontEnd->parseConvolution(_model, convLayer, { input }, { output });
     }
 
-    void CompareDataObjects(const details::ContainerRange<DataList, false>& datas) {
+    void Validate(const details::ContainerRange<DataList, false>& datas, const details::ContainerRange<StageList, false>& stages) {
         ASSERT_EQ(datas.size(), pattern_datas.size());
+        ASSERT_EQ(stages.size(), pattern_stages.size());
 
         auto dataIter = datas.begin();
         for (auto patternIter = pattern_datas.begin(); patternIter != pattern_datas.end();
@@ -78,13 +79,9 @@ protected:
             ASSERT_EQ((*dataIter)->desc(), (*patternIter)->desc());
             ASSERT_EQ((*dataIter)->name(), (*patternIter)->name());
         }
-    }
 
-    void CompareStages(const details::ContainerRange<StageList, false>& stages) {
-        ASSERT_EQ(stages.size(), pattern_stages.size());
-
-        auto patternIter = pattern_stages.begin();
-        for (auto stageIter = stages.begin(); stageIter != stages.end();
+        auto stageIter = stages.begin();
+        for (auto patternIter = pattern_stages.begin(); patternIter != pattern_stages.end();
                 ++stageIter,
                 ++patternIter) {
             ASSERT_EQ((*stageIter)->type(), *patternIter);
@@ -180,8 +177,7 @@ TEST_P(ReshapeBeforeConvCases, CompareCountOfLayersPatternCaseTest) {
 
     CreateCorrectPattern(input, output);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 static const std::vector<DimValues> patternInputDims = {
@@ -221,8 +217,7 @@ TEST_F(NoReshapeBeforeConvCases, NoChangesForOtherConvKernel) {
 
     CreateIncorrectPattern(input, output, 3, 3);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
@@ -249,8 +244,7 @@ TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
 
     CreateIncorrectPattern(input, output);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 static const std::vector<DimValues> noPatternDims = {
@@ -361,8 +355,7 @@ TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions) {
@@ -434,8 +427,7 @@ TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions)
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
@@ -502,8 +494,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
     pattern_stages.push_back(StageType::Reshape);
     pattern_stages.push_back(StageType::StubConv);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
@@ -570,8 +561,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
     pattern_stages.push_back(StageType::StubConv);
     pattern_stages.push_back(StageType::Reshape);
 
-    CompareStages(stages);
-    CompareDataObjects(datas);
+    Validate(datas, stages);
 }
 
 } // namespace vpu
