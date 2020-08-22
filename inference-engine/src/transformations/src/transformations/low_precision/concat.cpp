@@ -279,8 +279,8 @@ void ConcatTransformation::addDequantizationLayers(
                             for (FakeQuantizeDequantization dequantization : layerDequantizations) {
                                 convertNodes.push_back(dequantization.convert);
 
-                                const ngraph::element::Type precision = dequantization.data->get_output_element_type(0);
-                                ngraph::Shape targetShape = dequantization.data->get_output_shape(0);
+                                const ngraph::element::Type precision = dequantization.data.get_element_type();
+                                ngraph::Shape targetShape = dequantization.data.get_shape();
 
                                 targetShape[0] = 1ul;
                                 for (size_t i = 2; i < targetShape.size(); ++i) {

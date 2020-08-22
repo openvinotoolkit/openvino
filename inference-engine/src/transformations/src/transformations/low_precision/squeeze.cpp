@@ -43,12 +43,12 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(squeeze);
 
     if (dequantization.multiply != nullptr) {
-        auto newConstant = squeezeOnConstant(squeeze, dequantization.multiply, dequantization.data->get_shape());
+        auto newConstant = squeezeOnConstant(squeeze, dequantization.multiply, dequantization.data.get_shape());
         dequantization.multiply->set_argument(1, newConstant);
     }
 
     if (dequantization.subtract != nullptr) {
-        auto newConstant = squeezeOnConstant(squeeze, dequantization.subtract, dequantization.data->get_shape());
+        auto newConstant = squeezeOnConstant(squeeze, dequantization.subtract, dequantization.data.get_shape());
         dequantization.subtract->set_argument(1, newConstant);
     }
 

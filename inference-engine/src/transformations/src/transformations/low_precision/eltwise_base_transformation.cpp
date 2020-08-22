@@ -54,11 +54,11 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data)) {
+    if (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr())) {
         return false;
     }
 
-    if (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data)) {
+    if (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr())) {
         return false;
     }
 
@@ -76,8 +76,10 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
         return -1;
     }
 
-    const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 = as_type_ptr<opset1::FakeQuantize>(dequantization1.data);
-    const std::shared_ptr<opset1::FakeQuantize> fakeQuantize2 = as_type_ptr<opset1::FakeQuantize>(dequantization2.data);
+    const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 =
+        as_type_ptr<opset1::FakeQuantize>(dequantization1.data.get_node_shared_ptr());
+    const std::shared_ptr<opset1::FakeQuantize> fakeQuantize2 =
+        as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
 
     if (fakeQuantize1 && !fakeQuantize2) {
         return 0;
@@ -97,7 +99,9 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     }
 
     const bool allBranchesAreEqual = isBranchWithTargetType(fakeQuantize1) == isBranchWithTargetType(fakeQuantize2);
-    const std::vector<std::shared_ptr<Node>> dataNodes = { dequantization1.data, dequantization2.data };
+    const std::vector<std::shared_ptr<Node>> dataNodes = {
+        dequantization1.data.get_node_shared_ptr(),
+        dequantization2.data.get_node_shared_ptr() };
     for (size_t i = 0; i < dataNodes.size(); ++i) {
         const std::shared_ptr<Node>& data = dataNodes[i];
         if ((allBranchesAreEqual && isBroadcasted(data->get_output_shape(0))) ||

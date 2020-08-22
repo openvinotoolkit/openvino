@@ -25,7 +25,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     FakeQuantizeDequantization dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
     if (dequantization2.empty()) {
-        const std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<opset1::FakeQuantize>(dequantization2.data);
+        const std::shared_ptr<opset1::FakeQuantize> fakeQuantize =
+            as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true, supportAsymmetricQuantization);
