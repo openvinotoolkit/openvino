@@ -34,13 +34,13 @@ namespace ngraph
         {
             NodeVector expand_onnx_function(const Node& node)
             {
-                // Vector of names of operators which return final ouputs
+                // Vector of names of nodes which return final ouputs
                 std::vector<std::string> output_op_names;
                 // Vector of nGraph inputs form orginal nGraph node
                 std::vector<std::shared_ptr<ngraph::Node>> orginal_inputs = node.get_ng_inputs();
-                // Vector of nGraph inputs from expannded nGraph node
+                // Vector of nGraph inputs from expanded nGraph node
                 std::vector<std::shared_ptr<ngraph::Node>> helper_inputs;
-                // Finla nGraph nodes that should be returned
+                // Final nGraph nodes that should be returned
                 NodeVector final_nodes;
 
                 const ONNX_NAMESPACE::NodeProto node_proto = node.node_proto();
