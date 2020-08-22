@@ -80,12 +80,17 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
                     //
                 }
             } else {
-                if (layerTransformationsManager->isPrecisionPreserved(parent.shared_from_this())) {
-                    if (!fillSubgraphForIntermediate(parent, handledLayers)) {
+                ngraph::opset1::Constant* constant = ngraph::as_type<ngraph::opset1::Constant>(&parent);
+                if (constant != nullptr) {
+                    //
+                } else {
+                    if (layerTransformationsManager->isPrecisionPreserved(parent.shared_from_this())) {
+                        if (!fillSubgraphForIntermediate(parent, handledLayers)) {
+                            return false;
+                        }
+                    } else {
                         return false;
                     }
-                } else {
-                    return false;
                 }
             }
         }
