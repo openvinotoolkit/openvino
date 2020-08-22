@@ -248,7 +248,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const InferenceEngine::details::LayerTransformation::Params& params,
     const LayerTestsUtils::LayerTransformation::LptVersion version) {
     std::ostringstream result;
-    result << precision.name() << "_" << targetDevice << "_" << version << "_" << toString(params);
+    result << precision.name() << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << version << "_" << toString(params);
     return result.str();
 }
 

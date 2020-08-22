@@ -131,7 +131,10 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::Shape> shapes = { { 1, 2048 } };
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 2048 },
+    { 4, 2048 }
+};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // U8 & I8

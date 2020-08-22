@@ -28,10 +28,15 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 3, 16, 16 },
+    { 4, 3, 16, 16 }
+};
+
 INSTANTIATE_TEST_CASE_P(LPT, ConcatWithNeighborsGraphTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versions)),

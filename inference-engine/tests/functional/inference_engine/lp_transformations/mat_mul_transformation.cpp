@@ -133,7 +133,8 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
-    { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } }
+    { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } },
+    { { 4, 16, 384, 64 }, { 4, 16, 64, 384 } }
 };
 
 const std::vector<bool> updatePrecisions = { true, false };

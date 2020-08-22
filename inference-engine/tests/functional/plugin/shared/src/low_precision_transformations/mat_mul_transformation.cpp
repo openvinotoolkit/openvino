@@ -31,7 +31,9 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
     result << version << "_" <<
         precision << "_" <<
         targetDevice << "_" <<
+        testValues.inputShape1 << "_" <<
         testValues.fqOnData1 << "_" <<
+        testValues.inputShape2 << "_" <<
         testValues.fqOnData2;
 
     return result.str();

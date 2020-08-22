@@ -90,7 +90,8 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
+    { 1, 32, 72, 48 },
+    { 4, 32, 72, 48 }
 };
 
 const std::vector<bool> updatePrecisions = {

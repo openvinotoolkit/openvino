@@ -57,10 +57,15 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
     // }
 };
 
+const std::vector<InferenceEngine::SizeVector> shapes = {
+    { 1, 3, 16, 16 },
+    { 4, 3, 16, 16 }
+};
+
 INSTANTIATE_TEST_CASE_P(LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versions),

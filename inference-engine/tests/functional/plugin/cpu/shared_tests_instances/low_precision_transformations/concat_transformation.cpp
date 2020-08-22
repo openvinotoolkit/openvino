@@ -44,10 +44,15 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     }
 };
 
+const std::vector<ngraph::Shape> shapes = {
+    ngraph::Shape({ 1, 3, 16, 16 }),
+    ngraph::Shape({ 4, 3, 16, 16 })
+};
+
 INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(versions)),
