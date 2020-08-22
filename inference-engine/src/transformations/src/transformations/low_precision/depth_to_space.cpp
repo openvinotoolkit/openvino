@@ -25,7 +25,7 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
     if (!canBeTransformed(context, depthToSpace)) {
-        return;
+        return false;
     }
     moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
     return true;
