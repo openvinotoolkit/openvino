@@ -288,24 +288,24 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
 std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
-        std::shared_ptr<Node> parent = dequantization.data;
+        Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             parent = dequantization.convert->clone_with_new_inputs({ parent });
-            parent->set_friendly_name(parent->get_name() + "_new");
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 
         if (dequantization.subtract != nullptr) {
             parent = dequantization.subtract->clone_with_new_inputs({
                 parent,
                 dequantization.subtract->input_value(1) });
-            parent->set_friendly_name(parent->get_name() + "_new");
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 
         if (dequantization.multiply != nullptr) {
             parent = dequantization.multiply->clone_with_new_inputs({
                 parent,
                 dequantization.multiply->input_value(1) });
-            parent->set_friendly_name(parent->get_name() + "_new");
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 
         std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);

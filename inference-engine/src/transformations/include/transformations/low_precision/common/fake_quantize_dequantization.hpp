@@ -20,7 +20,7 @@ public:
     FakeQuantizeDequantization();
 
     FakeQuantizeDequantization(
-        std::shared_ptr<Node> data,
+        Output<Node> data,
         std::shared_ptr<ngraph::opset1::Convert> convert,
         std::shared_ptr<ngraph::opset1::Subtract> subtract,
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
@@ -29,7 +29,7 @@ public:
 
     bool isShared() const;
 
-    std::shared_ptr<Node> data;
+    Output<Node> data;
     std::shared_ptr<opset1::Convert> convert;
     std::shared_ptr<opset1::Subtract> subtract;
     std::shared_ptr<opset1::Multiply> multiply;

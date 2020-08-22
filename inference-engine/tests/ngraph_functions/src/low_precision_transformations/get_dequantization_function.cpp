@@ -49,7 +49,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::getReference(
     ngraph::pass::low_precision::FakeQuantizeDequantization dequantization) {
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(dequantization.multiply) },
-        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(dequantization.data) },
+        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
         "Dequantization");
 }
 

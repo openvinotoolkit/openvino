@@ -287,6 +287,7 @@ void ConcatTransformation::addDequantizationLayers(
                                 const ngraph::element::Type precision = dequantization.data.get_element_type();
                                 ngraph::Shape targetShape = dequantization.data.get_shape();
 
+
                                 targetShape[0] = 1ul;
                                 for (size_t i = 2; i < targetShape.size(); ++i) {
                                     targetShape[i] = 1ul;
