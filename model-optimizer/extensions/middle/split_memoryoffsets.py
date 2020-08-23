@@ -13,13 +13,14 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.front.common.replacement import FrontReplacementPattern
+
 from mo.graph.graph import Graph
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.memoryoffset import MemoryOffset
 from mo.ops.result import Result
 
 
-class SplitMemoryOffsets(FrontReplacementPattern):
+class SplitMemoryOffsets(MiddleReplacementPattern):
     '''
     Split MemoryOffsets in 2 parts to cut cycles
     '''
@@ -27,8 +28,12 @@ class SplitMemoryOffsets(FrontReplacementPattern):
     run_not_recursively = True
 
     def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
-        return [RestorePorts]
+        from extensions.middle.PartialInfer import PartialInfer
+        return [PartialInfer]
+
+    def run_before(self):
+        from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern
+        return [ReplaceMemoryOffsetNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern]
 
     def pattern(self):
         return dict(

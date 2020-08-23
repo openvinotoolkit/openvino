@@ -13,12 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class MemoryOffset(Op):
@@ -39,46 +37,6 @@ class MemoryOffset(Op):
 
     @staticmethod
     def infer(node: Node):
-        # MemoryOffset is split into 2 parts to avoid cycle in graph
-        # Calculate shape from shape of previous layer where possible
-        # In other cases information about shapes from initial Kaldi model used
-        out_data = node.out_port(0).data
-        pair_node = Node(node.graph, node.pair_name)
-
         if not node.in_port(0).disconnected():
             # Assign case
             copy_shape_infer(node)
-            pair_node.out_port(0).data.set_shape(out_data.get_shape())
-            return
-
-        # ReadValue Case
-        pair_source = pair_node.in_port(0).get_source().node
-
-        if pair_node.in_port(0).data.get_shape() is not None:
-            out_data.set_shape(pair_node.in_port(0).data.get_shape())
-            copy_shape_infer(pair_node)
-        elif pair_node.has_valid('element_size'):
-            # TODO Add here real batch
-            out_data.set_shape(np.array([1, pair_node['element_size']]))
-        elif pair_source.has_valid('out-size'):
-            out_data.set_shape(np.array([1, pair_source['out-size']]))
-        elif pair_source.has_valid('shape'):
-            out_data.set_shape(pair_source['shape'])
-        elif pair_source.op in ['Add', 'ReLU', 'Crop', 'Identity']:
-            if pair_source.in_port(0).get_source().node.has_valid('out-size'):
-                out_size = pair_source.in_port(0).get_source().node['out-size']
-                out_data.set_shape(np.array([1, out_size]))
-            elif pair_source.in_port(1).get_source().node.has_valid('out-size'):
-                out_size = pair_source.in_port(1).get_source().node['out-size']
-                out_data.set_shape(np.array([1, out_size]))
-
-        elif pair_source.op == "Mul" and \
-                pair_source.in_port(0).get_source().node.has_valid('shape'):
-            out_size = pair_source.in_port(0).get_source().node.shape
-            out_data.set_shape(np.array([1, out_size]))
-        elif pair_source.has_valid('in_dim'):
-                out_size = pair_source['in_dim']
-                out_data.set_shape(np.array([1, out_size]))
-        else:
-            raise Error("Can't calculate MemoryOffset shape for node {}. ".format(node.id) +
-                        "Possibly you need to add shape for it through --input_shape")

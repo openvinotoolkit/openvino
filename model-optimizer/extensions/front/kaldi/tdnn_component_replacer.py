@@ -53,9 +53,8 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         return [RestorePorts]
 
     def run_before(self):
-        from extensions.front.kaldi.split_memoryoffsets import SplitMemoryOffsets
         from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
-        return [SplitMemoryOffsets, MemoryOffsetAdjustment]
+        return [MemoryOffsetAdjustment]
 
     def pattern(self):
         return dict(
