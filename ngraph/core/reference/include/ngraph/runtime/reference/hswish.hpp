@@ -16,19 +16,23 @@
 
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/util.hpp"
+#include <cmath>
+#include <cstddef>
 
 namespace ngraph
 {
-    namespace pass
+    namespace runtime
     {
-        class AlgebraicSimplification;
+        namespace reference
+        {
+            template <typename T>
+            void hswish(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = arg[i] * std::min<T>(std::max<T>(arg[i] + 3.0f, 0.0f), 6.0f) / 6.0f;
+                }
+            }
+        }
     }
 }
-
-class NGRAPH_API ngraph::pass::AlgebraicSimplification : public FunctionPass
-{
-public:
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
-};

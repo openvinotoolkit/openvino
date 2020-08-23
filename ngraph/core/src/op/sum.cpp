@@ -15,12 +15,14 @@
 //*****************************************************************************
 
 #include "ngraph/op/sum.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

@@ -51,7 +51,7 @@ namespace ngraph
                     size_t output_index = output_transform.index(output_coord);
 
                     out[output_index] =
-                        out[output_index] + abs(arg[input_transform.index(input_coord)]);
+                        out[output_index] + std::abs(arg[input_transform.index(input_coord)]);
                 }
             }
         }

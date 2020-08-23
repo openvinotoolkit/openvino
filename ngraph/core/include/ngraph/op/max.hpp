@@ -26,8 +26,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Max-reduction operation.
-            class NGRAPH_API Max : public util::ArithmeticReduction
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::ReduceMax instead of it.") NGRAPH_API Max
+                : public util::ArithmeticReduction
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Max", 0};
 
@@ -55,6 +59,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -84,6 +89,8 @@ namespace ngraph
             };
         }
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Max;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

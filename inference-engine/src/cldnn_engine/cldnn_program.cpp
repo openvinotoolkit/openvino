@@ -1354,7 +1354,8 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
         scaleShiftLayerName,
         inputPrimitives[0],
         scalePrimID,
-        biasPrimID);
+        biasPrimID,
+        cldnn::optional_data_type{DataTypeFromPrecision(layer->outData[0]->getPrecision())});
 
     topology.add(scaleShiftPrim);
     AddPrimitiveToProfiler(scaleShiftLayerName, layer);

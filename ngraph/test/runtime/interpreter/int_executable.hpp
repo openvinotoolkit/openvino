@@ -96,6 +96,8 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace runtime
@@ -737,20 +739,6 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
-        case OP_TYPEID::Pad:
-        {
-            const op::Pad* pad = static_cast<const op::Pad*>(&node);
-
-            reference::pad(args[0]->get_data_ptr<const T>(),
-                           args[1]->get_data_ptr<const T>(),
-                           out[0]->get_data_ptr<T>(),
-                           node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           pad->get_padding_below(),
-                           pad->get_padding_above(),
-                           pad->get_pad_mode());
-            break;
-        }
         case OP_TYPEID::Quantize:
         {
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
@@ -1265,7 +1253,6 @@ protected:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
         case OP_TYPEID::Selu:
@@ -1302,6 +1289,7 @@ protected:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
+        case OP_TYPEID::Pad:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:
@@ -1324,3 +1312,5 @@ protected:
         }
     }
 };
+
+NGRAPH_SUPPRESS_DEPRECATED_END

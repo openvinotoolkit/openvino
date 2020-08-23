@@ -247,7 +247,6 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 }
                 if (_outputData.count(outputName) == 0) {
                     reshape();
-                    addOutput(layer->output(outputIndex));
                 }
                 return OK;
             }
@@ -261,6 +260,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
     auto dataName = ngraph::op::util::create_ie_output_name(output);
     DataPtr data;
+    if (_data.count(dataName))
+        data = _data[dataName];
     createDataForResult(output, dataName, data);
     _data[dataName] = data;
     _outputData[dataName] = data;
@@ -275,15 +276,15 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
         return cnnNetwork->getBatchSize();
     }
     auto params = _ngraph_function->get_parameters();
-    if (params.empty() || !params[0]->get_partial_shape().is_static()) return 0;
-
-    auto shape = _ngraph_function->get_parameters()[0]->get_shape();
-
-    // WA: for speech recognition layouts (copy-past from CNNNetwork)
-    if (shape.size() == 3 || shape.size() == 1) {
-        return 1;
+    for (const auto& param : params) {
+        if (param->get_partial_shape().is_dynamic())
+            continue;
+        auto shape = param->get_shape();
+        // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
+        if (!shape.empty() && shape.size() != 3 && shape.size() != 1)
+            return shape[0];
     }
-    return shape[0];
+    return 1;
 }
 
 std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding) const {

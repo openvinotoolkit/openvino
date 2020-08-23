@@ -31,8 +31,7 @@ namespace ngraph
             class NGRAPH_API LogicalXor : public util::BinaryElementwiseLogical
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LogicalXor", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 LogicalXor() = default;
                 /// \brief Constructs a logical-xor operation.
                 ///

@@ -32,7 +32,6 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -84,8 +83,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
@@ -97,6 +98,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             {ngraph::element::u16, ngraph::element::i32},
             {ngraph::element::u32, ngraph::element::i32},
             {ngraph::element::f16, ngraph::element::f32},
+            {ngraph::element::boolean, ngraph::element::u8},
     };
 
     {
@@ -154,9 +156,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     }
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-    // WA: ngraph::pass:ConvertPrecision doesn't support BOOL to U8 conversion
-    // so we temporary have to call CNNNetwork ConvertPrecision transformation
-    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs

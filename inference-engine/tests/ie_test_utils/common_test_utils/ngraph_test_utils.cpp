@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include "ngraph_test_utils.hpp"
 
 bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
     const auto actualValues = constant->cast_vector<float>();
@@ -158,3 +159,5 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
         throw ngraph::ngraph_error(err_msg);
     }
 }
+
+NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);

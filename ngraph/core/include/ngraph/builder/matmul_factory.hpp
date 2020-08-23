@@ -22,13 +22,15 @@ namespace ngraph
 {
     namespace builder
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+
         /// \brief  Factory class which generates an nGraph sub-graph performing MatMul operation.
         ///
         /// This default implementation `MatmulFactory` creates a `MatMul` operation for
         /// floating-point data.
         /// Subclasses: `QLinearMatmulFactory` and `MatmulIntegerFactory` implement quantized
         /// versions.
-        class NGRAPH_API MatmulFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API MatmulFactory
         {
         public:
             explicit MatmulFactory(const OutputVector& inputs)
@@ -58,7 +60,8 @@ namespace ngraph
 
         /// \brief  Factory class which generates an nGraph sub-graph based on an ONNX QLinearMatMul
         /// operation.
-        class NGRAPH_API QLinearMatmulFactory : public MatmulFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API QLinearMatmulFactory
+            : public MatmulFactory
         {
         public:
             explicit QLinearMatmulFactory(const OutputVector& inputs)
@@ -73,7 +76,8 @@ namespace ngraph
 
         /// \brief  Factory class which generates an nGraph sub-graph based on an ONNX MatMulInteger
         /// operation.
-        class NGRAPH_API MatmulIntegerFactory : public MatmulFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API MatmulIntegerFactory
+            : public MatmulFactory
         {
         public:
             explicit MatmulIntegerFactory(const OutputVector& inputs)
@@ -84,5 +88,7 @@ namespace ngraph
         protected:
             Output<Node> make_dot(const Output<Node>& left, const Output<Node>& right) override;
         };
+
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace builder
 } // namespace ngraph
