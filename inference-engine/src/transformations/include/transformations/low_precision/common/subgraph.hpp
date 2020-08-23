@@ -22,17 +22,17 @@ class Subgraph {
 public:
     Subgraph(ngraph::pass::ILayerTransformationsManager* layerTransformationsManager);
 
-    bool fillSubgraphForConcat(ngraph::opset1::Concat& concat, std::unordered_set<std::string>& handledLayers);
+    bool fillSubgraphForConcat(const std::shared_ptr<ngraph::opset1::Concat>& concat, std::unordered_set<std::string>& handledLayers);
     bool empty() const;
 
-    std::vector<ngraph::Node*> quantizationLayers;
-    std::vector<ngraph::opset1::Concat*> concatLayers;
-    std::unordered_map<std::string, ngraph::Node*> layers;
+    std::vector<std::shared_ptr<ngraph::Node>> quantizationLayers;
+    std::vector<std::shared_ptr<ngraph::opset1::Concat>> concatLayers;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> layers;
 
 private:
-    bool fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQuantize, std::unordered_set<std::string>& handledLayers);
-    bool fillSubgraphForIntermediate(ngraph::Node& intermediate, std::unordered_set<std::string>& handledLayers);
-    bool fill(ngraph::Node& concat, std::unordered_set<std::string>& handledLayers);
+    bool fillSubgraphForQuantization(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fakeQuantize, std::unordered_set<std::string>& handledLayers);
+    bool fillSubgraphForIntermediate(const std::shared_ptr<ngraph::Node>& intermediate, std::unordered_set<std::string>& handledLayers);
+    bool fill(const std::shared_ptr<ngraph::Node>& concat, std::unordered_set<std::string>& handledLayers);
     const ngraph::pass::ILayerTransformationsManager* layerTransformationsManager;
 };
 

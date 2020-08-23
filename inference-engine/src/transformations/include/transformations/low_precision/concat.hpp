@@ -39,7 +39,7 @@ protected:
 
     static bool isHandled(
         const TransformationContext& context,
-        const std::vector<ngraph::Node*>& quantizationOperations);
+        const std::vector<std::shared_ptr<ngraph::Node>>& quantizationOperations);
 
 private:
     size_t getMinQuantizationLevels(
