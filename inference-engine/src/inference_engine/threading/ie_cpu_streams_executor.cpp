@@ -70,7 +70,7 @@ struct CPUStreamsExecutor::Impl {
                 ? _impl->_usedNumaNodes.at(
                     (_streamId % _impl->_config._streams)/
                     ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
-                : (_streamId % _impl->_usedNumaNodes.size());
+                : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
