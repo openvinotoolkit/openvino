@@ -22,6 +22,8 @@
 #include "ngraph_ops/pad_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
 #include "ngraph_ops/power.hpp"
+#include "ngraph_ops/prior_box_clustered_ie.hpp"
+#include "ngraph_ops/prior_box_ie.hpp"
 #include "ngraph_ops/proposal_ie.hpp"
 #include "ngraph_ops/relu_ie.hpp"
 #include "ngraph_ops/scaleshift.hpp"
@@ -510,15 +512,21 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"PriorBox"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        // Todo (itikhono): replace the message after supporting constants as outputs in plugins
+//        THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
+//                           << " should be replaced by constant during constant folding.";
         THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
-                           << " should be replaced by constant during constant folding.";
+                           << " should be converted to PriorBoxIE operation";
         return nullptr;
     });
 
     addSpecificCreator({"PriorBoxClustered"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        // Todo (itikhono): replace the message after supporting constants as outputs in plugins
+//        THROW_IE_EXCEPTION << "PriorBoxClustered operation has a form that is not supported." << node->get_friendly_name()
+//                           << " should be replaced by constant during constant folding.";
         THROW_IE_EXCEPTION << "PriorBoxClustered operation has a form that is not supported." << node->get_friendly_name()
-                           << " should be replaced by constant during constant folding.";
+                           << " should be converted to PriorBoxClusteredIE operation";
         return nullptr;
     });
 
@@ -639,6 +647,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBox>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClustered>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
