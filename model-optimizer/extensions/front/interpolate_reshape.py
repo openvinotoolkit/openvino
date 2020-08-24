@@ -16,10 +16,12 @@
 import numpy as np
 
 from extensions.ops.gather import Gather
+from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_node
+from mo.ops.const import Const
 from mo.ops.shape import Shape
 
 
@@ -180,3 +182,89 @@ class InterpolateWithConcat(FrontReplacementPattern):
                         break
                 if next_node.soft_get('type') == 'Concat':
                     self.make_interpolate_reshape_able(interpolate, next_node)
+
+
+class SmartReshape_TrilinearResize(FrontReplacementPattern):
+    """
+    Fusing two consecutive bilinear Interpolations to trilinear Interpolation
+    """
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
+
+    def run_after(self):
+        return [InterpolateWithConcat]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('reshape_0_c', dict(type='Const', value=lambda v: v is not None and v.size == 4)),
+                ('reshape_0', dict(type='Reshape')),
+                ('interpolate_0', dict(type='Interpolate', axes=[1, 2], mode='linear')),
+                ('reshape_1_c', dict(type='Const', value=lambda v: v is not None and v.size == 5)),
+                ('reshape_1', dict(type='Reshape')),
+                ('transpose_0_c',
+                 dict(type='Const', value=lambda v: v is not None and np.array_equal(v, [0, 3, 2, 1, 4]))),
+                ('transpose_0', dict(type='Transpose')),
+                ('reshape_2_c', dict(type='Const', value=lambda v: v is not None and v.size == 4)),
+                ('reshape_2', dict(type='Reshape')),
+                ('interpolate_1', dict(type='Interpolate', axes=[1, 2], mode='linear')),
+                ('reshape_3_c', dict(type='Const', value=lambda v: v is not None and v.size == 5)),
+                ('reshape_3', dict(type='Reshape')),
+                ('transpose_1_c',
+                 dict(type='Const', value=lambda v: v is not None and np.array_equal(v, [0, 3, 2, 1, 4]))),
+                ('transpose_1', dict(type='Transpose')),
+            ],
+            edges=[
+                ('reshape_0_c', 'reshape_0', {'in': 1}),
+                ('reshape_0', 'interpolate_0', {'in': 0}),
+                ('interpolate_0', 'reshape_1', {'in': 0}),
+                ('reshape_1_c', 'reshape_1', {'in': 1}),
+                ('reshape_1', 'transpose_0', {'in': 0}),
+                ('transpose_0_c', 'transpose_0', {'in': 1}),
+                ('transpose_0', 'reshape_2', {'in': 0}),
+                ('reshape_2_c', 'reshape_2', {'in': 1}),
+                ('reshape_2', 'interpolate_1', {'in': 0}),
+                ('interpolate_1', 'reshape_3', {'in': 0}),
+                ('reshape_3_c', 'reshape_3', {'in': 1}),
+                ('reshape_3', 'transpose_1', {'in': 0}),
+                ('transpose_1_c', 'transpose_1', {'in': 1}),
+            ]
+        )
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        interpolate_0 = match['interpolate_0']
+        interpolate_1 = match['interpolate_1']
+
+        if interpolate_0['align_corners'] != interpolate_1['align_corners'] or \
+                interpolate_0['antialias'] != interpolate_1['antialias'] or \
+                interpolate_0['pads_begin'] != interpolate_1['pads_begin'] or \
+                interpolate_0['pads_end'] != interpolate_1['pads_end']:
+            return
+
+        sizes_0 = interpolate_0.in_port(1).get_source().node.soft_get('value', None)
+        sizes_1 = interpolate_1.in_port(1).get_source().node.soft_get('value', None)
+        if sizes_0 is None or sizes_1 is None:
+            return
+        assert sizes_0.size == 2 and sizes_1.size == 2
+        if sizes_0[0] != sizes_0[1] or not np.array_equal(sizes_0, sizes_1):
+            return
+
+        size = sizes_0[0]
+        name = match['transpose_1'].soft_get('name', match['transpose_1'].id)
+        sizes = Const(graph, {'name': name + '/Sizes', 'value': int64_array([size, size, size])}).create_node()
+        trilinear_interpolate = Interpolate(graph, {'name': name, 'axes': [1, 2, 3], 'mode': 'linear',
+                                                    'align_corners': interpolate_0['align_corners'],
+                                                    'antialias': interpolate_0['antialias'],
+                                                    'pads_begin': interpolate_0['pads_begin'],
+                                                    'pads_end': interpolate_0['pads_end'],
+                                                    }).create_node()
+
+        match['reshape_0'].in_port(0).get_source().connect(trilinear_interpolate.in_port(0))
+        sizes.out_port(0).connect(trilinear_interpolate.in_port(1))
+
+        match['transpose_1'].out_port(0).get_connection().set_source(trilinear_interpolate.out_port(0))
+
+        graph.remove_nodes_from([
+            match[name].id for name in dict(self.pattern()['nodes']).keys()
+        ])
+        rename_node(trilinear_interpolate, name)
