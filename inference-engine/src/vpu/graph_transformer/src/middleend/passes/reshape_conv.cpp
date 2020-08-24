@@ -55,7 +55,6 @@ void PassImpl::run(const Model& model) {
 
         const auto actualInputShape = inputDesc.dims();
         const auto expectedInputShape = DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 60} };
-        std::vector<size_t> outChannels{10, 128, 490};
 
         if (actualInputShape != expectedInputShape) {
             continue;
@@ -66,7 +65,9 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        if (std::find(outChannels.begin(), outChannels.end(), outputDesc.dim(Dim::C)) == outChannels.end()) {
+        std::map<size_t, size_t> outChannels{ {10, 1}, {128, 2}, {490, 3}};
+
+        if (outChannels.find(outputDesc.dim(Dim::C)) == outChannels.end()) {
             continue;
         }
 
