@@ -173,12 +173,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_DUMP_PASS("swapConcatAndHwOps");
 
         //
-        // "reshapeBeforeConvTiling" pass adds two reshape stages before and after
-        // the convolution stage that will trigger the "hwConvTiling" pass.
+        // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order to get more efficient HW tiling using reshape stages.
         //
-        // This pass changes convolution input and output, width and height
-        // Pass needs to be placed before "adjustDataBatch",
-        // where changes original stage attributes
+        // Pass needs to be placed before "adjustDataBatch", where changes stage "origConvOutput" attribute
         ADD_PASS(reshapeBeforeConvTiling);
         ADD_DUMP_PASS("reshapeBeforeConvTiling");
 
