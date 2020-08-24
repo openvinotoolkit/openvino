@@ -19,7 +19,6 @@
 #include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
@@ -69,6 +68,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
         {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
         {ngraph::helpers::ActivationTypes::Mish,        "Mish"},
+        {ngraph::helpers::ActivationTypes::HSwish,      "HSwish"},
 };
 
 typedef std::tuple<

@@ -55,6 +55,8 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
+    virtual void set_arguments(primitive_inst& instance) = 0;
+    virtual void cleanup(primitive_inst& instance) = 0;
     virtual event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
@@ -107,6 +109,8 @@ public:
     }
 
     event_impl::ptr execute(const std::vector<event_impl::ptr>& events);
+    void set_arguments();
+    void cleanup();
     bool validate() const {
         if (_impl == nullptr)
             throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
@@ -124,6 +128,18 @@ public:
     bool has_fused_primitives() const { return !_node.get_fused_primitives().empty(); }
     size_t get_fused_mem_count() const { return _node.get_fused_inputs_count(); }
     size_t get_fused_mem_offset() const { return _node.get_fused_primitives()[0].dep_start_idx; }
+
+    bool has_mutable_input() const {
+        return _has_mutable_input;
+    }
+
+    void set_mutable_input(bool val) {
+        _has_mutable_input = val;
+    }
+
+    bool is_output() const {
+        return _node.is_output();
+    }
 
 protected:
     primitive_inst(network_impl& network, program_node const& node, bool allocate_memory);
@@ -154,6 +170,7 @@ protected:
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
+    bool _has_mutable_input = false;
 
     memory_impl::ptr allocate_output();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
@@ -189,6 +206,29 @@ private:
 
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
+
+    void set_arguments(primitive_inst& instance) override {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument(
+                "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+
+        return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    }
+
+    void cleanup(primitive_inst& instance) override {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument(
+                "Trying to cleanup primitive implementation with mismatching primitive instance");
+
+        return cleanup_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    }
+
+    virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {};
+    virtual void cleanup_impl(typed_primitive_inst<PType>& /*instance*/) {};
     virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event,
                                          typed_primitive_inst<PType>& instance) = 0;
 

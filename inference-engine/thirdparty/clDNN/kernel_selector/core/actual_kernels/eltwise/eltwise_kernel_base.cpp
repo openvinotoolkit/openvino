@@ -109,6 +109,12 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
         }
     }
 
+    const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
+    for (auto& fused_op : orgParams.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     return true;
 }
 
@@ -606,7 +612,8 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
-                                   false);
+                                   false,
+                                   GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

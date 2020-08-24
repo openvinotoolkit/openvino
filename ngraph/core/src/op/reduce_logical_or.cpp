@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_logical_or.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/eval_helpers.hpp"
@@ -24,7 +24,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v1::ReduceLogicalOr::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalOr, "ReduceLogicalOr", 1);
 
 op::v1::ReduceLogicalOr::ReduceLogicalOr(const Output<Node>& data,
                                          const Output<Node>& reduction_axes,
@@ -44,7 +44,8 @@ namespace
 {
     bool evaluate_reduce_logical_or(const HostTensorPtr& data,
                                     const HostTensorPtr& axes,
-                                    const HostTensorPtr& out)
+                                    const HostTensorPtr& out,
+                                    bool keep_dims)
     {
         try
         {
@@ -53,7 +54,8 @@ namespace
             runtime::reference::reduce_logical_or(data->get_data_ptr<char>(),
                                                   out->get_data_ptr<char>(),
                                                   data->get_shape(),
-                                                  reduction_axes);
+                                                  reduction_axes,
+                                                  keep_dims);
 
             return true;
         }
@@ -80,6 +82,6 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
     }
     else
     {
-        return evaluate_reduce_logical_or(data, axes, out);
+        return evaluate_reduce_logical_or(data, axes, out, get_keep_dims());
     }
 }

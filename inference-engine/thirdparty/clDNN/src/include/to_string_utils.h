@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -205,6 +205,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_is_zyx_isv16_osv16";
         case format::g_os_is_yx_osv16_isv4:
             return "g_os_is_yx_osv16_isv4";
+        case format::g_os_is_zyx_osv16_isv16:
+            return "g_os_is_zyx_osv16_isv16";
         case format::g_os_zyx_is_osv16_isv4:
             return "g_os_zyx_is_osv16_isv4";
         case format::g_os_zyx_is_osv16_isv16:
