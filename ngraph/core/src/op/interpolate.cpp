@@ -59,7 +59,7 @@ void op::v0::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         auto out_shape = const_shape->cast_vector<int64_t>();
         size_t i = 0;
