@@ -266,7 +266,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
-    auto merged_seq_length = Dimension::dynamic();
     auto result_et = element::dynamic;
 
     // Copy all inputs without peephole information for further validation
@@ -332,8 +331,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
             Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
         "Parameter num_directions not matched in LSTMSequence.");
-
-    Dimension::merge(merged_seq_length, merged_seq_length, x_pshape[1]);
 
     // Validate hidden_size value for W and R inputs
     if (merged_hidden_size.is_static())
