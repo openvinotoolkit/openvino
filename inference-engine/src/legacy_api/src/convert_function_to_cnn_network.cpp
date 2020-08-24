@@ -618,7 +618,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::GatherTree>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GatherTreeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Interp>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Interpolate>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Interpolate>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Log>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::LRN>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::LRN_IE>>(),
