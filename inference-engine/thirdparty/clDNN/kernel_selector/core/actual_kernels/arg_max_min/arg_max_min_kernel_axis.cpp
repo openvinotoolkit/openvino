@@ -49,7 +49,23 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::FEATURE);
     k.EnableDifferentTypes();
     k.EnableBatching();
+    k.EnableTensorPitches();
     return k;
+}
+
+bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) const {
+    if (!ArgMaxMinKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
+
+    if (params.inputs.size() > 1) {
+        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.output.PitchesDifferFromLogicalDims())
+            return false;
+    }
+
+    return true;
 }
 
 KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
