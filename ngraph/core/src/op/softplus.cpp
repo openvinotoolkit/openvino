@@ -51,25 +51,25 @@ shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new
 namespace
 {
     template <element::Type_t ET>
-    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::softplus<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::softplus<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 
-    bool evaluate_softplus(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
-        out->set_unary(arg0);
+        out->set_unary(arg);
 
-        switch (arg0->get_element_type())
+        switch (arg->get_element_type())
         {
             TYPE_CASE(bf16)(arg, out, count);
             break;
-            TYPE_CASE(f16)(arg0, out, count);
+            TYPE_CASE(f16)(arg, out, count);
             break;
-            TYPE_CASE(f32)(arg0, out, count);
+            TYPE_CASE(f32)(arg, out, count);
             break;
         default: rc = false; break;
         }
