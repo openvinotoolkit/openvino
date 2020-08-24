@@ -230,6 +230,7 @@ void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
                 out_data->setPrecision(PREC_TO);
         }
     }
+
     for (auto &in_data : layer->insData) {
         auto data = in_data.lock();
         if (PREC_FROM == data->getPrecision())
@@ -245,7 +246,6 @@ void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
 
     if (layer->precision == PREC_FROM)
         layer->precision = PREC_TO;
-
 
     auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *>(layer.get());
     if (wLayer) {
@@ -445,7 +445,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         transformer.transform(network);
 
         // [WA part2] Try to find non-quantized layers and convert them back to FP16
-        if (fqFound && baselineIsFP16) {
+        if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
             auto layersSorted = BFSSort(network);
 
             for (auto& layer : layersSorted) {
