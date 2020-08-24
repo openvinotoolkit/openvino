@@ -58,9 +58,11 @@ protected:
         convLayer->_stride_x = 1;
         convLayer->_stride_y = 1;
 
+        auto weights = InitNewData(
+                DimValues{ {Dim::N, output->desc().dim(Dim::C)}, {Dim::C, input->desc().dim(Dim::C)}, {Dim::H, kernel_y}, {Dim::W, kernel_x} },
+                "TestConvolution@weights@conv");
         Stage stage = stageBuilder->addConvolutionStage(_model, "TestConvolution", convLayer, input, output,
-                InitNewData(DimValues{ {Dim::N, output->desc().dim(Dim::C)}, {Dim::C, input->desc().dim(Dim::C)}, {Dim::H, kernel_y}, {Dim::W, kernel_x} },
-                "TestConvolution@weights@conv"),
+                weights,
                 _model->addFakeData(), _model->addFakeData());
 
         stage->attrs().set<int>("kernelSizeX", kernel_x);
@@ -71,33 +73,29 @@ protected:
     }
 
     void Validate() {
-        const auto datas = _model->datas();
-        const auto stages = _model->getStages();
+        const auto datas = _model->datas() | asVector();
+        const auto stages = _model->getStages() | asVector();
         ASSERT_EQ(datas.size(), pattern_datas.size());
         ASSERT_EQ(stages.size(), pattern_stages.size());
 
-        auto dataIter = datas.begin();
-        for (auto patternIter = pattern_datas.begin(); patternIter != pattern_datas.end();
-                ++dataIter,
-                ++patternIter) {
-            ASSERT_EQ((*dataIter)->desc(), (*patternIter)->desc());
-            ASSERT_EQ((*dataIter)->name(), (*patternIter)->name());
+        for (size_t i = 0; i < datas.size(); i++) {
+            ASSERT_EQ((datas[i])->desc(), (pattern_datas[i])->desc());
+            ASSERT_EQ((datas[i])->name(), (pattern_datas[i])->name());
         }
 
-        auto stageIter = stages.begin();
-        for (auto patternIter = pattern_stages.begin(); patternIter != pattern_stages.end();
-                ++stageIter,
-                ++patternIter) {
-            ASSERT_EQ((*stageIter)->type(), *patternIter);
+        for (size_t i = 0; i < stages.size(); i++) {
+            ASSERT_EQ((stages[i])->type(), pattern_stages[i]);
         }
     }
 
 protected:
     PassSet _pipeline;
     Model _model;
-    std::vector<Data>pattern_datas;
-    std::vector<StageType>pattern_stages;
+    DataVector pattern_datas;
+    std::vector<StageType> pattern_stages;
 };
+
+enum TwoConvolutionCases : int { NoReshape = 0, ReshapeFirst = 1, ReshapeSecond = 2 };
 
 class ReshapeBeforeConvCases : public ReshapeBeforeConvTests {
 protected:
@@ -133,6 +131,75 @@ protected:
         pattern_stages.push_back(StageType::Reshape);
         pattern_stages.push_back(StageType::StubConv);
         pattern_stages.push_back(StageType::Reshape);
+    }
+
+    void CreateCorrectTwoConvPattern(const Data& input, const Data& mid, const Data& output, TwoConvolutionCases current_case) {
+        const auto inDims = input->desc().dims();
+        const auto outDims = output->desc().dims();
+        const auto midDims = mid->desc().dims();
+
+        const Data fake = _model->addFakeData();
+        const Data firstWeights = InitNewData(
+                DimValues{ {Dim::N, midDims[Dim::C]}, {Dim::C, inDims[Dim::C]}, {Dim::H, 1}, {Dim::W, 1} },
+                "TestConvolution@weights@conv");
+        const Data secondWeights = InitNewData(
+                DimValues{ {Dim::N, outDims[Dim::C]}, {Dim::C, midDims[Dim::C]}, {Dim::H, 1}, {Dim::W, 1} },
+                "TestConvolution@weights@conv");
+        const Data inputAfterReshape = InitNewData(
+                DimValues{ {Dim::N, 1}, {Dim::C, inDims[Dim::C]}, {Dim::H, 8}, {Dim::W, 255} },
+                "Input@input-data-after-reshape");
+        const Data layerDataBeforeReshape = InitNewData(
+                DimValues{ {Dim::N, 1}, {Dim::C, midDims[Dim::C]}, {Dim::H, 8}, {Dim::W, 255} },
+                "Layer@output-data-before-reshape");
+        const Data layerDataAfterReshape = InitNewData(
+                DimValues{ {Dim::N, 1}, {Dim::C, midDims[Dim::C]}, {Dim::H, 8}, {Dim::W, 255} },
+                "Layer@input-data-after-reshape");
+        const Data outputBeforeReshape = InitNewData(
+                DimValues{ {Dim::N, 1}, {Dim::C, outDims[Dim::C]}, {Dim::H, 8}, {Dim::W, 255} },
+                "Output@output-data-before-reshape");
+
+        pattern_datas.push_back(input);
+        pattern_datas.push_back(mid);
+        pattern_datas.push_back(output);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(firstWeights);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(secondWeights);
+
+        switch (current_case) {
+        case ReshapeFirst:
+            pattern_stages.push_back(StageType::Reshape);
+            pattern_stages.push_back(StageType::StubConv);
+            pattern_stages.push_back(StageType::Reshape);
+            pattern_stages.push_back(StageType::StubConv);
+
+            pattern_datas.push_back(inputAfterReshape);
+            pattern_datas.push_back(layerDataBeforeReshape);
+            break;
+        case ReshapeSecond:
+            pattern_stages.push_back(StageType::StubConv);
+            pattern_stages.push_back(StageType::Reshape);
+            pattern_stages.push_back(StageType::StubConv);
+            pattern_stages.push_back(StageType::Reshape);
+
+            pattern_datas.push_back(layerDataAfterReshape);
+            pattern_datas.push_back(outputBeforeReshape);
+            break;
+        case NoReshape:
+            pattern_stages.push_back(StageType::StubConv);
+            pattern_stages.push_back(StageType::StubConv);
+            break;
+        }
+        // duplicate to pattern additional not connected data
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(firstWeights);
+        pattern_datas.push_back(secondWeights);
+        pattern_datas.push_back(inputAfterReshape);
+        pattern_datas.push_back(layerDataBeforeReshape);
+        pattern_datas.push_back(layerDataAfterReshape);
+        pattern_datas.push_back(outputBeforeReshape);
     }
 };
 
@@ -269,157 +336,7 @@ INSTANTIATE_TEST_CASE_P(
     testing::ValuesIn(noPatternDims),
     testing::ValuesIn(noPatternDims)));
 
-TEST_F(ReshapeBeforeConvTests, TwoTargetNotConnectedConvolutions) {
-    //
-    //                               [Fake]                   ->|
-    //                               [FirstWeights]           ->|
-    //                               [Fake]                   ->|
-    //  [FirstInput] -> (Reshape) -> [FirstInputAfterReshape] ->| -> (StubConv) -> [FirstOutputBeforeReshape] -> (Reshape) -> [FirstOutput]
-    //
-    //                                [Fake]                    ->|
-    //                                [SecondWeights]           ->|
-    //                                [Fake]                    ->|
-    //  [SecondInput] -> (Reshape) -> [SecondInputAfterReshape] ->| -> (StubConv) -> [SecondOutputBeforeReshape] -> (Reshape) -> [SecondOutput]
-    //
-    DimValues inDims = DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 60} };
-    DimValues firstOutDims = DimValues{ {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 34}, {Dim::W, 60} };
-    DimValues secondOutDims = DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 34}, {Dim::W, 60} };
-
-    const auto firstInput = InitInputData(inDims);
-    const auto secondInput = InitInputData(inDims);
-    _model->attrs().set<int>("numInputs", 2);
-    const auto firstOutput = InitOutputData(firstOutDims);
-    const auto secondOutput = InitOutputData(secondOutDims);
-
-    InitConvStage(firstInput, firstOutput);
-    InitConvStage(secondInput, secondOutput);
-
-    ASSERT_NO_THROW(Compile());
-
-    const Data fake = _model->addFakeData();
-    const Data firstWeights = InitNewData(
-            DimValues{ {Dim::N, 10}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data secondWeights = InitNewData(
-            DimValues{ {Dim::N, 128}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data firstInputAfterReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 8}, {Dim::W, 255} },
-            "Input@input-data-after-reshape");
-    const Data secondInputAfterReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 8}, {Dim::W, 255} },
-            "Input@input-data-after-reshape");
-    const Data firstOutputBeforeReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 8}, {Dim::W, 255} },
-            "Output@output-data-before-reshape");
-    const Data secondOutputBeforeReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 8}, {Dim::W, 255} },
-            "Output@output-data-before-reshape");
-
-    pattern_datas.push_back(firstInput);
-    pattern_datas.push_back(secondInput);
-    pattern_datas.push_back(firstOutput);
-    pattern_datas.push_back(secondOutput);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(firstInputAfterReshape);
-    pattern_datas.push_back(firstOutputBeforeReshape);
-    pattern_datas.push_back(secondInputAfterReshape);
-    pattern_datas.push_back(secondOutputBeforeReshape);
-
-    // duplicate to pattern additional not connected data
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(firstInputAfterReshape);
-    pattern_datas.push_back(secondInputAfterReshape);
-    pattern_datas.push_back(firstOutputBeforeReshape);
-    pattern_datas.push_back(secondOutputBeforeReshape);
-
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-
-    Validate();
-}
-
-TEST_F(ReshapeBeforeConvTests, OneTargetAndOneNontargetNotConnectedConvolutions) {
-    //
-    //                               [Fake]                   ->|
-    //                               [FirstWeights]           ->|
-    //                               [Fake]                   ->|
-    //  [FirstInput] -> (Reshape) -> [InputAfterReshape] ->| -> (StubConv) -> [OutputBeforeReshape] -> (Reshape) -> [FirstOutput]
-    //
-    //  [Fake]            ->|
-    //  [SecondWeights]   ->|
-    //  [Fake]            ->|
-    //  [SecondInput]     ->| -> (StubConv) -> [SecondOutput]
-    //
-    DimValues InDims = DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 60} };
-    DimValues firstOutDims = DimValues{ {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 34}, {Dim::W, 60} };
-    DimValues secondOutDims = DimValues{ {Dim::N, 1}, {Dim::C, 222}, {Dim::H, 34}, {Dim::W, 60} };
-
-    const auto firstInput = InitInputData(InDims);
-    const auto secondInput = InitInputData(InDims);
-    _model->attrs().set<int>("numInputs", 2);
-    const auto firstOutput = InitOutputData(firstOutDims);
-    const auto secondOutput = InitOutputData(secondOutDims);
-
-    InitConvStage(firstInput, firstOutput);
-    InitConvStage(secondInput, secondOutput);
-
-    ASSERT_NO_THROW(Compile());
-
-    const Data fake = _model->addFakeData();
-    const Data firstWeights = InitNewData(
-            DimValues { {Dim::N, 10}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data secondWeights = InitNewData(
-            DimValues { {Dim::N, 222}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data inputAfterReshape = InitNewData(
-            DimValues { {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 8}, {Dim::W, 255} },
-            "Input@input-data-after-reshape");
-    const Data outputBeforeReshape = InitNewData(
-            DimValues { {Dim::N, 1}, {Dim::C, 10}, {Dim::H, 8}, {Dim::W, 255} },
-            "Output@output-data-before-reshape");
-
-    pattern_datas.push_back(firstInput);
-    pattern_datas.push_back(secondInput);
-    pattern_datas.push_back(firstOutput);
-    pattern_datas.push_back(secondOutput);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(inputAfterReshape);
-    pattern_datas.push_back(outputBeforeReshape);
-
-    // duplicate to pattern additional not connected data
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(inputAfterReshape);
-    pattern_datas.push_back(outputBeforeReshape);
-
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-
-    Validate();
-}
-
-TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
+TEST_F(ReshapeBeforeConvCases, TargetConvolutionBeforeNontarget) {
     //
     //                          [Fake]              ->|                                                           [Fake]          ->|
     //                          [FirstWeights]      ->|                                                           [SecondWeights] ->|
@@ -442,48 +359,12 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionBeforeNontarget) {
 
     ASSERT_NO_THROW(Compile());
 
-    const Data fake = _model->addFakeData();
-    const Data firstWeights = InitNewData(
-            DimValues{ {Dim::N, 490}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data secondWeights = InitNewData(
-            DimValues{ {Dim::N, 10}, {Dim::C, 490}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data inputAfterReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 8}, {Dim::W, 255} },
-            "Input@input-data-after-reshape");
-    const Data layerDataBeforeReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 490}, {Dim::H, 8}, {Dim::W, 255} },
-            "Layer@output-data-before-reshape");
-
-    pattern_datas.push_back(input);
-    pattern_datas.push_back(layerData);
-    pattern_datas.push_back(output);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(inputAfterReshape);
-    pattern_datas.push_back(layerDataBeforeReshape);
-
-    // duplicate to pattern additional not connected data
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(inputAfterReshape);
-    pattern_datas.push_back(layerDataBeforeReshape);
-
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
+    CreateCorrectTwoConvPattern(input, layerData, output, ReshapeFirst);
 
     Validate();
 }
 
-TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
+TEST_F(ReshapeBeforeConvCases, TargetConvolutionAfterNontarget) {
     //
     //  [Fake]         ->|                                              [Fake]                  ->|
     //  [FirstWeights] ->|                                              [SecondWeights]         ->|
@@ -506,43 +387,7 @@ TEST_F(ReshapeBeforeConvTests, TargetConvolutionAfterNontarget) {
 
     ASSERT_NO_THROW(Compile());
 
-    const Data fake = _model->addFakeData();
-    const Data firstWeights = InitNewData(
-            DimValues{ {Dim::N, 608}, {Dim::C, 800}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data secondWeights = InitNewData(
-            DimValues{ {Dim::N, 128}, {Dim::C, 608}, {Dim::H, 1}, {Dim::W, 1} },
-            "TestConvolution@weights@conv");
-    const Data layerDataAfterReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 8}, {Dim::W, 255} },
-            "Layer@input-data-after-reshape");
-    const Data outputBeforeReshape = InitNewData(
-            DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 8}, {Dim::W, 255} },
-            "Output@output-data-before-reshape");
-
-    pattern_datas.push_back(input);
-    pattern_datas.push_back(layerData);
-    pattern_datas.push_back(output);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(layerDataAfterReshape);
-    pattern_datas.push_back(outputBeforeReshape);
-
-    // duplicate to pattern additional not connected data
-    pattern_datas.push_back(fake);
-    pattern_datas.push_back(firstWeights);
-    pattern_datas.push_back(secondWeights);
-    pattern_datas.push_back(layerDataAfterReshape);
-    pattern_datas.push_back(outputBeforeReshape);
-
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
-    pattern_stages.push_back(StageType::StubConv);
-    pattern_stages.push_back(StageType::Reshape);
+    CreateCorrectTwoConvPattern(input, layerData, output, ReshapeSecond);
 
     Validate();
 }
