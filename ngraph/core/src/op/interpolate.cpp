@@ -537,7 +537,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                 info_for_reference.out_shape,
                                                 m_attrs);
         break;
-    default:
+    default:;
     }
 
     return true;

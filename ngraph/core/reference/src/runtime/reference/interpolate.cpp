@@ -64,6 +64,7 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     InfoForLinearONNXMode result;
 
     std::size_t input_rank = m_input_data_shape.size();
+    std::size_t num_of_axes = m_axes.size();
 
     Shape input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
     Shape output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
@@ -82,6 +83,12 @@ InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for
     int64_t output_width = output_shape[3];
     float height_scale = m_scales[0];
     float width_scale = m_scales[1];
+
+    if (num_of_axes == 4)
+    {
+        height_scale = m_scales[2];
+        width_scale = m_scales[3];
+    }
 
     std::vector<float> y_original(output_height);
     std::vector<float> x_original(output_width);
