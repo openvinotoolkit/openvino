@@ -277,12 +277,13 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     }
     auto params = _ngraph_function->get_parameters();
     for (const auto& param : params) {
-        if (param->get_partial_shape().is_dynamic())
+        auto pshape = param->get_partial_shape();
+        if (pshape.rank().is_dynamic() || pshape.rank().get_length() == 0)
             continue;
-        auto shape = param->get_shape();
+        auto rank = pshape.rank().get_length();
         // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
-        if (!shape.empty() && shape.size() != 3 && shape.size() != 1)
-            return shape[0];
+        if (rank != 0 && rank != 1 && rank != 3 && pshape[0].is_static())
+            return pshape[0].get_length();
     }
     return 1;
 }
@@ -433,46 +434,34 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
-    try {
-        if (size == getBatchSize())
-            return OK;
-        if (!cnnNetwork)
-            convertToCNNNetworkImpl();
-        return cnnNetwork->setBatchSize(size, responseDesc);
-    } catch (std::exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    }
-}
-
-StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
     if (cnnNetwork)
         return cnnNetwork->setBatchSizeReshape(size, responseDesc);
     try {
         auto original_parameters = _ngraph_function->get_parameters();
+        if (original_parameters.empty())
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Topology doesn't contain parameters!";
 
-        std::map<std::string, std::vector<size_t>> origShapes;
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto &parameter : original_parameters) {
-            if (parameter->get_partial_shape().is_dynamic())
-                THROW_IE_EXCEPTION << "Cannot setBatch! Network contains inputs with dynamic shapes!";
-            std::vector<size_t> shape = parameter->get_shape();
-            origShapes[parameter->get_friendly_name()] = shape;
+            auto pshape = parameter->get_partial_shape();
+            if (pshape.rank().is_static() && (pshape.rank().get_length() == 0 || pshape.rank().get_length() == 1 || pshape.rank().get_length() == 3))
+                continue;  // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
+            if (pshape.is_dynamic()) {
+                std::stringstream ss;
+                bool first = true;
+                for (const auto& p: original_parameters) {
+                    if (!first) ss << ", ";
+                    first = false;
+                    ss << p->get_friendly_name() << ": " << parameter->get_partial_shape();
+                }
+                THROW_IE_EXCEPTION << "Cannot setBatch! Network contains inputs with dynamic shapes! "
+                                   << "Please use reshape method instead. Original inputs are: " << ss.str() << ".";
+            }
+            std::vector<size_t> shape = pshape.to_shape();
             shape[0] = size;
             inShapes[parameter->get_friendly_name()] = shape;
         }
-        auto sts = reshape(inShapes, responseDesc);
-        if (sts == OK) return OK;
-        for (size_t i = 0; i < original_parameters.size(); i++) {
-            const auto& param = original_parameters[i];
-            if (origShapes.find(param->get_friendly_name()) == origShapes.end())
-                continue;
-            ::ngraph::PartialShape shape(origShapes.at(param->get_friendly_name()));
-            auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
-            newParam->set_friendly_name(param->get_friendly_name());
-            _ngraph_function->replace_parameter(i, newParam);
-        }
-        convertToCNNNetworkImpl();
-        return cnnNetwork->setBatchSize(size, responseDesc);
+        return reshape(inShapes, responseDesc);
     } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
