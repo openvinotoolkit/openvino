@@ -25,23 +25,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 using namespace std;
 
-TEST(nop_elimination, eliminate_pad) {
-    Shape shape_a{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_b{};
-    auto B = make_shared<op::Parameter>(element::f32, shape_b);
-    CoordinateDiff padding_below{0};
-    CoordinateDiff padding_above{0};
-    auto p = make_shared<op::v0::Pad>(A, B, padding_below, padding_above);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(p), ParameterVector{A, B});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Pad>(f), 0);
-}
-
 TEST(nop_elimination, eliminate_sum) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
