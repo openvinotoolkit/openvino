@@ -23,6 +23,8 @@ from mo.utils.utils import refer_to_faq_msg
 
 try:
     import tensorflow.compat.v1 as tf_v1
+    # disable eager execution of TensorFlow 2 environment immediately
+    tf_v1.disable_eager_execution()
     import tensorflow as tf
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
@@ -231,8 +233,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
                 frozen_func = convert_variables_to_constants_v2(concrete_func, lower_control_flow=False) # pylint: disable=E1123
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
-                # disable eager execution to dump a graph for tensorboard
-                tf_v1.disable_eager_execution()                
                 return graph_def, variables_values
             except (TypeError, KeyError):
                 # code to extract GraphDef for TF 1.0 SavedModel format
