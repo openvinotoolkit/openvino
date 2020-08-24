@@ -20,11 +20,11 @@ following code prepares a graph for shape-relevant parameters.
 
 > **NOTE**: `validate_nodes_and_infer_types(ops)` must be included for partial shape inference. 
 
-@snippet openvino/docs/examples/nGraphTutorial.cpp part0
+@snippet openvino/docs/snippets/nGraphTutorial.cpp part0
 
 To wrap it into a CNNNetwork, use: 
 
-@snippet openvino/docs/examples/nGraphTutorial.cpp part1
+@snippet openvino/docs/snippets/nGraphTutorial.cpp part1
 
 ## Deprecation Notice
 

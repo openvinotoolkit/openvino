@@ -33,7 +33,7 @@ a temporary memory block for model decryption, and use
 For more information, see the `InferenceEngine::Core` Class
 Reference Documentation.
 
-@snippet openvino/docs/examples/protecting_model_guide.cpp part0
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part0
 
 Hardware-based protection, such as Intel&reg; Software Guard Extensions
 (Intel&reg; SGX), can be utilized to protect decryption operation secrets and
@@ -43,7 +43,7 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-@snippet openvino/docs/examples/protecting_model_guide.cpp part1
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part1
 
 [deploy_encrypted_model]: img/deploy_encrypted_model.png
 
