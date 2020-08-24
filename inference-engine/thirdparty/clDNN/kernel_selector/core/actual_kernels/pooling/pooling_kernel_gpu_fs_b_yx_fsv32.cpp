@@ -68,6 +68,9 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_par
     if (pp.output.Feature().pad.before % 32 != 0)
         return false;
 
+    if (pp.inputs[0].Feature().pad.before % 32 != 0)
+        return false;
+
     return true;
 }
 
