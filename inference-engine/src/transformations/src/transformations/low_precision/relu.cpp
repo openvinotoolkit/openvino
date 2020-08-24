@@ -50,7 +50,7 @@ bool ReluTransformation::canBeTransformed(const TransformationContext& context, 
 
     const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr());
     const auto scales = constant->cast_vector<float>();
-    if (std::all_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {
+    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {
         return false;
     }
 
