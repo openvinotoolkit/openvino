@@ -1111,6 +1111,11 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor
 IE_CPU.onnx_resize11_sizes_nearest_asymmetric_floor
 IE_CPU.onnx_resize11_sizes_linear
 IE_CPU.onnx_model_round
+IE_CPU.onnx_upsample9_scales_const_linear_infer
+IE_CPU.onnx_upsample9_scales_const_nearest_infer
+IE_CPU.onnx_upsample8_nearest_infer
+IE_CPU.onnx_upsample8_linear_infer
+IE_CPU.interpolate_down_scales_const_linear
 
 # RNNCell operation has a form that is not supported
 IE_CPU.onnx_model_rnn_defaults_fwd
