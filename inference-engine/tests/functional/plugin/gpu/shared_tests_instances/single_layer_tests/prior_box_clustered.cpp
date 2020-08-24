@@ -60,8 +60,8 @@ INSTANTIATE_TEST_CASE_P(PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
                         ::testing::Combine(
                             layerSpeficParams,
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(std::vector<size_t>({ 4, 4 })),
-                            ::testing::Values(std::vector<size_t>({ 50, 50 })),
+                            ::testing::Values(std::vector<size_t>({ 1, 16, 4, 4 })),
+                            ::testing::Values(std::vector<size_t>({ 1, 3, 50, 50 })),
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PriorBoxClusteredLayerTest::getTestCaseName
 );
