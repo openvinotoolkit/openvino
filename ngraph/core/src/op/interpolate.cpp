@@ -167,7 +167,7 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
         return default_value;
     }
 
-    auto axes_node = as_type_ptr<op::v4::Constant>(input_value(3).get_node_shared_ptr());
+    auto axes_node = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, axes_node, "Input 'axes' should be Constant.");
 
     return axes_node->cast_vector<int64_t>();
@@ -179,7 +179,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const PartialShape& padded_input_shape)
 {
-    auto const_scales = as_type_ptr<op::v4::Constant>(input_value(2).get_node_shared_ptr());
+    auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, const_scales, "Input 'scales' should be Constant.");
 
     auto scales = const_scales->cast_vector<float>();
@@ -199,7 +199,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
 void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes)
 {
-    auto const_shape = as_type_ptr<op::v4::Constant>(input_value(1).get_node_shared_ptr());
+    auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, const_shape, "Input 'sizes' should be Constant.");
 
     auto out_shape = const_shape->cast_vector<int64_t>();
