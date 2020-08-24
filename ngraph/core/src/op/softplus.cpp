@@ -65,6 +65,8 @@ namespace
 
         switch (arg0->get_element_type())
         {
+            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
+            break;
             TYPE_CASE(f16)(arg0, out, count);
             break;
             TYPE_CASE(f32)(arg0, out, count);
