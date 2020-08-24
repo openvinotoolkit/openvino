@@ -92,7 +92,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
     for (const auto& dim : dims) {
         if (!dim)
-            THROW_IE_EXCEPTION << outName << " has zero dimension that is not allowable";
+            THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
