@@ -156,9 +156,9 @@ TEST(CNNNGraphImplTests, TestSetBatch) {
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
-    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
+    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
     ASSERT_EQ(2, cnnNet.getBatchSize());
-    ASSERT_EQ(nullptr, cnnNet.getFunction());
+    ASSERT_NE(nullptr, cnnNet.getFunction());
 }
 
 TEST(CNNNGraphImplTests, TestGetBatchScalar) {
@@ -197,7 +197,7 @@ TEST(CNNNGraphImplTests, TestSetBatchScalar) {
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
-    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
+    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
 }
 
 TEST(CNNNGraphImplTests, TestSaveAffinity) {

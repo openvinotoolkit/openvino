@@ -440,20 +440,20 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
         auto original_parameters = _ngraph_function->get_parameters();
         if (original_parameters.empty())
             return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Topology doesn't contain parameters!";
-
+        std::stringstream ss;
+        bool first = true;
+        for (const auto& p: original_parameters) {
+            if (!first) ss << ", ";
+            first = false;
+            ss << p->get_friendly_name() << ": " << p->get_partial_shape();
+        }
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto &parameter : original_parameters) {
             auto pshape = parameter->get_partial_shape();
             if (pshape.rank().is_static() && (pshape.rank().get_length() == 0 || pshape.rank().get_length() == 1 || pshape.rank().get_length() == 3))
                 continue;  // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
             if (pshape.is_dynamic()) {
-                std::stringstream ss;
-                bool first = true;
-                for (const auto& p: original_parameters) {
-                    if (!first) ss << ", ";
-                    first = false;
-                    ss << p->get_friendly_name() << ": " << parameter->get_partial_shape();
-                }
+
                 THROW_IE_EXCEPTION << "Cannot setBatch! Network contains inputs with dynamic shapes! "
                                    << "Please use reshape method instead. Original inputs are: " << ss.str() << ".";
             }
@@ -461,6 +461,10 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             shape[0] = size;
             inShapes[parameter->get_friendly_name()] = shape;
         }
+        if (inShapes.empty())
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input and input with dynamic shape. " <<
+            "Please use reshape method instead. Original inputs are: " << ss.str() << ".";
+
         return reshape(inShapes, responseDesc);
     } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
