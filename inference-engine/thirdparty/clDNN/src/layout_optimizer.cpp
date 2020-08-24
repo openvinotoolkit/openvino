@@ -852,6 +852,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto& deconv_node = node.as<deconvolution>();
         auto weights_layout = deconv_node.weights(0).get_output_layout();
         expected = get_expected_layout(output_layout, deconv_node, weights_layout).format;
+    } else if (node.is_type<mvn>()) {
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        if (input_layout.format.dimension() == 5 &&
+            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16 ))
+            expected = format::bfzyx;
     }
 
     return expected;
