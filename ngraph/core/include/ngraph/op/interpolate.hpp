@@ -220,6 +220,8 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
+            protected:
                 std::vector<int64_t> get_axes() const;
 
             private:
@@ -233,8 +235,6 @@ namespace ngraph
                                         const std::vector<int64_t>& axes);
             };
         } // namespace v4
-        using v0::Interpolate;
-        using v0::InterpolateAttrs;
     } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------

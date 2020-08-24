@@ -167,13 +167,10 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
         return default_value;
     }
 
-    std::vector<int64_t> result;
-    if (auto axes_node = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr()))
-    {
-        result = axes_node->cast_vector<int64_t>();
-    }
+    auto axes_node = as_type_ptr<op::v4::Constant>(input_value(3).get_node_shared_ptr());
+    NODE_VALIDATION_CHECK(this, axes_node, "Input 'axes' should be Constant.");
 
-    return result;
+    return axes_node->cast_vector<int64_t>();
 }
 
 static constexpr float epsilon = 1.0e-6f;
@@ -182,11 +179,8 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const PartialShape& padded_input_shape)
 {
-    auto const_scales = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    if (!const_scales)
-    {
-        return;
-    }
+    auto const_scales = as_type_ptr<op::v4::Constant>(input_value(2).get_node_shared_ptr());
+    NODE_VALIDATION_CHECK(this, const_scales, "Input 'scales' should be Constant.");
 
     auto scales = const_scales->cast_vector<float>();
     size_t i = 0;
@@ -195,7 +189,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
         if (padded_input_shape[axis].is_static())
         {
             float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>((padded_len + epsilon) * scales[i]);
+            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i] + epsilon);
             output_shape[axis] = Dimension(new_dim);
         }
         ++i;
@@ -205,11 +199,8 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
 void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes)
 {
-    auto const_shape = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    if (!const_shape)
-    {
-        return;
-    }
+    auto const_shape = as_type_ptr<op::v4::Constant>(input_value(1).get_node_shared_ptr());
+    NODE_VALIDATION_CHECK(this, const_shape, "Input 'sizes' should be Constant.");
 
     auto out_shape = const_shape->cast_vector<int64_t>();
     size_t i = 0;
@@ -376,7 +367,7 @@ namespace
         for (size_t i = 0; i < num_of_axes; ++i)
         {
             int64_t axis = axes[i];
-            float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i];
+            float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i] + epsilon;
             out_shape[axis] = static_cast<size_t>(scaled_len);
         }
         return out_shape;
@@ -510,6 +501,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
         for (size_t pad : info_for_reference.pads_begin)
         {
             padded_coord[i] += pad;
+            ++i;
         }
         uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
         const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
@@ -545,7 +537,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                                 info_for_reference.out_shape,
                                                 m_attrs);
         break;
-    default:;
+    default:
     }
 
     return true;
