@@ -6,13 +6,13 @@
 #include <utility>
 
 #include <ie_metric_helpers.hpp>
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include "exec_graph_info.hpp"
 #include <myriad_executable_network.h>
 #include <vpu/blob_reader.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/runtime_graph.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include <vpu/compile_env.hpp>
 
 using namespace InferenceEngine;
@@ -184,7 +184,7 @@ void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, Re
     }
 }
 
-void ExecutableNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+void ExecutableNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr& graphPtr) {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
     graphPtr = buildRuntimeGraph(_graphMetaData, perfInfo);
 }

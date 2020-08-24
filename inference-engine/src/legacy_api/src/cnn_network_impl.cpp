@@ -2,26 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cnn_network_impl.hpp"
-
-#include <ie_common.h>
-#include <math.h>
-
+#include <cmath>
 #include <cassert>
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
 #include <unordered_set>
 
 #include "debug.h"
-#include "graph_tools.hpp"
-#include "network_serializer_v7.hpp"
 #include "exec_graph_info.hpp"
-#include "details/ie_cnn_network_tools.h"
 #include <ngraph/graph_util.hpp>
+#include <ie_common.h>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
@@ -29,8 +22,14 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/apply_transformations_to_ti_body.hpp>
-#include "convert_function_to_cnn_network.hpp"
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+
+#include "legacy/convert_function_to_cnn_network.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
+#include "network_serializer_v7.hpp"
+#include <shape_infer/ie_reshaper.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -396,26 +395,10 @@ StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtens
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
     try {
-        // A flag for serializing executable graph information (not complete IR)
-        bool execGraphInfoSerialization = false;
-
-        const std::vector<CNNLayerPtr> ordered = Serialization::TopologicalSort((InferenceEngine::ICNNNetwork&)*this);
-        // If first layer has perfCounter parameter set then it's executable graph info serialization.
-        // All other layers must also have this parameter set.
-        if (ordered[0]->params.find(ExecGraphInfoSerialization::PERF_COUNTER) != ordered[0]->params.end()) {
-            execGraphInfoSerialization = true;
-            for (const auto& layer : ordered) {
-                if (layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER) == layer->params.end()) {
-                    THROW_IE_EXCEPTION << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
-                                    << " parameter set in case of executable graph info serialization";
-                }
-            }
-        }
-
-        if (execGraphInfoSerialization) {
-            Serialization::Serialize(xmlPath, (InferenceEngine::ICNNNetwork&)*this);
-            return OK;
-        }
+#ifdef ENABLE_V7_SERIALIZE
+        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        return OK;
+#endif
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
@@ -436,9 +419,9 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
 
         SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 
-        // 3D input layout doesn't have batch notation
-        if (dims.size() == 3 || dims.size() == 1) {
-            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        // 3D/1D/0D input layouts don't have batch notation
+        if (dims.size() == 3 || dims.size() == 1 || dims.empty()) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);

@@ -108,8 +108,7 @@ void util::TensorIteratorBuilder::get_graph_body()
 
     m_body_outputs = as_output_vector(body_attrs["results"].cast<ngraph::NodeVector>());
     m_body_parameters = body_attrs["parameters"].cast<ngraph::ParameterVector>();
-    m_body =
-        std::make_shared<ngraph::op::TensorIterator::BodyLambda>(m_body_outputs, m_body_parameters);
+    m_body = std::make_shared<ngraph::Function>(m_body_outputs, m_body_parameters);
 }
 
 void util::TensorIteratorBuilder::set_tensor_iterator_sliced_inputs(

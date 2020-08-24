@@ -86,6 +86,12 @@ DECL_PASS(SubstituteScaleShiftBroadCast);
 DECL_PASS(ReversePermutations);
 
 /**
+ * @brief Pass support --disable_nhwc_to_nchw option in MO
+ * @param layers
+ */
+DECL_PASS(RemovePermutationsNHWCToNCHW);
+
+/**
  * brief @search for specific patter in the graph (6 layers are replaced by single one)
  */
 DECL_PASS(SubstitutePRelu);
@@ -153,6 +159,11 @@ DECL_PASS_BEFORE_COPY(RemoveConst);
  * @brief removed extra identity layer for multi-output
  */
 DECL_PASS(FuseMultipleIdentities);
+
+/**
+* @brief Brodcast data in Const layer
+*/
+DECL_PASS(BroadcastConst);
 
 struct PassManagerSettings {
     Policy policy;

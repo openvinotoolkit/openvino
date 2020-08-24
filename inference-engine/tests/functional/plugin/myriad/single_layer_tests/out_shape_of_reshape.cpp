@@ -54,8 +54,8 @@ public:
 protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
-        configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
-        configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
+        configuration[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
 
         OutShapeOfReshapeParam shapesParam;
         std::tie(shapesParam, targetDevice) = this->GetParam();

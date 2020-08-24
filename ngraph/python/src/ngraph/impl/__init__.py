@@ -45,5 +45,7 @@ from ngraph.pyngraph import CoordinateDiff
 from ngraph.pyngraph import AxisSet
 from ngraph.pyngraph import AxisVector
 from ngraph.pyngraph import Coordinate
+from ngraph.pyngraph import VariantString
+from ngraph.pyngraph import VariantInt
 
 from ngraph.pyngraph import util

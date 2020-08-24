@@ -975,7 +975,7 @@ class Graph(nx.MultiDiGraph):
         if undead_node_types is None:
             undead_node_types = []
 
-        if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
+        if not getattr(self.graph['cmd_params'], 'static_shape', False):
             undead_node_types.extend(['ShapeOf', 'Shape', 'slice_like'])
 
         mark_output_reachable_nodes(self)

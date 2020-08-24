@@ -75,9 +75,9 @@
 #include "simple_math.h"
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <graph_tools.hpp>
-#include <ie_layers_internal.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "caseless.hpp"
@@ -1354,7 +1354,8 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
         scaleShiftLayerName,
         inputPrimitives[0],
         scalePrimID,
-        biasPrimID);
+        biasPrimID,
+        cldnn::optional_data_type{DataTypeFromPrecision(layer->outData[0]->getPrecision())});
 
     topology.add(scaleShiftPrim);
     AddPrimitiveToProfiler(scaleShiftLayerName, layer);

@@ -132,7 +132,6 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         size_t axis);
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
-                                                const element::Type &type,
                                                 const std::vector<size_t> numSplits,
                                                 size_t axis);
 
@@ -317,6 +316,23 @@ std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
 
 std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,
                                                   const ngraph::op::DetectionOutputAttrs& attrs);
+
+std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
+                                                 const element::Type& type,
+                                                 const size_t outputSize,
+                                                 bool addBias = true,
+                                                 const ngraph::Shape& weightsShape = {},
+                                                 const std::vector<float>& weights = {},
+                                                 const std::vector<float>& biasWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>& in,
+                                         const int& axis);
+
+std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
+                                      const std::vector<size_t>& padsBegin,
+                                      const std::vector<size_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode);
 
 }  // namespace builder
 }  // namespace ngraph

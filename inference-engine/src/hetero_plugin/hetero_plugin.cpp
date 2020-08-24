@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
 
 using namespace InferenceEngine;
@@ -87,12 +86,8 @@ ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Con
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    IExecutableNetwork::Ptr executableNetwork;
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this)),
-                            [](InferenceEngine::details::IRelease *p) {p->Release();});
-
-    return ExecutableNetwork{executableNetwork};
+    return make_executable_network(std::make_shared<HeteroExecutableNetwork>(heteroModel,
+        mergeConfigs(_config, config), this));
 }
 
 Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
@@ -290,15 +285,5 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     }
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePlugin *&plugin,
-        InferenceEngine::ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"},
-                                           std::make_shared<Engine>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
