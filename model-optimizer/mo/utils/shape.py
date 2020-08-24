@@ -104,8 +104,6 @@ def get_shape_values_by_indices_node(shape_node: Node, indices_node: Node) -> No
     shape_node.out_port(0).connect(gather_node.in_port(0))
     indices_node.out_port(0).connect(gather_node.in_port(1))
     axis.out_port(0).connect(gather_node.in_port(2))
-    shape_node.infer(shape_node)
-    axis.infer(axis)
     return gather_node
 
 
@@ -121,7 +119,6 @@ def node_to_get_shape_value_of_indices(shape_node: Node, indices: list) -> Node:
     indices_node = Const(graph, {'value': int64_array(indices), 'name': shape_node.name + '/Indices'}).create_node()
 
     gather_node = get_shape_values_by_indices_node(shape_node, indices_node)
-    indices_node.infer(indices_node)
     return gather_node
 
 

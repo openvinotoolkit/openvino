@@ -16,8 +16,6 @@
 
 import numpy as np
 
-from extensions.ops.gather import Gather
-from mo.front.common.partial_infer.concat import concat_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
@@ -27,7 +25,6 @@ from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
-from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.shape import node_to_get_shape_value_of_indices
 
@@ -81,10 +78,6 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             self.unsqueeze_num_directions(graph, match)
         self.squeeze_initial_states(graph, match)
         self.reordering_inputs(graph, match)
-        match['rnn_layer']['override_output_shape'] = True
-        import os
-        os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
-        graph.dump_graph_for_graphviz(save_to_svg=True)
         # some additional checks for ports number and similar stuff
 
     def repack_weights(self, graph: Graph, match: dict):
@@ -165,14 +158,14 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             graph.remove_edge(rnn_layer.id, old_data_node.id)
             graph.add_edge(rnn_layer.id, data.id, key=0, out=i)
 
-            reshape = Unsqueeze(graph, dict())
+            unsqueeze = Unsqueeze(graph, dict())
 
-            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/SqueezeNumDirections/{}/Dim'.format(i),
+            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/UnsqueezeNumDirections/{}/Dim'.format(i),
                                              'value': int64_array([direction_dim[i]])}).create_node_with_data()
 
-            reshape.create_node_with_data([data, reshape_dim_data],
-                                          dict(name=rnn_layer.name + '/SqueezeNumDirections/{}'.format(i)),
-                                          data_nodes=[old_data_node])
+            unsqueeze.create_node_with_data([data, reshape_dim_data],
+                                            dict(name=rnn_layer.name + '/UnsqueezeNumDirections/{}'.format(i)),
+                                            data_nodes=[old_data_node])
     @staticmethod
     def squeeze_initial_states(graph: Graph, match: dict):
         """
@@ -190,19 +183,14 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         hidden_size = rnn_layer.hidden_size
         shape = Shape(graph, dict(name=rnn_layer_name + '/ShapeOf')).create_node()
         rnn_layer.in_port(0).get_source().connect(shape.in_port(0))
-        # shape.infer(shape)
 
-        batch = node_to_get_shape_value_of_indices(shape, [rnn_layer.batch_dim])
+        batch = node_to_get_shape_value_of_indices(shape, int64_array([rnn_layer.batch_dim]))
         new_dim = create_op_node_with_second_input(graph, Concat, second_input_value=int64_array([hidden_size]),
                                                    op_attrs=dict(name=rnn_layer_name + '/HiddenStateResizeDim',
                                                                  in_ports_count=2, axis=0), input_node=batch)
-        batch.infer(batch)
         reshape_h = Reshape(graph, dict(name=rnn_layer_name + '/HiddenStateResize', override_output_shape=True)).create_node()
         new_dim.out_port(0).connect(reshape_h.in_port(1))
         rnn_layer.in_port(hidden_init_port).get_connection().insert_node(reshape_h)
-
-        new_dim.infer(new_dim)
-        reshape_h.infer(reshape_h)
 
         if rnn_layer.op == 'LSTM':
             assert cell_init_port in rnn_layer.in_nodes()
@@ -210,7 +198,6 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             reshape_c = Reshape(graph, dict(name=rnn_layer_name + '/CellStateResize', override_output_shape=True)).create_node()
             new_dim.out_port(0).connect(reshape_c.in_port(1))
             rnn_layer.in_port(cell_init_port).get_connection().insert_node(reshape_c)
-            reshape_c.infer(reshape_c)
 
     @staticmethod
     def reordering_inputs(graph: Graph, match: dict):
