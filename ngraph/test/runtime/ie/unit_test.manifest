@@ -1056,7 +1056,6 @@ IE_CPU.fused_clamp_uint32
 IE_CPU/FlattenTest.flatten
 
 # Segfault
-IE_CPU.onnx_model_instance_normalization
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.cum_sum_2dim_default_axis
