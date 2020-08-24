@@ -116,9 +116,9 @@ protected:
 
         pattern_datas.push_back(input);
         pattern_datas.push_back(output);
-        pattern_datas.push_back(fake);
-        pattern_datas.push_back(fake);
         pattern_datas.push_back(weights);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(fake);
         pattern_datas.push_back(inputAfterReshape);
         pattern_datas.push_back(outputBeforeReshape);
 
@@ -161,12 +161,12 @@ protected:
         pattern_datas.push_back(input);
         pattern_datas.push_back(mid);
         pattern_datas.push_back(output);
-        pattern_datas.push_back(fake);
-        pattern_datas.push_back(fake);
         pattern_datas.push_back(firstWeights);
         pattern_datas.push_back(fake);
         pattern_datas.push_back(fake);
         pattern_datas.push_back(secondWeights);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(fake);
 
         switch (current_case) {
         case ReshapeFirst:
@@ -212,9 +212,9 @@ protected:
 
         pattern_datas.push_back(input);
         pattern_datas.push_back(output);
-        pattern_datas.push_back(fake);
-        pattern_datas.push_back(fake);
         pattern_datas.push_back(weights);
+        pattern_datas.push_back(fake);
+        pattern_datas.push_back(fake);
 
         // duplicate to pattern additional not connected data
         pattern_datas.push_back(fake);
