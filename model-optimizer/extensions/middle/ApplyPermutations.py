@@ -24,6 +24,7 @@ from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForC
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 
@@ -149,7 +150,7 @@ class ApplyPermutation(MiddleReplacementPattern):
         for shape in shape_ops:
             shape.infer(shape)
 
-        def reinfer_once(in_port):
+        def reinfer_once(in_port: Port):
             node = in_port.node
             if not node.soft_get('reinferred', False):
                 node.infer(node)
