@@ -222,11 +222,25 @@ namespace ngraph
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
 
             protected:
+                /// \return The interpolation axes.
                 std::vector<int64_t> get_axes() const;
 
             private:
                 InterpolateAttrs m_attrs;
 
+                /// \brief Corrects pads_begin and pads_end attributes.
+                ///
+                /// \details When Interpolate-4 is a result of some transformation, it is possible
+                ///          that pads_begin.size() != pads_end.size() or
+                ///          pads_begin.size() != input_rank. In such case, we should correct
+                ///          pads_begin and pads_end, using padding of pads_begin and pads_end by
+                ///          zeros or using pads_begin[0 : input_rank], pads_end[0 : input_rank].
+                ///
+                ///          Padding of pads_begin is performed when pads_begin.size() < input_rank,
+                ///          and pads_begin[0 : input_rank] is used when
+                ///          pads_begin.size() < input_rank.
+                ///
+                ///          Similarly for pads_end.
                 void correct_pads();
                 void infer_using_scales(PartialShape& output_shape,
                                         const std::vector<int64_t>& axes,

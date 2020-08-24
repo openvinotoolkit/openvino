@@ -27,6 +27,8 @@ INTERPRETER.interpolate_down_scales_const_linear
 INTERPRETER.onnx_empty_initializers_handling
 INTERPRETER.onnx_upsample8_import_only
 INTERPRETER.onnx_upsample9_scales_const_import_only
+INTERPRETER.onnx_upsample9_scales_const_linear_infer
+INTERPRETER.onnx_upsample8_linear_infer
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
