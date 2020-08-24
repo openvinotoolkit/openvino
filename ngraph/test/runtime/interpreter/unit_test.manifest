@@ -23,6 +23,11 @@ INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.onnx_resize11_sizes_linear
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 INTERPRETER.onnx_model_round
+INTERPRETER.interpolate_down_scales_const_linear
+INTERPRETER.onnx_empty_initializers_handling
+
+# ONNX Loop
+onnx_controlflow_loop_2d_add_execution
 
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_model_qlinear_matmul_3d

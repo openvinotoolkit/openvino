@@ -2353,6 +2353,21 @@ TEST_P(fc_int8_scale, basic) {
     execute(p);
 }
 
+TEST_P(fc_int8_scale, fp16_scale_out) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32),
+        scale("scale", "fc_prim", "scale_data", optional_data_type{data_types::f16}),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale,
     ::testing::ValuesIn(std::vector<bc_test_params>{
                         bc_test_params{ CASE_FC_U8S8_1, 2, 3 },
@@ -2515,6 +2530,45 @@ TEST_P(gemm_2in_quantize_u8, basic) {
 }
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_quantize_u8,
+    ::testing::ValuesIn(std::vector<gemm_test_params>{
+                        gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_2IN_U8U8_1, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_2IN_U8U8_2, 3, 4 },
+                        gemm_test_params{ CASE_GEMM_2IN_U8U8_3, 3, 4 },
+}), );
+
+class gemm_2in_scale : public GemmFusingTest {};
+TEST_P(gemm_2in_scale, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
+        scale("scale", "gemm_prim", "scale_data"),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(gemm_2in_scale, fp16_scale_out) {
+    auto p = GetParam();
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
+        scale("scale", "gemm_prim", "scale_data", optional_data_type{data_types::f16}),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_scale,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
@@ -3882,6 +3936,74 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv,
         deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 3 },
 }), );
 
+class deconv_scale : public DeconvolutionFusingTest {};
+TEST_P(deconv_scale, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        scale("scale", "deconv", "scale_data"),
+        reorder("out", "scale", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(deconv_scale, fp16_scale_out) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        scale("scale", "deconv", "scale_data", optional_data_type{data_types::f16}),
+        reorder("out", "scale", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 3 },
+}), );
+
 class deconv_actv_eltw_actv : public DeconvolutionFusingTest {};
 TEST_P(deconv_actv_eltw_actv, basic) {
     auto p = GetParam();
@@ -4437,6 +4559,19 @@ TEST_P(pooling_f32_scale, basic) {
         reorder("output_reorder", "scale", format::bfyx, data_types::f32));
 
     tolerance = 1e-05f;
+    execute(p);
+}
+
+TEST_P(pooling_f32_scale, fp16_scale_out) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{1, 1, 3, 3}.count())),
+        pooling("pooling", "input", p.pool_mode, tensor{1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}),
+        scale("scale", "pooling", "scale_data", optional_data_type{data_types::f16}),
+        reorder("output_reorder", "scale", format::bfyx, data_types::f32));
+
+    tolerance = 1e-5f;
     execute(p);
 }
 
