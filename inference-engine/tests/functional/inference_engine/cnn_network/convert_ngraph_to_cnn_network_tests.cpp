@@ -144,3 +144,34 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
         }
     }
 }
+
+TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
+        ngraph::Shape const_shape = {};
+        std::vector<int64_t> val = {5};
+        auto k = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, const_shape, val);
+        auto topK = std::make_shared<ngraph::opset4::TopK>(param, k, 2, ngraph::opset4::TopK::Mode::MAX, ngraph::opset4::TopK::SortType::SORT_VALUES);
+        topK->set_friendly_name("topK");
+        auto result = std::make_shared<ngraph::op::Result>(topK->output(1));
+
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                               ngraph::ParameterVector{param});
+        ngraph::pass::InitNodeInfo().run_on_function(f);
+    }
+
+    InferenceEngine::CNNNetwork nGraphImpl(f);
+    try {
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        OutputsDataMap outputs;
+        net->getOutputsInfo(outputs);
+        ASSERT_EQ(outputs.size(), 1);
+        ASSERT_EQ(outputs.begin()->first, "topK");
+    } catch (InferenceEngine::details::InferenceEngineException &err) {
+        const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
+        const std::string resp_msg = err.what();
+        ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
+    }
+}
