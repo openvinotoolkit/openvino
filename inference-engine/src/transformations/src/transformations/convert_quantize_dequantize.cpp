@@ -63,25 +63,14 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto fq_pattern = ngraph::pattern::wrap_type<opset1::FakeQuantize>({data_pattern, input_low_pattern,
                                                                        input_high_pattern, output_low_pattern,
                                                                        output_high_pattern});
-    auto convert1_pattern = ngraph::pattern::wrap_type<opset1::Convert>({fq_pattern},
-                                                                        [] (const Output<Node>& output) -> bool {
-                                                                            const auto& type = output.get_element_type();
-                                                                            return type == element::i8 || type == element::u8;
-                                                                        });
-    auto convert2_pattern = ngraph::pattern::wrap_type<opset1::Convert>({convert1_pattern},
-                                                                        [] (const Output<Node>& output) -> bool {
-                                                                            return output.get_element_type() == element::f32;
-                                                                        });
+    auto convert1_pattern = ngraph::pattern::wrap_type<opset1::Convert>({fq_pattern}, pattern::type_matches_any({element::i8, element::u8}));
+    auto convert2_pattern = ngraph::pattern::wrap_type<opset1::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = ngraph::pattern::any_input();
     auto sub_pattern = ngraph::pattern::wrap_type<opset1::Subtract>({convert2_pattern, zero_point_pattern}, pattern::consumers_count(1));
     auto scale_pattern = ngraph::pattern::any_input();
     auto mul_pattern = ngraph::pattern::wrap_type<opset1::Multiply>({sub_pattern, scale_pattern});
 
     ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
-        auto mul = std::dynamic_pointer_cast<ngraph::opset1::Multiply> (m.get_match_root());
-        if (!mul)
-            return false;
-
         auto pattern_map = m.get_pattern_map();
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
@@ -94,6 +83,7 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto convert1 = pattern_map[convert1_pattern];
         auto convert2 = pattern_map[convert2_pattern];
         auto sub = pattern_map[sub_pattern];
+        auto mul = pattern_map[mul_pattern];
 
         size_t levels = fq->get_levels();
         if (levels != 256)
