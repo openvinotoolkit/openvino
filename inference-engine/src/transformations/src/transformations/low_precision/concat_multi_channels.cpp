@@ -89,9 +89,8 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
         return false;
     }
 
-    element::Type precision;
+    DataPrecision dataPrecision;
     {
-        DataPrecision dataPrecision;
         for (auto quantizationLayer : subgraph.quantizationLayers) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer->shared_from_this());
             const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false, false);
@@ -101,11 +100,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
                 continue;
             }
 
-            if (tmp.precision != dataPrecision.precision) {
-                return false;
+            if ((tmp.precision != dataPrecision.precision) && (tmp.precision == ngraph::element::u8)) {
+                dataPrecision = tmp;
             }
         }
-        precision = dataPrecision.precision;
     }
 
     std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
@@ -122,7 +120,7 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             return false;
         }
 
-        const DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false, false);
+        const DataPrecision currentDataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false, false);
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
@@ -131,7 +129,7 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             dataPrecision.precision,
             dataPrecision.min,
             dataPrecision.max,
-            dataPrecision.hasZeroPoint,
+            dataPrecision.precision == currentDataPrecision.precision ? currentDataPrecision.hasZeroPoint : true,
             updatePrecisions);
         dequantizations[fakeQuantizeLayer->get_friendly_name()] = fakeQuantizeDequantization;
 
@@ -176,10 +174,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
         for (const auto it : subgraph.layers) {
             const std::shared_ptr<ngraph::Node> node = it.second;
             if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
-                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(node->shared_from_this(), precision);
+                ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(node->shared_from_this(), dataPrecision.precision);
             } else {
 #ifdef LPT_SUPPORT
-                node->set_output_type(0, precision, node->get_output_partial_shape(0));
+                node->set_output_type(0, dataPrecision.precision, node->get_output_partial_shape(0));
 #endif
             }
         }
