@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_quantize_dequantize.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -89,19 +90,20 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         if (levels != 256)
             return false;
 
-        auto out_low_val = output_low->cast_vector<float>();
-        auto out_high_val = output_high->cast_vector<float>();
-        if (out_low_val.size() != 1 || out_high_val.size() != 1)
+        float out_low_val;
+        if (!op::util::get_single_value(output_low, out_low_val))
             return false;
-
+        float out_high_val;
+        if (!op::util::get_single_value(output_high, out_high_val))
+            return false;
         const auto& type = convert1->get_element_type();
         switch (type) {
         case element::Type_t::i8:
-            if (out_low_val[0] != -128 || out_high_val[0] != 127)
+            if (out_low_val != -128 || out_high_val != 127)
                 return false;
             break;
         case element::Type_t::u8:
-            if (out_low_val[0] != 0 || out_high_val[0] != 255)
+            if (out_low_val != 0 || out_high_val != 255)
                 return false;
             break;
         default:
