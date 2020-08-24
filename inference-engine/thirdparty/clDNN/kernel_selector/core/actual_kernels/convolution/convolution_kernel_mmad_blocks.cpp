@@ -43,11 +43,14 @@ ParamsKey ConvolutionKernel_mmad_blocks::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
