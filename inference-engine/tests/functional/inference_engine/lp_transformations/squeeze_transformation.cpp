@@ -134,8 +134,8 @@ const std::vector<SqueezeTransformationTestValues> testValues = {
         { { 0.5f }, { 1 } },
         { { 0.5f }, { 1 } },
         { { 32 }, { 1000, 1, 1, 1 } },
-        { { 32 }, { 1000 } },
-        { 1.0, 2.0, 3.0 },
+        { { 32 }, { 1000, 1 } },
+        { 2.0, 3.0 },
         { 1000, 1, 1, 1 },
         ngraph::element::f32
     },
@@ -149,16 +149,16 @@ const std::vector<SqueezeTransformationTestValues> testValues = {
         { 1, 1, 1000, 1 },
         ngraph::element::f32
     },
-    {
-        LayerTransformation::createParamsI8I8(),
-        { { 0.2f }, { 1, 1000, 1, 1 } },
-        { { 0.2f }, { 1000 } },
-        { { 128 }, { 1, 1000, 1, 1 } },
-        { { 128 }, { 1000 } },
-        { },
-        { 1, 1000, 1, 1 },
-        ngraph::element::f32
-    }
+    // {
+    //    LayerTransformation::createParamsI8I8(),
+    //    { { 0.2f }, { 1, 1000, 1, 1 } },
+    //    { },
+    //    { { 128 }, { 1, 1000, 1, 1 } },
+    //    { },
+    //    { },
+    //    { 1, 1000, 1, 1 },
+    //    ngraph::element::f32
+    // }
 };
 
 INSTANTIATE_TEST_CASE_P(

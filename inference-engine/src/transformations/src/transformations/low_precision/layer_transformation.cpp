@@ -70,6 +70,13 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
+    for (const auto& output : layer->outputs()) {
+        const size_t size = output.get_shape().size();
+        if ((size < 2ul) || (size > 5ul)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

@@ -24,6 +24,10 @@ void ReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCon
 
 bool ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> relu = m.get_match_root();
+    if (!LayerTransformation::canBeTransformed(context, relu)) {
+        return false;
+    }
+
     if (!canBeTransformed(context, relu)) {
         return false;
     }

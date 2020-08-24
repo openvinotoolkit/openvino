@@ -24,6 +24,9 @@ void ConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 
 bool ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(m.get_match_root());
+    if (!canBeTransformed(context, convert)) {
+        return false;
+    }
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
     const ngraph::element::Type precisionAfter = convert->get_output_element_type(0);

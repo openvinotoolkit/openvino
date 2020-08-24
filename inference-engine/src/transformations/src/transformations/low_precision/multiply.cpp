@@ -25,6 +25,9 @@ void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
 
 bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto multiply = m.get_match_root();
+    if (!LayerTransformation::canBeTransformed(context, multiply)) {
+        return false;
+    }
 
     multiply = separateInStandaloneBranch(multiply);
     auto newMultiply = multiply;

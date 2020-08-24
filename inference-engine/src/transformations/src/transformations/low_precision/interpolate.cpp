@@ -40,6 +40,10 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
 }
 
 bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!LayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
     // TODO: expand transformation cases
     // just repeat CNNNetwork Resample transformation
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);

@@ -36,6 +36,10 @@ bool DepthToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 }
 
 bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!LayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
     if (dequantization.multiply != nullptr) {
         auto multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));

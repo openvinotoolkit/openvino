@@ -138,26 +138,26 @@ const std::vector<UnsqueezeTransformationTestValues> testValues = {
         { 3, 32, 32, 32 },
         ngraph::element::f32
     },
-    {
-        LayerTransformation::createParamsI8I8(),
-        { { 0.1f }, { 1 } },
-        { { 0.1f }, { 1 } },
-        { { 256 }, { 1 } },
-        { { 256 }, { 1 } },
-        { 1.0, 2.0, 4.0 },
-        { 3, 32, 32, 32 },
-        ngraph::element::f32
-    },
-    {
-        LayerTransformation::createParamsI8I8(),
-        { { 0.1f }, { 1 } },
-        { { 0.1f }, { 1 } },
-        { { 256 }, { 1 } },
-        { { 256 }, { 1 } },
-        { 0.0, 2.0, 4.0 },
-        { 3, 32, 32, 32 },
-        ngraph::element::f32
-    }
+    // {
+    //    LayerTransformation::createParamsI8I8(),
+    //    { { 0.1f }, { 1 } },
+    //    { { 0.1f }, { 1 } },
+    //    { { 256 }, { 1 } },
+    //    { { 256 }, { 1 } },
+    //    { 1.0, 2.0, 4.0 },
+    //    { 3, 32, 32, 32 },
+    //    ngraph::element::f32
+    // },
+    // {
+    //    LayerTransformation::createParamsI8I8(),
+    //    { { 0.1f }, { 1 } },
+    //    { },
+    //    { { 256 }, { 1 } },
+    //    { },
+    //    { 0.0, 2.0, 4.0 },
+    //    { 3, 32, 32, 32 },
+    //    ngraph::element::f32
+    // }
 };
 
 INSTANTIATE_TEST_CASE_P(

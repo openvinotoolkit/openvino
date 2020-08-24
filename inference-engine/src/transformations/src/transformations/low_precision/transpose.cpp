@@ -92,6 +92,10 @@ bool TransposeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) con
 }
 
 bool TransposeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (!LayerTransformation::canBeTransformed(context, op)) {
+        return false;
+    }
+
     const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
     if (constant == nullptr) {
         return false;

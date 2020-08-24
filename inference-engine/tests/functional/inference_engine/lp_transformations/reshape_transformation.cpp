@@ -157,7 +157,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 4D -> 3D: channels are not affected: no subtract
     {
         ngraph::Shape({ 1, 3, 4, 5 }),
-        { 1, 3, 20},
+        { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -173,7 +173,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 4D -> 3D: channels are not affected: with subtract
     {
         ngraph::Shape({ 1, 3, 4, 5 }),
-        { 1, 3, 20},
+        { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -277,7 +277,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 4D -> 2D: channels are not affected: no subtract
     {
         ngraph::Shape({ 1, 3, 1, 1 }),
-        { 1, 3 },
+        { 1, 3, 1, 1, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
