@@ -40,33 +40,11 @@ void PadLayerTest::SetUp() {
     ngraph::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
     std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inputShape, targetDevice) = this->GetParam();
-    ngraph::op::PadMode pad_mode;
-    switch (padMode) {
-    case ngraph::helpers::PadMode::CONSTANT:
-        pad_mode = ngraph::op::PadMode::CONSTANT;
-        break;
-    case ngraph::helpers::PadMode::EDGE:
-        pad_mode = ngraph::op::PadMode::EDGE;
-        break;
-    case ngraph::helpers::PadMode::REFLECT:
-        pad_mode = ngraph::op::PadMode::REFLECT;
-        break;
-    case ngraph::helpers::PadMode::SYMMETRIC:
-        pad_mode = ngraph::op::PadMode::SYMMETRIC;
-        break;
-    default:
-        throw std::runtime_error("Can't create layer for this pad mode");
-    }
-
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    auto pads_begin = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsBegin.size()}, padsBegin.data());
-    auto pads_end = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{padsEnd.size()}, padsEnd.data());
-
-    auto arg_pad_value = std::make_shared<ngraph::opset3::Constant>(ngPrc, ngraph::Shape{}, &argPadValue);
-    auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, pad_mode);
+    auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
 }
