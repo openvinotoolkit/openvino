@@ -40,25 +40,26 @@ namespace ngraph
                     "tf_half_pixel_for_nn"};
 
                 using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
-                static const std::map<std::string, InterpolateMode> interp_mode_map = {
-                    {"nearest", InterpolateMode::nearest},
-                    {"linear", InterpolateMode::linear_onnx},
-                    {"cubic", InterpolateMode::cubic}};
+                static const std::map<std::string, int> interp_mode_map = {
+                    {"nearest", static_cast<int>(InterpolateMode::nearest)},
+                    {"linear", static_cast<int>(InterpolateMode::linear_onnx)},
+                    {"cubic", static_cast<int>(InterpolateMode::cubic)}};
 
                 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-                static const std::map<std::string, Transform_mode> transform_mode_map = {
-                    {"half_pixel", Transform_mode::half_pixel},
-                    {"pytorch_half_pixel", Transform_mode::pytorch_half_pixel},
-                    {"align_corners", Transform_mode::align_corners},
-                    {"asymmetric", Transform_mode::asymmetric},
-                    {"tf_half_pixel_for_nn", Transform_mode::tf_half_pixel_for_nn}};
+                static const std::map<std::string, int> transform_mode_map = {
+                    {"half_pixel", static_cast<int>(Transform_mode::half_pixel)},
+                    {"pytorch_half_pixel", static_cast<int>(Transform_mode::pytorch_half_pixel)},
+                    {"align_corners", static_cast<int>(Transform_mode::align_corners)},
+                    {"asymmetric", static_cast<int>(Transform_mode::asymmetric)},
+                    {"tf_half_pixel_for_nn",
+                        static_cast<int>(Transform_mode::tf_half_pixel_for_nn)}};
 
                 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-                static const std::map<std::string, Nearest_mode> nearest_mode_map = {
-                    {"round_prefer_floor", Nearest_mode::round_prefer_floor},
-                    {"round_prefer_ceil", Nearest_mode::round_prefer_ceil},
-                    {"floor", Nearest_mode::floor},
-                    {"ceil", Nearest_mode::ceil}};
+                static const std::map<std::string, int> nearest_mode_map = {
+                    {"round_prefer_floor", static_cast<int>(Nearest_mode::round_prefer_floor)},
+                    {"round_prefer_ceil", static_cast<int>(Nearest_mode::round_prefer_ceil)},
+                    {"floor", static_cast<int>(Nearest_mode::floor)},
+                    {"ceil", static_cast<int>(Nearest_mode::ceil)}};
 
                 static bool is_supported_str_value(const std::unordered_set<std::string>& modes,
                                                    const std::string& checked_mode)
@@ -66,11 +67,10 @@ namespace ngraph
                     return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
                 }
 
-                template <typename T>
-                static T mode_from_str(const std::map<std::string, T>& converting_map,
+                static int mode_as_int(const std::map<std::string, int>& converting_map,
                                        const std::string& mode)
                 {
-                    T result = T{};
+                    int result = 0;
                     auto it = converting_map.find(mode);
                     if (it != converting_map.end())
                     {
@@ -128,10 +128,12 @@ namespace ngraph
                     }
 
                     InterpolateV4Attrs attrs;
-                    attrs.mode = mode_from_str(interp_mode_map, mode);
+                    attrs.mode = static_cast<InterpolateMode>(mode_as_int(interp_mode_map, mode));
                     attrs.coordinate_transformation_mode =
-                        mode_from_str(transform_mode_map, transform_mode);
-                    attrs.nearest_mode = mode_from_str(nearest_mode_map, nearest_mode);
+                        static_cast<Transform_mode>(mode_as_int(transform_mode_map,
+                                                                transform_mode));
+                    attrs.nearest_mode = static_cast<Nearest_mode>(mode_as_int(nearest_mode_map,
+                                                                               nearest_mode));
                     attrs.antialias = false;
                     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
 
