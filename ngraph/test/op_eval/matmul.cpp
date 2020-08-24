@@ -68,18 +68,18 @@ TEST(op_eval, matmul_dynamic_0_elem_arg)
     std::vector<std::vector<Shape>> shapes{{Shape{2, 0}, Shape{0, 2}, Shape{2, 2}},
                                            {Shape{0, 2}, Shape{2, 0}, Shape{0, 0}}};
 
-    std::vector<std::vector<int32_t>> arg_inputs{{}, {}};
-    std::vector<std::vector<int32_t>> expected_result{{0, 0, 0, 0}, {}};
+    std::vector<std::vector<float>> arg_inputs{{}, {}};
+    std::vector<std::vector<float>> expected_result{{0, 0, 0, 0}, {}};
 
     for (size_t i = 0; i < arg_inputs.size(); i++)
     {
         auto result = make_shared<HostTensor>();
         ASSERT_TRUE(
             fun->evaluate({result},
-                          {make_host_tensor<element::Type_t::i32>(shapes[i][0], arg_inputs[i]),
-                           make_host_tensor<element::Type_t::i32>(shapes[i][1], arg_inputs[i])}));
+                          {make_host_tensor<element::Type_t::f32>(shapes[i][0], arg_inputs[i]),
+                           make_host_tensor<element::Type_t::f32>(shapes[i][1], arg_inputs[i])}));
         EXPECT_EQ(result->get_shape(), (shapes[i][2]));
-        ASSERT_EQ(read_vector<int32_t>(result), expected_result[i]);
+        ASSERT_EQ(read_vector<float>(result), expected_result[i]);
     }
 }
 
