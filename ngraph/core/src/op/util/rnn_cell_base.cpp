@@ -74,7 +74,8 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     {
         NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
                               (input[i].rank().is_static()),
-                              "RNNCellBase supports only static rank for input tensors.");
+                              "RNNCellBase supports only static rank for input tensors. Input ",
+                              i);
     }
 
     // Verify input dimension against values provided in spec (LSTMCell_1.md)
@@ -93,10 +94,10 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
             NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
                                   (input[i].rank().get_length() == 2),
                                   "RNNCellBase input tensor dimension is not correct for ",
-                                  "following input parameter number: ",
                                   i,
-                                  ". Current input length: ",
-                                  input[i].rank().get_length());
+                                  " input parameter. Current input length: ",
+                                  input[i].rank().get_length(),
+                                  ", expected: 2.");
         }
     }
 

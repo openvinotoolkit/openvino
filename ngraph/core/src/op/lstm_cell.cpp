@@ -251,7 +251,15 @@ void op::LSTMCell::validate_and_infer_types()
 
     validate_input_rank_dimension(input_param);
 
-    // Validate input types and save result for output type
+    // Validate rank and dimension for P input
+    NODE_VALIDATION_CHECK(
+        this, (p_pshape.rank().is_static()), "LSTMCell input tensor P shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (p_pshape.rank().get_length() == 1),
+                          "LSTMCell input tensor P shall have dimension 1D.");
+
+    // Validate input element types and save result for output type
     NODE_VALIDATION_CHECK(
         this,
         element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
