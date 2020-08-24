@@ -32,7 +32,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
-                               "supported.RNNCell_21204 should be converted to RNNCellIE operation")
+                               "supported.RNNCell_<number> should be converted to RNNCellIE operation")
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
@@ -63,7 +63,7 @@ xfail_issue_35929 = xfail_test(reason="CRuntimeError: Incorrect precision f64!")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
-xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: y")
+xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: <value>")
 xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
                                "not supported yet...")
 xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
@@ -74,7 +74,7 @@ xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported pro
 xfail_issue_36481 = xfail_test(reason="TypeError: _get_node_factory() takes from 0 to 1 positional "
                                "arguments but 2 were given")
 xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
-                               "Ceiling name: Ceiling_22669")
+                               "Ceiling name: <value>")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
                                "/openvino/ngraph/core/src/op/shuffle_channels.cpp:77:")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -93,3 +93,25 @@ xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provid
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
+
+xfail_issue_33540 = xfail_test(reason="RuntimeError: GRUCell operation has a form that is not supported "
+                                      "GRUCell_<number> should be converted to GRUCellIE operation")
+xfail_issue_1 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i) "
+                                  "is_static() nGraph NonZero operation with name: result cannot be"
+                                  "converted to NonZero layer with name: result because output"
+                                  "with index 0 contains dynamic shapes: {2,?}. Try to use "
+                                  "CNNNetwork::reshape() method in order to specialize shapes "
+                                  "before the conversion.")
+xfail_issue_33616 = xfail_test(reason="Add ceil_mode for Max and Avg pooling (reference implementation)")
+xfail_issue_2 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
+xfail_issue_3 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
+xfail_issue_4 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
+xfail_issue_5 = xfail_test(reason="RuntimeError: Error of validate layer: LSTMSequence_<number> with type: "
+                                  "LSTMSequence. Layer is not instance of RNNLayer class")
+xfail_issue_6 = xfail_test(reason="RuntimeError: Check '((axis >= axis_range_min) && "
+                                  "(axis <= axis_range_max))' failed at "
+                                  "/openvino/ngraph/core/src/validation_util.cpp:913: "
+                                  "Split Parameter axis 2147483647 out of the tensor rank range [-2, 1].")
+xfail_issue_7 = xfail_test(reason="RuntimeError: Node 2 contains empty child edge for index 0")
+xfail_issue_8 = xfail_test(reason="AssertionError: Items types are not equal")
+xfail_issue_9 = xfail_test(reason="AssertionError: Mismatched elements")
