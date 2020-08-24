@@ -119,18 +119,18 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             }
         }
 
-        const float dequantizationScale = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
-        const float max = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.max);
-        const float min = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.min);
-        const float dequantizationShift = outputLowValue - min;
+        // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
+        const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
+        const float dequantizationMul = 1.f / quantizationMul;
 
-        const float quantizationScale = 1.f / dequantizationScale;
-        const float quantizationShift = - dequantizationShift * quantizationScale;
+        // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
+        const float quantizationSub = outputLowValue - dataPrecision.min * dequantizationMul;
+        const float dequantizationSub = -quantizationSub * quantizationMul;
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
         dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
-            dequantizationScale,
-            dequantizationShift,
+            dequantizationMul,
+            dequantizationSub,
             subgraph.quantizationLayers[0]->get_output_element_type(0),
             subgraph.quantizationLayers[0]->get_output_shape(0),
             dataPrecision.precision,
@@ -147,8 +147,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                     THROW_TRANSFORMATION_EXCEPTION << "not implemented: " << quantizedTensorAlignmentOnActivations;
                 }
                 case QuantizedTensorAlignment::UpdateLevel: {
-                    const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
-                    const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
+                    const float updatedOutputLowValue = (quantizationDetails.outputLowValues[0] - quantizationSub) * quantizationMul;
+                    const float updatedOutputHighValue = (quantizationDetails.outputHighValues[0] - quantizationSub) * quantizationMul;
 
                     // 2. update FakeQuantize - one time action
                     std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(

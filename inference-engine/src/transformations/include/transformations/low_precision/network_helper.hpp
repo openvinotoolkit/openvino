@@ -94,8 +94,8 @@ public:
         float max);
 
     static FakeQuantizeDequantization makeDequantization(
-        const float dequantizationScale,
-        const float dequantizationShift,
+        const float dequantizationMul,
+        const float dequantizationSub,
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,

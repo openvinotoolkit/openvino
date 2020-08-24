@@ -493,8 +493,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
 }
 
 FakeQuantizeDequantization NetworkHelper::makeDequantization(
-    const float dequantizationScale,
-    const float dequantizationShift,
+    const float dequantizationMul,
+    const float dequantizationSub,
     const ngraph::element::Type originalPrecision,
     const ngraph::Shape dataNodeOutputShape,
     element::Type precision,
@@ -514,10 +514,10 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     }
 
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
-    if (dequantizationShift != 0.f) {
+    if (dequantizationSub != 0.f) {
         subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
             parent,
-            std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationShift })));
+            std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));
         subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
         parent = subtract;
     }
@@ -525,7 +525,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     // mandatory
     std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
         parent,
-        std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationScale })));
+        std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationMul })));
 
     return FakeQuantizeDequantization(input, convert, subtract, multiply);
 }
@@ -776,6 +776,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(
             replace_node(newOperation, newOperation2);
             newOperation = newOperation2;
         } else {
+            // TODO: use: optimizeSubtract(dequantization.subtract);
             removeConvertIfPossible(newOperation, dequantization);
         }
     }
