@@ -395,8 +395,8 @@ namespace ngraph
 
                 if ((num_of_axes == 4) && (input_rank == 4))
                 {
-                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) &&
-                                   (m_axes[2] == 2) && (m_axes[3] == 3);
+                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2) &&
+                                   (m_axes[3] == 3);
                 }
 
                 assert(correct_axes);
