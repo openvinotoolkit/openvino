@@ -79,7 +79,6 @@
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-// #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"

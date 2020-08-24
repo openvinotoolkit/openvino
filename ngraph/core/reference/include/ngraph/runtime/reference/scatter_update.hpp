@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <cstring>
-
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
@@ -31,7 +29,7 @@ namespace ngraph
             void scatter_update(const char* input_data,
                                 const int64_t* indices,
                                 const char* updates,
-                                const int64_t& axis,
+                                const int64_t axis,
                                 char* out_buf,
                                 const size_t elem_size,
                                 const Shape& data_shape,
