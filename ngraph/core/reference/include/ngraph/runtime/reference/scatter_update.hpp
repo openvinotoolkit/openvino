@@ -28,18 +28,18 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename DataType, typename IndicesType>
-            void scatter_update(const DataType* input_data,
-                                const IndicesType* indices,
-                                const DataType* updates,
+            void scatter_update(const char* input_data,
+                                const int64_t* indices,
+                                const char* updates,
                                 const int64_t& axis,
-                                DataType* out_buf,
+                                char* out_buf,
+                                const size_t elem_size,
                                 const Shape& data_shape,
                                 const Shape& indices_shape,
                                 const Shape& updates_shape)
             {
                 // Copy inputs to out
-                std::memcpy(out_buf, input_data, sizeof(DataType) * shape_size(data_shape));
+                std::memcpy(out_buf, input_data, elem_size * shape_size(data_shape));
 
                 // Algorithm overview
                 // data[..., indices[m, n, ..., p], ...] = updates[..., m, n, ..., p, ...]
@@ -80,7 +80,7 @@ namespace ngraph
                 for (const Coordinate& indices_cord : indices_transform)
                 {
                     const size_t indices_idx = indices_transform.index(indices_cord);
-                    IndicesType slice_index = indices[indices_idx];
+                    int64_t slice_index = indices[indices_idx];
 
                     // Define the extent of coordinates which will be updated.
                     Coordinate out_start_corner(data_shape.size(), 0);
@@ -107,8 +107,11 @@ namespace ngraph
                     auto updates_update_coord_iter = updates_update_transform.begin();
                     for (const Coordinate& out_cord : out_transform)
                     {
-                        out_buf[out_transform.index(out_cord)] =
-                            updates[updates_update_transform.index(*updates_update_coord_iter)];
+                        const auto src_idx =
+                            updates_update_transform.index(*updates_update_coord_iter) * elem_size;
+                        std::copy(updates + src_idx,
+                                  updates + (src_idx + elem_size),
+                                  out_buf + out_transform.index(out_cord) * elem_size);
                         updates_update_coord_iter++;
                     }
                     updates_indices_coord_iter++;

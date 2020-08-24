@@ -41,93 +41,6 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-namespace
-{
-    template <element::Type_t DT, element::Type_t IT>
-    bool evaluate(const HostTensorPtr& data,
-                  const HostTensorPtr& indices,
-                  const HostTensorPtr& updates,
-                  const HostTensorPtr& out,
-                  const int64_t normalized_axis)
-    {
-        using DataType = typename element_type_traits<DT>::value_type;
-        using IndicesType = typename element_type_traits<IT>::value_type;
-
-        out->set_shape(data->get_shape());
-        runtime::reference::scatter_update<DataType, IndicesType>(
-            data->get_data_ptr<DataType>(),
-            indices->get_data_ptr<IndicesType>(),
-            updates->get_data_ptr<DataType>(),
-            normalized_axis,
-            out->get_data_ptr<DataType>(),
-            data->get_shape(),
-            indices->get_shape(),
-            updates->get_shape());
-
-        return true;
-    }
-
-    template <element::Type_t DT>
-    bool evaluate(const HostTensorPtr& data,
-                  const HostTensorPtr& indices,
-                  const HostTensorPtr& updates,
-                  const HostTensorPtr& out,
-                  const int64_t normalized_axis)
-    {
-        // Dispatch specialization based on indicies data type.
-        bool rc = true;
-
-        switch (indices->get_element_type())
-        {
-        case element::Type_t::i8:
-        case element::Type_t::u8:
-            rc = evaluate<DT, element::Type_t::u8>(data, indices, updates, out, normalized_axis);
-            break;
-        case element::Type_t::i16:
-        case element::Type_t::u16:
-            rc = evaluate<DT, element::Type_t::u16>(data, indices, updates, out, normalized_axis);
-            break;
-        case element::Type_t::i32:
-        case element::Type_t::u32:
-            rc = evaluate<DT, element::Type_t::u32>(data, indices, updates, out, normalized_axis);
-            break;
-        case element::Type_t::i64:
-        case element::Type_t::u64:
-            rc = evaluate<DT, element::Type_t::u64>(data, indices, updates, out, normalized_axis);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
-    }
-
-    bool evaluate_scatter_update(const HostTensorPtr& data,
-                                 const HostTensorPtr& indices,
-                                 const HostTensorPtr& updates,
-                                 const HostTensorPtr& out,
-                                 const int64_t normalized_axis)
-    {
-        // Dispatch based on data, updates and output data type.
-        bool rc = true;
-        switch (out->get_element_type())
-        {
-        case element::Type_t::i32:
-        case element::Type_t::u32:
-            rc = evaluate<element::Type_t::u32>(data, indices, updates, out, normalized_axis);
-            break;
-        case element::Type_t::i64:
-        case element::Type_t::u64:
-            rc = evaluate<element::Type_t::u64>(data, indices, updates, out, normalized_axis);
-            break;
-            TYPE_CASE(f16)(data, indices, updates, out, normalized_axis);
-            break;
-            TYPE_CASE(f32)(data, indices, updates, out, normalized_axis);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
-    }
-}
-
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
@@ -136,6 +49,9 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
     const auto& updates = inputs[2];
     const auto& axis = inputs[3];
     const auto& out = outputs[0];
+
+    const auto elem_size = data->get_element_type().size();
+    out->set_shape(data->get_shape());
 
     int64_t axis_val = 0;
     switch (axis->get_element_type())
@@ -151,14 +67,83 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
     default: throw ngraph_error("axis element type is not integral data type");
     }
 
-    const auto& input_rank = get_input_partial_shape(0).rank();
-    int64_t normalized_axis = axis_val;
-
-    if (normalized_axis < 0)
+    if (axis_val < 0)
     {
-        normalized_axis =
+        axis_val =
             ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
 
-    return evaluate_scatter_update(data, indices, updates, out, normalized_axis);
+    std::vector<int64_t> indices_casted_vector;
+    switch (indices->get_element_type())
+    {
+    case element::Type_t::i8:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::i8>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::i16:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::i16>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::i32:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::i32>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::i64:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::i64>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::u8:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::u8>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::u16:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::u16>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::u32:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::u32>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    case element::Type_t::u64:
+    {
+        auto indices_ptr = indices->get_data_ptr<element::Type_t::u64>();
+        indices_casted_vector =
+            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+        break;
+    }
+    default: throw ngraph_error("indices element type is not integral data type");
+    }
+
+    runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                       indices_casted_vector.data(),
+                                       updates->get_data_ptr<char>(),
+                                       axis_val,
+                                       out->get_data_ptr<char>(),
+                                       elem_size,
+                                       data->get_shape(),
+                                       indices->get_shape(),
+                                       updates->get_shape());
+
+    return true;
 }
