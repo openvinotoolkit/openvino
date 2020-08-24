@@ -16,10 +16,10 @@
 
 #include "recurrent_sequence.hpp"
 
+using namespace std;
 using namespace ngraph;
 
-void ngraph::op::util::validate_seq_input_rank_dimension(
-    const std::vector<ngraph::PartialShape>& input)
+void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input)
 {
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)

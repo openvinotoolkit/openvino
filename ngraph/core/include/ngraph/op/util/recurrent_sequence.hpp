@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "ngraph/node.hpp"
 
 namespace ngraph
@@ -30,8 +32,7 @@ namespace ngraph
             ///             Applies to LSTM, GRU and RNN Sequences.
             ///
             ///
-            /// \param[in]  node         Sequence node for which validatin is requested
-            /// \param[in]  input        Vector with input parameters
+            /// \param[in]  input        Vector with PartialShape input parameters
             ///
             void validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
         }
