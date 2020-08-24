@@ -148,5 +148,11 @@ class ApplyPermutation(MiddleReplacementPattern):
         shape_ops = graph.get_op_nodes(op='ShapeOf')
         for shape in shape_ops:
             shape.infer(shape)
+
+        def reinfer_once(in_port):
+            if not in_port.node.soft_get('reinfered', False):
+                in_port.node.infer(in_port.node)
+                in_port.node['reinfered'] = True
+
         LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
-            [shape.out_port(0) for shape in shape_ops], None, lambda in_port: in_port.node.infer(in_port.node))
+            out_ports=[shape.out_port(0) for shape in shape_ops], action=reinfer_once)
