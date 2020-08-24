@@ -97,10 +97,15 @@ namespace ngraph
                         std::make_shared<default_opset::Constant>(
                             data.get_element_type(), Shape{}, epsilon);
 
-                    Output<ngraph::Node> mean = builder::opset1::mean(data, reduction_axes, true);
-                    Output<ngraph::Node> variance =
-                        builder::opset1::variance(data, reduction_axes, true);
-
+                    auto mean =
+                        std::make_shared<default_opset::ReduceMean>(data, reduction_axes, true);
+                    auto diff = std::make_shared<default_opset::Subtract>(data, mean);
+                    auto variance = std::make_shared<default_opset::ReduceMean>(
+                        std::make_shared<default_opset::Power>(
+                            diff,
+                            default_opset::Constant::create(data.get_element_type(), Shape{}, {2})),
+                        reduction_axes,
+                        true);
                     const auto sqrt = std::make_shared<default_opset::Sqrt>(
                         std::make_shared<default_opset::Add>(variance, eps_node));
 
@@ -128,10 +133,9 @@ namespace ngraph
                         std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
 
                     // scale * (data - mean) / sqrt + bias
-                    std::shared_ptr<ngraph::Node> result{
-                        std::make_shared<default_opset::Subtract>(data, mean)};
-                    result = std::make_shared<default_opset::Multiply>(scale, result);
-                    result = std::make_shared<default_opset::Divide>(result, sqrt);
+                    std::shared_ptr<ngraph::Node> result =
+                        std::make_shared<default_opset::Divide>(scale, sqrt);
+                    result = std::make_shared<default_opset::Multiply>(diff, result);
                     result = std::make_shared<default_opset::Add>(result, bias);
 
                     return {result};
