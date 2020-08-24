@@ -140,6 +140,10 @@ ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
     return runCommonPasses(network);
 }
 
+bool FrontEnd::layerIsSupported(const std::string& type) {
+    return parsers.count(type) == 0 ? false : true;
+}
+
 std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
     VPU_PROFILE(checkSupportedLayers);
 

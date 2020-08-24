@@ -181,6 +181,7 @@ public:
     //
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
+    bool layerIsSupported(const std::string& type);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;

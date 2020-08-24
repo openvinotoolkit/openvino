@@ -59,6 +59,8 @@ private:
     std::vector<DevicePtr> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;
+    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(
+            const InferenceEngine::ICNNNetwork& network) const;
 };
 
 }  // namespace MyriadPlugin

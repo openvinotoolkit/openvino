@@ -11,14 +11,26 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
+#include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
@@ -31,6 +43,31 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
+
+InferenceEngine::ICNNNetwork::Ptr Engine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
+    auto clonedNetwork = cloneNetwork(network);
+
+    if (auto nGraphFunc = clonedNetwork->getFunction()) {
+            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+            ngraph::pass::Manager manager;
+
+            manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
+            manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager ti_manager;
+            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+            ti_manager.run_passes(nGraphFunc);
+
+            clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+    }
+
+    return clonedNetwork;
+}
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const ICNNNetwork& network,
@@ -98,24 +135,128 @@ void Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
-    if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
-    }
+    auto function = network.getFunction();
 
-    const auto log = std::make_shared<Logger>(
-        "GraphCompiler",
-        parsedConfigCopy.logLevel(),
-        defaultOutput(parsedConfigCopy.compilerLogFilePath()));
+    if (function != nullptr) {
+        std::unordered_set<std::string> originalOps;
+        for (auto&& node : function->get_ops()) {
+            if (!ngraph::op::is_parameter(node) &&
+                !ngraph::op::is_output(node) &&
+                !ngraph::op::is_constant(node)) {
+                originalOps.emplace(node->get_friendly_name());
+            }
+        }
 
-    const auto layerNames = getSupportedLayers(
-        network,
-        static_cast<Platform>(parsedConfigCopy.platform()),
-        parsedConfigCopy.compileConfig(),
-        log,
-        GetCore());
+        auto clonedNetwork = CloneAndTransformNetwork(network);
 
-    for (const auto& layerName : layerNames) {
-        res.supportedLayersMap.insert({ layerName, GetName() });
+        std::unordered_set<std::string> supported;
+        std::unordered_set<std::string> unsupported;
+
+        std::unordered_set<std::string> splitNames;
+        std::unordered_set<std::string> concatNames;
+
+        std::vector<std::shared_ptr<ngraph::Node>> splits;
+        std::vector<std::shared_ptr<ngraph::Node>> concats;
+
+        for (CNNNetworkIterator itLayer{clonedNetwork.get()};
+             itLayer != CNNNetworkIterator();
+             itLayer++) {
+            auto layerIsSupported = [&] {
+                auto node = (*itLayer)->getNode();
+
+                if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
+                    splitNames.emplace(node->get_friendly_name());
+                    splits.push_back(node);
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Concat>(node) != nullptr) {
+                    concatNames.emplace(node->get_friendly_name());
+                    concats.push_back(node);
+                    return false;
+                } else {
+                    auto stageBuilder = std::make_shared<StageBuilder>();
+                    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, GetCore());
+                    return frontEnd->layerIsSupported((*itLayer)->type);
+                }
+            }();
+
+            const auto fusedNode = (*itLayer)->getNode();
+            if (fusedNode == nullptr) {
+                continue;
+            }
+
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
+                if (contains(originalOps, fusedLayerName)) {
+                    if (layerIsSupported) {
+                        supported.emplace(fusedLayerName);
+                    } else {
+                        unsupported.emplace(fusedLayerName);
+                    }
+                }
+            }
+        }
+
+        for (auto&& layerName : supported) {
+            if (contains(unsupported, layerName)) {
+                supported.erase(layerName);
+            }
+        }
+
+        unsupported.clear();
+
+        for (const auto& split : splits) {
+            bool is_supported = true;
+            const auto outputs = split->outputs();
+            for (const auto& output : outputs) {
+                const auto& name = output.get_node()->get_friendly_name();
+                if (!contains(supported, name) &&
+                    !contains(concatNames, name) &&
+                    !contains(splitNames, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            if (is_supported) {
+                supported.emplace(split->get_friendly_name());
+            }
+        }
+
+        for (const auto& concat : concats) {
+            bool is_supported = true;
+            const auto inputs = concat->inputs();
+            for (const auto& input : inputs) {
+                const auto& name = input.get_node()->get_friendly_name();
+                if (!contains(supported, name) &&
+                    !contains(concatNames, name)) {
+                    is_supported = false;
+                    break;
+                }
+            }
+            if (is_supported) {
+                supported.emplace(concat->get_friendly_name());
+            }
+        }
+
+        for (auto&& layerName : supported) {
+            if (!contains(unsupported, layerName)) {
+                res.supportedLayersMap.emplace(layerName, GetName());
+            }
+        }
+    } else {
+        const auto log = std::make_shared<Logger>(
+            "GraphCompiler",
+            parsedConfigCopy.logLevel(),
+            defaultOutput(parsedConfigCopy.compilerLogFilePath()));
+
+        const auto layerNames = getSupportedLayers(
+            network,
+            static_cast<Platform>(parsedConfigCopy.platform()),
+            parsedConfigCopy.compileConfig(),
+            log,
+            GetCore());
+
+        for (const auto& layerName : layerNames) {
+            res.supportedLayersMap.insert({ layerName, GetName() });
+        }
     }
 }
 
