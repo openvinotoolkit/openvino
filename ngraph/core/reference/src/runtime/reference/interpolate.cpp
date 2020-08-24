@@ -30,13 +30,10 @@ std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
 {
     std::array<float, 4> coeff;
     float abs_s = std::fabs(s);
-    coeff[0] =
-        static_cast<float>(((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a);
-    coeff[1] = static_cast<float>(((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1);
-    coeff[2] =
-        static_cast<float>(((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1);
-    coeff[3] =
-        static_cast<float>(((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a);
+    coeff[0] = ((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a;
+    coeff[1] = ((a + 2) * abs_s - (a + 3)) * abs_s * abs_s + 1;
+    coeff[2] = ((a + 2) * (1 - abs_s) - (a + 3)) * (1 - abs_s) * (1 - abs_s) + 1;
+    coeff[3] = ((a * (2 - abs_s) - 5 * a) * (2 - abs_s) + 8 * a) * (2 - abs_s) - 4 * a;
     return coeff;
 }
 

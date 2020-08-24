@@ -111,7 +111,7 @@ namespace ngraph
                         const auto scales_const = default_opset::Constant::create(
                             ngraph::element::f32, Shape({scales.size()}), scales);
 
-                        return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        return {std::make_shared<default_opset::Interpolate>(
                             data, output_shape_const, scales_const, attrs)};
                     }
 
@@ -125,7 +125,7 @@ namespace ngraph
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
-                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                    return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales_const, attrs)};
                 }
 
@@ -180,7 +180,7 @@ namespace ngraph
                         auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
 
-                        return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        return {std::make_shared<default_opset::Interpolate>(
                             data, output_shape_const, scales, attrs)};
                     }
 
@@ -191,7 +191,7 @@ namespace ngraph
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
-                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                    return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales, attrs)};
                 }
 

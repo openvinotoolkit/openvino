@@ -93,8 +93,7 @@ namespace ngraph
                         get_str_attr("coordinate_transformation_mode", "half_pixel");
                     const auto nearest_mode = get_str_attr("nearest_mode", "round_prefer_floor");
 
-                    bool is_mode_supported = is_supported_str_value(supported_modes, mode);
-                    if (!is_mode_supported)
+                    if (!is_supported_str_value(supported_modes, mode))
                     {
                         std::string supported_modes_str = "";
                         for (const auto& mode_name : supported_modes)
@@ -104,16 +103,14 @@ namespace ngraph
                         supported_modes_str.pop_back();
                         supported_modes_str.pop_back();
                         CHECK_VALID_NODE(node,
-                                         is_mode_supported,
+                                         false,
                                          mode,
                                          " - this type of interpolation mode is not supported."
                                          " Choose one of the following modes: ",
                                          supported_modes_str);
                     }
 
-                    bool is_transform_mode_supported =
-                        is_supported_str_value(supported_transforms, transform_mode);
-                    if (!is_transform_mode_supported)
+                    if (!is_supported_str_value(supported_transforms, transform_mode))
                     {
                         std::string supported_modes_str = "";
                         for (const auto& mode_name : supported_transforms)
@@ -123,7 +120,7 @@ namespace ngraph
                         supported_modes_str.pop_back();
                         supported_modes_str.pop_back();
                         CHECK_VALID_NODE(node,
-                                         is_transform_mode_supported,
+                                         false,
                                          transform_mode,
                                          " - this type of coordinate transformation mode is not "
                                          "supported. Choose one of the following modes: ",
@@ -252,7 +249,7 @@ namespace ngraph
 
                         const auto scales = calculate_scales_based_on_sizes(data, sizes);
 
-                        return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        return {std::make_shared<default_opset::Interpolate>(
                             data, sizes, scales, attrs)};
                     }
 
@@ -265,7 +262,7 @@ namespace ngraph
                         " Data rank or shape of scales input is required to be static.");
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
-                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                    return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales, attrs)};
                 }
             } // namespace set_11
@@ -289,7 +286,7 @@ namespace ngraph
                         " Data rank or shape of Scales input is required to be static.");
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
-                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                    return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales, attrs)};
                 }
 
