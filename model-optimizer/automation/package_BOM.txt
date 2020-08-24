@@ -38,7 +38,7 @@ extensions/back/PackBinaryWeights.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
 extensions/back/ProposalMutation.py
-extensions/back/ReduceToPooling.py
+extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
 extensions/back/RemoveUselessConvert.py
@@ -120,6 +120,7 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
+extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
@@ -290,12 +291,7 @@ extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
 extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
-extensions/front/onnx/reduce_l2_ext.py
-extensions/front/onnx/reduce_max_ext.py
-extensions/front/onnx/reduce_mean_ext.py
-extensions/front/onnx/reduce_min_ext.py
-extensions/front/onnx/reduce_prod_ext.py
-extensions/front/onnx/reduce_sum_ext.py
+extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
 extensions/front/onnx/resize_ext.py
 extensions/front/onnx/resize_to_interpolate.py
@@ -326,7 +322,6 @@ extensions/front/PowerToEltwises.py
 extensions/front/rank_decomposer.py
 extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
-extensions/front/ReduceL2Decomposition.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
@@ -356,8 +351,10 @@ extensions/front/tf/const_ext.py
 extensions/front/tf/conv_ext.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
-extensions/front/tf/CTCGreedyDecoder.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
+extensions/front/tf/CTCGreedyDecoderReplacement.py
+extensions/front/tf/CTCLoss_ext.py
+extensions/front/tf/CTCLossReplacement.py
 extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
@@ -378,6 +375,7 @@ extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
+extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
 extensions/front/tf/GatherTree_ext.py
@@ -537,13 +535,13 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
-extensions/middle/NasNet.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
+extensions/middle/RandomUniformReplacer.py
 extensions/middle/ReluQuantizeFuse.py
 extensions/middle/RemoveDuplicationMemory.py
 extensions/middle/RemoveIdentity.py
@@ -598,6 +596,7 @@ extensions/ops/constant_fill.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
 extensions/ops/depth_to_space.py
@@ -608,6 +607,8 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/ExtractImagePatches.py
+extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
 extensions/ops/GatherNd.py
@@ -939,6 +940,7 @@ mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
+mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
@@ -950,6 +952,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
 mo/utils/ir_reader/extenders/shape_of_extender.py

@@ -140,7 +140,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
 
     @staticmethod
     def unsqueeze_num_directions(graph: Graph, match: dict):
-        """ Assuming considered LSTM/GRU/RNN node should has num_directions in output shape and add Reshape
+        """ Assuming considered LSTM/GRU/RNN node should has num_directions in output shape and add Unsqueeze
             to match it.
         """
 

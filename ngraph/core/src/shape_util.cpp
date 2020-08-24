@@ -44,7 +44,7 @@ PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes)
 }
 
 template <>
-PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_axes)
+PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims)
 {
     if (shape.rank().is_dynamic())
     {
@@ -52,17 +52,22 @@ PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_ax
     }
     else
     {
-        AxisSet axes;
+        std::vector<Dimension> result_dims;
 
         for (size_t i = 0; i < shape.rank().get_length(); i++)
         {
             if (deleted_axes.find(i) == deleted_axes.end())
             {
-                axes.insert(i);
+                result_dims.push_back(shape[i]);
+            }
+            else
+            {
+                if (keep_dims)
+                    result_dims.push_back(1);
             }
         }
 
-        return project(shape, axes);
+        return result_dims;
     }
 }
 

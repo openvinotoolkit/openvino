@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/descriptor/tensor.hpp"
-#include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/node.hpp"
 
 using namespace ngraph;
@@ -98,30 +97,7 @@ size_t descriptor::Tensor::get_pool_offset() const
 
 size_t descriptor::Tensor::size() const
 {
-    if (auto tvl = get_tensor_layout())
-    {
-        return tvl->get_allocated_size();
-    }
-    else
-    {
-        return shape_size(get_shape()) * m_element_type.size();
-    }
-}
-
-void descriptor::Tensor::set_tensor_layout(
-    const std::shared_ptr<layout::TensorLayout>& tensor_layout)
-{
-    NGRAPH_CHECK(tensor_layout->get_shape() == get_shape(),
-                 "Setting tensor's layout to a layout with a different shape : ",
-                 get_shape(),
-                 " -> ",
-                 tensor_layout->get_shape());
-    NGRAPH_CHECK(tensor_layout->get_element_type() == get_element_type(),
-                 "Setting tensor's layout to a layout with a different element type : ",
-                 get_element_type(),
-                 " -> ",
-                 tensor_layout->get_element_type());
-    m_tensor_layout = tensor_layout;
+    return shape_size(get_shape()) * m_element_type.size();
 }
 
 const std::string& descriptor::Tensor::get_name() const

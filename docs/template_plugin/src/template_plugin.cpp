@@ -6,7 +6,6 @@
 #include <ie_plugin_config.hpp>
 
 #include <hetero/hetero_plugin_config.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
@@ -132,13 +131,9 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
     // ..
 
     auto cfg = Configuration(config, exportedCfg);
-
-    IExecutableNetwork::Ptr executableNetwork;
     auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(exec_network_impl),
-                            [](InferenceEngine::details::IRelease *p) {p->Release(); });
 
-    return InferenceEngine::ExecutableNetwork{ executableNetwork };
+    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 

@@ -68,13 +68,16 @@ set(SRC
     misc.cpp
     ngraph_api.cpp
     node_input_output.cpp
-    nop_elimination.cpp
     op.cpp
+    op_eval/hswish.cpp
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
+    op_eval/reduce_l1.cpp
+    op_eval/reduce_l2.cpp
     op_eval/split.cpp
     op_eval/strided_slice.cpp
+    op_eval/variadic_split.cpp
     op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
@@ -124,6 +127,7 @@ set(SRC
     type_prop/group_convolution_backprop_data.cpp
     type_prop/gru_cell.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hswish.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -144,6 +148,8 @@ set(SRC
     type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
+    type_prop/reduce_l1.cpp
+    type_prop/reduce_l2.cpp
     type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
