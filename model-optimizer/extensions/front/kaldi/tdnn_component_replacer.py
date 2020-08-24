@@ -56,17 +56,11 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
         return [MemoryOffsetAdjustment]
 
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('tdnncomponent', dict(kind='op', op='tdnncomponent'))
-            ],
-            edges=[]
-        )
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(op='tdnncomponent'):
+            self.replace_tdnn(graph, node)
 
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        tdnn_node: Node = match['tdnncomponent']
+    def replace_tdnn(self, graph: Graph, tdnn_node: Node):
         tdnn_name = tdnn_node.soft_get('name', tdnn_node.id)
 
         concat_node = Concat(graph, {'axis': 1}).create_node()

@@ -37,6 +37,4 @@ class MemoryOffset(Op):
 
     @staticmethod
     def infer(node: Node):
-        if not node.in_port(0).disconnected():
-            # Assign case
-            copy_shape_infer(node)
+        copy_shape_infer(node)

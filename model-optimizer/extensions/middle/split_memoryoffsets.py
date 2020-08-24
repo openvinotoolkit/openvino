@@ -52,3 +52,4 @@ class SplitMemoryOffsets(MiddleReplacementPattern):
         offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
         res_node = Result(graph, {'name': offset_node.id + "_output"}).create_node()
         offset_node.out_port(0).connect(res_node.in_port(0))
+        paired_node['need_shape_inference'] = False
