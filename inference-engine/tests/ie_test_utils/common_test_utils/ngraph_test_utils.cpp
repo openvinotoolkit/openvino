@@ -53,6 +53,7 @@ std::pair<bool, std::string> compare_functions(
      * + Check nodes types
      * + Check number of inputs
      * + Check shapes
+     * + Check parent ports
      * - Do not check nodes attributes (requires visitor mechanism to be completed)
      */
 
@@ -125,6 +126,14 @@ std::pair<bool, std::string> compare_functions(
                 err_log << "Different shape detected" << std::endl
                         << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
                         << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
+            }
+
+            if (node1->get_input_source_output(i).get_index() != node2->get_input_source_output(i).get_index()) {
+                auto idx1 = node1->get_input_source_output(i).get_index();
+                auto idx2 = node2->get_input_source_output(i).get_index();
+                err_log << "Different ports detected" << std::endl
+                        << node1->get_friendly_name() << " Input(" << i << ") connected to parent port " << idx1 << " and "
+                        << node2->get_friendly_name() << " Input(" << i << ") connected to parent port " << idx2 << std::endl;
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});
