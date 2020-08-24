@@ -145,6 +145,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         """
 
         rnn_layer = match['rnn_layer']
+        rnn_layer_name = rnn_layer.soft_get('name', rnn_layer.id)
         # num_directions is at 1st position in output shape, and in 0st position in hidden and cell states
         # please refer to docs in this transform
 
@@ -160,11 +161,11 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
 
             unsqueeze = Unsqueeze(graph, dict())
 
-            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/UnsqueezeNumDirections/{}/Dim'.format(i),
-                                             'value': int64_array([direction_dim[i]])}).create_node_with_data()
+            unsqueeze_dim_data = Const(graph, {'name': rnn_layer.name + '/UnsqueezeNumDirections/{}/Dim'.format(i),
+                                             'value': [direction_dim[i]]}).create_node_with_data()
 
-            unsqueeze.create_node_with_data([data, reshape_dim_data],
-                                            dict(name=rnn_layer.name + '/UnsqueezeNumDirections/{}'.format(i)),
+            unsqueeze.create_node_with_data([data, unsqueeze_dim_data],
+                                            dict(name=rnn_layer_name + '/UnsqueezeNumDirections/{}'.format(i)),
                                             data_nodes=[old_data_node])
     @staticmethod
     def squeeze_initial_states(graph: Graph, match: dict):
