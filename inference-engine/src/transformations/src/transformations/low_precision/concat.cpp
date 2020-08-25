@@ -350,7 +350,7 @@ void ConcatTransformation::addDequantizationLayers(
                     }
 
                     // first input is used
-                    const ngraph::element::Type precision = layerDequantizations[0].data->get_output_element_type(0);
+                    const ngraph::element::Type precision = layerDequantizations[0].data.get_element_type();
                     layer->set_output_type(0, precision, layer->get_output_partial_shape(0));
 
                     const auto it = outputs.find(layer->get_friendly_name());
