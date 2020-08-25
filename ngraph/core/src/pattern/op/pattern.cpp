@@ -105,12 +105,9 @@ namespace ngraph
         {
             return [=](Output<Node> output) -> bool {
                 const auto& output_type = output.get_element_type();
-                bool matches = false;
-                for (const auto& type : expected_types)
-                {
-                    matches = matches || (output_type == type);
-                }
-                return matches;
+                return std::any_of(expected_types.begin(),
+                                   expected_types.end(),
+                                   [=](element::Type type) { return type == output_type; });
             };
         }
     }
