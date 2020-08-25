@@ -34,6 +34,9 @@ struct recurrent_sequence_parameters
     ngraph::element::Type et;
 };
 
+// suppress FusedOp deprecation warnings
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 //
 // Create and initialize default input test tensors.
 //
@@ -507,3 +510,5 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
                              std::string("LSTMSequence input tensor P shall have static rank."));
     }
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END
