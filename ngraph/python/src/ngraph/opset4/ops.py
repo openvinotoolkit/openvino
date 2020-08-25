@@ -140,6 +140,16 @@ def non_max_suppression(
 
 
 @nameable_op
+def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply SoftPlus operation on each element of input tensor.
+
+    :param data: The tensor providing input data.
+    :return: The new node with SoftPlus operation applied on each element.
+    """
+    return _get_node_factory_opset4().create("SoftPlus", as_nodes(data), {})
+
+
+@nameable_op
 def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs Mish.
 
