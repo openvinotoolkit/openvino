@@ -53,7 +53,7 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     mdir, file = os.path.split(str(path))
     if not file.startswith("."):
         mdir = str(mdir)
-        if mdir.endswith('/'):
+        if mdir.endswith("/"):
             mdir = mdir[:-1]
         model = {"model_name": path, "model_file": file, "dir": mdir}
         basedir = os.path.basename(mdir)
