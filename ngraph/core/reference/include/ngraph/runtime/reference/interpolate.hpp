@@ -36,14 +36,19 @@ namespace ngraph
             using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
             using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
 
+            /// \brief Calculation of nearest pixel.
             class GetNearestPixel final
             {
             public:
+                /// \brief Constructs calculation of a nearest pixel in the default mode.
                 GetNearestPixel()
                     : GetNearestPixel(Nearest_mode::round_prefer_floor)
                 {
                 }
 
+                /// \brief Constructs calculation of nearest pixel for the specified mode.
+                ///
+                /// \param mode the mode of the calculation of the nearest pixel
                 GetNearestPixel(Nearest_mode mode)
                     : m_mode{mode}
                     , m_func{get_func(mode)}
@@ -52,6 +57,12 @@ namespace ngraph
 
                 ~GetNearestPixel() = default;
 
+                /// \brief Performing the nearest pixel calculation.
+                ///
+                /// \param original original coordinate
+                /// \param is_downsample true if we have downsample and false otherwise
+                ///
+                /// \return the nearest pixel
                 int64_t operator()(float original, bool is_downsample) const
                 {
                     return m_func(original, is_downsample);
@@ -63,6 +74,11 @@ namespace ngraph
                 Nearest_mode m_mode;
                 Func m_func;
 
+                /// \brief Gets the function to calculate the nearest pixel.
+                ///
+                /// \param mode the calculation mode
+                ///
+                /// \return The function to calculate the nearest pixel.
                 Func get_func(Nearest_mode mode)
                 {
                     switch (mode)
@@ -102,14 +118,19 @@ namespace ngraph
                 }
             };
 
+            /// \brief Calculation of the source coordinate using the resized coordinate
             class GetOriginalCoordinate final
             {
             public:
+                /// \brief Constructs calculation of a nearest pixel in the default mode.
                 GetOriginalCoordinate()
                     : GetOriginalCoordinate(Transform_mode::half_pixel)
                 {
                 }
 
+                /// \brief Constructs calculation of the source coordinate.
+                ///
+                /// \param mode the mode of the calculation of the source coordinate.
                 GetOriginalCoordinate(Transform_mode mode)
                     : m_mode{mode}
                     , m_func{get_func(mode)}
@@ -118,6 +139,14 @@ namespace ngraph
 
                 ~GetOriginalCoordinate() = default;
 
+                /// \brief Performing the source coordinate calculation.
+                ///
+                /// \param x_resized resized coordinate
+                /// \param x_scale scale for the considered axis
+                /// \param length_resized length of the resized axis
+                /// \param length_original original length of the axis
+                ///
+                /// \return the source coordinate
                 float operator()(float x_resized,
                                  float x_scale,
                                  float length_resized,
@@ -136,6 +165,11 @@ namespace ngraph
                 Transform_mode m_mode;
                 Func m_func;
 
+                /// \brief Gets the function to calculate the source coordinate.
+                ///
+                /// \param mode the calculation mode
+                ///
+                /// \return The function to calculate the source coordinate.
                 Func get_func(Transform_mode mode)
                 {
                     switch (mode)
