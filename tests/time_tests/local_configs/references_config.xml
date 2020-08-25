@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<attributes>
+    <records>
+        <record name="vgg16" precision="FP32" device="CPU" time="30"/>
+    </records>
+</attributes>

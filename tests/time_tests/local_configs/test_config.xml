@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<tests>
+    <test>
+        <device name="CPU"/>
+        <model name="vgg16" precision="FP32" source="omz"/>
+    </test>
+    <test>
+        <device name="GPU"/>
+        <model name="vgg16" precision="FP32" source="omz"/>
+    </test>
+</tests>
+
+<!--<?xml version="1.0"?>-->
+<!--<attributes>-->
+    <!--<devices>-->
+        <!--<device name="CPU"/>-->
+    <!--</devices>-->
+    <!--<models>-->
+        <!--<model name="vgg16" precision="FP32" source="omz"/>-->
+    <!--</models>-->
+<!--</attributes>-->
