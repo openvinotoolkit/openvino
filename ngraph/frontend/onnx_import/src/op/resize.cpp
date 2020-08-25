@@ -52,7 +52,7 @@ namespace ngraph
                     {"align_corners", static_cast<int>(Transform_mode::align_corners)},
                     {"asymmetric", static_cast<int>(Transform_mode::asymmetric)},
                     {"tf_half_pixel_for_nn",
-                        static_cast<int>(Transform_mode::tf_half_pixel_for_nn)}};
+                     static_cast<int>(Transform_mode::tf_half_pixel_for_nn)}};
 
                 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
                 static const std::map<std::string, int> nearest_mode_map = {
@@ -129,11 +129,10 @@ namespace ngraph
 
                     InterpolateV4Attrs attrs;
                     attrs.mode = static_cast<InterpolateMode>(mode_as_int(interp_mode_map, mode));
-                    attrs.coordinate_transformation_mode =
-                        static_cast<Transform_mode>(mode_as_int(transform_mode_map,
-                                                                transform_mode));
-                    attrs.nearest_mode = static_cast<Nearest_mode>(mode_as_int(nearest_mode_map,
-                                                                               nearest_mode));
+                    attrs.coordinate_transformation_mode = static_cast<Transform_mode>(
+                        mode_as_int(transform_mode_map, transform_mode));
+                    attrs.nearest_mode =
+                        static_cast<Nearest_mode>(mode_as_int(nearest_mode_map, nearest_mode));
                     attrs.antialias = false;
                     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
 
