@@ -178,7 +178,7 @@ static constexpr float epsilon = 1.0e-6f;
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
-                                             const PartialShape& padded_input_shape)
+                                             const PartialShape& padded_input_shape) const
 {
     size_t i = 0;
     for (auto axis : axes)
@@ -195,7 +195,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
 
 void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
-                                             const std::vector<int64_t>& sizes)
+                                             const std::vector<int64_t>& sizes) const
 {
     size_t i = 0;
     for (auto axis : axes)
