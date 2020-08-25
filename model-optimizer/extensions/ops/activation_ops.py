@@ -28,13 +28,14 @@ class Activation(Op):
     enabled = False
     operation = None
     op = None
+    version = 'opset1'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
             'operation': self.operation,
-            'version': 'opset1',
+            'version': self.version,
             'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -67,12 +68,8 @@ class Asin(Activation):
 
 class Asinh(Activation):
     op = 'Asinh'
+    version = 'opset4'
     operation = staticmethod(lambda x: np.arcsinh(x))
-
-    def __init__(self, graph: Graph, attrs: dict):
-        sp_attrs = {'version': 'opset4'}
-        sp_attrs.update(attrs)
-        super().__init__(graph, sp_attrs)
 
 
 class Cos(Activation):
@@ -92,12 +89,8 @@ class Acos(Activation):
 
 class Acosh(Activation):
     op = 'Acosh'
+    version = 'opset4'
     operation = staticmethod(lambda x: np.arccosh(x))
-
-    def __init__(self, graph: Graph, attrs: dict):
-        sp_attrs = {'version': 'opset4'}
-        sp_attrs.update(attrs)
-        super().__init__(graph, sp_attrs)
 
 
 class Tan(Activation):
@@ -117,12 +110,8 @@ class Atan(Activation):
 
 class Atanh(Activation):
     op = 'Atanh'
+    version = 'opset4'
     operation = staticmethod(lambda x: np.arctanh(x))
-
-    def __init__(self, graph: Graph, attrs: dict):
-        sp_attrs = {'version': 'opset4'}
-        sp_attrs.update(attrs)
-        super().__init__(graph, sp_attrs)
 
 
 class ReLU6(AttributedClamp):
@@ -243,28 +232,16 @@ class Log(Activation):
     operation = staticmethod(lambda x: np.log(x))
 
 
-class SoftPlus(Op):
+class SoftPlus(Activation):
     op = 'SoftPlus'
-
-    def __init__(self, graph: Graph, attrs: dict):
-        mandatory_props = {
-            'op': self.op,
-            'type': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None
-        }
-        super().__init__(graph, mandatory_props, attrs)
+    version = 'opset4'
+    operation = staticmethod(lambda x: np.ln(np.exp(x) + 1.0))
 
 
 class Mish(Activation):
     op = 'Mish'
+    version = 'opset4'
     operation = staticmethod(lambda x: x * np.tanh(np.ln(np.exp(x) + 1.0)))
-
-    def __init__(self, graph: Graph, attrs: dict):
-        sp_attrs = {'version': 'opset4'}
-        sp_attrs.update(attrs)
-        super().__init__(graph, sp_attrs)
 
 
 class Swish(Op):

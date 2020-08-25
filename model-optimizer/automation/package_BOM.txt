@@ -326,7 +326,6 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
-extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py

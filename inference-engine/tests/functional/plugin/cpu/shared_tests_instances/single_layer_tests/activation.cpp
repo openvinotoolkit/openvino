@@ -48,7 +48,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Selu,
         Ceiling,
         Mish,
-        HSwish
+        HSwish,
+        SoftPlus
 };
 
 const std::vector<ActivationTypes> activationParamTypes = {

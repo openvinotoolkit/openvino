@@ -109,7 +109,8 @@ enum ActivationTypes {
     Ceiling,
     PReLu,
     Mish,
-    HSwish
+    HSwish,
+    SoftPlus
 };
 
 enum EltwiseTypes {
