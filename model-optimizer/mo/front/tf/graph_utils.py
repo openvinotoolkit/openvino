@@ -82,27 +82,16 @@ def squeeze_reshape_and_concat(start_nodes: list):
         if cur_node.has_valid('type'):
             if cur_node.type == 'DetectionOutput':  # do not go beyond the DetectionOutput node
                 continue
-            if cur_node.op == 'Reshape' and len(cur_node.out_node().shape) == 4:
-                log.debug("Found reshape op with 4D output {}".format(cur_node.id))
-                if cur_node.in_node(1).has_valid('value') and cur_node.in_node(1).value is not None:
-                    new_shape = cur_node.in_node(1).value
-                    assert new_shape[2] == 1
-                    new_shape = np.delete(new_shape, 2)
-                    cur_node.in_node(1).value = new_shape
-                    cur_node.in_node(1).shape = np.array(new_shape.shape, dtype=np.int64)
-                    # run infer function once again
-                    cur_node.infer(cur_node)
-                else:
-                    log.warning("The reshape size is not defined!")
-            if cur_node.type == 'Concat' and len(cur_node.out_node().shape) == 4:
-                log.debug("Found Concat op with 4D output {}".format(cur_node.id))
-                cur_node.axis = 1
-                # run infer function once again
-                cur_node.infer(cur_node)
-                if cur_node.out_port(0).get_destination().node.op == 'Squeeze':
-                    # remove Squeeze node after the Concat
-                    squeeze_consumer = cur_node.out_port(0).get_destination().node.out_port(0).get_destination()
-                    cur_node.out_port(0).get_connection().set_destination(squeeze_consumer)
+            if cur_node.op == 'Reshape' and len(cur_node.out_port(0).data.get_shape()) == 4:
+                mark_output_as_in_correct_layout(cur_node, 0)
+
+            if cur_node.type == 'Concat' and len(cur_node.out_port(0).data.get_shape()) == 4:
+                cur_node.in_port(1).__setattr__('input_permutation', None)
+                cur_node['nchw_layout'] = True
+
+            if cur_node.op == 'Squeeze' and len(cur_node.in_port(0).data.get_shape()) == 4:
+                cur_node.in_port(1).__setattr__('input_permutation', None)
+                mark_input_as_in_correct_layout(cur_node, 0)
 
         out_node_size = len(cur_node.out_nodes())
         for ind in range(out_node_size):
