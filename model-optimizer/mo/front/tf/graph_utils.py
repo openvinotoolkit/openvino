@@ -64,14 +64,11 @@ def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dic
     return node
 
 
-def squeeze_reshape_and_concat(start_nodes: list):
+def mark_squeeze_reshape_concat_before_detection_output(start_nodes: list):
     """
-    The function looks for Reshape ops after the 'start_nodes' with 4D output and remove the dimension with index 2
-    which should be equal to 1. This is a workaround to make tensor 3D so it's shape will not be transposed during the
-    IR generation. The problem arises when bounding boxes predictions are reshaped from [1, 1, 1, X] to
-    [1, X / 4, 1, 4]. The result tensor should not be transposed because after transpose it will have shape
-    [1, 4, X / 4, 1] and the concatenation over dimension with index 2 will produce incorrect tensor.
-    Also the function looks for Concat ops and change the concat dimension from 2 to 1.
+    The function looks for Reshape, Concat and Squeeze ops after the 'start_nodes' with 4D output and marks them with
+    proper attributes to infer them in original NHWC layout. This is a case of the TensorFlow Object Detection API
+    models for the SSD heads output which produces 4D tensor with bounding box deltas.
     :param start_nodes: list of nodes to start search from.
     :return: None
     """
@@ -80,23 +77,28 @@ def squeeze_reshape_and_concat(start_nodes: list):
     while len(q) != 0:
         cur_node = q.popleft()
         if cur_node.has_valid('type'):
-            if cur_node.type == 'DetectionOutput':  # do not go beyond the DetectionOutput node
+            if cur_node.soft_get('type') == 'DetectionOutput':  # do not go beyond the DetectionOutput node
                 continue
-            if cur_node.op == 'Reshape' and len(cur_node.out_port(0).data.get_shape()) == 4:
+            # the input to Reshape comes from Convolution so it will be converted from NCHW to NHWC layout in the
+            # InsertLayoutPropagationTransposes transformation. But the output should be kept in the original layout
+            if cur_node.soft_get('type') == 'Reshape' and len(cur_node.out_port(0).data.get_shape()) == 4:
                 mark_output_as_in_correct_layout(cur_node, 0)
 
-            if cur_node.type == 'Concat' and len(cur_node.out_port(0).data.get_shape()) == 4:
+            # Concat should be inferred in the original layout so the input with concatenation axis should not be
+            # updated from NHWC to NCHW layout
+            if cur_node.soft_get('type') == 'Concat' and len(cur_node.out_port(0).data.get_shape()) == 4:
                 cur_node.in_port(1).__setattr__('input_permutation', None)
                 cur_node['nchw_layout'] = True
+                cur_node.out_node(0)['nchw_layout'] = True
 
-            if cur_node.op == 'Squeeze' and len(cur_node.in_port(0).data.get_shape()) == 4:
+            # Squeeze should be inferred in the original layout so the input with squeeze axis should not be updated
+            # from NHWC to NCHW layout. The input is marked as in correct layout to prevent from inserting Transpose
+            # from NHWC to NCHW.
+            if cur_node.soft_get('type') == 'Squeeze' and len(cur_node.in_port(0).data.get_shape()) == 4:
                 cur_node.in_port(1).__setattr__('input_permutation', None)
                 mark_input_as_in_correct_layout(cur_node, 0)
 
-        out_node_size = len(cur_node.out_nodes())
-        for ind in range(out_node_size):
-            node = cur_node.out_node(ind)
-            q.append(node)
+        [q.append(port.node) for port in cur_node.out_port(0).get_destinations()]
 
 
 def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coordinates_size: int):

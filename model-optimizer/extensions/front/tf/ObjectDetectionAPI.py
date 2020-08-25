@@ -44,7 +44,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
-    squeeze_reshape_and_concat, add_fake_background_loc, create_op_node_with_second_input
+    mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
@@ -1074,7 +1074,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         node.old_infer(node)
 
         conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
-        squeeze_reshape_and_concat(conv_nodes)
+        mark_squeeze_reshape_concat_before_detection_output(conv_nodes)
 
 
 class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral):
