@@ -9,8 +9,10 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 #include <transformations/init_node_info.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -64,5 +66,81 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
             static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         FAIL();
+    }
+}
+
+TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
+    ngraph::NodeVector should_converted_to_ie = {
+            std::make_shared<ngraph::opset4::Broadcast>(),
+            std::make_shared<ngraph::opset4::Convolution>(),
+            std::make_shared<ngraph::opset4::ConvolutionBackpropData>(),
+            std::make_shared<ngraph::opset4::Gather>(),
+            std::make_shared<ngraph::opset4::GatherTree>(),
+            std::make_shared<ngraph::opset4::GroupConvolution>(),
+            std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
+            std::make_shared<ngraph::opset4::GRUCell>(),
+            // std::make_shared<ngraph::opset4::GRUSequence>(), todo: enable after GRUSequence support
+            std::make_shared<ngraph::opset4::HardSigmoid>(),
+            std::make_shared<ngraph::opset4::Interpolate>(),
+            std::make_shared<ngraph::opset4::LRN>(),
+            std::make_shared<ngraph::opset4::LSTMCell>(),
+            // std::make_shared<ngraph::opset4::LSTMSequence>(), todo: enable after LSTMSequence support
+            std::make_shared<ngraph::opset4::NonMaxSuppression>(),
+            std::make_shared<ngraph::opset4::NormalizeL2>(),
+            std::make_shared<ngraph::opset4::RNNCell>(),
+            // std::make_shared<ngraph::opset4::RNNSequence>(), todo: enable after RNNSequence support
+            std::make_shared<ngraph::opset4::OneHot>(),
+            std::make_shared<ngraph::opset4::Pad>(),
+            std::make_shared<ngraph::opset4::PriorBoxClustered>(),
+            std::make_shared<ngraph::opset4::PriorBox>(),
+            std::make_shared<ngraph::opset4::Proposal>(),
+            std::make_shared<ngraph::opset4::Selu>(),
+            std::make_shared<ngraph::opset4::Swish>(),
+            std::make_shared<ngraph::opset4::Tile>(),
+            std::make_shared<ngraph::opset4::TopK>(),
+    };
+
+    // create simple ngraph function Parameter -> Result
+    std::shared_ptr<ngraph::Function> f;
+    auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{});
+    auto res = std::make_shared<ngraph::opset4::Result>(param);
+    f = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{param});
+    InferenceEngine::CNNNetwork nGraphImpl(f);
+
+    for (const auto& ngraph_node : should_converted_to_ie) {
+        // add node without inputs to the ngraph function
+        ngraph_node->set_output_type(0, ngraph::element::f32, ngraph::Shape{});
+        res->input(0).replace_source_output(ngraph_node->output(0));
+
+        EXPECT_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true),
+                     InferenceEngine::details::InferenceEngineException)
+                     << "failed node: " << ngraph_node->get_type_name() << std::endl;
+        try {
+            InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true);
+        } catch (InferenceEngine::details::InferenceEngineException &err) {
+            std::string type_name = ngraph_node->get_type_name();
+
+            std::map<std::string, std::string> exceptions = { {"Broadcast", "Tile"}, {"Interpolate", "Interp"},
+                                                              {"NormalizeL2", "NormalizeIE"},
+                                                              {"GroupConvolution", "ConvolutionIE"},
+                                                              {"ConvolutionBackpropData", "DeconvolutionIE"},
+                                                              {"GroupConvolutionBackpropData", "DeconvolutionIE"},
+                                                              };
+            std::string type_name_ie = type_name + "IE";
+            if (exceptions[type_name].empty()) {
+                type_name_ie = type_name + "IE";
+            } else {
+                type_name_ie = exceptions[type_name];
+            }
+            std::string expected_error_message = type_name + " operation has a form that is not supported. "
+                    + ngraph_node->get_friendly_name()  + " should be converted to " + type_name_ie + " operation.";
+            std::string real_message = err.what();
+            bool is_messages_match = real_message.find(expected_error_message) != std::string::npos;
+            EXPECT_TRUE(is_messages_match) << "failed node: " << type_name << std::endl
+                        << "Exception massage: " << err.what() << std::endl
+                        << "Expected message: " << expected_error_message << std:: endl;
+        } catch (...) {
+            FAIL() << "ERROR: Unexpected exception thrown: " << std::current_exception << std::endl;
+        }
     }
 }

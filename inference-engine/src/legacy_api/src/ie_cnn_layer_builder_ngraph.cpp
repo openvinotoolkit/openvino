@@ -518,11 +518,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::LRN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "LRN operation should be converted to LRN_IE";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::LRN_IE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Norm",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -652,12 +647,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "sum";
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::Broadcast>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Broadcast operation " << layer->get_friendly_name()
-                       << " should be converted to Tile operation";
 }
 
 template <>
@@ -1220,11 +1209,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GatherIE>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::GatherTree>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "GatherTree operation should be converted to GatherTreeIE";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::GatherTreeIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "GatherTree",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1426,11 +1410,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v0::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Proposal operation should be converted to ProposalIE";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Proposal",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1514,12 +1493,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClusteredIE>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClustered>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "PriorBoxClustered operation must be converted to PriorBoxClusteredIE operation.";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "PriorBox",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1592,11 +1565,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
     res->params["fixed_ratio"] = asString(attr.fixed_ratio);
 
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBox>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "PriorBox operation must be converted to PriorBoxIE operation.";
 }
 
 template <>
@@ -1739,11 +1707,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Interp>::createLayer(const std::shared_p
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Interpolate>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Interpolate operation should be converted to Interp";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "FullyConnected",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1776,11 +1739,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
         }
     }
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::LSTMCell>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "LSTMCell operation must be converted to LSTMCellIE operation.";
 }
 
 template <>
@@ -1929,11 +1887,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ReorgYolo>::createLayer(const std::share
 
     res->params["stride"] = value;
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeL2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "NormalizeL2 operation should be converted to NormalizeIE";
 }
 
 template <>
@@ -2134,11 +2087,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::HardSigmoid>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "HardSigmoid operation should be converted to HardSigmoid_IE";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::HardSigmoid_IE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = { layer->get_friendly_name(), "HardSigmoid", details::convertPrecision(layer->get_output_element_type(0)) };
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
@@ -2169,11 +2117,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::LogicalNot>::createLayer(const std::
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
     res->params["type"] = "not";
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::NonMaxSuppression>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "NonMaxSuppression operation must be converted to NonMaxSuppressionIE operation.";
 }
 
 }  // namespace Builder
