@@ -341,8 +341,10 @@ protected:
             network = ie.ReadNetwork(p.model(), p.weights());
         }
 
-        if (batch_size != 1)
+        if (batch_size != 1) {
+            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             network.setBatchSize(batch_size);
+        }
 
         ie.SetConfig(p.config);
 
