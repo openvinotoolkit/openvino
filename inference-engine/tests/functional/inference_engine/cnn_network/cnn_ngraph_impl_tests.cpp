@@ -200,6 +200,45 @@ TEST(CNNNGraphImplTests, TestSetBatchScalar) {
     ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
 }
 
+TEST(CNNNGraphImplTests, TestGetBatchDynamic) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, ngraph::PartialShape{5, ngraph::Dimension::dynamic()});
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_TRUE(cnnNet.getFunction()->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(5, cnnNet.getBatchSize());
+}
+
+TEST(CNNNGraphImplTests, TestSetBatchDynamic) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, ngraph::PartialShape::dynamic());
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+    ASSERT_EQ(GENERAL_ERROR, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
+}
+
+
 TEST(CNNNGraphImplTests, TestSaveAffinity) {
     const std::string testAffinity = "testAffinity";
     std::shared_ptr<ngraph::Function> ngraph;

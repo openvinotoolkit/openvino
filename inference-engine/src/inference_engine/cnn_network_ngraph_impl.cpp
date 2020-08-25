@@ -452,11 +452,9 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             auto pshape = parameter->get_partial_shape();
             if (pshape.rank().is_static() && (pshape.rank().get_length() == 0 || pshape.rank().get_length() == 1 || pshape.rank().get_length() == 3))
                 continue;  // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
-            if (pshape.is_dynamic()) {
-
+            if (pshape.is_dynamic())
                 THROW_IE_EXCEPTION << "Cannot setBatch! Network contains inputs with dynamic shapes! "
                                    << "Please use reshape method instead. Original inputs are: " << ss.str() << ".";
-            }
             std::vector<size_t> shape = pshape.to_shape();
             shape[0] = size;
             inShapes[parameter->get_friendly_name()] = shape;
