@@ -180,8 +180,8 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         auto add_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
-                                     && check_constant_value(mul_const_value, (1.0/6.0), 0.0001);
+        bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0)
+                                     && op::util::has_constant_value(mul_const_value, (1.0/6.0), 0.0001);
 
         if (!valid_constant_values) {
             return false;
