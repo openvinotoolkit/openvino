@@ -111,11 +111,6 @@ public:
         params[name] = joinVec(data);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<size_t>>& adapter) override {
-        auto data = adapter.get();
-        params[name] = joinVec(data);
-    }
-
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
 private:
@@ -143,6 +138,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
         params[name] = joinVec(shape);
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<size_t>>>(& adapter)) {
+        auto data = a->get();
+        params[name] = joinVec(data);
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
@@ -511,9 +509,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({ "Broadcast", "Convolution", "ConvolutionBackpropData", "Gather", "GatherTree",
                          "GroupConvolution", "GroupConvolutionBackpropData", "GRUCell", "GRUSequence", "HardSigmoid",
-                         "HSwish", "Interpolate", "LRN", "LSTMCell", "LSTMSequence", "NonMaxSuppression",
-                         "NormalizeL2", "RNNCell", "RNNSequence", "OneHot", "Pad", "PriorBoxClustered", "PriorBox",
-                         "Proposal", "Selu", "Swish", "Tile", "TopK"},
+                         "Interpolate", "LRN", "LSTMCell", "LSTMSequence", "NonMaxSuppression", "NormalizeL2",
+                         "RNNCell", "RNNSequence", "OneHot", "Pad", "PriorBoxClustered", "PriorBox", "Proposal",
+                         "Selu", "Swish", "Tile", "TopK"},
             [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params)
             -> CNNLayerPtr {
         std::string type_name = node->get_type_name();
