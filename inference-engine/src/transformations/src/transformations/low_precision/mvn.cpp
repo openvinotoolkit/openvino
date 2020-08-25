@@ -71,7 +71,6 @@ void MVNTransformation::registerMatcherIn(GraphRewrite& pass, TransformationCont
 bool MVNTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
-        fuseConvertIfPossible(operation);
         return false;
     }
 
