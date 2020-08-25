@@ -334,8 +334,7 @@ static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-        dispatcher{{TI(op::v0::Pad), &eliminate_nop},
-                   {TI(opset3::Pad), &eliminate_nop},
+        dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(op::v0::Sum), &eliminate_sum},
                    {TI(opset3::Convert), &eliminate_convert},
                    {TI(op::v0::Slice), &eliminate_nop},
