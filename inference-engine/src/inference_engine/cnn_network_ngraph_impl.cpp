@@ -437,6 +437,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
     if (cnnNetwork)
         return cnnNetwork->setBatchSizeReshape(size, responseDesc);
     try {
+        if (getBatchSize() == size)
+            return OK;
         auto original_parameters = _ngraph_function->get_parameters();
         if (original_parameters.empty())
             return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Topology doesn't contain parameters!";
