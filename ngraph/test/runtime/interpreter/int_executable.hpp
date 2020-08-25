@@ -79,7 +79,6 @@
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
@@ -1195,48 +1194,6 @@ protected:
 
             break;
         }
-        case OP_TYPEID::ScatterUpdate_v3:
-        {
-            const op::v3::ScatterUpdate* scatterUpd =
-                static_cast<const op::v3::ScatterUpdate*>(&node);
-
-            if (scatterUpd->get_input_element_type(3) != element::i64)
-                throw ngraph_error(
-                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
-
-            auto idxType = scatterUpd->get_input_element_type(1);
-            if (idxType == element::i32)
-            {
-                reference::scatterUpdate<T, int32_t, int64_t>(
-                    args[0]->get_data_ptr<const T>(),
-                    args[1]->get_data_ptr<const int32_t>(),
-                    args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_input_shape(2));
-            }
-            else if (idxType == element::i64)
-            {
-                reference::scatterUpdate<T, int64_t, int64_t>(
-                    args[0]->get_data_ptr<const T>(),
-                    args[1]->get_data_ptr<const int64_t>(),
-                    args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_input_shape(2));
-            }
-            else
-            {
-                throw ngraph_error(
-                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
-            }
-
-            break;
-        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1255,6 +1212,7 @@ protected:
         case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
+        case OP_TYPEID::ScatterUpdate_v3:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
