@@ -177,12 +177,9 @@ static constexpr float epsilon = 1.0e-6f;
 
 void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
+                                             const std::vector<float>& scales,
                                              const PartialShape& padded_input_shape)
 {
-    auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-    NODE_VALIDATION_CHECK(this, const_scales, "Input 'scales' should be Constant.");
-
-    auto scales = const_scales->cast_vector<float>();
     size_t i = 0;
     for (auto axis : axes)
     {
@@ -197,17 +194,33 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
 }
 
 void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
-                                             const std::vector<int64_t>& axes)
+                                             const std::vector<int64_t>& axes,
+                                             const std::vector<int64_t>& sizes)
 {
-    auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-    NODE_VALIDATION_CHECK(this, const_shape, "Input 'sizes' should be Constant.");
-
-    auto out_shape = const_shape->cast_vector<int64_t>();
     size_t i = 0;
     for (auto axis : axes)
     {
-        output_shape[axis] = Dimension(out_shape[i++]);
+        output_shape[axis] = Dimension(sizes[i++]);
     }
+}
+
+PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& input_shape)
+{
+    const auto input_rank = input_shape.rank().get_length();
+
+    PartialShape padded_input_shape = input_shape;
+
+    for (size_t i = 0; i < input_rank; ++i)
+    {
+        if (input_shape[i].is_static())
+        {
+            auto new_length =
+                m_attrs.pads_begin[i] + m_attrs.pads_end[i] + input_shape[i].get_length();
+            padded_input_shape[i] = Dimension(new_length);
+        }
+    }
+
+    return padded_input_shape;
 }
 
 void op::v4::Interpolate::validate_and_infer_types()
@@ -218,30 +231,21 @@ void op::v4::Interpolate::validate_and_infer_types()
                               input_et == element::i8,
                           "Input element type must be f32, f16, or i8");
 
-    PartialShape output_shape = PartialShape(get_input_partial_shape(0));
-    PartialShape padded_input_shape = output_shape;
+    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
 
-    if (!output_shape.rank().is_static())
+    if (!input_shape.rank().is_static())
     {
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, get_input_element_type(0), input_shape);
         return;
     }
 
     auto axes = get_axes();
     correct_pads();
 
-    const auto input_rank = output_shape.rank().get_length();
+    const auto input_rank = input_shape.rank().get_length();
 
-    for (size_t i = 0; i < input_rank; ++i)
-    {
-        if (output_shape[i].is_static())
-        {
-            auto new_length =
-                m_attrs.pads_begin[i] + m_attrs.pads_end[i] + output_shape[i].get_length();
-            output_shape[i] = Dimension(new_length);
-            padded_input_shape[i] = Dimension(new_length);
-        }
-    }
+    PartialShape padded_input_shape = get_padded_input_shape(output_shape);
+    PartialShape output_shape = padded_input_shape;
 
     for (auto axis : axes)
     {
@@ -251,11 +255,21 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
-        infer_using_scales(output_shape, axes, padded_input_shape);
+        auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+        NODE_VALIDATION_CHECK(this, const_scales, "Input 'scales' should be Constant.");
+
+        auto scales = const_scales->cast_vector<float>();
+
+        infer_using_scales(output_shape, axes, scales, padded_input_shape);
     }
     else
     {
-        infer_using_shapes(output_shape, axes);
+        auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+        NODE_VALIDATION_CHECK(this, const_shape, "Input 'sizes' should be Constant.");
+
+        auto sizes = const_shape->cast_vector<int64_t>();
+
+        infer_using_shapes(output_shape, axes, sizes);
     }
 
     set_output_type(0, get_input_element_type(0), output_shape);
@@ -344,48 +358,6 @@ namespace
         return scales;
     }
 
-    std::vector<size_t> get_padded_input_shape(const Shape& input_shape,
-                                               const std::vector<size_t>& pads_begin,
-                                               const std::vector<size_t>& pads_end)
-    {
-        std::vector<size_t> result = input_shape;
-        size_t rank = input_shape.size();
-        for (size_t i = 0; i < rank; ++i)
-        {
-            result[i] += pads_begin[i] + pads_end[i];
-        }
-
-        return result;
-    }
-
-    std::vector<size_t> shape_infer_with_scales(const std::vector<size_t>& padded_shape,
-                                                const std::vector<int64_t>& axes,
-                                                const std::vector<float>& scales)
-    {
-        auto out_shape = padded_shape;
-        size_t num_of_axes = axes.size();
-        for (size_t i = 0; i < num_of_axes; ++i)
-        {
-            int64_t axis = axes[i];
-            float scaled_len = static_cast<float>(padded_shape[axis]) * scales[i] + epsilon;
-            out_shape[axis] = static_cast<size_t>(scaled_len);
-        }
-        return out_shape;
-    }
-
-    std::vector<size_t> shape_infer_with_target_shape(const std::vector<size_t>& padded_shape,
-                                                      const std::vector<int64_t>& axes,
-                                                      const std::vector<int64_t>& target_shape)
-    {
-        auto out_shape = padded_shape;
-        size_t num_of_axes = axes.size();
-        for (size_t i = 0; i < num_of_axes; ++i)
-        {
-            out_shape[axes[i]] = target_shape[i];
-        }
-        return out_shape;
-    }
-
     template <typename T>
     std::vector<T> correct_pad(const std::vector<T>& p, size_t rank)
     {
@@ -409,55 +381,6 @@ namespace
 
         return result;
     }
-
-    struct EvaluationParams
-    {
-        Shape input_shape;
-        Shape padded_input_shape;
-        Shape out_shape;
-        std::vector<size_t> pads_begin;
-        std::vector<size_t> pads_end;
-        std::vector<int64_t> axes;
-        std::vector<float> scales;
-    };
-
-    using InterpolateV4Attrs = op::v4::Interpolate::InterpolateAttrs;
-
-    EvaluationParams get_info_to_call_reference(const HostTensorVector& args,
-                                                const InterpolateV4Attrs& attrs)
-    {
-        using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
-
-        Shape input_shape{args[data_port]->get_shape()};
-        size_t input_rank = input_shape.size();
-
-        auto axes = get_axes_vector(args);
-        size_t num_of_axes = axes.size();
-
-        auto scales = get_scales_vector(args, input_shape, attrs, axes);
-
-        auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
-        auto pads_end = correct_pad(attrs.pads_end, input_rank);
-
-        auto padded_input_shape_vector = get_padded_input_shape(input_shape, pads_begin, pads_end);
-        std::vector<size_t> out_shape_vector;
-
-        if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
-        {
-            out_shape_vector = shape_infer_with_scales(padded_input_shape_vector, axes, scales);
-        }
-        else
-        {
-            auto target_shape = get_target_shape_vector(args, num_of_axes);
-            out_shape_vector =
-                shape_infer_with_target_shape(padded_input_shape_vector, axes, target_shape);
-        }
-
-        Shape out_shape{out_shape_vector};
-        Shape padded_input_shape{padded_input_shape_vector};
-
-        return {input_shape, padded_input_shape, out_shape, pads_begin, pads_end, axes, scales};
-    }
 }
 
 void op::v4::Interpolate::correct_pads()
@@ -473,32 +396,22 @@ void op::v4::Interpolate::correct_pads()
     m_attrs.pads_end = correct_pad(m_attrs.pads_end, input_rank);
 }
 
-bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
-                                   const HostTensorVector& inputs) const
+static void pad_input_data(const uint8_t* data_ptr,
+                           uint8_t* padded_data_ptr,
+                           size_t type_size,
+                           const Shape& input_shape,
+                           const Shape& padded_input_shape,
+                           const std::vector<size_t>& pads_begin)
 {
-    element::Type input_et = get_input_element_type(0);
-    size_t type_size = input_et.size();
 
-    auto info_for_reference = get_info_to_call_reference(inputs, m_attrs);
-
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-    outputs[0]->set_shape(info_for_reference.out_shape);
-
-    size_t bytes_in_padded_input = shape_size(info_for_reference.padded_input_shape) * type_size;
-
-    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
-
-    CoordinateTransform input_transform(info_for_reference.input_shape);
-    CoordinateTransform padded_transform(info_for_reference.padded_input_shape);
-
-    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
-    uint8_t* padded_data_ptr = padded_input_data.data();
+    CoordinateTransform input_transform(input_shape);
+    CoordinateTransform padded_transform(padded_input_shape);
 
     for (const Coordinate& input_coord : input_transform)
     {
         auto padded_coord = input_coord;
         size_t i = 0;
-        for (size_t pad : info_for_reference.pads_begin)
+        for (size_t pad : pads_begin)
         {
             padded_coord[i] += pad;
             ++i;
@@ -507,34 +420,80 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
         const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
         memcpy(dst_ptr, src_ptr, type_size);
     }
+}
+
+bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
+{
+    element::Type input_et = get_input_element_type(0);
+    size_t type_size = input_et.size();
+
+    Shape input_shape{inputs[data_port]->get_shape()};
+    Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
+
+    auto axes = get_axes_vector(inputs);
+    size_t num_of_axes = axes.size();
+
+    auto scales = get_scales_vector(inputs, input_shape, m_attrs, axes);
+
+    PartialShape output_shape{padded_input_shape};
+
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
+    {
+        infer_using_scales(output_shape, axes, scales, padded_input_shape);
+    }
+    else
+    {
+        auto sizes = get_target_shape_vector(inputs, num_of_axes);
+        infer_using_shapes(output_shape, axes, sizes);
+    }
+
+    Shape out_shape = output_shape.to_shape();
+
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+    outputs[0]->set_shape(out_shape);
+
+    size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+
+    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+
+    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
+    uint8_t* padded_data_ptr = padded_input_data.data();
+
+    pad_input_data(data_ptr,
+                   padded_data_ptr,
+                   type_size,
+                   input_shape,
+                   padded_input_shape,
+                   m_attrs.pads_begin);
 
     switch (input_et)
     {
     case element::Type_t::f32:
         runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                               info_for_reference.padded_input_shape,
-                                               info_for_reference.scales,
-                                               info_for_reference.axes,
+                                               padded_input_shape,
+                                               scales,
+                                               axes,
                                                outputs[0]->get_data_ptr<float>(),
-                                               info_for_reference.out_shape,
+                                               out_shape,
                                                m_attrs);
         break;
     case element::Type_t::f16:
         runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                 info_for_reference.padded_input_shape,
-                                                 info_for_reference.scales,
-                                                 info_for_reference.axes,
+                                                 padded_input_shape,
+                                                 scales,
+                                                 axes,
                                                  outputs[0]->get_data_ptr<float16>(),
-                                                 info_for_reference.out_shape,
+                                                 out_shape,
                                                  m_attrs);
         break;
     case element::Type_t::i8:
         runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                info_for_reference.padded_input_shape,
-                                                info_for_reference.scales,
-                                                info_for_reference.axes,
+                                                padded_input_shape,
+                                                scales,
+                                                axes,
                                                 outputs[0]->get_data_ptr<int8_t>(),
-                                                info_for_reference.out_shape,
+                                                out_shape,
                                                 m_attrs);
         break;
     default:;

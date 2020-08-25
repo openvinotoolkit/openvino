@@ -241,11 +241,20 @@ namespace ngraph
                 ///
                 ///          Similarly for pads_end.
                 void correct_pads();
+
+                /// \brief Calculates input shape after padding.
+                ///
+                /// \param input_shape Shape of input data.
+                ///
+                /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
+                PartialShape get_padded_input_shape(const PartialShape& input_shape)
                 void infer_using_scales(PartialShape& output_shape,
                                         const std::vector<int64_t>& axes,
+                                        const std::vector<float>& scales,
                                         const PartialShape& padded_input_shape);
                 void infer_using_shapes(PartialShape& output_shape,
-                                        const std::vector<int64_t>& axes);
+                                        const std::vector<int64_t>& axes,
+                                        const std::vector<int64_t>& sizes);
             };
         } // namespace v4
     }     // namespace op
