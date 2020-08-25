@@ -16,6 +16,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/itt.hpp"
 #include "transformations/mish_fusion.hpp"
+#include "transformations/softplus_fusion.hpp"
 #include "transformations/swish_fusion.hpp"
 #include "transformations/hswish_fusion.hpp"
 
@@ -40,6 +41,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
     manager.register_pass<ngraph::pass::MishFusion>();
+    manager.register_pass<ngraph::pass::SoftPlusFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
     manager.register_pass<ngraph::pass::HSwishFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();

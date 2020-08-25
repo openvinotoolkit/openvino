@@ -147,6 +147,7 @@
 #include "ngraph/op/sinh.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/softmax.hpp"
+#include "ngraph/op/softplus.hpp"
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/space_to_depth.hpp"
 #include "ngraph/op/split.hpp"
