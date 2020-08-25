@@ -5,9 +5,6 @@ This section provides a high-level description of the process of integrating the
 Refer to the [Hello Classification Sample](../../inference-engine/samples/hello_classification/README.md) sources
 for example of using the Inference Engine in applications.
 
-> **NOTE**: For 2019 R2 Release, the new Inference Engine Core API is introduced. This guide is updated to reflect the new API approach.
-> The Inference Engine Plugin API is still supported, but is going to be deprecated in future releases. Please, refer to [Migration from Inference Engine Plugin API to Core API](Migration_CoreAPI.md) guide to update your application.
-
 ## Use the Inference Engine API in Your Code
 
 The core `libinference_engine.so` library implements loading and parsing a model Intermediate Representation (IR), and triggers inference using a specified device. The core library has the following API:
