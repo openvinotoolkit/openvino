@@ -58,6 +58,12 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         return false;
     }
 
+    auto multiply_rt_info = dequantization.multiply->get_rt_info();
+
+    if (!multiply_rt_info.count("DEQUANIZATION_OPERATION")) {
+        return false;
+    }
+
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?
         (dequantization.subtract == nullptr ?
             dequantization.multiply->get_input_element_type(0) :

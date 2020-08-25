@@ -140,8 +140,11 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             return false;
         }
 
+        bool is_dequantization =
+            (add_node->get_rt_info().count("DEQUANTIZATION_OPERATION") != 0 || mul_node->get_rt_info().count("DEQUANTIZATION_OPERATION") != 0);
+
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
