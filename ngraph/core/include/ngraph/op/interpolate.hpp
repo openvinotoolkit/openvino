@@ -247,11 +247,24 @@ namespace ngraph
                 /// \param input_shape Shape of input data.
                 ///
                 /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
-                PartialShape get_padded_input_shape(const PartialShape& input_shape)
+                PartialShape get_padded_input_shape(const PartialShape& input_shape);
+
+                /// \brief Infers output shape using scales.
+                ///
+                /// \param output_shape[in,out] output shape
+                /// \param axes Interpolation axes
+                /// \param scales Scales for interpolated axes
+                /// \param padded_input_shape input shape after padding
                 void infer_using_scales(PartialShape& output_shape,
                                         const std::vector<int64_t>& axes,
                                         const std::vector<float>& scales,
                                         const PartialShape& padded_input_shape);
+
+                /// \brief Infers output shape using sizes.
+                ///
+                /// \param output_shape[in,out] output shape
+                /// \param axes Interpolation axes
+                /// \param sizes sizes for interpolated axes
                 void infer_using_shapes(PartialShape& output_shape,
                                         const std::vector<int64_t>& axes,
                                         const std::vector<int64_t>& sizes);
