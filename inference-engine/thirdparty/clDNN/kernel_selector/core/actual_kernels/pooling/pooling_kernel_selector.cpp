@@ -24,7 +24,7 @@
 #include "pooling_kernel_gpu_fs_b_yx_fsv32.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv16.h"
 #include "pooling_kernel_gpu_bsv16_fsv16.h"
-#include "pooling_kernel_gpu_b_fs_yx_fsv16_imad.h"
+#include "pooling_kernel_gpu_b_fs_zyx_fsv16_imad.h"
 #include "pooling_kernel_gpu_bs_fs_yx_bsv16_fsv16.h"
 
 namespace kernel_selector {
@@ -40,7 +40,7 @@ pooling_kernel_selector::pooling_kernel_selector() {
     Attach<PoolingKerneGPU_fs_b_yx_fsv32>();
     Attach<PoolingKernel_b_fs_yx_fsv16>();
     Attach<PoolingKernel_bsv16_fsv16>();
-    Attach<PoolingKernelGPU_b_fs_yx_fsv16_imad>();
+    Attach<PoolingKernelGPU_b_fs_zyx_fsv16_imad>();
     Attach<Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16>();
 }
 

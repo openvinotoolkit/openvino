@@ -19,10 +19,10 @@
 #include <vector>
 
 namespace kernel_selector {
-class PoolingKernelGPU_b_fs_yx_fsv16_imad: public PoolingKernelBase{
+class PoolingKernelGPU_b_fs_zyx_fsv16_imad: public PoolingKernelBase{
 public:
-    PoolingKernelGPU_b_fs_yx_fsv16_imad() : PoolingKernelBase("pooling_gpu_b_fs_yx_fsv16_imad") {}
-    virtual ~PoolingKernelGPU_b_fs_yx_fsv16_imad() {}
+    PoolingKernelGPU_b_fs_zyx_fsv16_imad() : PoolingKernelBase("pooling_gpu_b_fs_zyx_fsv16_imad") {}
+    virtual ~PoolingKernelGPU_b_fs_zyx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
