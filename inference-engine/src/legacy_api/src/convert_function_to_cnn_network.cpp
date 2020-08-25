@@ -51,6 +51,15 @@
 namespace InferenceEngine {
 namespace details {
 
+// helper for adding creators with a specific exception
+#define REQUIRED_IE_CONVERSION_CREATOR(type_name, ie_type_name)\
+    addSpecificCreator({type_name}, [](const std::shared_ptr<::ngraph::Node>& node,\
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {\
+        THROW_IE_EXCEPTION << type_name  << " operation has a form that is not supported. " << node->get_friendly_name()\
+        << " should be converted to " << ie_type_name << " operation.";\
+        return nullptr;\
+    });\
+
 /**
  * @brief Creator for CNNLayer from nGraph op
  */
@@ -507,28 +516,21 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({ "Broadcast", "Convolution", "ConvolutionBackpropData", "Gather", "GatherTree",
-                         "GroupConvolution", "GroupConvolutionBackpropData", "GRUCell", "GRUSequence", "HardSigmoid",
-                         "Interpolate", "LRN", "LSTMCell", "LSTMSequence", "NonMaxSuppression", "NormalizeL2",
-                         "RNNCell", "RNNSequence", "OneHot", "Pad", "PriorBoxClustered", "PriorBox", "Proposal",
-                         "Selu", "Swish", "Tile", "TopK"},
+    REQUIRED_IE_CONVERSION_CREATOR("Broadcast", "Tile");
+    REQUIRED_IE_CONVERSION_CREATOR("Interpolate", "Interp");
+    REQUIRED_IE_CONVERSION_CREATOR("NormalizeL2", "NormalizeIE");
+    REQUIRED_IE_CONVERSION_CREATOR("GroupConvolution", "ConvolutionIE");
+    REQUIRED_IE_CONVERSION_CREATOR("ConvolutionBackpropData", "DeconvolutionIE");
+    REQUIRED_IE_CONVERSION_CREATOR("GroupConvolutionBackpropData", "DeconvolutionIE");
+
+    addSpecificCreator({ "Convolution", "Gather", "GatherTree", "GRUCell", "GRUSequence", "HardSigmoid",
+                      "LRN", "LSTMCell", "LSTMSequence", "NonMaxSuppression", "RNNCell", "RNNSequence", "OneHot",
+                      "Pad", "PriorBoxClustered", "PriorBox", "Proposal", "Selu", "Swish", "Tile", "TopK"},
             [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params)
             -> CNNLayerPtr {
-        std::string type_name = node->get_type_name();
-        std::map<std::string, std::string> exceptions = { {"Broadcast", "Tile"}, {"Interpolate", "Interp"},
-                                                          {"NormalizeL2", "NormalizeIE"},
-                                                          {"GroupConvolution", "ConvolutionIE"},
-                                                          {"ConvolutionBackpropData", "DeconvolutionIE"},
-                                                          {"GroupConvolutionBackpropData", "DeconvolutionIE"},
-                                                          };
-        std::string type_name_ie = type_name + "IE";
-        if (exceptions[type_name].empty()) {
-            type_name_ie = type_name + "IE";
-        } else {
-            type_name_ie = exceptions[type_name];
-        }
-        THROW_IE_EXCEPTION << type_name + " operation has a form that is not supported. " << node->get_friendly_name()
-                           << " should be converted to " + type_name_ie + " operation.";
+        const std::string& type_name = node->get_type_name();
+        THROW_IE_EXCEPTION << type_name << " operation has a form that is not supported. " << node->get_friendly_name()
+                           << " should be converted to " << type_name + "IE operation.";
         return nullptr;
     });
 
