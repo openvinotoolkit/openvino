@@ -58,6 +58,7 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
         model = {"model_name": path, "model_file": file, "dir": mdir}
         basedir = os.path.basename(mdir)
         if basedir in tolerance_map:
+            # updated model looks now: {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
         zoo_models.append(model)
 
