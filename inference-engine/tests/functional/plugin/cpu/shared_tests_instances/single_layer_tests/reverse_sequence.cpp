@@ -21,11 +21,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<int64_t> batchAxisIndices = { 0L };
+
 const std::vector<int64_t> seqAxisIndices = { 1L };
 
 const std::vector<std::vector<size_t>> inputShapes = { {3, 10} }; //, 10, 20
+
 const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = { {3} };
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
+
+const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
         ngraph::helpers::InputLayerType::PARAMETER
 };
