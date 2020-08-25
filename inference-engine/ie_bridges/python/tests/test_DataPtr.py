@@ -68,11 +68,12 @@ def test_input_to(recwarn):
     input_to = net.layers['26'].out_data[0].input_to
     assert len(input_to) == 1
     assert input_to[0].name == '27'
-    assert len(recwarn) == 1
+    assert len(recwarn) == 2
     assert recwarn.pop(DeprecationWarning)
 
 
-def test_input_to_via_input_info():
+def test_input_to_via_input_info(recwarn):
+    warnings.simplefilter("always")
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     input_infos = net.input_info
@@ -80,6 +81,8 @@ def test_input_to_via_input_info():
     input_to = input_infos['data'].input_data.input_to
     assert len(input_to) == 1
     assert input_to[0].name == '19/Fused_Add_'
+    assert len(recwarn) == 1
+    assert recwarn.pop(DeprecationWarning)
 
 
 def test_input_to_via_inputs(recwarn):
@@ -91,11 +94,12 @@ def test_input_to_via_inputs(recwarn):
     input_to = inputs['data'].input_to
     assert len(input_to) == 1
     assert input_to[0].name == '19/Fused_Add_'
-    assert len(recwarn) == 1
+    assert len(recwarn) == 2
     assert recwarn.pop(DeprecationWarning)
 
 
-def test_creator_layer():
+def test_creator_layer(recwarn):
+    warnings.simplefilter("always")
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     outputs = net.outputs
@@ -104,3 +108,5 @@ def test_creator_layer():
     params = creator_layer.params
     params['originalLayersNames'] == 'fc_out'
     params['axis'] == '1'
+    assert len(recwarn) == 1
+    assert recwarn.pop(DeprecationWarning)
