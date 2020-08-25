@@ -255,10 +255,10 @@ namespace ngraph
                 /// \param axes Interpolation axes
                 /// \param scales Scales for interpolated axes
                 /// \param padded_input_shape input shape after padding
-                PartialShape infer_using_scales(const PartialShape& preliminary_output_shape,
-                                                const std::vector<int64_t>& axes,
-                                                const std::vector<float>& scales,
-                                                const PartialShape& padded_input_shape) const;
+                void infer_using_scales(PartialShape& output_shape,
+                                        const std::vector<int64_t>& axes,
+                                        const std::vector<float>& scales,
+                                        const PartialShape& padded_input_shape) const;
 
                 /// \brief Infers output shape using sizes.
                 ///
