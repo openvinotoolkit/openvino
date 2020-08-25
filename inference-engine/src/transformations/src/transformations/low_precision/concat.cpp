@@ -28,6 +28,9 @@ void ConcatTransformation::registerMatcherIn(GraphRewrite& pass, TransformationC
 
 bool ConcatTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(m.get_match_root());
+    if (!canBeTransformed(context, concat)) {
+        return false;
+    }
 
     ngraph::pass::low_precision::Subgraph subgraph(layerTransformationsManager);
     std::unordered_set<std::string> handledLayers;
@@ -204,6 +207,12 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
     return true;
 }
+
+bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
+    return concat->get_axis() == 1ul;
+}
+
 
 void ConcatTransformation::addDequantizationLayers(
     TransformationContext& context,
