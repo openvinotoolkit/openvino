@@ -145,6 +145,7 @@ extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
 extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
+extensions/front/kaldi/split_lstm_memoryoffset.py
 extensions/front/kaldi/tanh_component_ext.py
 extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py

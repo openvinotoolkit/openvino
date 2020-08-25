@@ -99,6 +99,10 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
+    def run_before(self):
+        from extensions.front.kaldi.split_lstm_memoryoffset import SplitLstmMemoryOffset
+        return [SplitLstmMemoryOffset]
+
     def find_and_replace_pattern(self, graph: Graph):
         should_continue = False
         for n in graph:

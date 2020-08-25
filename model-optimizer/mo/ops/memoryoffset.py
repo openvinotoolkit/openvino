@@ -37,4 +37,8 @@ class MemoryOffset(Op):
 
     @staticmethod
     def infer(node: Node):
-        copy_shape_infer(node)
+        if node.has_valid('element_size'):
+            # already splitted MemoryOffset from LSTM block
+            node.out_port(0).data.set_shape([1, node['element_size']])
+        else:
+            copy_shape_infer(node)

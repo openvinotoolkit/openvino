@@ -22,7 +22,7 @@ from mo.ops.result import Result
 
 class SplitMemoryOffsets(MiddleReplacementPattern):
     '''
-    Split MemoryOffsets in 2 parts to cut cycles
+    Split MemoryOffsets into parts that will later become ReadValue and Assign.
     '''
     enabled = True
     run_not_recursively = True
@@ -35,21 +35,12 @@ class SplitMemoryOffsets(MiddleReplacementPattern):
         from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern
         return [ReplaceMemoryOffsetNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern]
 
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('mem_offset', dict(kind='op', op='MemoryOffset', splitted=False))
-            ],
-            edges=[]
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        offset_node = match['mem_offset']
-        paired_node = MemoryOffset(graph, {'name': offset_node.pair_name, 'splitted': True, 'pair_name': offset_node.id,
-                                           't': offset_node.t, 'has_default': offset_node.has_default}).create_node()
-        offset_node['splitted'] = True
-        offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
-        res_node = Result(graph, {'name': offset_node.id + "_output"}).create_node()
-        offset_node.out_port(0).connect(res_node.in_port(0))
-        paired_node['need_shape_inference'] = False
+    def find_and_replace_pattern(self, graph: Graph):
+        for offset_node in graph.get_op_nodes(op='MemoryOffset', splitted=False):
+            paired_node = MemoryOffset(graph, {'name': offset_node.pair_name, 'splitted': True, 'pair_name': offset_node.id,
+                                               't': offset_node.t, 'has_default': offset_node.has_default}).create_node()
+            offset_node['splitted'] = True
+            offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
+            res_node = Result(graph, {'name': offset_node.id + "_output"}).create_node()
+            offset_node.out_port(0).connect(res_node.in_port(0))
+            paired_node['need_shape_inference'] = False
