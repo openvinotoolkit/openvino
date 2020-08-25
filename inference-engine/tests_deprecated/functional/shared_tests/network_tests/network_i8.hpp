@@ -341,21 +341,19 @@ protected:
             network = ie.ReadNetwork(p.model(), p.weights());
         }
 
-        if (batch_size != 1) {
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
-            network.setBatchSize(batch_size);
+        ICNNNetwork& icnnnetwork = network;
+        auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
+        if (networkNGraph) {
+            auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
+            network = CNNNetwork(netPtr);
         }
+
+        if (batch_size != 1)
+            network.setBatchSize(batch_size);
 
         ie.SetConfig(p.config);
 
         if (transformationsParams.transformationsInTestEnabled) {
-            ICNNNetwork& icnnnetwork = network;
-            auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
-            if (networkNGraph) {
-                auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
-                network = CNNNetwork(netPtr);
-            }
-
             auto originalLayersInfo = LowPrecisionTransformationValidation::getLayers(network);
             for (const std::string removedLayer : transformationsParams.removedLayers) {
                 for (auto originalLayerIt = originalLayersInfo.begin(); originalLayerIt != originalLayersInfo.end(); ++originalLayerIt) {
