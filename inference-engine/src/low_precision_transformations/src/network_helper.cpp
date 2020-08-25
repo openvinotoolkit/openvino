@@ -872,7 +872,41 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
     return parents;
 }
 
+bool CNNNetworkHelper::isLayoutSupported(const CNNLayer& layer) {
+    auto isSupported = [](const Data& data) -> bool {
+        switch (data.getLayout()) {
+            case Layout::NC:
+            case Layout::NCHW:
+            case Layout::NCDHW: {
+                return true;
+            }
+            case Layout::CHW: {
+                if (data.getDims().size() != 3lu) {
+                    return false;
+                }
+                return true;
+            }
+            default: {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    for (const auto& data : layer.outData) {
+        if (!isSupported(*data)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
+    if (!isLayoutSupported(layer)) {
+        THROW_IE_LPT_EXCEPTION(layer) << "Not supported layout";
+    }
+
     if (layer.insData.size() == 0) {
         THROW_IE_EXCEPTION << "There are no input layers";
     }
@@ -882,25 +916,8 @@ size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
         THROW_IE_EXCEPTION << "insert data is absent";
     }
 
-    switch (insertData->getLayout()) {
-    case Layout::NC:
-    case Layout::NCHW:
-    case Layout::NCDHW: {
-        return insertData->getDims()[1];
-    }
-    case Layout::CHW: {
-        if (insertData->getDims().size() != 3lu) {
-            THROW_IE_EXCEPTION << "Unexpected dimensions size " << insertData->getDims().size() << " for layer "
-                               << layer.name;
-        }
-
-        // Actually MO assumes NCH layout for 3D blobs, so we get channels count from dimension 1
-        return insertData->getDims()[1];
-    }
-    default: {
-        THROW_IE_EXCEPTION << "Not supported layout " << insertData->getLayout();
-    }
-    }
+    // For CHW: actually MO assumes NCH layout for 3D blobs, so we get channels count from dimension 1
+    return insertData->getDims()[1];
 }
 
 size_t CNNNetworkHelper::getParamOutput(const CNNLayer& layer) {

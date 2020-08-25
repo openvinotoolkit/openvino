@@ -122,6 +122,8 @@ public:
         const std::unordered_set<std::string>& exceptionLayerTypes = {},
         const int portIndex = -1);
 
+    static bool isLayoutSupported(const CNNLayer& layer);
+
     static size_t getInputChannelsCount(const CNNLayer& layer);
 
     static size_t getParamOutput(const CNNLayer& layer);
