@@ -247,7 +247,7 @@ namespace ngraph
                 /// \param input_shape Shape of input data.
                 ///
                 /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
-                PartialShape get_padded_input_shape(const PartialShape& input_shape);
+                PartialShape get_padded_input_shape(const PartialShape& input_shape) const;
 
                 /// \brief Infers output shape using scales.
                 ///

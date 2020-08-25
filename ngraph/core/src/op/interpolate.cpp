@@ -204,7 +204,7 @@ void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
     }
 }
 
-PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& input_shape)
+PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& input_shape) const
 {
     const auto input_rank = input_shape.rank().get_length();
 
@@ -244,7 +244,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     const auto input_rank = input_shape.rank().get_length();
 
-    PartialShape padded_input_shape = get_padded_input_shape(output_shape);
+    PartialShape padded_input_shape = get_padded_input_shape(input_shape);
     PartialShape output_shape = padded_input_shape;
 
     for (auto axis : axes)
