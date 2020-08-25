@@ -281,7 +281,7 @@ public:
     }
 
     layout get_bias_layout(T& p) {
-        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+        return layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
 
     layout get_weights_zp_layout(T& p) {
@@ -469,12 +469,14 @@ public:
 #define CASE_CONV3D_U8S8_1 {1, 15, 5, 4, 5}, {1, 30, 3, 2, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_U8S8_2 {1, 15, 5, 5, 5}, {1, 30, 3, 3, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_U8S8_3 {1, 16, 5, 4, 5}, {1, 32, 5, 4, 5}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_CONV3D_U8S8_4 {1, 17, 5, 4, 5}, {1, 17, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, -1}, tensor{1}, 17, data_types::u8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_4 {1, 17, 5, 4, 5}, {1, 17, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{{0, 0, -1, -1, -1}, 0}, tensor{1}, 17, data_types::u8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_U8S8_5 {1, 3, 5, 4, 5},  {1, 32, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{{0, 0, -1, -1, -1}, 0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 
 #define CASE_CONV3D_S8S8_1 {1, 15, 5, 4, 5}, {1, 30, 3, 2, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_S8S8_2 {1, 15, 5, 5, 5}, {1, 30, 3, 3, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_S8S8_3 {1, 16, 5, 4, 5}, {1, 32, 5, 4, 5}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_S8S8_4 {1, 17, 5, 4, 5}, {1, 17, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{{0, 0, -1, -1, -1}, 0}, tensor{1}, 17, data_types::i8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
+#define CASE_CONV3D_S8S8_5 {1, 3, 5, 4, 5},  {1, 18, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{{0, 0, -1, -1, -1}, 0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 
 // in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
 #define CASE_CONV_ELTW_FP32_1 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 32, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::oiyx, data_types::f32, format::bfyx
@@ -1326,10 +1328,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
                         }), );
 
 class conv_int8_scale_shift_swish : public ConvFusingTest {};
@@ -1367,10 +1371,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_shift_swish,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 6},
                         }), );
 
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
@@ -1435,10 +1441,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_prelu_eltwise,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 4},
                         }), );
 
 class conv_int8_activation_eltwise_quantize : public ConvFusingTest {};
@@ -1634,10 +1642,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_quantize_u8,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
                         }), );
 
 class conv_int8_scale_quantize_i8 : public ConvFusingTest {};
@@ -1682,10 +1692,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 4},
                         }), );
 
 class conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
@@ -1771,10 +1783,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_relu_quantize,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 4},
                         }), );
 
 class conv_int8_scale_activation_quantize_i8 : public ConvFusingTest {};
@@ -1814,10 +1828,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 5},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 5},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 5},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 5},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 5},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 5},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 5},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 5},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 5},
                         }), );
 
 class conv_int8_scale_activation_quantize_i8_eltwise_fp32 : public ConvFusingTest {};
@@ -1858,10 +1874,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltw
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 6},
                         }), );
 
 class conv_int8_scale_activation_quantize_i8_activation : public ConvFusingTest {};
@@ -1902,10 +1920,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_acti
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 6},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 6},
                         }), );
 
 
@@ -1952,10 +1972,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltw
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 7},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 7},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 7},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 7},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 7},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 7},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 7},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 7},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 7},
                         }), );
 
 class conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public ConvFusingTest {};
@@ -2159,10 +2181,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
                         }), );
 
 class conv_int8_asymmetric_data_and_weights : public ConvFusingTest {};
@@ -2228,10 +2252,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights,
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_1, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_2, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_3, 2, 3},
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
                         }), );
 
 
