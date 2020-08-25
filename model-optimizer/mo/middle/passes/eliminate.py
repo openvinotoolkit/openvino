@@ -217,10 +217,11 @@ def merge_data_nodes(graph, survived, removed):
 
 
 # TODO: unit tests
-def remove_op_node_with_data_node(graph, node_to_remove):
+def remove_op_node_with_data_node(graph, node_to_remove, input_data_node=None):
     from mo.graph.graph import Node
     assert node_to_remove.kind == 'op'
-    input_data_node = node_to_remove.in_node()
+    if input_data_node is None:
+        input_data_node = node_to_remove.in_node()
     output_node = [v for _, v in graph.out_edges(node_to_remove.id)]
     assert len(output_node) == 1, "Cannot remove node producing two or more output tensors"
     output_node = Node(graph, output_node[0])
