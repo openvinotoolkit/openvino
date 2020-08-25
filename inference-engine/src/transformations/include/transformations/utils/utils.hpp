@@ -62,7 +62,9 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
         return false;
     }
 
-    if (shape_size(constant->get_shape()) > 1) {
+    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) ||
+                                          shape_size(constant->get_shape()) == 1;
+    if (!is_scalar_or_single_elem) {
         return false;
     }
 
