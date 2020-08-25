@@ -403,7 +403,6 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin)
 {
-
     CoordinateTransform input_transform(input_shape);
     CoordinateTransform padded_transform(padded_input_shape);
 
@@ -460,12 +459,8 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
     uint8_t* padded_data_ptr = padded_input_data.data();
 
-    pad_input_data(data_ptr,
-                   padded_data_ptr,
-                   type_size,
-                   input_shape,
-                   padded_input_shape,
-                   m_attrs.pads_begin);
+    pad_input_data(
+        data_ptr, padded_data_ptr, type_size, input_shape, padded_input_shape, m_attrs.pads_begin);
 
     switch (input_et)
     {
