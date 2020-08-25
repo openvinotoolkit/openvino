@@ -30,7 +30,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
             opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0}));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
-        log->set_friendly_name(m.softplus_node->get_friendly_name());
+        log->set_friendly_name(softplus_node->get_friendly_name());
         ngraph::copy_runtime_info(softplus_node, {exp, add, log});
         ngraph::replace_node(m.softplus_node, log);
         return true;
