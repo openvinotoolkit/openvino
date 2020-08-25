@@ -274,7 +274,7 @@ namespace ngraph
         using v0::InterpolateAttrs;
         using v0::Interpolate;
         NGRAPH_SUPPRESS_DEPRECATED_END
-    }     // namespace op
+    } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------
 
