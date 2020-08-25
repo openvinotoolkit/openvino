@@ -56,7 +56,8 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor W must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in w_pshape"));
     }
 
     // Invalid R tensor shape.
@@ -69,7 +70,9 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor R must have shape"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Parameter hidden_size not matched for ht_pshape and t_pshape inputs"));
     }
 
     // Invalid H_t tensor shape.
@@ -82,8 +85,9 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Input tensor initial_hidden_state must have shape"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Parameter batch_size not matched for ht_pshape and x_pshape inputs."));
     }
 
     // Invalid B tensor shape.
@@ -96,6 +100,219 @@ TEST(type_prop, rnn_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor B must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in b_pshape."));
+    }
+}
+
+TEST(type_prop, rnn_cell_dynamic_batch_size)
+{
+    const auto batch_size = Dimension::dynamic();
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+
+    const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(rnn_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+}
+
+TEST(type_prop, rnn_cell_dynamic_hidden_size)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const auto hidden_size = Dimension::dynamic();
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+
+    const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, 3);
+    EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(rnn_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+}
+
+TEST(type_prop, rnn_cell_dynamic_inputs)
+{
+    const auto batch_size = Dimension::dynamic();
+    const auto input_size = Dimension::dynamic();
+    const auto hidden_size = Dimension::dynamic();
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, 2);
+
+    EXPECT_EQ(rnn_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop, rnn_cell_invalid_input_rank0)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+
+    auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+    // Invalid rank0 for W tensor.
+    auto W = make_shared<op::Parameter>(element::f32, PartialShape{});
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("RNNCellBase input tensor dimension is not correct"));
+    }
+
+    // Invalid rank0 for X tensor.
+    W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    X = make_shared<op::Parameter>(element::f32, PartialShape{});
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("RNNCellBase input tensor dimension is not correct"));
+    }
+
+    // Invalid rank0 for H_t tensor.
+    X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape{});
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("RNNCellBase input tensor dimension is not correct"));
+    }
+
+    // Invalid rank0 for R tensor.
+    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::f32, PartialShape{});
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("RNNCellBase input tensor dimension is not correct"));
+    }
+
+    // Invalid rank0 for B tensor.
+    R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{});
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, B, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("RNNCellBase B input tensor dimension is not correct."));
+    }
+}
+
+TEST(type_prop, rnn_cell_invalid_input_dynamic_rank)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+
+    auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+    // Invalid dynamic rank for W tensor.
+    auto W = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
+    }
+
+    // Invalid dynamic rank for X tensor.
+    W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
+    }
+
+    // Invalid dynamic rank for H_t tensor.
+    X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
+    }
+
+    // Invalid dynamic rank for R tensor.
+    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
+    }
+
+    // Invalid dynamic rank for B tensor.
+    R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, B, hidden_size);
+        FAIL() << "RNNCell node was created with invalid data.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
     }
 }
