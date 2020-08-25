@@ -23,10 +23,12 @@
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Select::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Select, "Select", 1);
 
 op::v1::Select::Select(const Output<Node>& arg0,
                        const Output<Node>& arg1,

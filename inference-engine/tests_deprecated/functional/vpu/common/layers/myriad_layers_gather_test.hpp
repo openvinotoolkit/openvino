@@ -31,7 +31,7 @@ protected:
     void testGather() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         //
         // Parse and check test parameters

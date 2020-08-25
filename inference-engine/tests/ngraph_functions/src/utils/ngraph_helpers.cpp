@@ -47,6 +47,24 @@ std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
     return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const PadMode &m) {
+    switch (m) {
+        case PadMode::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case PadMode::EDGE:
+            os << "EDGE";
+            break;
+        case PadMode::REFLECT:
+            os << "REFLECT";
+            break;
+        case PadMode::SYMMETRIC:
+            os << "SYMMETRIC";
+            break;
+    }
+    return os;
+}
+
 OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &nodes) {
     OutputVector outs;
     std::for_each(nodes.begin(), nodes.end(), [&outs](const std::shared_ptr<Node> &n) {

@@ -19,9 +19,9 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -948,6 +948,11 @@ bool Node::evaluate(const HostTensorVector& output_values,
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
+
+    if (m_rt_info.count("DISABLED_CONSTANT_FOLDING"))
+    {
+        return false;
+    }
 
     // If all the inputs are constants, try to evaluate the outputs
     HostTensorVector input_tensors;

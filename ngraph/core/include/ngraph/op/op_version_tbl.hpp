@@ -26,6 +26,8 @@
 #define NGRAPH_OP(NAME, NAMESPACE, VERSION)
 #endif
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 NGRAPH_OP(Abs, ngraph::op::v0, 0)
 NGRAPH_OP(Acos, ngraph::op::v0, 0)
 NGRAPH_OP(Acosh, ngraph::op::v3, 3)
@@ -129,10 +131,8 @@ NGRAPH_OP(OneHot, ngraph::op::v0, 0)
 NGRAPH_OP(Or, ngraph::op::v0, 0)
 NGRAPH_OP(PRelu, ngraph::op::v0, 0)
 NGRAPH_OP(PSROIPooling, ngraph::op::v0, 0)
-NGRAPH_OP(Pad, ngraph::op::v0, 0)
 NGRAPH_OP(Pad, ngraph::op::v1, 1)
 NGRAPH_OP(Parameter, ngraph::op::v0, 0)
-NGRAPH_OP(Passthrough, ngraph::op::v0, 0)
 NGRAPH_OP(Power, ngraph::op::v0, 0)
 NGRAPH_OP(Power, ngraph::op::v1, 1)
 NGRAPH_OP(PriorBox, ngraph::op::v0, 0)
@@ -203,3 +203,5 @@ NGRAPH_OP(VariadicSplit, ngraph::op::v1, 1)
 NGRAPH_OP(Xor, ngraph::op::v0, 0)
 NGRAPH_OP(Assign, ngraph::op::v3, 3)
 NGRAPH_OP(ReadValue, ngraph::op::v3, 3)
+
+NGRAPH_SUPPRESS_DEPRECATED_END

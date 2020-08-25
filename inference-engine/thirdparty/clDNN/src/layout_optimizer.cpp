@@ -375,9 +375,14 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         auto ks_x = weights_layout.size.spatial[0];
         auto ks_y = weights_layout.size.spatial[1];
 
+        size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
+        size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
+        if (weights_layout.format.group_num() > 0) {
+            out_features_per_group = weights_layout.size.batch[0];
+        }
+
         // Check for non-grouped or depthwise convolution
         if (input_layout.size.spatial[2] == 1 &&
-            input_layout.size.batch[0] < 16 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
@@ -388,12 +393,17 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
             return true;
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
-                 weights_layout.size.batch[0] >= 16 &&
-                ((input_layout.size.feature[0] / conv->groups) % 4 == 0) &&
-                ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) < 16 &&
-                (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
-            return true;
-
+                 out_features_per_group >= 16 &&
+                 // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
+                 (in_features_per_group % 4 == 0) &&
+                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
+                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
+                return true;
+        // Check for fsv16 imad kernel
+        else if ((input_layout.format.dimension() == 4) &&
+                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
+                 (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
+                return true;
         return false;
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
@@ -458,6 +468,20 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         weights_layout.data_type == input_layout.data_type &&
         (weights_layout.size.batch[0] % 16 == 0 || (weights_layout.size.batch[0] == 8 && conv->groups > 1)) &&
         conv->dilation == tensor(1))
+        return true;
+
+    size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
+    size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
+    if (weights_layout.format.group_num() > 0) {
+        out_features_per_group = weights_layout.size.batch[0];
+    }
+
+    // Check for fsv16 imad kernel
+    if ((input_layout.format.dimension() == 5) &&
+        (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
+        (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+        (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
+        (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
         return true;
     return false;
 }
@@ -604,10 +628,6 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 }
 
 format layout_optimizer::imad_case(convolution_node const& node) const {
-    auto stride = node.get_primitive()->stride;
-    auto out_size = node.get_output_layout().size;
-    auto weights_dt = node.get_dependency(1).get_output_layout().data_type;
-
     auto dims_count = format::dimension(node.input().get_output_layout().format);
 
     bool is_grouped = node.get_split() > 1 || node.get_groups() > 1;
@@ -633,15 +653,6 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
         return format::bfzyx;
     }
 
-    if ((out_size.feature[0] == 8 || out_size.feature[0] == 12) && out_size.spatial[1] > 512) {
-        return format::b_fs_yx_fsv4;
-    }
-
-    if (stride.spatial[0] != stride.spatial[1] || out_size.spatial[0] != out_size.spatial[1] ||
-        (weights_dt != data_types::u8 && weights_dt != data_types::i8)) {
-        return format::byxf_af32;
-    }
-
     return format::b_fs_yx_fsv4;
 }
 
@@ -663,6 +674,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
             convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
+        } else if ((_optimization_attributes.b_fs_zyx_fsv16_network &&
+            convolution_b_fs_zyx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+            expected_format = cldnn::format::b_fs_zyx_fsv16;
         } else {
             expected_format = imad_case(node);
         }
@@ -820,7 +834,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<quantize>()) {
         auto layout = node.get_output_layout();
-        if ((layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
+        if (layout.format.spatial_num() == 2 &&
+            (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0)
                 expected = format::b_fs_yx_fsv4;
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
@@ -837,6 +852,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         auto& deconv_node = node.as<deconvolution>();
         auto weights_layout = deconv_node.weights(0).get_output_layout();
         expected = get_expected_layout(output_layout, deconv_node, weights_layout).format;
+    } else if (node.is_type<mvn>()) {
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        if (input_layout.format.dimension() == 5 &&
+            (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16 ))
+            expected = format::bfzyx;
     }
 
     return expected;

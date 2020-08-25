@@ -108,7 +108,8 @@ enum ActivationTypes {
     Selu,
     Ceiling,
     PReLu,
-    Mish
+    Mish,
+    HSwish
 };
 
 enum EltwiseTypes {
@@ -164,7 +165,15 @@ enum class InputLayerType {
     PARAMETER,
 };
 
+enum class PadMode {
+    CONSTANT,
+    EDGE,
+    REFLECT,
+    SYMMETRIC,
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
+std::ostream &operator<<(std::ostream &os, const PadMode &m);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {

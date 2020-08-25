@@ -22,6 +22,8 @@
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace std;
 
@@ -350,36 +352,6 @@ TEST(constant_folding, constant_broadcast_v1_numpy)
 
     vector<int32_t> values_expected{0, 1, 0, 1, 0, 1, 0, 1};
     ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, constant_pad_exterior)
-{
-    Shape shape_in{2};
-
-    vector<int> values_in{777, 888};
-    auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    auto pad_value = make_shared<op::Constant>(element::i32, Shape{}, vector<int>{111});
-
-    CoordinateDiff padding_below{1};
-    CoordinateDiff padding_above{2};
-
-    auto broadcast = make_shared<op::Pad>(constant, pad_value, padding_below, padding_above);
-    auto f = make_shared<Function>(broadcast, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<int>();
-
-    vector<int> padded_values{111, 777, 888, 111, 111};
-    ASSERT_EQ(padded_values, values_out);
 }
 
 TEST(constant_folding, constant_unary_binary)
@@ -1466,6 +1438,88 @@ TEST(constant_folding, const_concat)
 
     vector<int32_t> values_expected{1, 2, 3, 7, 4, 5, 6, 8};
 
+    ASSERT_EQ(values_expected, values_out);
+}
+
+TEST(constant_folding, const_concat_3d_single_elem)
+{
+    auto constant_1 = op::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{1});
+    auto constant_2 = op::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{2});
+    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2}, 0);
+    auto f = make_shared<Function>(concat, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+
+    auto new_const =
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(new_const);
+    ASSERT_EQ(new_const->get_output_shape(0), (Shape{2, 1, 1}));
+
+    auto values_out = new_const->get_vector<int32_t>();
+    vector<int32_t> values_expected{1, 2};
+    ASSERT_EQ(values_expected, values_out);
+}
+
+TEST(constant_folding, const_concat_axis_2)
+{
+    auto constant_1 =
+        op::Constant::create(element::i32, Shape{3, 1, 2}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant_2 = op::Constant::create(
+        element::i32, Shape{3, 1, 4}, vector<int32_t>{7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18});
+    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2}, 2);
+    auto f = make_shared<Function>(concat, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+
+    auto new_const =
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(new_const);
+    ASSERT_EQ(new_const->get_output_shape(0), (Shape{3, 1, 6}));
+
+    auto values_out = new_const->get_vector<int32_t>();
+    vector<int32_t> values_expected{1, 2, 7, 8, 9, 10, 3, 4, 11, 12, 13, 14, 5, 6, 15, 16, 17, 18};
+    ASSERT_EQ(values_expected, values_out);
+}
+
+TEST(constant_folding, const_concat_axis_1_bool_type)
+{
+    auto constant_1 =
+        op::Constant::create(element::boolean, Shape{1, 1, 2}, vector<int32_t>{true, true});
+    auto constant_2 = op::Constant::create(
+        element::boolean, Shape{1, 2, 2}, vector<char>{true, false, true, false});
+    auto constant_3 = op::Constant::create(
+        element::boolean, Shape{1, 3, 2}, vector<char>{true, false, true, false, true, false});
+    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2, constant_3}, 1);
+    auto f = make_shared<Function>(concat, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+
+    auto new_const =
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(new_const);
+    ASSERT_EQ(new_const->get_output_shape(0), (Shape{1, 6, 2}));
+
+    auto values_out = new_const->get_vector<char>();
+    vector<char> values_expected{
+        true, true, true, false, true, false, true, false, true, false, true, false};
     ASSERT_EQ(values_expected, values_out);
 }
 
@@ -3192,4 +3246,21 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims)
 
     test_constant_folding_reshape_v1(shape_in, values_in, {4}, {2, -1, 2, 0}, true);
     test_constant_folding_reshape_v1(shape_in, values_in, {4}, {4, 1, 0, 2}, true);
+}
+
+TEST(constant_folding, disable_constant_folding)
+{
+    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 3});
+    auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
+    auto& rt_info = dyn_reshape->get_rt_info();
+    rt_info["DISABLED_CONSTANT_FOLDING"];
+    auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 }

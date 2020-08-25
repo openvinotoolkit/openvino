@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,9 +97,11 @@ attach_resample_gpu::attach_resample_gpu() {
          {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv4), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf_af32), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf_af32), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), resample_gpu::create}});
 }
