@@ -161,6 +161,9 @@ class SmartReshape_HC_Reshape_MatMul(BackReplacementPattern):
     enabled = True
     force_clean_up = True
 
+    def run_after(self):
+        return [MatMulConstTransposesExtraction]
+
     def pattern(self):
         return dict(
             nodes=[
