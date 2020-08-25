@@ -186,7 +186,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {
-                { },
+                { ngraph::element::f32 },
                 {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
                 {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
             },
@@ -237,7 +237,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {{0.f, 128.f, 255.f}, ngraph::element::f32}, {{0.1f, 0.2f, 0.3f}}},
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32}, {{0.1f, 0.2f, 0.3f}}},
             ngraph::element::f32,
             {{}, {}, {}}
         }
