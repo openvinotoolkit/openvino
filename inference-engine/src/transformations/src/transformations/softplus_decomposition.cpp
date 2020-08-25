@@ -32,7 +32,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
 
         log->set_friendly_name(softplus_node->get_friendly_name());
         ngraph::copy_runtime_info(softplus_node, {exp, add, log});
-        ngraph::replace_node(m.softplus_node, log);
+        ngraph::replace_node(softplus_node, log);
         return true;
     };
 
