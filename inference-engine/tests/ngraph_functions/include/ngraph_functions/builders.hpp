@@ -328,5 +328,11 @@ std::shared_ptr<ngraph::Node> makeFullyConnected(const ngraph::Output<Node>& in,
 std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>& in,
                                          const int& axis);
 
+std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
+                                      const std::vector<size_t>& padsBegin,
+                                      const std::vector<size_t>& padsEnd,
+                                      float argPadValue,
+                                      ngraph::helpers::PadMode padMode);
+
 }  // namespace builder
 }  // namespace ngraph
