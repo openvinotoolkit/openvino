@@ -23,9 +23,10 @@ from mo.middle.pattern_match import apply_pattern
 def move_scaleshift_to_preprocess_action(graph, match):
     mean_values = {}
     input_op = match['input_op']
-    scale_shift = match['scale_shift']
-    weights = np.squeeze(match['weights'].value)
-    biases = np.squeeze(match['biases'].value)
+    add_op = match['add']
+    mul_op = match['mul']
+    weights = np.squeeze(match['const_mul_output'].value)
+    biases = np.squeeze(match['const_add_output'].value)
 
     if graph.graph['cmd_params'].reverse_input_channels:
         biases = np.flip(biases)
@@ -33,11 +34,10 @@ def move_scaleshift_to_preprocess_action(graph, match):
     if any([x != 1 for x in weights]):
         return
 
-    # Keep biases (mean values) for current input as graph attr and remove ScaleShift layer
-    # Input->data->ScaleShift->scsh_data    =>    Input->scsh_data
-    graph.remove_edge(input_op.id, input_op.out_node().id)
-    graph.add_edge(input_op.id, scale_shift.out_node().id, out=0)
-    graph.remove_edge(scale_shift.id, scale_shift.out_node().id)
+    # # Keep biases (mean values) for current input as graph attr and remove ScaleShift layer
+    # # Input->data->ScaleShift->scsh_data    =>    Input->scsh_data
+    add_op.out_port(0).get_connection().set_source(input_op.out_port(0))
+    mul_op.in_port(0).disconnect()
 
     # If bias contains zeros we just remove it
     if all([x == 0 for x in biases]):
@@ -62,20 +62,31 @@ def move_scaleshift_to_preprocess(graph: Graph):
     """
     apply_pattern(
         graph,
-        nodes=[
-            ('weights', dict(kind='data')),
-            ('biases', dict(kind='data')),
+        nodes = [
+            ('input_op', dict(kind='op', op='Parameter')),
             ('input_output', dict(kind='data')),
-            ('scsh_output', dict(kind='data')),
-            ('input_op', dict(kind='op', type='Parameter')),
-            ('scale_shift', dict(kind='op', type='ScaleShift')),
+
+            ('const_mul', dict(kind='op', op='Const')),
+            ('const_mul_output', dict(kind='data')),
+            ('mul', dict(kind='op', op='Mul')),
+            ('mul_output', dict(kind='data')),
+
+            ('const_add', dict(kind='op', op='Const')),
+            ('const_add_output', dict(kind='data')),
+            ('add', dict(kind='op', op='Add')),
+            ('add_output', dict(kind='data')),
         ],
-        edges=[
+        edges = [
             ('input_op', 'input_output'),
-            ('scale_shift', 'scsh_output'),
-            ('input_output', 'scale_shift', {'in': 0}),
-            ('weights', 'scale_shift', {'in': 1}),
-            ('biases', 'scale_shift', {'in': 2}),
+            ('input_output', 'mul', {'in': 0}),
+            ('const_mul', 'const_mul_output'),
+            ('const_mul_output', 'mul', {'in': 1}),
+            ('mul', 'mul_output'),
+
+            ('mul_output', 'add', {'in': 0}),
+            ('const_add', 'const_add_output'),
+            ('const_add_output', 'add', {'in': 1}),
+            ('add', 'add_output'),
         ],
         action=move_scaleshift_to_preprocess_action
     )
