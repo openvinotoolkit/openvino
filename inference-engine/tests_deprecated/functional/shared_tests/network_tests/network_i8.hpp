@@ -342,7 +342,10 @@ protected:
         }
 
         if (batch_size != 1) {
-            auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
+            if (network.getFunction()) {
+                auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+                network = CNNNetwork(cnnNetworkImpl);
+            }
             network.setBatchSize(batch_size);
         }
 
