@@ -263,7 +263,7 @@
                         <tab type="user" title="Build Extension Library Using CMake" url="@ref openvino_docs_IE_DG_Extensibility_DG_Building"/>
                     </tab>
                     <tab type="user" title="Integrate the Inference Engine with Your Application" url="@ref openvino_docs_IE_DG_Integrate_with_customer_application_new_API"/>
-                    <tab type="user" title="Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
+                    <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
                     <tab type="user" title="Introduction to Performance Topics" url="@ref openvino_docs_IE_DG_Intro_to_Performance"/>
                     <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
                     <tab type="user" title="Build a Model with nGraph" url="@ref openvino_docs_IE_DG_nGraphTutorial"/>
