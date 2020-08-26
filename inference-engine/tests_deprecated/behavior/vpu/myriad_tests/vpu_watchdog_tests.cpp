@@ -60,7 +60,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         int total() const {return booted + unbooted;}
     };
 
-    DevicesState queryDevices(ncDeviceProtocol_t protocol = NC_USB) {
+    DevicesState queryDevices(ncDeviceProtocol_t protocol = NC_ANY_PROTOCOL) {
         DevicesState devicesState;
         devicesState.booted = getAmountOfBootedDevices(protocol);
         devicesState.unbooted = getAmountOfUnbootedDevices(protocol);
@@ -103,7 +103,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
 #define ASSERT_BOOTED_DEVICES_ONE_MORE() {\
     std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;\
-    auto q = queryDevices(NC_ANY_PROTOCOL);\
+    auto q = queryDevices();\
     cout << "BOOTED=" << q.booted << "\n";\
     cout << "TOTAL=" << q.total() << "\n";\
     ASSERT_EQ(q.booted, startup_devices.booted + 1);\
@@ -112,7 +112,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
 #define ASSERT_BOOTED_DEVICES_SAME() {\
     std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;\
-    auto q = queryDevices(NC_ANY_PROTOCOL);\
+    auto q = queryDevices();\
     cout << "BOOTED=" << q.booted << "\n";\
     cout << "TOTAL=" << q.total() << "\n";\
     ASSERT_EQ(q.booted, startup_devices.booted);\
@@ -120,11 +120,12 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 }
 
 TEST_P(MYRIADWatchdog, canDisableWatchdog) {
-
-    auto startup_devices = queryDevices(NC_ANY_PROTOCOL);
-    if (startup_devices.unbooted < 1) {
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
         GTEST_SKIP();
     }
+    startup_devices = queryDevices(NC_USB);
+    ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
@@ -138,7 +139,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
     for (int j = 0; j != 20; j++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-        if (queryDevices().booted == startup_devices.booted) {
+        if (queryDevices(NC_USB).booted == startup_devices.booted) {
             SUCCEED() << "All devices gets reset";
             break;
         }
@@ -151,10 +152,12 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 }
 
 TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
-    auto startup_devices = queryDevices();
-    if (startup_devices.unbooted < 1) {
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
         GTEST_SKIP();
     }
+    startup_devices = queryDevices(NC_USB);
+    ASSERT_GE(startup_devices.unbooted, 1);
 
     auto ctime = Time::now();
 
@@ -184,9 +187,8 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
 
 TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto startup_devices = queryDevices();
-    if (startup_devices.unbooted < 1) {
-        GTEST_SKIP();
-    }
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
@@ -218,10 +220,13 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
 }
 
 TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
-    auto startup_devices = queryDevices();
-    if (startup_devices.unbooted < 1) {
+    auto startup_devices = queryDevices(NC_PCIE);
+    if (startup_devices.unbooted >= 1) {
         GTEST_SKIP();
     }
+    startup_devices = queryDevices(NC_USB);
+    ASSERT_GE(startup_devices.unbooted, 1);
+
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
@@ -240,7 +245,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         for (int j = 0; j != 20; j++) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             std::cout << "Time since boot:" << chrono::duration_cast<ms>(Time::now() - ctime).count() << std::endl;
-            if (queryDevices().booted == startup_devices.booted) {
+            if (queryDevices(NC_USB).booted == startup_devices.booted) {
                 SUCCEED() << "All devices gets reset";
                 break;
             }

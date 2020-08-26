@@ -204,10 +204,9 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
     if(!executeCommandFound) {
         mvLog(MVLOG_WARN, "Fail to find execute command");
         return NC_ERROR;
-    } else {
-        return patchFirmware(firmware, length, executeCommandIdx,
-                             g_setWdSwitchCommandMX, sizeof(g_setWdSwitchCommandMX), wdEnable);
     }
+    return patchFirmware(firmware, length, executeCommandIdx,
+                         g_setWdSwitchCommandMX, sizeof(g_setWdSwitchCommandMX), wdEnable);
 }
 
 // 0x98 the write command for 8bit
@@ -243,10 +242,9 @@ static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const 
     if(!callCommandFound) {
         mvLog(MVLOG_WARN, "Fail to find call command");
         return NC_ERROR;
-    } else {
-        return patchFirmware(firmware, length, callCommandIdx,
-                             g_setMemTypeCommandMX, sizeof(g_setMemTypeCommandMX), memType);
     }
+    return patchFirmware(firmware, length, callCommandIdx,
+                         g_setMemTypeCommandMX, sizeof(g_setMemTypeCommandMX), memType);
 }
 
 ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,

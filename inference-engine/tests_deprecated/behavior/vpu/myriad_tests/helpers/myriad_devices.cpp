@@ -13,6 +13,7 @@
 
 constexpr char MyriadDevicesInfo::kMyriadXName[];
 constexpr char MyriadDevicesInfo::kMyriad2Name[];
+constexpr char MyriadDevicesInfo::kMyriadXPCIeName[];
 
 MyriadDevicesInfo::MyriadDevicesInfo() {
 #if (defined(_WIN32) || defined(_WIN64))
