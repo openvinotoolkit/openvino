@@ -24,14 +24,20 @@ from mo.graph.graph import Graph, rename_nodes
 
 def replace_with_hswish(graph: Graph, match: [dict, SubgraphMatch]):
     add = match['add']
+    mul = match['mul']
     mul_2 = match['mul_2']
 
-    # determine the input port of Add which gets the 'input' node output
-    input_port = int(add.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
+    # determine the input port of Add and Mul which gets the 'input' node output
+    add_input_port_idx = int(add.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
+    mul_input_port_idx = int(mul.in_port(0).get_connection().get_source().node.soft_get('op') in ['Clamp', 'Minimum'])
+
+    # check that the same tensor provided as input to Add and Mul
+    if add.in_port(add_input_port_idx).get_source() != mul.in_port(mul_input_port_idx).get_source():
+        return
     mul_2_name = mul_2.soft_get('name', mul_2.id)
 
     hswish = HSwish(graph, {}).create_node()
-    hswish.in_port(0).connect(add.in_port(input_port).get_source())
+    hswish.in_port(0).connect(add.in_port(add_input_port_idx).get_source())
     mul_2.out_port(0).get_connection().set_source(hswish.out_port(0))
 
     rename_nodes([(mul_2, mul_2_name + '/TBR'), (hswish, mul_2_name)])
@@ -39,7 +45,8 @@ def replace_with_hswish(graph: Graph, match: [dict, SubgraphMatch]):
 
 class HSwishWithClamp(FrontReplacementSubgraph):
     """
-    The transformation looks for the pattern with ReLU6 (Clamp) defining the HSwish function.
+    The transformation looks for the pattern with ReLU6 (Clamp) defining the HSwish function:
+    HSwish(x) = x * Relu6(x + 3) / 6.0.
     """
     enabled = True
 
@@ -77,7 +84,8 @@ class HSwishWithClamp(FrontReplacementSubgraph):
 
 class HSwishWithMinMax(FrontReplacementSubgraph):
     """
-    The transformation looks for the pattern with Min/Max defining the HSwish function.
+    The transformation looks for the pattern with Min/Max defining the HSwish function:
+    HSwish(x) = x * Min(Max(x + 3, 0), 6) / 6.0.
     """
     enabled = True
 
