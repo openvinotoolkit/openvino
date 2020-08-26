@@ -52,3 +52,4 @@ class MishFusionTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Mish')

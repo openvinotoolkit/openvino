@@ -63,6 +63,7 @@ class HSwishWithClampTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'HSwish')
 
     def test_hswish_with_clamp_wrong_constant(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_0': {'value': float_array([0.00001])}})
@@ -113,6 +114,7 @@ class HSwishWithMinMaxTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'HSwish')
 
     def test_hswish_with_min_max_wrong_constant(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_0': {'value': float_array([0.00001])}})

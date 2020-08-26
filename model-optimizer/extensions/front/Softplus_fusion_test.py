@@ -22,7 +22,7 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
-             **regular_op('softplus', {'type': 'SoftPlus', 'name': 'final_mul'}),
+             **regular_op('softplus', {'type': 'SoftPlus', 'name': 'final_log'}),
              **result('result')
              }
 ref_edges = [('input', 'softplus'), ('softplus', 'result')]
@@ -54,6 +54,7 @@ class SoftplusFusionTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.assertTrue(graph.get_op_nodes(name='final_log')[0].op == 'SoftPlus')
 
     def test_softplus_fusion_test_wrong_const(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_1': {'value': float_array([0.9999])}})
