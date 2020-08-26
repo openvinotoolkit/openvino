@@ -42,7 +42,7 @@ namespace ngraph
             ///
             ///             Note this class represents only single *cell* and not whole GRU *layer*.
             ///
-            class NGRAPH_API GRUCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API GRUCell : public Op, public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GRUCell", 3};
@@ -151,11 +151,10 @@ namespace ngraph
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
                 bool get_linear_before_reset() const { return m_linear_before_reset; }
             private:
                 /// brief Add and initialize bias input to all zeros.

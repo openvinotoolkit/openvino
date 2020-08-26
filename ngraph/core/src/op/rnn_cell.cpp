@@ -14,9 +14,13 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
 #include <cmath>
 #include <functional>
+#include <ngraph/ops.hpp>
+#include <opsets/opset4.hpp>
 
+#include "ngraph/runtime/reference/rnn_cell.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/add.hpp"
@@ -48,7 +52,7 @@ op::RNNCell::RNNCell(const Output<Node>& X,
                      const vector<float>& activations_alpha,
                      const vector<float>& activations_beta,
                      float clip)
-    : FusedOp({X, initial_hidden_state, W, R})
+    : Op({X, initial_hidden_state, W, R})
     , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
     , m_activation_f{get_activation_function(0)}
 {
@@ -66,7 +70,7 @@ op::RNNCell::RNNCell(const Output<Node>& X,
                      const vector<float>& activations_alpha,
                      const vector<float>& activations_beta,
                      float clip)
-    : FusedOp({X, initial_hidden_state, W, R, B})
+    : Op({X, initial_hidden_state, W, R, B})
     , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
     , m_activation_f{get_activation_function(0)}
 {
@@ -76,76 +80,6 @@ op::RNNCell::RNNCell(const Output<Node>& X,
 bool op::RNNCell::visit_attributes(AttributeVisitor& visitor)
 {
     return op::util::RNNCellBase::visit_attributes(visitor);
-}
-
-void op::RNNCell::pre_validate_and_infer_types()
-{
-    if (is_dynamic())
-    {
-        return;
-    }
-
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& w_pshape = get_input_partial_shape(2);
-    const auto& r_pshape = get_input_partial_shape(3);
-
-    NODE_VALIDATION_CHECK(this,
-                          (x_pshape.is_static() || w_pshape.is_static() || r_pshape.is_static() ||
-                           ht_pshape.is_static()),
-                          "RNNCell supports only static input tensors.");
-
-    const Shape& x_shape{x_pshape.to_shape()};
-
-    const size_t batch_size = x_shape.at(0);
-    const size_t input_size = x_shape.at(1);
-
-    const Shape& w_shape{w_pshape.to_shape()};
-    const Shape& r_shape{r_pshape.to_shape()};
-    const Shape& ht_shape{ht_pshape.to_shape()};
-
-    NODE_VALIDATION_CHECK(this,
-                          (w_shape == Shape{get_hidden_size(), input_size}),
-                          "Input tensor W must have shape (",
-                          get_hidden_size(),
-                          ", ",
-                          input_size,
-                          "). Actual shape is:",
-                          w_shape,
-                          ".");
-    NODE_VALIDATION_CHECK(this,
-                          (r_shape == Shape{get_hidden_size(), get_hidden_size()}),
-                          "Input tensor R must have shape (",
-                          get_hidden_size(),
-                          ", ",
-                          get_hidden_size(),
-                          "). Actual shape is:",
-                          w_shape,
-                          ".");
-    NODE_VALIDATION_CHECK(this,
-                          (ht_shape == Shape{batch_size, get_hidden_size()}),
-                          "Input tensor initial_hidden_state must have shape (",
-                          batch_size,
-                          ", ",
-                          get_hidden_size(),
-                          "). Actual shape is:",
-                          w_shape,
-                          ".");
-
-    const auto& b_pshape = get_input_partial_shape(4);
-
-    NODE_VALIDATION_CHECK(
-        this, b_pshape.is_static(), "RNNCell supports only static input tensors.");
-
-    const Shape& b_shape{b_pshape.to_shape()};
-
-    NODE_VALIDATION_CHECK(this,
-                          (b_shape == Shape{get_hidden_size()}),
-                          "Input tensor B must have shape (",
-                          get_hidden_size(),
-                          "). Actual shape is:",
-                          b_shape,
-                          ".");
 }
 
 void op::RNNCell::validate_and_infer_types()
@@ -245,52 +179,6 @@ void op::RNNCell::validate_and_infer_types()
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-OutputVector op::RNNCell::decompose_op() const
-{
-    // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
-    // The names used below are analogous to the one used in ONNX documentation.
-    //
-    // ------ ACRONYMS ------
-    // i_t - input gate at current time step
-    // t - time step (t-1 means previous time step)
-    // X   - The input data tensor. Shape: [batch_size, input_size].
-    // W   - The weight tensor for input gate. Shape: [hidden_size, input_size].
-    // R   - The recurrence weight tensor for input gate. Shape: [hidden_size, hidden_size].
-    // H_t - The hidden state tensor at current time step. Shape: [batch_size, hidden_size].
-    // B   - The bias tensor for the input gate. Shape: [hidden_size].
-    // Wb  - W bias vectors for input gate.
-    // Rb  - R bias vectors for input gate.
-    // ------ VARIABLE NAMES ------
-    // Xt_W    - Input sequence multiplied by weights tensor at current time step.
-    // Ht_R    - Hidden state multiplied by weights tensor at current time step.
-
-    // (.) - Denotes element-wise multiplication.
-    // *   - Denotes dot product.
-
-    // ---- Equations ----
-    // f - is activation functions.
-    // Ht = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
-    // --------------------
-
-    Output<Node> X = input_value(0);
-    Output<Node> H_t = input_value(1);
-    Output<Node> W = input_value(2);
-    Output<Node> R = input_value(3);
-    Output<Node> bias = input_value(4);
-
-    // Xt*(W^T)
-    auto Xt_W = std::make_shared<op::Dot>(X, builder::opset1::transpose(W));
-    // Ht-1*(R^T)
-    auto Ht_R = std::make_shared<op::Dot>(H_t, builder::opset1::transpose(R));
-    // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
-    auto i_t = add(Xt_W, add(Ht_R, bias));
-
-    // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
-    i_t = m_activation_f(clip(i_t));
-
-    return {i_t};
-}
-
 Output<Node> op::RNNCell::get_default_bias_input() const
 {
     return Output<Node>{
@@ -331,4 +219,61 @@ shared_ptr<Node> op::RNNCell::clone_with_new_inputs(const OutputVector& new_args
     {
         throw ngraph_error("Incorrect number of new arguments");
     }
+}
+
+namespace
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg1,
+                  const HostTensorPtr& arg2,
+                  const HostTensorPtr& arg3,
+                  const HostTensorPtr& arg4,
+                  const HostTensorPtr& arg5,
+                  const HostTensorPtr& out,
+                  const std::string& activation_f,
+                  float clip)
+    {
+        runtime::reference::rnn_cell(arg1->get_data_ptr<ET>(),
+                                     arg1->get_shape(),
+                                     arg2->get_data_ptr<ET>(),
+                                     arg2->get_shape(),
+                                     arg3->get_data_ptr<ET>(),
+                                     arg3->get_shape(),
+                                     arg4->get_data_ptr<ET>(),
+                                     arg4->get_shape(),
+                                     arg5->get_data_ptr<ET>(),
+                                     arg5->get_shape(),
+                                     out->get_data_ptr<ET>(),
+                                     activation_f,
+                                     clip);
+        return true;
+    }
+
+    bool evaluate_rnn_cell(const HostTensorPtr& arg1,
+                            const HostTensorPtr& arg2,
+                            const HostTensorPtr& arg3,
+                            const HostTensorPtr& arg4,
+                            const HostTensorPtr& arg5,
+                            const HostTensorPtr& out,
+                            const std::string& activation_f,
+                            float clip)
+    {
+        element::Type_t axis_type = arg2->get_element_type();
+        bool rc = true;
+        switch (axis_type)
+        {
+            TYPE_CASE(f32)(arg1, arg2, arg3, arg4, arg5, out, activation_f, clip);
+                break;
+            default: rc = false; break;
+        }
+        return rc;
+    }
+}
+
+bool op::RNNCell::evaluate(const HostTensorVector& output_values,
+                                 const HostTensorVector& input_values) const
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::RNNCell::evaluate");
+    return evaluate_rnn_cell(input_values[0], input_values[1], input_values[2],
+            input_values[3], input_values[4], output_values[0], m_activations[0], m_clip);
 }

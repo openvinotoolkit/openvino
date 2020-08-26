@@ -52,7 +52,7 @@ namespace ngraph
             ///
             /// \sa         LSTMSequence, LSTMCell, GRUCell
             ///
-            class NGRAPH_API RNNCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API RNNCell : public Op, public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"RNNCell", 0};
@@ -131,8 +131,8 @@ namespace ngraph
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
