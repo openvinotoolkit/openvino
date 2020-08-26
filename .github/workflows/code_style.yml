@@ -2,7 +2,7 @@ name: Code Style
 on: [push, pull_request]
 
 jobs:
-  -job: nGraph
+  - job: nGraph
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -39,7 +39,7 @@ jobs:
           name: code_style_diff
           path: code_style_diff.patch
 
-  -job: Java bindings
+  - job: Java bindings
   runs-on: ubuntu-18.04
   steps:
     - name: Check code style
