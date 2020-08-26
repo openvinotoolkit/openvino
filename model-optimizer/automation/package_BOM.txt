@@ -151,6 +151,7 @@ extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
+extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
 extensions/front/mxnet/__init__.py
 extensions/front/mxnet/activation.py
@@ -327,7 +328,7 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
-extensions/front/SoftPlus_fusion.py
+extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
