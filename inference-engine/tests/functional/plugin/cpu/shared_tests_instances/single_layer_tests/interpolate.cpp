@@ -25,7 +25,6 @@ const std::vector<std::vector<size_t>> targetShapes = {
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modes = {
-        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
         ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
         ngraph::op::v4::Interpolate::InterpolateMode::cubic,
@@ -62,8 +61,31 @@ const std::vector<double> cubeCoefs = {
         -0.75f,
 };
 
-const auto interpolateCases = ::testing::Combine(
+/* ============= Mode is not equal to 'nearest' ============= */
+
+const auto interpolateCasesNonNearest = ::testing::Combine(
         ::testing::ValuesIn(modes),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_CASE_P(Interpolate_with_not_nearest, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesNonNearest,
+        ::testing::ValuesIn(prc),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    InterpolateLayerTest::getTestCaseName);
+
+/* ============= Mode is equal to 'nearest' ============= */
+const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearest_mode = {
+        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+};
+
+const auto interpolateCases = ::testing::Combine(
+        ::testing::ValuesIn(nearest_mode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(nearestModes),
         ::testing::ValuesIn(antialias),
