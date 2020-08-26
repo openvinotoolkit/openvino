@@ -377,8 +377,12 @@ check_agreement()
 check_current_driver()
 {   
     echo "Checking current driver version..."
-    gfx_version=$(lscl --format=shell | grep DRIVER_VERSION)
-    gfx_version=${gfx_version##*=}
+    if [[ $DISTRO == centos ]]; then
+        gfx_version=$(yum info intel-opencl | grep Version)
+    elif [[ $DISTRO == ubuntu ]]; then
+        gfx_version=$(apt show intel-opencl | grep Version)
+    fi
+    gfx_version=${gfx_version##*:}
     # install NEO OCL driver if current driver version < 19.41.14441
     if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
         echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION"
