@@ -282,13 +282,13 @@ namespace ngraph
                     }
                 }
                 if (num_groups > 1){
-                    std::vector<const OUTPUT*> const_results_cpy;
+                    std::vector<const char*> const_results_cpy;
                     std::vector<Shape> in_shapes;
                     for (size_t g = 0; g < num_groups; g++){
-                        const_results_cpy.push_back(result_groups[g].data());
+                        const_results_cpy.push_back(reinterpret_cast<const char *>(result_groups[g].data()));
                         in_shapes.push_back(group_out_shape);
                     }
-                    concat<OUTPUT>(const_results_cpy, out, in_shapes, Shape(out_shape), in_channel_axis);
+                    concat(const_results_cpy, reinterpret_cast<char *>(out), in_shapes, Shape(out_shape), in_channel_axis, sizeof(OUTPUT));
                 } else {
                     std::copy(result_groups[0].data(), result_groups[0].data() + shape_size(out_shape), out);
                 }

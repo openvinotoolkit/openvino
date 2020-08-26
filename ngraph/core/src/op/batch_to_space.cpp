@@ -151,6 +151,10 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
         return false;
     }
     auto data_shape = data->get_shape();
+
+    if (data_shape.size() != 4 || data_shape.size() != 5) {
+        return false;
+    }
     size_t block_values_size = shape_size(inputs[1]->get_shape());
     const auto *block_values = inputs[1]->get_data_ptr<int64_t>();
     const auto *crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
@@ -168,7 +172,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
     }
 
     auto *flat_data = data->get_data_ptr<char>();
-    auto *d0 = reinterpret_cast<float *>(flat_data);
 
     for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {
         dispersed_shape[0] = block_values[block_idx];
@@ -176,7 +179,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
         std::vector<char> dispersed_data(shape_size(dispersed_shape) * elem_size);
         runtime::opt_kernel::reshape(flat_data, dispersed_data.data(), data_shape, plain_axes_order, dispersed_shape,
                                      elem_size);
-        auto *d1 = reinterpret_cast<float *>(dispersed_data.data());
 
         size_t val = 1;
         for (size_t axis_idx = 0; axis_idx <= block_values_size; ++axis_idx) {
@@ -194,13 +196,11 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
         std::vector<char> post_transpose_data(shape_size(post_transpose_shape) * elem_size);
         runtime::opt_kernel::reshape(dispersed_data.data(), post_transpose_data.data(), dispersed_shape, axes_order,
                                      post_transpose_shape, elem_size);
-        auto *d2 = reinterpret_cast<float *>(post_transpose_data.data());
         squeezed_shape[0] = dispersed_shape[1];
         squeezed_shape[block_idx] *= block_values[block_idx];
         dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
         runtime::opt_kernel::reshape(post_transpose_data.data(), flat_data, post_transpose_shape, plain_axes_order,
                                      squeezed_shape, elem_size);
-        auto *d3 = reinterpret_cast<float *>(flat_data);
         data_shape = squeezed_shape;
     }
 
@@ -221,6 +221,5 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
     SlicePlan slice_plan = make_slice_plan(data_shape, begins, ends, default_strides, begin_mask, end_mask, AxisSet(),
                                            AxisSet(), AxisSet());
     runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
-    auto * d = outputs[0]->get_data_ptr<float>();
     return true;
 }

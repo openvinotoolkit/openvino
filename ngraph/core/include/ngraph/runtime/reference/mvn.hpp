@@ -31,9 +31,9 @@ namespace ngraph {
             template<typename T>
             void mvn(const T *arg, T *out, const Shape &in_shape, bool normalize_variance, AxisSet reduction_axes,
                      double eps) {
-                auto reduced_shape = reduce(in_shape, reduction_axes);
+                auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> mean_val(shape_size(reduced_shape));
-                mean(arg, mean_val.data(), in_shape, reduction_axes);
+                mean(arg, mean_val.data(), in_shape, reduction_axes, true);
                 std::vector<T> broadcast_mean_data(shape_size(in_shape));
                 broadcast(mean_val.data(), broadcast_mean_data.data(), reduced_shape, in_shape, reduction_axes);
                 subtract(arg, broadcast_mean_data.data(), out, shape_size(in_shape));
@@ -42,7 +42,7 @@ namespace ngraph {
                     std::vector<T> multiply_val(shape_size(in_shape));
                     multiply(out, out, multiply_val.data(),shape_size(in_shape));
                     std::vector<T> sum_val(shape_size(reduced_shape));
-                    sum(multiply_val.data(), sum_val.data(), in_shape, reduction_axes);
+                    sum(multiply_val.data(), sum_val.data(), in_shape, reduction_axes, true);
                     std::vector<T> broadcast_sum(shape_size(in_shape));
                     broadcast(sum_val.data(), broadcast_sum.data(), reduced_shape, in_shape, reduction_axes);
                     T n = 1;

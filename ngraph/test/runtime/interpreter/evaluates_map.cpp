@@ -27,9 +27,8 @@
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/select.hpp>
 
-#include "reference/detection_output.hpp"
-#include "reference/scatter_nd_update.hpp"
-#include "reference/scatter_update.hpp"
+#include "ngraph/runtime/reference/detection_output.hpp"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
 #include "reference/elu.hpp"
@@ -314,42 +313,6 @@ namespace {
         } else {
             throw ngraph_error(
                     "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
-        }
-        return true;
-    }
-
-    template<element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v3::ScatterUpdate> &op, const HostTensorVector &outputs,
-                  const HostTensorVector &input) {
-        using T = typename element_type_traits<ET>::value_type;
-        if (op->get_input_element_type(3) != element::i64)
-            throw ngraph_error(
-                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
-
-        auto idxType = op->get_input_element_type(1);
-        if (idxType == element::i32) {
-            runtime::reference::scatterUpdate<T, int32_t, int64_t>(
-                    input[0]->get_data_ptr<const T>(),
-                    input[1]->get_data_ptr<const int32_t>(),
-                    input[2]->get_data_ptr<const T>(),
-                    input[3]->get_data_ptr<const int64_t>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    op->get_input_shape(0),
-                    op->get_input_shape(1),
-                    op->get_input_shape(2));
-        } else if (idxType == element::i64) {
-            runtime::reference::scatterUpdate<T, int64_t, int64_t>(
-                    input[0]->get_data_ptr<const T>(),
-                    input[1]->get_data_ptr<const int64_t>(),
-                    input[2]->get_data_ptr<const T>(),
-                    input[3]->get_data_ptr<const int64_t>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    op->get_input_shape(0),
-                    op->get_input_shape(1),
-                    op->get_input_shape(2));
-        } else {
-            throw ngraph_error(
-                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
         }
         return true;
     }

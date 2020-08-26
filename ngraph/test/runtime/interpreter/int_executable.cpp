@@ -315,8 +315,8 @@ runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node> &
     {
         res = it->second(node, outputs, inputs);
         if (!res) {
-            throw ngraph_error(std::string("Interpreter backend doesn't implement evaluate method for OP ") +
-                               node->get_type_info().name);
+            throw ngraph_error(std::string("Running evaluate method for OP ") +
+                               node->get_type_info().name + std::string(" failed!"));
         }
     }
     else
