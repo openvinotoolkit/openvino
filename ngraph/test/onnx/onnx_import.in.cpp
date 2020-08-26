@@ -18,7 +18,6 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -51,8 +50,6 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
