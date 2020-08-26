@@ -22,6 +22,21 @@ from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
 
 
+def replace_with_hswish(graph: Graph, match: [dict, SubgraphMatch]):
+    add = match['add']
+    mul_2 = match['mul_2']
+
+    # determine the input port of Add which gets the 'input' node output
+    input_port = int(add.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
+    mul_2_name = mul_2.soft_get('name', mul_2.id)
+
+    hswish = HSwish(graph, {}).create_node()
+    hswish.in_port(0).connect(add.in_port(input_port).get_source())
+    mul_2.out_port(0).get_connection().set_source(hswish.out_port(0))
+
+    rename_nodes([(mul_2, mul_2_name + '/TBR'), (hswish, mul_2_name)])
+
+
 class HSwishWithClamp(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with ReLU6 (Clamp) defining the HSwish function.
@@ -45,27 +60,56 @@ class HSwishWithClamp(FrontReplacementSubgraph):
                 ('mul_2', dict(op='Mul')),
             ],
             edges=[
-                ('input', 'add', {'out': 0}),
-                ('input', 'mul', {'out': 0}),
+                ('input', 'add', {}),
+                ('input', 'mul', {}),
                 ('const_3', 'add', {}),
                 ('add', 'clamp', {'in': 0}),
-                ('clamp', 'mul', {}),
                 ('const_0', 'clamp', {'in': 1}),
                 ('const_6', 'clamp', {'in': 2}),
+                ('clamp', 'mul', {}),
                 ('mul', 'mul_2', {}),
                 ('const_1_6', 'mul_2', {}),
             ])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        add = match['add']
-        mul_2 = match['mul_2']
+        replace_with_hswish(graph, match)
 
-        # determine the input port of Add which gets the 'input' node output
-        input_port = int(add.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
-        mul_2_name = mul_2.soft_get('name', mul_2.id)
 
-        hswish = HSwish(graph, {}).create_node()
-        hswish.in_port(0).connect(add.in_port(input_port).get_source())
-        mul_2.out_port(0).get_connection().set_source(hswish.out_port(0))
+class HSwishWithMinMax(FrontReplacementSubgraph):
+    """
+    The transformation looks for the pattern with Min/Max defining the HSwish function.
+    """
+    enabled = True
 
-        rename_nodes([(mul_2, mul_2_name + '/TBR'), (hswish, mul_2_name)])
+    def run_after(self):
+        return [AttributedClampNormalizer]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('input', dict()),
+                ('add', dict(op='Add')),
+                ('const_0', dict(op='Const', value=lambda v: v is not None and np.isclose(v, [0.0], atol=1e-6))),
+                ('const_3', dict(op='Const', value=lambda v: v is not None and np.isclose(v, [3.0], atol=1e-6))),
+                ('const_6', dict(op='Const', value=lambda v: v is not None and np.isclose(v, [6.0], atol=1e-6))),
+                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.isclose(v, [1 / 6.0], atol=1e-6))),
+                ('max', dict(op='Maximum')),
+                ('min', dict(op='Minimum')),
+                ('mul', dict(op='Mul')),
+                ('mul_2', dict(op='Mul')),
+            ],
+            edges=[
+                ('input', 'add', {'out': 0}),
+                ('input', 'mul', {'out': 0}),
+                ('const_3', 'add', {}),
+                ('add', 'max', {}),
+                ('const_0', 'max', {}),
+                ('max', 'min', {}),
+                ('const_6', 'min', {}),
+                ('min', 'mul', {}),
+                ('mul', 'mul_2', {}),
+                ('const_1_6', 'mul_2', {}),
+            ])
+
+    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
+        replace_with_hswish(graph, match)
