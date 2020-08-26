@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// This is the pass that finds the pattern which consists of a Convolution stage
-// with 2 consumers - Power and Concat stages (Power stage is also followed by Concat),
-// ScaleShift (or Scale, it depends on biases) which comes after Concat,
-// and the last one is Relu.
+// This pass changes geometry of convolution stages in order
+// to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
 
 #include <vpu/middleend/pass_manager.hpp>
 
