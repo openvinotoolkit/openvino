@@ -38,3 +38,12 @@ jobs:
         with:
           name: code_style_diff
           path: code_style_diff.patch
+
+  jobs:
+    InferenceEngine:
+      runs-on: ubuntu-18.04
+      steps:
+        - name: Check java code style
+          run: |
+            ngraph/maint/codestyle_check.sh
+            git diff >java_code_style_diff.patch
