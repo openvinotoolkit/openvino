@@ -5,11 +5,7 @@ jobs:
   InferenceEngine:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-
       - name: Check java code style
         run: |
-          inference-engine/ie_bridges/java/scripts/codestyle_check.sh
+          ngraph/maint/codestyle_check.sh
           git diff >java_code_style_diff.patch
