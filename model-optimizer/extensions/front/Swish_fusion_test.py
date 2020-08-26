@@ -18,7 +18,7 @@ import unittest
 
 from extensions.front.Swish_fusion import SwishWithSigmoidWithoutBeta, SwishWithSigmoidWithBeta
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
+from mo.utils.unittest.graph import build_graph, regular_op, result, build_graph_with_edge_attrs
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),
              **regular_op('swish', {'type': 'Swish', 'name': 'final_mul'}),

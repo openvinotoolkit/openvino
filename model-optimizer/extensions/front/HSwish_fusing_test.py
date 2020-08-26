@@ -17,7 +17,7 @@
 import unittest
 
 from extensions.front.HSwish_fusion import HSwishWithClamp, HSwishWithMinMax
-from mo.front.common.partial_infer.utils import int64_array, float_array
+from mo.front.common.partial_infer.utils import float_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
 
