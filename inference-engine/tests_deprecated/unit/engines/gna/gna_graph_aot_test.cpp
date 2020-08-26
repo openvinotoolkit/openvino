@@ -118,7 +118,7 @@ TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
+TEST_F(GNAAOTTests, DISABLED_CanConvertFromAOTtoSueModel) {
 
     auto & nnet_type = storage<intel_nnet_type_t>();
 
