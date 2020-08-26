@@ -18,6 +18,9 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
+// suppress FusedOp deprecation warnings
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -31,11 +34,8 @@ struct recurrent_sequence_parameters
     Dimension seq_length = 12;
     Dimension input_size = 8;
     Dimension hidden_size = 256;
-    ngraph::element::Type et;
+    ngraph::element::Type et = element::f32;
 };
-
-// suppress FusedOp deprecation warnings
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 //
 // Create and initialize default input test tensors.
@@ -510,5 +510,3 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
                              std::string("LSTMSequence input tensor P shall have static rank."));
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END
