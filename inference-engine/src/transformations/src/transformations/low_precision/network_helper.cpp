@@ -187,8 +187,8 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
 
-    inputs[multiplyBranch] = x;
-    inputs[multiplyBranch == 0 ? 1 : 0] = bDivA;
+    inputs[0] = x;
+    inputs[1] = bDivA;
 
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
@@ -783,8 +783,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(
             replace_node(newOperation, newOperation2);
             newOperation = newOperation2;
         } else {
+            optimizeSubtract(dequantization.subtract);
             // TODO: use: optimizeSubtract(dequantization.subtract);
-            removeConvertIfPossible(newOperation, dequantization);
+            //removeConvertIfPossible(newOperation, dequantization);
         }
     }
 

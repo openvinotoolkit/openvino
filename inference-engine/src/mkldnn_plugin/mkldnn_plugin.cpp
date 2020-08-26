@@ -27,6 +27,7 @@
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/low_precision/group_convolution.hpp>
+#include <transformations/low_precision/multiply_to_group_convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_precision.hpp>
@@ -131,7 +132,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true)));
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
+            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
 

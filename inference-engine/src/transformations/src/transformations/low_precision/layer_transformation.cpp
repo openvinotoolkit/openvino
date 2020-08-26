@@ -414,6 +414,21 @@ void LayerTransformation::updateOutput(
     }
 }
 
+void LayerTransformation::updateOutput(
+    TransformationContext& context,
+    std::shared_ptr<ngraph::Node> lastNode,
+    std::string originalName) const {
+    const size_t outputSize = context.function->get_output_size();
+    for (size_t i = 0; i < outputSize; ++i) {
+        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
+        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+        if (outputNode.get() == lastNode.get()) {
+            lastNode->set_friendly_name(originalName);
+            break;
+        }
+    }
+}
+
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         const bool result = transform(context, m);

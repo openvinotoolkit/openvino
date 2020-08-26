@@ -391,9 +391,9 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         },
         {
             ngraph::element::i8,
-            { {},  { }, { }},
+            { {ngraph::element::f32},  { }, { }},
             ngraph::element::i8,
-            { {ngraph::element::f32},  {}, {} },
+            { {},  {}, {} },
             { {},  {}, {5.f} },
             { 2.f, 1.f, 0.4f, 0.8f, 0.6f, 2.4f, 1.6f, 2.8f }
         },
