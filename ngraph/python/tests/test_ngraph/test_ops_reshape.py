@@ -136,7 +136,7 @@ def test_gather():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_transpose():
     input_tensor = np.arange(3 * 3 * 224 * 224).reshape((3, 3, 224, 224))
     input_order = np.array([0, 2, 3, 1])
@@ -148,7 +148,7 @@ def test_transpose():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_tile():
     input_tensor = np.arange(6).reshape((2, 1, 3))
     repeats = np.array([2, 1])
@@ -160,7 +160,7 @@ def test_tile():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_strided_slice():
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
     begin = np.array([1, 0], dtype=np.int64)
@@ -187,7 +187,7 @@ def test_strided_slice():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_reshape_v1():
     A = np.arange(1200, dtype=np.float32).reshape((2, 5, 5, 24))
     shape = np.array([0, -1, 4])

@@ -18,7 +18,7 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35926, xfail_issue_34323
+from tests import xfail_issue_35926
 
 
 def test_reverse_sequence():
@@ -191,12 +191,12 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_select():
-    cond = [[False, False], [True, False], [True, True]]
-    then_node = [[-1, 0], [1, 2], [3, 4]]
-    else_node = [[11, 10], [9, 8], [7, 6]]
-    excepted = [[11, 10], [1, 8], [3, 4]]
+    cond = np.array([[False, False], [True, False], [True, True]])
+    then_node = np.array([[-1, 0], [1, 2], [3, 4]])
+    else_node = np.array([[11, 10], [9, 8], [7, 6]])
+    excepted = np.array([[11, 10], [1, 8], [3, 4]])
 
     result = run_op_node([cond, then_node, else_node], ng.select)
     assert np.allclose(result, excepted)

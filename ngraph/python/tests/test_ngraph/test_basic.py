@@ -146,7 +146,7 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=int)), ("boolean", np.zeros((2, 2), dtype=int))],
@@ -176,7 +176,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_34323
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -199,7 +199,7 @@ def test_convert_to_int(destination_type, expected_type):
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_34323
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -287,7 +287,7 @@ def test_backend_config():
 
 @xfail_issue_34323
 def test_result():
-    node = [[11, 10], [1, 8], [3, 4]]
+    node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ng.result)
     assert np.allclose(result, node)
 

@@ -19,7 +19,7 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_34323, xfail_issue_35929
+from tests import xfail_issue_34323, xfail_issue_35929, xfail_issue_35926
 
 
 @xfail_issue_34323
@@ -58,13 +58,13 @@ def test_lrn():
     )
 
 
-@xfail_issue_34323
+@xfail_issue_35926
 def test_lrn_factory():
     alpha = 0.0002
     beta = 0.5
     bias = 2.0
     nsize = 3
-    axis = [1]
+    axis = np.array([1])
     x = np.array(
         [
             [
@@ -106,13 +106,13 @@ def test_lrn_factory():
 
 @xfail_issue_35929
 def test_batch_norm_inference():
-    data = [[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]]
-    gamma = [2.0, 3.0, 4.0]
-    beta = [0.0, 0.0, 0.0]
-    mean = [0.0, 0.0, 0.0]
-    variance = [1.0, 1.0, 1.0]
+    data = np.array([[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]])
+    gamma = np.array([2.0, 3.0, 4.0])
+    beta = np.array([0.0, 0.0, 0.0])
+    mean = np.array([0.0, 0.0, 0.0])
+    variance = np.array([1.0, 1.0, 1.0])
     epsilon = 9.99e-06
-    excepted = [[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]]
+    excepted = np.array([[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]])
 
     result = run_op_node([data, gamma, beta, mean, variance], ng.batch_norm_inference, epsilon)
 
