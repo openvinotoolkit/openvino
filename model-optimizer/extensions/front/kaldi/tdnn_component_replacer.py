@@ -90,6 +90,7 @@ class TdnnComponentReplacer(FrontReplacementPattern):
 
         fc_node = FullyConnected(graph, {'name': tdnn_name + '_fc',
                                          'out-size': weights.shape[0],
+                                         'transpose_weights': True,
                                          'bias_term': bias_term}).create_node()
         concat_node.out_port(0).connect(fc_node.in_port(0))
         tdnn_node.in_port(0).disconnect()
