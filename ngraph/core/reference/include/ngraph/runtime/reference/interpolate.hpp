@@ -60,7 +60,7 @@ namespace ngraph
                 /// \brief Performing the nearest pixel calculation.
                 ///
                 /// \param original original coordinate
-                /// \param is_downsample true if we have downsample and false otherwise
+                /// \param is_downsample true if it has downsample and false otherwise
                 ///
                 /// \return the nearest pixel
                 int64_t operator()(float original, bool is_downsample) const
@@ -205,6 +205,7 @@ namespace ngraph
                 }
             };
 
+            /// \brief Helper class to implent non-template parts of the interpolation calculation.
             class InterpolateEvalHelper final
             {
             public:
@@ -311,12 +312,16 @@ namespace ngraph
                 std::vector<float> m_scales;
             };
 
+            /// \brief Class to perform interpolation calculation.
             template <typename T>
             class InterpolateEval final
             {
             public:
                 InterpolateEval() = default;
 
+                /// \brief Constructs interpolation calculation using Interpolate attributes.
+                ///
+                /// \param attrs Interpolate-4 attributes.
                 InterpolateEval(const op::v4::Interpolate::InterpolateAttrs& attrs)
                     : m_attrs{attrs}
                     , m_interp_mode{attrs.mode}
@@ -326,6 +331,14 @@ namespace ngraph
 
                 ~InterpolateEval() = default;
 
+                /// \brief Performing interpolation calculation.
+                ///
+                /// \param input_data pointer to input data
+                /// \param input_data_shape shape of the input data
+                /// \param scales scale factors for each interpolated axis
+                /// \param axes axes to interpolate
+                /// \param out pointer to memory block for output data
+                /// \param out_shape shape of output data
                 void operator()(const T* input_data,
                                 const Shape& input_data_shape,
                                 const std::vector<float>& scales,
@@ -368,9 +381,28 @@ namespace ngraph
 
                 InterpolateEvalHelper helper;
 
+                /// \brief Calculates linear interpolation.
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
                 void linear_func(const T* input_data, T* out);
+
+                /// \brief Calculates interpolation as in ONNX 'linear' mode
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
                 void linear_onnx_func(const T* input_data, T* out);
+
+                /// \brief Calculates cubic interpolation.
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
                 void cubic_func(const T* input_data, T* out);
+
+                /// \brief Calculates 'nearest' mode of interpolation.
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
                 void nearest_func(const T* input_data, T* out);
             };
 
