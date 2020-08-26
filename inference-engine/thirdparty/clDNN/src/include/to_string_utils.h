@@ -170,10 +170,10 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_yx_osv32_isv32p";
         case format::os_is_zyx_isv16_osv16:
             return "os_is_zyx_isv16_osv16";
-        case format::is_os_zyx_osv16_isv16:
-            return "is_os_zyx_osv16_isv16";
-        case format::is_os_yx_osv16_isv16:
-            return "is_os_yx_osv16_isv16";
+        case format::is_os_zyx_isv16_osv16:
+            return "is_os_zyx_isv16_osv16";
+        case format::is_os_yx_isv16_osv16:
+            return "is_os_yx_isv16_osv16";
         case format::os_is_osv32_isv32_swizzled_by_4:
             return "os_is_osv32_isv32_swizzled_by_4";
         case format::os_is_zyx_isv8_osv16_isv2:
@@ -193,10 +193,10 @@ inline std::string fmt_to_str(format fmt) {
             return "gs_oiyx_gsv16";
         case format::gs_oiyx_gsv32:
             return "gs_oiyx_gsv32";
-        case format::g_is_os_zyx_osv16_isv16:
-            return "g_is_os_zyx_osv16_isv16";
-        case format::g_is_os_yx_osv16_isv16:
-            return "g_is_os_yx_osv16_isv16";
+        case format::g_is_os_zyx_isv16_osv16:
+            return "g_is_os_zyx_isv16_osv16";
+        case format::g_is_os_yx_isv16_osv16:
+            return "g_is_os_yx_isv16_osv16";
         case format::g_os_is_zyx_isv8_osv16_isv2:
             return "g_os_is_zyx_isv8_osv16_isv2";
         case format::g_os_is_yx_isv8_osv16_isv2:
