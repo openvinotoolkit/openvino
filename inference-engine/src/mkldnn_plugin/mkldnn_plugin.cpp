@@ -285,9 +285,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
         auto clonedNetwork = cloneNetwork(network);
         Transformation(clonedNetwork);
@@ -313,6 +311,24 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
+
+        for (auto&& node : function->get_ops()) {
+            if (!contains(unsupported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
         for (auto&& layerName : supported) {
             if (!contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());
