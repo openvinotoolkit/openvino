@@ -72,7 +72,17 @@ std::shared_ptr<ngraph::Node> ngraph::op::GenericIE::clone_with_new_inputs(const
 }
 
 void ngraph::op::GenericIE::validate_and_infer_types() {
-    // Try to find extension with shape inference inplementation and apply it
+    // This function returns precision based on existing precision and
+    // precision that was set in outputs vector
+    auto get_precision = [this](const size_t index) -> element::Type {
+        if (index >= get_output_size() ||
+            get_output_element_type(index) == element::dynamic ||
+            get_output_element_type(index) == element::undefined) {
+            return InferenceEngine::details::convertPrecision(outputs[index].precision);
+        }
+        return get_output_element_type(index);
+    };
+    // Try to find extension with shape inference implementation and apply it
     for (const auto& ext : extensions) {
         IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::IShapeInferImpl::Ptr impl;
@@ -89,10 +99,8 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
 
             if (!this_input_shape.is_static()) {
                 // Set dynamic output shapes if input shapes are not defined
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    const auto& port = outputs[i];
-                    auto type = InferenceEngine::details::convertPrecision(port.precision);
-                    set_output_type(i, type, PartialShape::dynamic());
+                for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
+                    set_output_type(output_index, get_precision(output_index), PartialShape::dynamic());
                 }
                 return;
             }
@@ -131,13 +139,9 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
 
         if (ret != InferenceEngine::StatusCode::OK || outShapes.size() != outputs.size()) continue;
 
-        for (size_t i = 0; i < outputs.size(); i++) {
-            const auto& port = outputs[i];
-            ngraph::Shape outShape(outShapes[i]);
-            auto type = InferenceEngine::details::convertPrecision(port.precision);
-            set_output_type(i, type, PartialShape(outShape));
+        for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
+            set_output_type(output_index, get_precision(output_index), Shape(outShapes[output_index]));
         }
-
         return;
     }
 
@@ -146,11 +150,8 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
     if (initialized < 1) {
         if (outputs.size())
             set_output_size(outputs.size());
-        for (size_t i = 0; i < outputs.size(); i++) {
-            const auto& port = outputs[i];
-            ngraph::Shape outShape(port.dims);
-            auto type = InferenceEngine::details::convertPrecision(port.precision);
-            set_output_type(i, type, PartialShape(outShape));
+        for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
+            set_output_type(output_index, get_precision(output_index), Shape(outputs[output_index].dims));
         }
         initialized++;
     } else if (reshape) {
