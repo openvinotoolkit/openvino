@@ -104,14 +104,13 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_osv32_isv32p,                       {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_is_zyx_isv16_osv16,                       {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_isv16_osv16,                        {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_zyx_osv16_isv16,                       {  0,  1,  2,   4,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_yx_osv16_isv16,                        {  0,  1, -1,   3,   2, -1, -1, -1 } },
+    { WeightsLayout::is_os_zyx_isv16_osv16,                       {  0,  1,  2,   4,   3, -1, -1, -1 } },
+    { WeightsLayout::is_os_yx_isv16_osv16,                        {  0,  1, -1,   3,   2, -1, -1, -1 } },
     { WeightsLayout::os_is_osv32_isv32_swizzled_by_4,             { -1, -1, -1,   0,   1, -1, -1, -1 } },
     { WeightsLayout::os_is_zyx_isv8_osv16_isv2,                   {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_isv8_osv16_isv2,                    {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_zyxi_osv16,                               {  1,  2,  3,   0,   4, -1, -1, -1 } },
     { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1, -1, -1 } },
-    { WeightsLayout::is_os_yx_osv16_isv16,                        {  0,  1, -1,   3,   2, -1, -1, -1 } },
     { WeightsLayout::goiyx,                                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
     { WeightsLayout::goizyx,                                      {  0,  1,  2,   3,   4, -1, -1,  5 } },
     { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3, -1, -1,  4 } },
@@ -121,8 +120,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::gs_oiyx_gsv32,                               {  0,  1, -1,   2,   3, -1, -1,  4 } },
     { WeightsLayout::gyxio,                                       {  2,  3, -1,   1,   0, -1, -1,  4 } },
     { WeightsLayout::gi_yxs_os_yxsv2_osv16,                       {  1,  2, -1,   3,   0, -1, -1,  4 } },
-    { WeightsLayout::g_is_os_zyx_osv16_isv16,                     {  0,  1,  2,   4,   3, -1, -1,  5 } },
-    { WeightsLayout::g_is_os_yx_osv16_isv16,                      {  0,  1, -1,   3,   2, -1, -1,  4 } },
+    { WeightsLayout::g_is_os_zyx_isv16_osv16,                     {  0,  1,  2,   4,   3, -1, -1,  5 } },
+    { WeightsLayout::g_is_os_yx_isv16_osv16,                      {  0,  1, -1,   3,   2, -1, -1,  4 } },
     { WeightsLayout::g_os_is_zyx_isv8_osv16_isv2,                 {  0,  1,  2,   3,   4, -1, -1,  5 } },
     { WeightsLayout::g_os_is_yx_isv8_osv16_isv2,                  {  0,  1, -1,   2,   3, -1, -1,  4 } },
     { WeightsLayout::g_os_is_zyx_isv16_osv16,                     {  0,  1,  2,   3,   4, -1, -1,  5 } },
@@ -542,12 +541,12 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             newDims[3] = RoundUp(newDims[3], 16);
             newDims[4] = RoundUp(newDims[4], 16);
             break;
-        case is_os_zyx_osv16_isv16:
+        case is_os_zyx_isv16_osv16:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 16);
             newDims[4] = RoundUp(newDims[4], 16);
             break;
-        case is_os_yx_osv16_isv16:
+        case is_os_yx_isv16_osv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
             newDims[3] = RoundUp(newDims[3], 16);
@@ -594,12 +593,12 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             assert(newDims.size() == 5);
             newDims[0] = RoundUp(newDims[0], 16);
             break;
-        case g_is_os_zyx_osv16_isv16:
+        case g_is_os_zyx_isv16_osv16:
             assert(newDims.size() == 6);
             newDims[3] = RoundUp(newDims[3], 16);
             newDims[4] = RoundUp(newDims[4], 16);
             break;
-        case g_is_os_yx_osv16_isv16:
+        case g_is_os_yx_isv16_osv16:
             assert(newDims.size() == 5);
             newDims[2] = RoundUp(newDims[2], 16);
             newDims[3] = RoundUp(newDims[3], 16);

@@ -34,8 +34,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::os_is_yx_osv32_isv32p:
         case WeightsLayout::os_is_yx_isv16_osv16:
         case WeightsLayout::os_is_zyx_isv16_osv16:
-        case WeightsLayout::is_os_zyx_osv16_isv16:
-        case WeightsLayout::is_os_yx_osv16_isv16:
+        case WeightsLayout::is_os_zyx_isv16_osv16:
+        case WeightsLayout::is_os_yx_isv16_osv16:
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:
         case WeightsLayout::os_zyxi_osv16:
@@ -46,8 +46,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::gs_oiyx_gsv32:
         case WeightsLayout::g_os_iyx_osv16_rotate_180:
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:
-        case WeightsLayout::g_is_os_zyx_osv16_isv16:
-        case WeightsLayout::g_is_os_yx_osv16_isv16:
+        case WeightsLayout::g_is_os_zyx_isv16_osv16:
+        case WeightsLayout::g_is_os_yx_isv16_osv16:
         case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
         case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
         case WeightsLayout::g_os_is_zyx_isv16_osv16:
@@ -217,6 +217,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
 
 KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options, float estimated_time) const {
     assert(params.GetType() == KernelType::REORDER);
+    if (!Validate(params, options))
+        return {};
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());

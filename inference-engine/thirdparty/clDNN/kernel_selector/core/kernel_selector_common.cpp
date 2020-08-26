@@ -344,8 +344,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                       return "OIZYX";
         case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";
-        case WeightsLayout::is_os_zyx_osv16_isv16:                       return "IS_OS_ZYX_OSV16_ISV16";
-        case WeightsLayout::is_os_yx_osv16_isv16:                        return "IS_OS_YX_OSV16_ISV16";
+        case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
+        case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:                   return "OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::os_zyxi_osv16:                               return "OS_ZYXI_OSV16";
         case WeightsLayout::os_is_yx_isv8_osv16_isv2:                    return "OS_IS_YX_ISV8_OSV16_ISV2";
@@ -360,8 +360,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::gs_oizyx_gsv16:                              return "GS_OIZYX_GSV16";
         case WeightsLayout::gs_oiyx_gsv32:                               return "GS_OIYX_GSV32";
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:                       return "GI_YXS_OS_YXSV2_OSV16";
-        case WeightsLayout::g_is_os_zyx_osv16_isv16:                     return "G_IS_OS_ZYX_OSV16_ISV16";
-        case WeightsLayout::g_is_os_yx_osv16_isv16:                      return "G_IS_OS_YX_OSV16_ISV16";
+        case WeightsLayout::g_is_os_zyx_isv16_osv16:                     return "G_IS_OS_ZYX_ISV16_OSV16";
+        case WeightsLayout::g_is_os_yx_isv16_osv16:                      return "G_IS_OS_YX_ISV16_OSV16";
         case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:                 return "G_OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:                  return "G_OS_IS_YX_ISV8_OSV16_ISV2";
         case WeightsLayout::g_os_is_zyx_isv16_osv16:                     return "G_OS_IS_ZYX_ISV16_OSV16";
