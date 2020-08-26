@@ -50,7 +50,8 @@ class SwishWithSigmoidWithoutBetaTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
+        self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
+                        graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
 
     def test_swish_with_sigmoid_without_beta_different_tensors(self):
         graph = build_graph_with_edge_attrs({
@@ -103,7 +104,8 @@ class SwishWithSigmoidWithBetaTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
+        self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
+                        graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
 
     def test_swish_with_sigmoid_with_beta_different_tensors(self):
         graph = build_graph_with_edge_attrs({

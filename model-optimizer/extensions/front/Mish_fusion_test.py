@@ -52,7 +52,8 @@ class MishFusionTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Mish')
+        self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
+                        graph.get_op_nodes(name='final_mul')[0].op == 'Mish')
 
     def test_mish_fusion_different_source(self):
         # check case when different tensors goes to Mul and SoftPlus

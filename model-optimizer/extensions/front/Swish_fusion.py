@@ -64,15 +64,12 @@ class SwishWithSigmoidWithBeta(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('input', dict()),
                 ('sigmoid', dict(op='Sigmoid')),
                 ('beta', dict()),
                 ('mul_beta', dict(op='Mul')),
                 ('mul', dict(op='Mul')),
             ],
             edges=[
-                ('input', 'mul_beta', {}),
-                ('input', 'mul', {}),
                 ('beta', 'mul_beta', {}),
                 ('mul_beta', 'sigmoid', {}),
                 ('sigmoid', 'mul', {}),
@@ -95,7 +92,7 @@ class SwishWithSigmoidWithBeta(FrontReplacementSubgraph):
         swish = Swish(graph, {}).create_node()
         swish.in_port(0).connect(mul_beta.in_port(mul_beta_input_port_idx).get_source())
 
-        # connect Beta valueо
+        # connect Beta value
         swish.in_port(1).connect(mul_beta.in_port(1 - mul_beta_input_port_idx).get_source())
 
         mul.out_port(0).get_connection().set_source(swish.out_port(0))

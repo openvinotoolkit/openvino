@@ -54,7 +54,8 @@ class SoftplusFusionTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(name='final_log')[0].op == 'SoftPlus')
+        self.assertTrue(len(graph.get_op_nodes(name='final_log')) == 1 and
+                        graph.get_op_nodes(name='final_log')[0].op == 'SoftPlus')
 
     def test_softplus_fusion_test_wrong_const(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_1': {'value': float_array([0.9999])}})
