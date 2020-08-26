@@ -30,6 +30,7 @@ CENTOS_MINOR=
 UBUNTU_VERSION=
 DISTRO=
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+INSTALL_DRIVER_VERSION='19.41.14441'
 
 params=$@
 
@@ -235,23 +236,23 @@ _download_packages_centos()
 }
 
 
-_verify_checksumm_ubuntu()
+_verify_checksum_ubuntu()
 {
     wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/ww41.sum
     sha256sum -c ww41.sum
 }
 
-_verify_checksumm_centos()
+_verify_checksum_centos()
 {
     sha1sum -c $SCRIPT_DIR/neo_centos_ww41.sum
 }
 
-verify_checksumm()
+verify_checksum()
 {
     if [[ $DISTRO == "centos" ]]; then
-        _verify_checksumm_centos
+        _verify_checksum_centos
     else
-        _verify_checksumm_ubuntu
+        _verify_checksum_ubuntu
     fi
 }
 
@@ -265,9 +266,9 @@ download_packages()
     else
         _download_packages_ubuntu
     fi
-    verify_checksumm
+    verify_checksum
     if [[ $? -ne 0 ]]; then
-        echo "ERROR: checksumm do not match for downloaded packages"
+        echo "ERROR: checksum do not match for downloaded packages"
         echo "       Please verify your Internet connection and make sure you have enough disk space or fix the problem manually and try again "
         exit $EXIT_FAILURE
     fi
@@ -361,7 +362,7 @@ check_agreement()
         return 0
     fi
 
-    echo "This script will download and install Intel(R) Graphics Compute Runtime 19.41.14441, "
+    echo "This script will download and install Intel(R) Graphics Compute Runtime $INSTALL_DRIVER_VERSION, "
     echo "that was used to validate this OpenVINO package.\n"
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
@@ -371,6 +372,24 @@ check_agreement()
             [Nn]*) exit 1 ;;
         esac
     done
+}
+
+check_current_driver()
+{   
+    echo "Checking current driver version..."
+    if [[ $DISTRO == centos ]]; then
+        gfx_version=$(yum info intel-opencl | grep Version)
+    elif [[ $DISTRO == ubuntu ]]; then
+        gfx_version=$(apt show intel-opencl | grep Version)
+    fi
+    gfx_version=${gfx_version##*:}
+    # install NEO OCL driver if current driver version < 19.41.14441
+    if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
+        echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION"
+        exit "Installation of Intel Compute Runtime interrupted"
+    else
+        echo "Starting installation"
+    fi
 }
 
 install()
@@ -387,6 +406,7 @@ main()
     echo "Intel OpenCL graphics driver installer"
     distro_init
     check_root_access
+    check_current_driver
     check_agreement
     install
     summary
