@@ -20,13 +20,13 @@ public class InferRequestTests extends IETest {
     public void setUp() {
         core = new IECore();
         net = core.ReadNetwork(modelXml);
-        executableNetwork = core.LoadNetwork(net, "CPU");
+        executableNetwork = core.LoadNetwork(net, device);
         inferRequest = executableNetwork.CreateInferRequest();
         completionCallback = false;
     }
 
     @Test
-    public void testGetPerformanceCounts(){   
+    public void testGetPerformanceCounts() {
         inferRequest.Infer();
 
         Vector<String> layer_name = new Vector<>();
@@ -58,7 +58,7 @@ public class InferRequestTests extends IETest {
         assertEquals("Map size", layer_name.size(), res.size());
         ArrayList<String> resKeySet = new ArrayList<String>(res.keySet());
 
-        for (int i = 0; i < res.size(); i++){
+        for (int i = 0; i < res.size(); i++) {
             String key  = resKeySet.get(i);
             InferenceEngineProfileInfo resVal = res.get(key);
 
@@ -79,7 +79,7 @@ public class InferRequestTests extends IETest {
 
     @Test
     public void testSetCompletionCallback() {
-        inferRequest.SetCompletionCallback(new Runnable(){
+        inferRequest.SetCompletionCallback(new Runnable() {
 
             @Override
             public void run() {

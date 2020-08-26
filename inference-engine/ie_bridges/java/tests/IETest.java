@@ -14,7 +14,7 @@ import org.intel.openvino.*;
 public class IETest {
     String modelXml;
     String modelBin;
-    String device;
+    static String device;
 
     public IETest() {
         try {
@@ -25,7 +25,6 @@ public class IETest {
         }
         modelXml = Paths.get(System.getenv("MODELS_PATH"), "models", "test_model", "test_model_fp32.xml").toString();
         modelBin = Paths.get(System.getenv("MODELS_PATH"), "models", "test_model", "test_model_fp32.bin").toString();
-        device = "CPU";
     }
 
     @Rule

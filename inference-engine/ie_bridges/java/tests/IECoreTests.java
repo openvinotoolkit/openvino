@@ -10,46 +10,41 @@ public class IECoreTests extends IETest {
     IECore core = new IECore();
     
     @Test
-    public void testInitIECore(){
-        assertTrue(core instanceof IECore);
-    }
-
-    @Test
-    public void testReadNetwork(){
+    public void testReadNetwork() {
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
         assertEquals("Network name", "test_model", net.getName());
     }
 
     @Test
-    public void testReadNetworkXmlOnly(){
+    public void testReadNetworkXmlOnly() {
         CNNNetwork net = core.ReadNetwork(modelXml);
         assertEquals("Batch size", 1, net.getBatchSize());
     }
 
     @Test
-    public void testReadNetworkIncorrectXmlPath(){
+    public void testReadNetworkIncorrectXmlPath() {
         String exceptionMessage = "";
         try {
             CNNNetwork net = core.ReadNetwork("model.xml", modelBin);
-        } catch (Exception e){
+        } catch (Exception e) {
             exceptionMessage = e.getMessage();
         }
         assertTrue(exceptionMessage.contains("Model file model.xml cannot be opened!"));
     }
 
     @Test
-    public void testReadNetworkIncorrectBinPath(){
+    public void testReadNetworkIncorrectBinPath() {
         String exceptionMessage = "";
         try {
             CNNNetwork net = core.ReadNetwork(modelXml, "model.bin");
-        } catch (Exception e){
+        } catch (Exception e) {
             exceptionMessage = e.getMessage();
         }
         assertTrue(exceptionMessage.contains("Weights file model.bin cannot be opened!"));
     }
 
     @Test
-    public void testLoadNetwork(){
+    public void testLoadNetwork() {
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
         ExecutableNetwork executableNetwork = core.LoadNetwork(net, device);
 
@@ -57,7 +52,7 @@ public class IECoreTests extends IETest {
     }
 
     @Test
-    public void testLoadNetworDeviceConfig(){
+    public void testLoadNetworDeviceConfig() {
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
 
         Map<String, String> testMap = new HashMap<String, String>();
@@ -72,12 +67,12 @@ public class IECoreTests extends IETest {
     }
 
     @Test
-    public void testLoadNetworkWrongDevice(){
+    public void testLoadNetworkWrongDevice() {
         String exceptionMessage = "";
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
         try {
             core.LoadNetwork(net, "DEVISE");
-        } catch (Exception e){
+        } catch (Exception e) {
             exceptionMessage = e.getMessage();
         }
         assertTrue(exceptionMessage.contains("Device with \"DEVISE\" name is not registered in the InferenceEngine"));
