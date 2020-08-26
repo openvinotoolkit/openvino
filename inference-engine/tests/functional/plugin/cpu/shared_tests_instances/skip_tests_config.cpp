@@ -51,6 +51,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
-        R"(.*InterpolateLayerTest.*)"
+        // TODO: Issue: 30999 (Implement Interpolate reference in NGraph)
+        R"(.*InterpolateLayerTest.*)",
+        // TODO: Issue: 37862
+        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)"
     };
 }
