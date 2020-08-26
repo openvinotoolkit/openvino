@@ -68,6 +68,8 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
         {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
         {ngraph::helpers::ActivationTypes::Mish,        "Mish"},
+        {ngraph::helpers::ActivationTypes::HSwish,      "HSwish"},
+        {ngraph::helpers::ActivationTypes::SoftPlus,    "SoftPlus"},
 };
 
 typedef std::tuple<

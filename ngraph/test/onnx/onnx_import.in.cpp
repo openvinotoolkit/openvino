@@ -51,6 +51,8 @@
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
@@ -2420,5 +2422,55 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0});
     test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
                                          {12.0, 14.0, 16.0, 18.0, 21.0, 41.0, 61.0, 81.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling)
+{
+    // int this test the "scales" input of the Resize operator is set to an empty initializer
+    // this input should be ignored since the "sizes" optional input is provided
+    // and the inference should use the data from the latter
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/empty_initializers_handling.prototxt"));
+
+    const Shape expected_output_shape{2, 1, 4, 8};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {2.0f, 2.5f, 3.0f,  3.5f, 4.0f,  4.0f,  4.0f, 4.0f,  1.5f, 2.0f,  2.5f,  3.0f, 3.5f,
+         3.5f, 3.5f, 3.5f,  1.0f, 1.5f,  2.0f,  2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  1.0f, 1.5f,
+         2.0f, 2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  7.0f, 7.25f, 7.5f, 7.75f, 8.0f,  8.0f, 8.0f,
+         8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
+         6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    // scale == 3.0
+    // zero point == 10
+    test_case.add_input<float>({9.0, 10.0, 15.0, 20.0, 30.0});
+    test_case.add_input<float>({1});
+    test_case.add_expected_output<float>(Shape{5}, {9.0, 9.0, 15.0, 21.0, 30.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern_axis.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    // axis = 1
+    // scale == {2.0, 3.0, 4.0}
+    // zero point == {10, 20, 30}
+    test_case.add_input<float>({1.0, 2.0, 3.0, 10.0, 20.0, 30.0, 40.0, 50.0, 100.0});
+    test_case.add_expected_output<float>(Shape{3, 3}, {0, 3, 4, 10, 21, 32, 40, 51, 100});
+    test_case.add_input<float>({1});
     test_case.run();
 }

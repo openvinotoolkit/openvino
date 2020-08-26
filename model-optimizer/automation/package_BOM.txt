@@ -326,7 +326,6 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
-extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
@@ -375,6 +374,7 @@ extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
+extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
 extensions/front/tf/GatherTree_ext.py
