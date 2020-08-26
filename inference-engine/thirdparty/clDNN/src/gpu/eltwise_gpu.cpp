@@ -104,6 +104,16 @@ public:
             ew_params.broadcast = true;
         }
 
+        // If there's fused node with extra non-unit inputs, then we need to enforce layout based impl
+        // to avoid using CheckInputsOutputNoPitchSameDims branch in eltwise kernel
+        for (auto& fused_op : ew_params.fused_ops) {
+            for (auto& t : fused_op.tensors) {
+                if (t.LogicalSize() > 1) {
+                    ew_params.layoutBased = true;
+                }
+            }
+        }
+
         // TODO [LOW PRECISION]: check if this parameter's really needed. Maybe data types are enough
         bool quantization = true;
         for (size_t i = 0; i < arg.inputs_count(); i++) {
@@ -171,6 +181,7 @@ attach_eltwise_gpu::attach_eltwise_gpu() {
          { std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i32, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i64, format::b_fs_zyx_fsv16), eltwise_gpu::create },
 

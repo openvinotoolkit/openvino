@@ -26,7 +26,12 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {
+            FusedOpType::QUANTIZE,
+            FusedOpType::ACTIVATION,
+            FusedOpType::SCALE,
+            FusedOpType::ELTWISE
+        };
     }
 
     JitConstants GetJitConstants(const eltwise_params& params) const;
