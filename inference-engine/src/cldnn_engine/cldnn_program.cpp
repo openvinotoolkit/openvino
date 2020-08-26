@@ -771,9 +771,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
             }
         }
     } else {
-        for (size_t i = 0; i < bufSize; i++) {
-            buf[i] = data[i];
-        }
+        std::memcpy(&buf[0], &data[0], bufSize);
     }
     topology.add(cldnn::data(primID, mem));
     blobMemCache[data] = primID;
