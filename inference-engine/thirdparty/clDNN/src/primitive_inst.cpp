@@ -186,6 +186,8 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                       _node.get_memory_dependencies(),
                                       alloc_type,
                                       false);
+    } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>()) {
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type, net_id);
     }
