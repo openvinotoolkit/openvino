@@ -52,6 +52,26 @@ class SwishWithSigmoidWithoutBetaTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
 
+    def test_swish_with_sigmoid_without_beta_different_tensors(self):
+        graph = build_graph_with_edge_attrs({
+            **regular_op('input', {'type': 'Parameter'}),
+            **regular_op('input_2', {'type': 'Parameter'}),
+            **regular_op('sigmoid', {'op': 'Sigmoid'}),
+            **regular_op('mul', {'op': 'Mul', 'name': 'final_mul'}),
+            **result('result'),
+        }, [('input_2', 'mul', {'in': 0, 'out': 0}),
+            ('input', 'sigmoid', {'in': 0, 'out': 0}),
+            ('sigmoid', 'mul', {'in': 1, 'out': 0}),
+            ('mul', 'result', {'in': 0, 'out': 0})], {})
+
+        graph_ref = graph.copy()
+        graph.stage = 'front'
+
+        SwishWithSigmoidWithoutBeta().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
+
 
 class SwishWithSigmoidWithBetaTest(unittest.TestCase):
     nodes = {
@@ -84,3 +104,27 @@ class SwishWithSigmoidWithBetaTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
         self.assertTrue(graph.get_op_nodes(name='final_mul')[0].op == 'Swish')
+
+    def test_swish_with_sigmoid_with_beta_different_tensors(self):
+        graph = build_graph_with_edge_attrs({
+            **regular_op('input', {'type': 'Parameter'}),
+            **regular_op('input_2', {'type': 'Parameter'}),
+            **regular_op('beta', {'type': 'Parameter'}),
+            **regular_op('mul_beta', {'op': 'Mul'}),
+            **regular_op('sigmoid', {'op': 'Sigmoid'}),
+            **regular_op('mul_2', {'op': 'Mul', 'name': 'final_mul'}),
+            **result('result'),
+        }, [('input', 'mul_beta', {'in': 0, 'out': 0}),
+            ('input_2', 'mul_2', {'in': 0, 'out': 0}),
+            ('beta', 'mul_beta', {'in': 1, 'out': 0}),
+            ('mul_beta', 'sigmoid', {'in': 0, 'out': 0}),
+            ('sigmoid', 'mul_2', {'in': 1, 'out': 0}),
+            ('mul_2', 'result', {'in': 0, 'out': 0})], {})
+
+        graph_ref = graph.copy()
+        graph.stage = 'front'
+
+        SwishWithSigmoidWithBeta().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)

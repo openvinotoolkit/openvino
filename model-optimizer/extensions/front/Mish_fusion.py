@@ -38,9 +38,7 @@ class MishFusion(FrontReplacementSubgraph):
                 ('softplus', dict(op='SoftPlus')),
             ],
             edges=[
-#                ('input', 'mul', {}),
-#                ('input', 'softplus', {}),
-                ('softplus', 'tanh', {}),
+                ('softplus', 'tanh'),
                 ('tanh', 'mul'),
             ])
 
