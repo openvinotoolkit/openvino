@@ -30,7 +30,7 @@ ref_edges = [('input', 'mish'), ('mish', 'result')]
 class MishFusionTest(unittest.TestCase):
     nodes = {
         **regular_op('input', {'type': 'Parameter'}),
-        **regular_op('softplus', {'op': 'Softplus'}),
+        **regular_op('softplus', {'op': 'SoftPlus'}),
         **regular_op('tanh', {'op': 'Tanh'}),
         **regular_op('mul', {'op': 'Mul', 'name': 'final_mul'}),
         **result('result'),

@@ -23,7 +23,7 @@ from mo.graph.graph import Graph, rename_nodes
 
 class MishFusion(FrontReplacementSubgraph):
     """
-    The transformation looks for the pattern with Softplus defining the Mish function: Mish(x) = x * tanh(Softplus(x)).
+    The transformation looks for the pattern with Softplus defining the Mish function: Mish(x) = x * tanh(SoftPlus(x)).
     """
     enabled = True
 
@@ -36,7 +36,7 @@ class MishFusion(FrontReplacementSubgraph):
                 ('input', dict()),
                 ('mul', dict(op='Mul')),
                 ('tanh', dict(op='Tanh')),
-                ('softplus', dict(op='Softplus')),
+                ('softplus', dict(op='SoftPlus')),
             ],
             edges=[
                 ('input', 'mul', {}),
