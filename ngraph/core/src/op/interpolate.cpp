@@ -433,7 +433,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     auto axes = get_axes_vector(inputs);
     size_t num_of_axes = axes.size();
 
-    auto scales = get_scales_vector(inputs, input_shape, m_attrs, axes);
+    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
 
     PartialShape output_shape{padded_input_shape};
 
