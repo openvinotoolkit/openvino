@@ -24,10 +24,14 @@ const std::vector<std::vector<size_t>> targetShapes = {
         {1, 4, 40, 40},
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modes = {
+const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
         ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
         ngraph::op::v4::Interpolate::InterpolateMode::cubic,
+};
+
+const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
+        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
@@ -36,6 +40,18 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
         ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
+        ngraph::op::v4::Interpolate::NearestMode::simple,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::floor,
+        ngraph::op::v4::Interpolate::NearestMode::ceil,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -53,38 +69,17 @@ const std::vector<double> cubeCoefs = {
         -0.75f,
 };
 
-/* ============= Mode is not equal to 'nearest' ============= */
-const auto interpolateCasesNonNearest = ::testing::Combine(
-        ::testing::ValuesIn(modes),
+const auto interpolateCasesWithoutNearest = ::testing::Combine(
+        ::testing::ValuesIn(modesWithoutNearest),
         ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defaultNearestMode),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(cubeCoefs));
 
-INSTANTIATE_TEST_CASE_P(Interpolate_with_not_nearest, InterpolateLayerTest, ::testing::Combine(
-        interpolateCasesNonNearest,
-        ::testing::ValuesIn(prc),
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-    InterpolateLayerTest::getTestCaseName);
-
-/* ============= Mode is equal to 'nearest' ============= */
-const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::simple,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
-        ngraph::op::v4::Interpolate::NearestMode::floor,
-        ngraph::op::v4::Interpolate::NearestMode::ceil,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
-};
-
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearest_mode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
-};
-
 const auto interpolateCases = ::testing::Combine(
-        ::testing::ValuesIn(nearest_mode),
+        ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(nearestModes),
         ::testing::ValuesIn(antialias),
@@ -93,6 +88,14 @@ const auto interpolateCases = ::testing::Combine(
         ::testing::ValuesIn(cubeCoefs));
 
 INSTANTIATE_TEST_CASE_P(Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearest,
+        ::testing::ValuesIn(prc),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCases,
         ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
