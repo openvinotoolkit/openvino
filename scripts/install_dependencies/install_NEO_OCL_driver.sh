@@ -280,7 +280,7 @@ version_gt() {
     test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1";
 }
 
-sumary()
+summary()
 {
     kernel_version=$(uname -r)
 
@@ -409,7 +409,7 @@ main()
     check_current_driver
     check_agreement
     install
-    sumary
+    summary
 }
 
 [[ "$0" == "$BASH_SOURCE" ]] && main "$@"
