@@ -1,3 +1,7 @@
+import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.Before;
+
 import java.util.Map;
 import java.util.Vector;
 import java.util.ArrayList;
@@ -12,8 +16,8 @@ public class InferRequestTests extends IETest {
     InferRequest inferRequest;
     boolean completionCallback;
 
-    @Override
-    protected void setUp() {
+    @Before
+    public void setUp() {
         core = new IECore();
         net = core.ReadNetwork(modelXml);
         executableNetwork = core.LoadNetwork(net, "CPU");
@@ -21,6 +25,7 @@ public class InferRequestTests extends IETest {
         completionCallback = false;
     }
 
+    @Test
     public void testGetPerformanceCounts(){   
         inferRequest.Infer();
 
@@ -64,6 +69,7 @@ public class InferRequestTests extends IETest {
         }
     }
 
+    @Test
     public void testStartAsync() {
         inferRequest.StartAsync();
         StatusCode statusCode = inferRequest.Wait(WaitMode.RESULT_READY);
@@ -71,6 +77,7 @@ public class InferRequestTests extends IETest {
         assertEquals("StartAsync", StatusCode.OK, statusCode);
     }
 
+    @Test
     public void testSetCompletionCallback() {
         inferRequest.SetCompletionCallback(new Runnable(){
 

@@ -1,34 +1,35 @@
+import static org.junit.Assert.*;
+import org.junit.Test;
+
 import org.intel.openvino.*;
 
 import java.util.Map;
 import java.util.HashMap;
 
 public class IECoreTests extends IETest {
-    IECore core;
-    String exceptionMessage;
+    IECore core = new IECore();
     
-    @Override
-    protected void setUp() {
-        core = new IECore();
-        exceptionMessage = "";
-    }
-
+    @Test
     public void testInitIECore(){
         assertTrue(core instanceof IECore);
     }
 
+    @Test
     public void testReadNetwork(){
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
         assertEquals("Network name", "test_model", net.getName());
     }
 
+    @Test
     public void testReadNetworkXmlOnly(){
         CNNNetwork net = core.ReadNetwork(modelXml);
         assertEquals("Batch size", 1, net.getBatchSize());
     }
 
+    @Test
     public void testReadNetworkIncorrectXmlPath(){
-        try{
+        String exceptionMessage = "";
+        try {
             CNNNetwork net = core.ReadNetwork("model.xml", modelBin);
         } catch (Exception e){
             exceptionMessage = e.getMessage();
@@ -36,8 +37,10 @@ public class IECoreTests extends IETest {
         assertTrue(exceptionMessage.contains("Model file model.xml cannot be opened!"));
     }
 
+    @Test
     public void testReadNetworkIncorrectBinPath(){
-        try{
+        String exceptionMessage = "";
+        try {
             CNNNetwork net = core.ReadNetwork(modelXml, "model.bin");
         } catch (Exception e){
             exceptionMessage = e.getMessage();
@@ -45,6 +48,7 @@ public class IECoreTests extends IETest {
         assertTrue(exceptionMessage.contains("Weights file model.bin cannot be opened!"));
     }
 
+    @Test
     public void testLoadNetwork(){
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
         ExecutableNetwork executableNetwork = core.LoadNetwork(net, device);
@@ -52,6 +56,7 @@ public class IECoreTests extends IETest {
         assertTrue(executableNetwork instanceof ExecutableNetwork);
     }
 
+    @Test
     public void testLoadNetworDeviceConfig(){
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
 
@@ -66,9 +71,11 @@ public class IECoreTests extends IETest {
         assertTrue(executableNetwork instanceof ExecutableNetwork);
     }
 
+    @Test
     public void testLoadNetworkWrongDevice(){
+        String exceptionMessage = "";
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
-        try{
+        try {
             core.LoadNetwork(net, "DEVISE");
         } catch (Exception e){
             exceptionMessage = e.getMessage();
