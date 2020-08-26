@@ -151,7 +151,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
     }
     auto data_shape = data->get_shape();
 
-    if (!(data_shape.size() == 4 || data_shape.size() == 5)) {
+    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
         return false;
     }
 
@@ -180,7 +180,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
         padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i];
     }
 
-    std::vector<char> padded_data(shape_size(data_shape) * elem_size);
+    std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
     ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
                                     pad_value,
                                     padded_data.data(),
@@ -190,14 +190,16 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
                                     pads_begin_vec,
                                     pads_end_vec,
                                     ngraph::op::PadMode::CONSTANT);
-    auto d0 = data->get_data_ptr<float>();
-    auto d1 = reinterpret_cast<float *>(padded_data.data());
+    data_shape = padded_shape;
+
     Shape dispersed_shape(block_values_size + 1);
     std::vector<size_t> axes_order(block_values_size + 1);
-    Shape squeezed_shape(padded_shape.begin(), padded_shape.end());
+    Shape squeezed_shape(data_shape.begin(), data_shape.end());
     std::vector<size_t> plain_axes_order(block_values_size + 1);
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
+
     std::vector<char> flat_data(padded_data.begin(), padded_data.end());
+
     for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx) {
         int64_t sq_shape_idx = block_values_size - 1;
         int64_t axis_idx = axes_order.size() - 1;
@@ -220,7 +222,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
         std::vector<char> dispersed_data(shape_size(dispersed_shape) * elem_size);
         runtime::opt_kernel::reshape(flat_data.data(), dispersed_data.data(), data_shape, plain_axes_order, dispersed_shape,
                                      elem_size);
-        auto d2 = reinterpret_cast<float *>(dispersed_data.data());
         Shape post_transpose_shape(axes_order.size());
         for (size_t i = 0; i < axes_order.size(); ++i) {
             post_transpose_shape[i] = dispersed_shape[axes_order[i]];
@@ -228,13 +229,12 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
         std::vector<char> post_transpose_data(shape_size(post_transpose_shape) * elem_size);
         runtime::opt_kernel::reshape(dispersed_data.data(), post_transpose_data.data(), dispersed_shape, axes_order,
                                      post_transpose_shape, elem_size);
-        auto d3 = reinterpret_cast<float *>(post_transpose_data.data());
         squeezed_shape[0] *= block_values[block_idx];
         squeezed_shape[block_idx] /= block_values[block_idx];
 
         runtime::opt_kernel::reshape(post_transpose_data.data(), flat_data.data(), post_transpose_shape, plain_axes_order,
                                      squeezed_shape, elem_size);
-        auto d4 =  out->get_data_ptr<float>();
+        data_shape = squeezed_shape;
     }
 
     out->write(flat_data.data(), elem_size * shape_size(out->get_shape()));
