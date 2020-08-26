@@ -90,44 +90,6 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
     def test_move_scaleshift_to_preprocess_2(self):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'scaleshift_1'),
-                             ('scaleshift_1', 'scaleshift_1_data'),
-                             ('scaleshift_1_w', 'scaleshift_1'),
-                             ('scaleshift_1_b', 'scaleshift_1'),
-                             ('scaleshift_1_data', 'op_output'),
-                             ('placeholder_1_data', 'op_output_1')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                             'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
-                             'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
-                             })
-        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
-        del graph['placeholder_1']['placeholder_1_data'][0]['in']
-        del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'scaleshift_1'),
-                                 ('scaleshift_1', 'scaleshift_1_data'),
-                                 ('scaleshift_1_w', 'scaleshift_1'),
-                                 ('scaleshift_1_b', 'scaleshift_1'),
-                                 ('placeholder_1_data', 'op_output_1'),
-                                 ('scaleshift_1_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
-                                 'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
-                                 })
-
-        move_scaleshift_to_preprocess(graph)
-        self.assertTrue(graph.graph.get('mean_values', None) is None)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'scaleshift_1_data')
-        self.assertTrue(flag, resp)
-
-    def test_move_scaleshift_to_preprocess_3(self):
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul'),
                              ('mul', 'mul_output'),
                              ('const_mul', 'const_mul_output'),
@@ -137,16 +99,18 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              ('const_add', 'const_add_output'),
                              ('const_add_output', 'add'),
                              ('add_output', 'op_output'),
+                             ('placeholder_1_data', 'op_output_1')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'const_mul_output': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
+                             'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                              })
         graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul'),
-                                 ('scaleshift_1', 'scaleshift_1_data'),
+                                 ('mul', 'mul_output'),
                                  ('const_mul', 'const_mul_output'),
                                  ('const_mul_output', 'mul'),
                                  ('mul_output', 'add'),
@@ -158,13 +122,15 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'const_mul_output': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
+                                 'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                                  })
 
         move_scaleshift_to_preprocess(graph)
-        self.assertTrue(graph.graph.get('mean_values', None) == None)
+        self.assertTrue(graph.graph.get('mean_values', None) is None)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'const_mul_output')
+        (flag, resp) = compare_graphs(graph, graph_ref, 'scaleshift_1_data')
         self.assertTrue(flag, resp)
+
 
     def test_move_scaleshift_to_preprocess_4(self):
         graph = build_graph(nodes_attributes,
