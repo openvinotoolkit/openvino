@@ -21,11 +21,7 @@ const std::vector<std::vector<size_t>> inShapes = {
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {40, 40},
-};
-
-const std::vector<std::set<size_t>> axes = {
-        {2, 3},
+        {1, 4, 40, 40},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modes = {
@@ -52,8 +48,8 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
 };
 
 const std::vector<std::vector<size_t>> pads = {
-        {1, 1},
-        {0, 0},
+        {0, 0, 1, 1},
+        {0, 0, 0, 0},
 };
 
 const std::vector<bool> antialias = {
@@ -63,7 +59,7 @@ const std::vector<bool> antialias = {
 };
 
 const std::vector<double> cubeCoefs = {
-        0.75f,
+        -0.75f,
 };
 
 const auto interpolateCases = ::testing::Combine(
