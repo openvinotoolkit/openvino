@@ -180,7 +180,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         // changes geometry of convolution. "adjustDataBatch" modifies stage "origConvOutput"
         // attribute to the current convolution output at the time of execution of "adjustDataBatch" pass.
         // "origConvOutput" attribute is used in "hwConvTiling" and
-        // "hwConvTiling" should be able to see the version of this attribute.
+        // "hwConvTiling" should be able to see the latest version of this attribute.
         ADD_PASS(reshapeBeforeConvTiling);
         ADD_DUMP_PASS("reshapeBeforeConvTiling");
 
