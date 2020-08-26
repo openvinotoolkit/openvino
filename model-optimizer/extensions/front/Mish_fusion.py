@@ -33,27 +33,31 @@ class MishFusion(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('input', dict()),
                 ('mul', dict(op='Mul')),
                 ('tanh', dict(op='Tanh')),
                 ('softplus', dict(op='SoftPlus')),
             ],
             edges=[
-                ('input', 'mul', {}),
-                ('input', 'softplus', {}),
+#                ('input', 'mul', {}),
+#                ('input', 'softplus', {}),
                 ('softplus', 'tanh', {}),
                 ('tanh', 'mul'),
             ])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
         mul = match['mul']
+        mul_name = mul.soft_get('name', mul.id)
+        softplus = match['softplus']
 
         # determine the input port of Mul which gets the 'input' node output
-        input_port = int(mul.in_port(0).get_connection().get_source().node.soft_get('op') == 'Tanh')
-        mul_name = mul.soft_get('name', mul.id)
+        input_port_idx = int(mul.in_port(0).get_connection().get_source().node.soft_get('op') == 'Tanh')
+
+        # check that the same tensor provided as input to Mul and SoftPlus
+        if mul.in_port(input_port_idx).get_source() != softplus.in_port(0).get_source():
+            return
 
         mish = Mish(graph, {}).create_node()
-        mish.in_port(0).connect(mul.in_port(input_port).get_source())
+        mish.in_port(0).connect(mul.in_port(input_port_idx).get_source())
         mul.out_port(0).get_connection().set_source(mish.out_port(0))
 
         rename_nodes([(mul, mul_name + '/TBR'), (mish, mul_name)])
