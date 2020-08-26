@@ -116,6 +116,8 @@ If a model has mixed input types, input folder should contain all required files
 To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 

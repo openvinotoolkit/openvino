@@ -4,6 +4,8 @@ This topic demonstrates how to run the Neural Style Transfer sample application,
 inference of style transfer models.
 
 > **NOTE**: The OpenVINO™ toolkit does not include a pre-trained model to run the Neural Style Transfer sample. A public model from the [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) can be used. Read the [Converting a Style Transfer Model from MXNet*](../../../docs/MO_DG/prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md) topic from the [Model Optimizer Developer Guide](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to learn about how to get the trained model and how to convert it to the Inference Engine format (\*.xml + \*.bin).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 > **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
