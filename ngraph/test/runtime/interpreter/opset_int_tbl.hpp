@@ -49,3 +49,6 @@ NGRAPH_OP(Elu, op::v0)
 NGRAPH_OP(Selu, op::v0)
 NGRAPH_OP(Ceiling, op::v0)
 NGRAPH_OP(Gelu, op::v0)
+
+
+NGRAPH_OP(CTCLoss, op::v4)
