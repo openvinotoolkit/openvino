@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include <cpp/ie_cnn_network.h>
 #include "cnn_network_impl.hpp"
 #include "ie_ngraph_utils.hpp"
 
@@ -161,6 +162,7 @@ private:
                                              const Blob::CPtr& weights, const GenericLayerParams& params);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, std::istream& binStream);
 
     std::map<std::string, DataPtr> portsToData;
     std::map<std::string, GenericLayerParams> layersParseInfo;
