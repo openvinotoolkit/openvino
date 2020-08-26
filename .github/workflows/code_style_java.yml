@@ -1,43 +1,13 @@
-name: Code Style
+name: Code Style Java
 on: [push, pull_request]
 
 jobs:
-  nGraph:
+  InferenceEngine:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Install clang-format-3.9
-        run: sudo apt --assume-yes install clang-format-3.9
-
-      - name: Install dependencies
-        run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev
-          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
-
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-
-      - name: Check code style
-        run: make style-check
-        working-directory: build
-
-      - name: Create code style diff
-        if: failure()
-        run: |
-          ngraph/maint/apply-code-format.sh
-          git diff >code_style_diff.patch
-
-      - uses: actions/upload-artifact@v2
-        if: failure()
-        with:
-          name: code_style_diff
-          path: code_style_diff.patch
 
       - name: Check java code style
         run: |
