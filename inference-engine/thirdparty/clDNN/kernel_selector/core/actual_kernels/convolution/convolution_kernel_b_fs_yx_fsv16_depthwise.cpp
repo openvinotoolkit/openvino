@@ -25,14 +25,20 @@ static const size_t x_block_size = 8;
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputWeightsType(WeightsType::F16);
-    k.EnableOutputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
-    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputDataType(Datatype::F16);
+
+    k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
+
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputWeightsType(WeightsType::F32);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
@@ -43,6 +49,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableSubGroupShort();
     k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -89,7 +96,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
     const size_t block_width = 8;
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
+        auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "(f_block*16)", "y", "x"},
                                            "dst",
                                            input_dt,
