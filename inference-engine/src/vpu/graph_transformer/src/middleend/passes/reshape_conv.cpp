@@ -9,8 +9,6 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-// #include <vpu/middleend/hw/conv_tiling/hw_stage_tiler.hpp>
-
 namespace vpu {
 
 namespace {
