@@ -20,6 +20,7 @@
 #include "transformations/swish_fusion.hpp"
 #include "transformations/hswish_fusion.hpp"
 #include "transformations/convert_quantize_dequantize.hpp"
+#include "transformations/mvn_fusion.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -47,6 +48,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::SwishFusion>();
     manager.register_pass<ngraph::pass::HSwishFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ngraph::pass::MVNFusion>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
