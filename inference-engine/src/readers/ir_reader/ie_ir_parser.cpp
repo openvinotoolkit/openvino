@@ -238,7 +238,7 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
 
         inputName = preProcessInput->name();
     } else {
-        preProcessInput = network.getInputsInfo().at(inputName);
+        preProcessInput = network.getInputsInfo()[inputName];
         if (!preProcessInput)
             THROW_IE_EXCEPTION << "pre-process name ref '" << inputName << "' refers to un-existing input";
     }
