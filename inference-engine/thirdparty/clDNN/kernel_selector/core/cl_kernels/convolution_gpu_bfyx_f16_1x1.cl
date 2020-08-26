@@ -207,7 +207,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     else
 #endif
     {
-#if !PADDED_OUTPUT
+#if !PADDED_OUTPUT && !NON_UNIT_FUSED_OP_SPATIAL
         if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y || (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % X_BLOCK_SIZE == 0) {
 #else
         if (x + X_BLOCK_SIZE <= OUTPUT_SIZE_X || OUTPUT_SIZE_X % X_BLOCK_SIZE == 0) {

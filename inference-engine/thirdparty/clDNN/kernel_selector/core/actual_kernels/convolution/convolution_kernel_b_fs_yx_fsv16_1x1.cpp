@@ -165,6 +165,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
 
     bool padded_output = params.output.X().pad.Total() != 0;
+    bool non_unit_fused_op_spatial = false;
 
     // Set padded_output to true when fused inputs have paddings to have correct blocked loads
     for (auto& fused_op : params.fused_ops) {
@@ -172,10 +173,17 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
             if (t.PitchesDifferFromLogicalDims()) {
                 padded_output = true;
             }
+            if ((t.X().v > 1) ||
+                (t.Y().v > 1) ||
+                (t.Z().v > 1) ||
+                (t.W().v > 1)) {
+                non_unit_fused_op_spatial = true;
+            }
         }
     }
 
     jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
+    jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
 
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, blockWidth)));
