@@ -26,35 +26,39 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsDefinitions::SplitTransformationParam> params{
+const std::vector<LayerTestsDefinitions::SplitTransformationParam> params = {
+{
+    { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+    2, 2ul
+},
+{
+    { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
+    -1, 2ul
+},
+{
     {
-        { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        { 2 }, { 2ul }
+        256ul, ngraph::Shape{ 1, 3, 1, 1 },
+        { -127.f, -127.f, -127.f },
+        { 128.f, 128.f, 128.f },
+        { 0.f, 0.f, 0.f },
+        { 255.f, 255.f, 255.f }
     },
+    1, 3ul
+},
+{
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
-        { -1 }, { 2ul }
+        256ul, ngraph::Shape{ 1, 3, 1, 1 },
+        { -127.f, -127.f, -127.f },
+        { 128.f, 128.f, 128.f },
+        { 0.f, 0.f, 0.f },
+        { 255.f, 255.f, 255.f }
     },
-    {
-        {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
-            { -127.f, -127.f, -127.f },
-            { 128.f, 128.f, 128.f },
-            { 0.f, 0.f, 0.f },
-            { 255.f, 255.f, 255.f }
-        },
-        { 1 }, { 3ul }
-    },
-    {
-        {
-            256ul, ngraph::Shape{ 1, 3, 1, 1 },
-            { -127.f, -127.f, -127.f },
-            { 128.f, 128.f, 128.f },
-            { 0.f, 0.f, 0.f },
-            { 255.f, 255.f, 255.f }
-        },
-        { -1 }, { 2ul }
-    }
+    -1, 2ul
+},
+{
+    { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
+    1, 3ul
+}
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, SplitTransformation,
