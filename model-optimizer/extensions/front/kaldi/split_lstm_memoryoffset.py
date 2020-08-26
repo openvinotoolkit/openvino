@@ -24,7 +24,11 @@ from mo.utils.error import Error
 
 class SplitLstmMemoryOffset(FrontReplacementSubgraph):
     """
-    Splits MemoryOfffsets in LSTM blocks to avoid cycles during shape inference.
+    Splits MemoryOffsets in LSTM blocks into 2 parts. These parts then will be converted to ReadValue and Assign.
+
+    Splitting complicates shape inference but MemoryOffsets in LSTM blocks are cycled and, in order to make topological
+    sort possible during shape inference, they are splitted earlier on the front phase. In contrast, MemoryOffsets in
+    TDNN blocks are not cycled, so they will be splitted after shape infer on the middle.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']

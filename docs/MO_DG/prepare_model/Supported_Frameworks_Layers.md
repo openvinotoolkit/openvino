@@ -266,6 +266,7 @@ Standard Kaldi\* Layers:
 | fixedaffinecomponent | No |
 | fixedbiascomponent | No |
 | fixedscalecomponent | No |
+| generaldropoutcomponent| Not needed for inference |
 | linearcomponent | No |
 | logsoftmaxcomponent | No |
 | lstmnonlinearitycomponent | No |
@@ -284,6 +285,7 @@ Standard Kaldi\* Layers:
 | softmax | No |
 | softmaxComponent | No |
 | softsign | No |
+| specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent | No |
 | tanhcomponent | No |
 | tdnncomponent | No |

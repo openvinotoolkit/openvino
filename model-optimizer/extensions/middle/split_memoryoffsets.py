@@ -22,7 +22,7 @@ from mo.ops.result import Result
 
 class SplitMemoryOffsets(MiddleReplacementPattern):
     '''
-    Split MemoryOffsets into parts that will later become ReadValue and Assign.
+    Splits MemoryOffsets in TDNN blocks into 2 parts. These parts then will be converted to ReadValue and Assign.
     '''
     enabled = True
     run_not_recursively = True

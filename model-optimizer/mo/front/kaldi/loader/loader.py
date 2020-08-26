@@ -251,8 +251,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     node = Node(graph, layer)
                     node['parameters'] = get_parameters(file_descr, start_index, end_index)
                     node['op'] = component_type
-                    # read dim info where possible to simplify shape calculation for MemoryOffset
-                    # MemoryOffset inside LSTM blocks will be splitted into 2 parts to remove cycle from graph
+                    # Read dim info where possible to simplify shape calculation for MemoryOffset
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
