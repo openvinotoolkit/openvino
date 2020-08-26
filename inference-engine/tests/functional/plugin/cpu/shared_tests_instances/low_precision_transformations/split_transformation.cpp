@@ -26,7 +26,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsDefinitions::SplitTransformationParam> params{
+const std::vector<LayerTestsDefinitions::SplitTransformationParam> params = {
     {
         { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 2 }, { 2ul }
