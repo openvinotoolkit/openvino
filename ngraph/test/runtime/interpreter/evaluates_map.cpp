@@ -33,6 +33,7 @@
 #include "reference/hard_sigmoid.hpp"
 #include "reference/elu.hpp"
 #include "reference/selu.hpp"
+#include "reference/ctc_loss.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -404,6 +405,36 @@ namespace {
         runtime::reference::gelu<T>(input[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
                                     shape_size(input[0]->get_shape()));
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v4::CTCLoss> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+#define REF_CALL(elType) \
+        runtime::reference::CTCLoss<T, typename element_type_traits<elType>::value_type>( \
+                                       input[0]->get_data_ptr<T>(), \
+                                       input[0]->get_shape(), \
+                                       input[1]->get_data_ptr<elType>(), \
+                                       input[2]->get_data_ptr<elType>(), \
+                                       input[3]->get_data_ptr<elType>(), \
+                                       input[4]->get_data_ptr<elType>(), \
+                                       op->get_preprocess_collapse_repeated(), \
+                                       op->get_ctc_merge_repeated(), \
+                                       op->get_unique(), \
+                                       outputs[0]->get_data_ptr<T>()); \
+        break;
+
+        switch (input[1]->get_element_type()) {
+            case element::Type_t::i32:
+            REF_CALL(element::Type_t::i32);
+            case element::Type_t::i64:
+            REF_CALL(element::Type_t::i64);
+            default:
+                return false;
+        }
+#undef REF_CALL
         return true;
     }
 
