@@ -73,8 +73,10 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
     return out << "_" <<
         (data.convert.outPrecision != element::undefined ? data.convert.outPrecision.get_type_name() : "") << "_" <<
         data.subtract.values << "_" <<
+        data.subtract.constantShape << "_" <<
         data.subtract.outPrecision << "_" <<
         data.multiply.values << "_" <<
+        data.multiply.constantShape << "_" <<
         data.multiply.outPrecision;
 }
 

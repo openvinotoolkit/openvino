@@ -92,6 +92,8 @@ public:
             testValues.reshapeConstValues << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
+            testValues.expected.precisionAfterOperation << "_" <<
+            testValues.expected.dequantizationAfter << "_" <<
             testValues.expected.dequantizationBefore;
         return result.str();
     }
@@ -288,6 +290,86 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}},
             ngraph::element::f32,
             {}
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are not affected: per tensor quantization
+    {
+        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3}}},
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are not affected: per channel quantization: case #1: dequantization operation constant needs broadcast
+    {
+        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3}}},
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are not affected: per channel quantization: case #2: dequantization operation constant doesn't need broadcast
+    {
+        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3}}},
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization: case #1: dequantization operation constant needs broadcast
+    {
+        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 0, 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}},
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization: case #2: dequantization operation constant doesn't need broadcast
+    {
+        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 0, 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}},
         }
     },
 };

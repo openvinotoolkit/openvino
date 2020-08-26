@@ -25,24 +25,50 @@ void ReshapeTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
         make_op_pattern<opset1::Reshape>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
-void reshapeDequantizationConstant(std::shared_ptr<Node>& reshape) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
-        // TODO: refactor: use constant instead op
-        auto replaceConstant = [](const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& op) {
-            std::vector<size_t> resultShape(reshape->get_output_shape(0).size(), 1ul);
+        auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
+            // Original Reshape operation is used to update operation Constant.
+            // But original Reshape operation output data shape constant should be changed before reshape.
 
-            std::vector<size_t> actualShape = op->get_input_node_ptr(1)->get_output_shape(0);
-            const size_t maxIndex = std::min(resultShape.size(), actualShape.size());
-            for (size_t i = 0; i < maxIndex; ++i) {
-                resultShape[i] = actualShape[i];
+            // simple broadcast operation Constant shape to shape on activations
+            auto newOperationConstantShape = op->input(1).get_shape();
+            auto const reshapeInputShape = reshape->input(0).get_shape();
+            if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
+                newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
+            }
+            const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+            const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
+                op->input(1).get_element_type(),
+                newOperationConstantShape,
+                originalConstant->cast_vector<float>());
+
+            // update Reshape constant
+            const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
+            std::vector<int> newReshapeConstValues(reshapeConstValues);
+            for (int i = newReshapeConstValues.size() - 1; i >= 0; --i) {
+                if (newOperationConstantShape.size() <= i) {
+                    newReshapeConstValues[i] = 1;
+                } else if (newOperationConstantShape[i] == 1ul) {
+                    // not used dimension
+                    newReshapeConstValues[i] = 1;
+                } else {
+                    break;
+                }
             }
 
-            std::shared_ptr<Node> reshapeConstant = fold_reshape<opset1::Reshape>(
-                op->get_input_node_shared_ptr(1),
-                std::make_shared<opset1::Constant>(element::i64, Shape{ resultShape.size() }, resultShape),
-                false);
-            replace_node(op->get_input_node_shared_ptr(1), reshapeConstant);
+            const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+                reshape->input(1).get_element_type(),
+                Shape({ newReshapeConstValues.size() }),
+                newReshapeConstValues);
+
+            const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+                newOperationConstant,
+                newReshapeConstant,
+                reshape->get_special_zero());
+
+            replace_node(op->get_input_node_shared_ptr(1), resultConstant);
         };
 
         if (dequantization.subtract != nullptr) {
@@ -56,12 +82,12 @@ void reshapeDequantizationConstant(std::shared_ptr<Node>& reshape) {
 }
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    std::shared_ptr<Node> reshape = m.get_match_root();
-    if (!canBeTransformed(context, reshape)) {
+    std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
+    if ((reshape == nullptr) || (!canBeTransformed(context, reshape))) {
         return false;
     }
 
-    reshape = separateInStandaloneBranch(reshape);
+    reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
     return true;
