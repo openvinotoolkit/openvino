@@ -54,7 +54,6 @@ class Interpolate(Op):
     def infer(node: Node):
         assert len([p for p in node.in_ports().values() if not p.disconnected()]) == 2
         assert node.has_valid('mode')
-        assert node.has_valid('axes')
 
         src_shape = node.in_port(0).data.get_shape()
 
@@ -62,9 +61,13 @@ class Interpolate(Op):
         dst_shape = node.in_port(1).data.get_value()
         assert dst_shape is not None
 
-        output_shape = src_shape.copy()
-        for ind, axis in enumerate(node.axes):
-            output_shape[axis] = dst_shape[ind]
+        if node.has_valid('axes'):
+            output_shape = src_shape.copy()
+            for ind, axis in enumerate(node.axes):
+                output_shape[axis] = dst_shape[ind]
+        else:
+            output_shape = dst_shape.copy()
+            node.axes = [i for i in range(len(output_shape))]
 
         node.out_port(0).data.set_shape(output_shape)
 

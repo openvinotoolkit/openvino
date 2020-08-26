@@ -14,22 +14,24 @@
  limitations under the License.
 """
 
-from extensions.ops.upsample import UpsampleOp
-from mo.front.extractor import FrontExtractorOp
+from extensions.ops.interpolate import Interpolate
+from mo.front.common.replacement import FrontReplacementOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
-from mo.graph.graph import Node
+from mo.graph.graph import Graph, Node
 from mo.utils.error import Error
 
 
-class ResizeExtractor(FrontExtractorOp):
+class ResizeReplacer(FrontReplacementOp):
     op = 'Resize'
     enabled = True
 
-    @classmethod
-    def extract(cls, node: Node):
-        onnx_opset_version = get_onnx_opset_version(node)
-        if onnx_opset_version is not None and onnx_opset_version >= 11:
-            raise Error("ONNX Resize operation from opset {} is not supported.".format(onnx_opset_version))
+    def replace_op(self, graph: Graph, node: Node):
         mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
-        UpsampleOp.update_node_stat(node, {'mode': mode})
-        return cls.enabled
+        align_corners = onnx_attr(node, 'coordinate_transformation_mode', 's', default=b'').decode()
+        align_corners = 1 if align_corners == 'align_corners' else 0
+
+        idx = len(node.in_nodes()) - 1
+        res = Interpolate(graph, dict(name=node.name)).create_node([node.in_node(0), node.in_node(idx)])
+        Interpolate.update_node_stat(res, {'mode': mode, 'align_corners': align_corners})
+
+        return [res.id]
