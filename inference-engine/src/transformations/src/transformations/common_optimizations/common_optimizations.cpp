@@ -19,6 +19,7 @@
 #include "transformations/softplus_fusion.hpp"
 #include "transformations/swish_fusion.hpp"
 #include "transformations/hswish_fusion.hpp"
+#include "transformations/convert_quantize_dequantize.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -33,6 +34,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertPriorBox>();  // WA: ConvertPriorBox must be executed before CF
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
     manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism

@@ -2447,3 +2447,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling)
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    // scale == 3.0
+    // zero point == 10
+    test_case.add_input<float>({9.0, 10.0, 15.0, 20.0, 30.0});
+    test_case.add_input<float>({1});
+    test_case.add_expected_output<float>(Shape{5}, {9.0, 9.0, 15.0, 21.0, 30.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern_axis.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    // axis = 1
+    // scale == {2.0, 3.0, 4.0}
+    // zero point == {10, 20, 30}
+    test_case.add_input<float>({1.0, 2.0, 3.0, 10.0, 20.0, 30.0, 40.0, 50.0, 100.0});
+    test_case.add_expected_output<float>(Shape{3, 3}, {0, 3, 4, 10, 21, 32, 40, 51, 100});
+    test_case.add_input<float>({1});
+    test_case.run();
+}
