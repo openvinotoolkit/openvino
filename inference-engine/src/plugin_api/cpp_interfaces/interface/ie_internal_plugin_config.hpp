@@ -44,6 +44,13 @@ DECLARE_CONFIG_KEY(SUBNETWORK_WITH_NETWORK_INPUTS);
  */
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
+/**
+ * @brief This key should be used to notify aggregating plugin
+ *        that it is used inside other aggregating plugin
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(AGGREGATED_PLUGIN);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

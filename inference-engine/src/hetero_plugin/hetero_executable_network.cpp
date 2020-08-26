@@ -364,11 +364,6 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
 
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = function->get_ordered_ops();
-    orderedOps.erase(
-        std::remove_if(std::begin(orderedOps), std::end(orderedOps), [] (const std::shared_ptr<ngraph::Node>& node) {
-            return ngraph::op::is_constant(node);
-        }),
-        std::end(orderedOps));
     bool allEmpty = true;
     // Get user defined affinity
     for (auto&& node : orderedOps) {
@@ -400,39 +395,20 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         return input.get_source_output().get_node();
     };
 
-    auto NoConstants = [] (std::vector<ngraph::Input<ngraph::Node>>&& inputs) {
-        std::vector<ngraph::Input<ngraph::Node>> result;
-        for (auto&& input : inputs) {
-            if (!(ngraph::op::is_constant(input.get_source_output().get_node()))) {
-                result.emplace_back(std::move(input));
+    // Set results, constants and parameters affinity
+    for (auto&& node : function->get_ops()) {
+        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
+            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
+                auto& nodeWithAffinityName = ngraph::op::is_output(node)
+                                           ? node->input_value(0).get_node()->get_friendly_name()
+                                           : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
+                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
+                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
+                    THROW_IE_EXCEPTION << "Node " << nodeWithAffinityName <<
+                                        " was not assigned on any pointed device.";
+                }
+                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
             }
-        }
-        return result;
-    };
-
-    // Set parameters affinity
-    for (auto&& node : function->get_parameters()) {
-        if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-            auto& outputNodeName = node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
-            auto itOutputAffinity = queryNetworkResult.supportedLayersMap.find(outputNodeName);
-            if (itOutputAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                THROW_IE_EXCEPTION << "Layer " << outputNodeName <<
-                                      " was not assigned on any pointed device.";
-            }
-            queryNetworkResult.supportedLayersMap[node->get_friendly_name()] = itOutputAffinity->second;
-        }
-    }
-
-    // Set results affinity
-    for (auto&& node : function->get_results()) {
-        if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-            auto& inputNodeName = node->input_value(0).get_node()->get_friendly_name();
-            auto itInputAffinity = queryNetworkResult.supportedLayersMap.find(inputNodeName);
-            if (itInputAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                THROW_IE_EXCEPTION << "Layer " << inputNodeName <<
-                                      " was not assigned on any pointed device.";
-            }
-            queryNetworkResult.supportedLayersMap[node->get_friendly_name()] = itInputAffinity->second;
         }
     }
 
@@ -480,12 +456,12 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     InputSet subgraphInputs;
     // Get all subgraph inputs using just node affinities. Also collect transitive closure
     for (auto&& node : orderedOps) {
-        if (ngraph::op::is_parameter(node)) {
+        if (ngraph::op::is_parameter(node) || ngraph::op::is_constant(node)) {
             graphInputNodes.insert(node.get());
             subgraphInputs.insert(Input{node.get(), 0});
             nodeInputDependencies[node.get()].insert(Input{node.get(), 0});
         } else {
-            auto inputs = NoConstants(node->inputs());
+            auto inputs = node->inputs();
             auto& nodeInputDependency = nodeInputDependencies[node.get()];
             for (auto&& input : inputs) {
                 nodeInputDependency.insert(input);
@@ -503,7 +479,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         std::deque<int> subgraphIds;
         NodeMap<int*> subgraphIdPtrs;
         for (auto&& node : orderedOps) {
-            auto allNodeInputs = NoConstants(node->inputs());
+            auto allNodeInputs = node->inputs();
             std::vector<Input> inputs;
             for (auto&& input : allNodeInputs) {
                 if (!contains(subgraphInputs, input)) {
@@ -553,7 +529,8 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
             for (auto&& subgraphInput : allNodeSubgraphInputs) {
                 if (!ngraph::op::is_parameter(subgraphInput.get_node()) &&
-                        subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
+                    !ngraph::op::is_constant(subgraphInput.get_node()) &&
+                    subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
                     nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
                 }
             }
@@ -570,7 +547,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
                         cyclicInputsDependencies.emplace(input);
                     }
                 }
-                for (auto&& input : NoConstants(node->inputs())) {
+                for (auto&& input : node->inputs()) {
                     auto& inputNodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[InputNode(input)];
                     auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
                     if (!Intersects(nodeSubgraphCyclicInputDependency,
@@ -588,7 +565,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
     std::vector<std::shared_ptr<ngraph::op::Result>> results;
     for (auto&& input : subgraphInputs) {
-        if (!ngraph::op::is_parameter(input.get_node())) {
+        if (!ngraph::op::is_parameter(input.get_node()) && !ngraph::op::is_constant(input.get_node())) {
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
