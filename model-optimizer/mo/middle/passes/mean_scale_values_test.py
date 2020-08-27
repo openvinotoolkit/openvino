@@ -72,8 +72,6 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                              'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                              })
         graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
-        del graph['placeholder_1']['placeholder_1_data'][0]['in']
-        #del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'add_output'),

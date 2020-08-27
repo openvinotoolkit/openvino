@@ -25,12 +25,19 @@ def move_scaleshift_to_preprocess_action(graph, match):
     input_op = match['input_op']
     add_op = match['add']
     mul_op = match['mul']
+
     if match['const_mul_output'].has('value'):
-        weights = np.squeeze(match['const_mul_output'].value)
+        weights = match['const_mul_output'].value
         if any([x != 1 for x in weights]):
             return
+
+    # # Keep biases (mean values) for current input as graph attr and remove mean values layers
+    # # Input->data->Mul->Add->scsh_data    =>    Input->scsh_data
+    add_op.out_port(0).get_connection().set_source(input_op.out_port(0))
+    mul_op.in_port(0).disconnect()
+
     if match['const_add_output'].has('value'):
-        biases = np.squeeze(match['const_add_output'].value)
+        biases = match['const_add_output'].value
 
         if graph.graph['cmd_params'].reverse_input_channels:
             biases = np.flip(biases)
@@ -48,11 +55,6 @@ def move_scaleshift_to_preprocess_action(graph, match):
             graph.graph['mean_values'].update(mean_values)
         else:
             graph.graph['mean_values'] = mean_values
-
-    # # Keep biases (mean values) for current input as graph attr and remove mean values layers
-    # # Input->data->Mul->Add->scsh_data    =>    Input->scsh_data
-    add_op.out_port(0).get_connection().set_source(input_op.out_port(0))
-    mul_op.in_port(0).disconnect()
 
 
 def move_scaleshift_to_preprocess(graph: Graph):
