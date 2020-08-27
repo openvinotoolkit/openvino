@@ -1,10 +1,12 @@
 import org.junit.Assert;
+import org.junit.Test;
 
 import org.intel.openvino.*;
 
 public class BlobTests extends IETest {
     
-    public void testGetBlob(){
+    @Test
+    public void testGetBlob() {
         int[] dimsArr = {1, 3, 200, 200};
         TensorDesc tDesc = new TensorDesc(Precision.U8, dimsArr, Layout.NHWC);
 
@@ -13,7 +15,8 @@ public class BlobTests extends IETest {
         Assert.assertArrayEquals(blob.getTensorDesc().getDims(), dimsArr);
     }
 
-    public void testGetBlobFromFloat(){
+    @Test
+    public void testGetBlobFromFloat() {
         int[] dimsArr = {1, 1, 2, 2};
         TensorDesc tDesc = new TensorDesc(Precision.FP32, dimsArr, Layout.NHWC);
 

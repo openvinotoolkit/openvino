@@ -29,7 +29,8 @@ if(ENABLE_TESTS)
                   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/hamcrest-core-1.3.jar)
 
     file(GLOB_RECURSE java_tests_src tests/*.java)
-    add_jar(ie_java_api_tests_jar ${java_tests_src} 
+    add_jar(ie_java_api_tests_jar
+            SOURCES ${java_tests_src} samples/ArgumentParser.java
             OUTPUT_NAME ie_java_api_tests 
             OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} 
             INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/*)
