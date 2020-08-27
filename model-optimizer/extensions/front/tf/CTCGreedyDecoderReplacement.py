@@ -72,9 +72,9 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         sparse_to_dense = match['sparse_to_dense']
         sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
 
-        # remove edges from CTCGreedyDecoder node since top nodes willbe changed
-        graph.remove_edge(ctc_greedy_decoder.id, sparse_to_dense.id)
-        graph.remove_edge(ctc_greedy_decoder.id, cast.id)
+        # disconnect SparseToDense and Cast nodes
+        sparse_to_dense.in_port(0).disconnect()
+        cast.in_port(0).disconnect()
 
         # transform CTCGreedyDecoder output to TensorFlow's one:
         # 1. squeeze the output to [N, T] shape
