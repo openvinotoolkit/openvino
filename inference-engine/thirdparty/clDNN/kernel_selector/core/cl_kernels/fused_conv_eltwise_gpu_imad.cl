@@ -129,7 +129,6 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     #else
             in[reg] = AS_PACKED_TYPE(conv_input[in_addr]);// read SIMD_SIZE elements wide
     #endif
-            // TODO This will cause errors for byxf_af32 format on input
             in_addr += (INPUT0_SIZE_X + IWPAD);  // move to next row down
 #endif
         }
@@ -191,9 +190,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             if(!zero_c)
             #endif
             {
-            #if OUTPUT_LAYOUT_BYXF_AF32 == 1
-                uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
-            #elif OUTPUT_LAYOUT_B_FS_YX_FSV4 == 1
+            #if OUTPUT_LAYOUT_B_FS_YX_FSV4 == 1
                 uint out_idx = output_idx_offset + r * output_row_size_bytes + (c*PACK);
             #elif OUTPUT_LAYOUT_B_FS_YX_FSV16 == 1 || OUTPUT_LAYOUT_BS_FS_YX_BSV16_FSV16 == 1
                 uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
