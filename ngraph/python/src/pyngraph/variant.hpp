@@ -54,9 +54,7 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
         py::is_operator());
     variant_wrapper.def(
         "__eq__",
-        [](const ngraph::VariantWrapper<int64_t>& a, const int64_t& b) {
-            return a.get() == b;
-        },
+        [](const ngraph::VariantWrapper<int64_t>& a, const int64_t& b) { return a.get() == b; },
         py::is_operator());
 
     variant_wrapper.def("__repr__", [](const ngraph::VariantWrapper<VT> self) {
