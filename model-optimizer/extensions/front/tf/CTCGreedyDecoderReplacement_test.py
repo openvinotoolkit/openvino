@@ -17,14 +17,55 @@
 import numpy as np
 import unittest
 
-from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
+from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, CTCGreedyDecoderReplacement2
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const
 
 
-class CTCGreedyDecoderReplacementTest(unittest.TestCase):
+class CTCGreedyDecoderReplacementTests(unittest.TestCase):
     def test1(self):
+        nodes_attributes = {
+            # nodes from original graph
+            'logits': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+            'seq_len': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+            'decoder': {'kind': 'op', 'op': 'CTCGreedyDecoder'},
+            'cast': {'kind': 'op', 'op': 'Cast'},
+            'sparse_to_dense': {'kind': 'op', 'op': 'SparseToDense'},
+            'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
+
+            # new nodes
+            'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoder', 'use_mask_format': True},
+            **const('squeeze_axes', int64_array([2, 3])),
+            'squeeze_dec_seq': {'kind': 'op', 'op': 'Squeeze'},
+            'cast_to_int': {'kind': 'op', 'op': 'Cast'},
+        }
+
+        graph = build_graph(nodes_attributes,
+                            [('logits', 'decoder', {'out': 0, 'in': 0}),
+                             ('seq_len', 'decoder', {'out': 0, 'in': 1}),
+                             ('decoder', 'sparse_to_dense', {'out': 0, 'in': 0}),
+                             ('decoder', 'cast', {'out': 1, 'in': 0}),
+                             ('cast', 'sparse_to_dense', {'out': 0}),
+                             ('sparse_to_dense', 'last', {'out': 0, 'in': 0}),
+                             ], nodes_with_edges_only=True)
+        graph.stage = 'front'
+        CTCGreedyDecoderReplacement().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('logits', 'decoder', {'out': 0, 'in': 0}),
+                                 ('seq_len', 'decoder', {'out': 0, 'in': 1}),
+                                 ('decoder', 'squeeze_dec_seq', {'out': 0, 'in': 0}),
+                                 ('squeeze_axes', 'squeeze_dec_seq', {'out': 0, 'in': 1}),
+                                 ('squeeze_dec_seq', 'cast_to_int', {'out': 0, 'in': 0}),
+                                 ('cast_to_int', 'last', {'out': 0, 'in': 0}),
+                                 ],
+                                nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test2(self):
         nodes_attributes = {
             # nodes from original graph
             'logits': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -55,6 +96,7 @@ class CTCGreedyDecoderReplacementTest(unittest.TestCase):
             **const('one', np.array([1.0], dtype=np.float)),
             **const('squeeze_axes', int64_array([2, 3])),
             'squeeze_dec_seq': {'kind': 'op', 'op': 'Squeeze'},
+            'cast_to_int': {'kind': 'op', 'op': 'Cast'},
 
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
         }
@@ -82,7 +124,7 @@ class CTCGreedyDecoderReplacementTest(unittest.TestCase):
                              ('sparse_to_dense', 'last', {'out': 0, 'in': 0}),
                              ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        CTCGreedyDecoderReplacement().find_and_replace_pattern(graph)
+        CTCGreedyDecoderReplacement2().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('logits', 'transpose', {'out': 0}),
@@ -108,7 +150,8 @@ class CTCGreedyDecoderReplacementTest(unittest.TestCase):
                                  ('sequence_mask', 'decoder', {'out': 0, 'in': 1}),
                                  ('decoder', 'squeeze_dec_seq', {'out': 0, 'in': 0}),
                                  ('squeeze_axes', 'squeeze_dec_seq', {'out': 0, 'in': 1}),
-                                 ('squeeze_dec_seq', 'last', {'out': 0, 'in': 0}),
+                                 ('squeeze_dec_seq', 'cast_to_int', {'out': 0, 'in': 0}),
+                                 ('cast_to_int', 'last', {'out': 0, 'in': 0}),
                                  ],
                                 nodes_with_edges_only=True)
 
