@@ -197,7 +197,13 @@ echo ###############^|^| Run Inference Engine security barrier camera demo ^|^|#
 echo.
 timeout 3
 cd "%SOLUTION_DIR64%\intel64\Release"
-echo "%SOLUTION_DIR64%\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+if not exist security_barrier_camera_demo.exe (
+   cd "%INTEL_OPENVINO_DIR%\inference_engine\demos\intel64\Release"
+   echo "%INTEL_OPENVINO_DIR%\inference_engine\demos\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+)
+else (
+   echo "%SOLUTION_DIR64%\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+)
 security_barrier_camera_demo.exe -i "%target_image_path%" %model_args% ^
                                  -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
 if ERRORLEVEL 1 GOTO errorHandling
