@@ -94,12 +94,22 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
+                /// \brief Shape calculation mode
+                ///
+                /// sizes  - output shape for interpolated axes is calculated using input `sizes`
+                /// scales - output shape for interpolated axes is calculated using input `scales`
                 enum class ShapeCalcMode
                 {
                     sizes,
                     scales
                 };
 
+                /// \brief Interpolation mode
+                ///
+                /// nearest     - nearest interpolation
+                /// linear      - linear interpolation as in TensorFlow
+                /// linear_onnx - linear interpolation as in ONNX
+                /// cubic       - cubic interpolation
                 enum class InterpolateMode
                 {
                     nearest,
@@ -108,6 +118,9 @@ namespace ngraph
                     cubic
                 };
 
+                /// \brief Mode of the calculation of the source coordinate from resized one
+                ///
+                /// These modes are modes from ONNX runtime.
                 enum class CoordinateTransformMode
                 {
                     half_pixel,
@@ -117,6 +130,7 @@ namespace ngraph
                     align_corners
                 };
 
+                /// \brief Round modes for the nearest interpolation.
                 enum class NearestMode
                 {
                     round_prefer_floor,
