@@ -458,7 +458,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
-            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static())
@@ -517,7 +516,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
             auto body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
-            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             NODE_VALIDATION_CHECK(this,
@@ -542,7 +540,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
-            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             NODE_VALIDATION_CHECK(this,
@@ -579,6 +576,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 as_type_ptr<ConcatOutputDescription>(output_description))
         {
             auto body_value_partial_shape = body_value.get_partial_shape();
+            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
             if (body_value_partial_shape.is_static())
             {
                 auto body_value_shape = body_value_partial_shape.to_shape();
@@ -650,6 +648,7 @@ std::shared_ptr<Node>
 
     op->m_num_iterations = m_num_iterations;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
+    func->validate_nodes_and_infer_types();
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
     op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
