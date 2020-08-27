@@ -18,9 +18,11 @@ import json
 import numpy as np
 import pytest
 
+from _pyngraph import VariantInt, VariantString
+
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, VariantString
+from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -408,7 +410,7 @@ def test_variants():
 
 
 def test_runtime_info():
-    test_shape = PartialShape([1, 3, 22, 22])
+    test_shape = PartialShape([1, 1, 1, 1])
     test_type = Type.f32
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
@@ -417,7 +419,7 @@ def test_runtime_info():
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
 
-    assert runtime_info == runtime_info_after
+    assert runtime_info_after["affinity"] == "test_affinity"
 
     params = [test_param]
     results = [relu_node]
