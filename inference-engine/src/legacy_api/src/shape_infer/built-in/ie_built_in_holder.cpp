@@ -17,6 +17,7 @@
 #include "ie_deconv_shape_infer.hpp"
 #include "ie_deformable_conv_shape_infer.hpp"
 #include "ie_depth_to_space_shape_infer.hpp"
+#include "ie_detectionoutput_onnx_shape_infer.hpp"
 #include "ie_detection_output_shape_infer.hpp"
 #include "ie_eltwise_shape_infer.hpp"
 #include "ie_equal_shape_infer.hpp"
@@ -35,6 +36,8 @@
 #include "ie_pool_shape_infer.hpp"
 #include "ie_priorbox_clustered_shape_infer.hpp"
 #include "ie_priorbox_shape_infer.hpp"
+#include "ie_priorgridgenerator_onnx_shape_infer.hpp"
+#include "ie_proposal_onnx_shape_infer.hpp"
 #include "ie_proposal_shape_infer.hpp"
 #include "ie_psroi_pooling_shape_infer.hpp"
 #include "ie_quantize_shape_infer.hpp"
@@ -48,6 +51,7 @@
 #include "ie_rnn_cell_shape_infer.hpp"
 #include "ie_rnn_shape_infer.hpp"
 #include "ie_roi_pooling_shape_infer.hpp"
+#include "ie_roifeatureextractor_onnx_shape_infer.hpp"
 #include "ie_scatter_shape_infer.hpp"
 #include "ie_select_shape_infer.hpp"
 #include "ie_shape_shape_infer.hpp"
@@ -65,6 +69,7 @@
 #include "ie_tensor_iterator_shape_infer.hpp"
 #include "ie_tile_shape_infer.hpp"
 #include "ie_topk_shape_infer.hpp"
+#include "ie_topkrois_onnx_shape_infer.hpp"
 #include "ie_unique_shape_infer.hpp"
 #include "ie_unsqueeze_shape_infer.hpp"
 #include "ie_upsampling_shape_infer.hpp"
@@ -157,6 +162,11 @@ REG_SHAPE_INFER_FOR_TYPE(ReshapeShapeProp, Reshape);
 REG_SHAPE_INFER_FOR_TYPE(DetectionOutputShapeProp, DetectionOutput);
 REG_SHAPE_INFER_FOR_TYPE(PriorBoxClusteredShapeProp, PriorBoxClustered);
 REG_SHAPE_INFER_FOR_TYPE(PriorBoxShapeProp, PriorBox);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronDetectionOutputShapeProp, ExperimentalDetectronDetectionOutput);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronPriorGridGeneratorShapeProp, ExperimentalDetectronPriorGridGenerator);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronGenerateProposalsSingleImageShapeProp, ExperimentalDetectronGenerateProposalsSingleImage);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronROIFeatureExtractorShapeProp, ExperimentalDetectronROIFeatureExtractor);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronTopKROIsShapeProp, ExperimentalDetectronTopKROIs);
 REG_SHAPE_INFER_FOR_TYPE(RoiPoolingShapeProp, ROIPooling);
 REG_SHAPE_INFER_FOR_TYPE(PSRoiPoolingShapeProp, PSROIPooling);
 REG_SHAPE_INFER_FOR_TYPE(UpsamplingShapeProp, Upsampling);
