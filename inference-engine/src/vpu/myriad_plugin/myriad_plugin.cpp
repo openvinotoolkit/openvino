@@ -17,7 +17,6 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 
@@ -52,10 +51,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         manager.run_passes(function);
 
         ngraph::pass::Manager ti_manager;
-        // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        // Unroll should be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(function);
     }
 
@@ -165,9 +161,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
             std::make_shared<ExecutableNetwork>(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 
-    return InferenceEngine::ExecutableNetwork{IExecutableNetwork::Ptr(
-        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
-        [](ie::details::IRelease *p) {p->Release();})};
+    return make_executable_network(executableNetwork);
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(

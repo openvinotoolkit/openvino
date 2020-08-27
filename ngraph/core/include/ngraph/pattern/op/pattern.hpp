@@ -61,6 +61,12 @@ namespace ngraph
         NGRAPH_API
         std::function<bool(Output<Node>)> has_static_shape();
 
+        NGRAPH_API
+        std::function<bool(Output<Node>)> type_matches(const element::Type& type);
+
+        NGRAPH_API
+        std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Type>& types);
+
         namespace op
         {
             using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;

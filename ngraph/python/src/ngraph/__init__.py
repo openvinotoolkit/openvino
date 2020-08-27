@@ -84,6 +84,7 @@ from ngraph.opset4 import group_convolution
 from ngraph.opset4 import group_convolution_backprop_data
 from ngraph.opset4 import gru_cell
 from ngraph.opset4 import hard_sigmoid
+from ngraph.opset4 import hswish
 from ngraph.opset4 import interpolate
 from ngraph.opset4 import less
 from ngraph.opset4 import less_equal
@@ -148,6 +149,7 @@ from ngraph.opset4 import sign
 from ngraph.opset4 import sin
 from ngraph.opset4 import sinh
 from ngraph.opset4 import softmax
+from ngraph.opset4 import softplus
 from ngraph.opset4 import space_to_batch
 from ngraph.opset4 import space_to_depth
 from ngraph.opset4 import split

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
@@ -28,6 +29,8 @@
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

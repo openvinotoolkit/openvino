@@ -74,8 +74,11 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                                        << ". Expected only positive numbers (#streams) or "
                                        << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
                 }
-                if (val_i > 0)
-                    _streams = val_i;
+                if (val_i < 0) {
+                    THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                                    << ". Expected only positive numbers (#streams)";
+                }
+                _streams = val_i;
             }
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
             int val_i;
@@ -85,7 +88,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }
-            if (val_i <= 0) {
+            if (val_i < 0) {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }

@@ -27,6 +27,7 @@ INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 INTERPRETER.onnx_resize11_sizes_linear
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.interpolate_down_scales_const_linear
+INTERPRETER.onnx_empty_initializers_handling
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
@@ -110,4 +111,6 @@ INTERPRETER.onnx_model_conv_integer_pads
 INTERPRETER.onnx_model_scatterND
 INTERPRETER.onnx_model_gatherND_int32
 INTERPRETER.onnx_model_gatherND_float
-INTERPRETER.onnx_model_round
+
+# Round op doesn't support some specific cases of rounding
+onnx_model_round_half_nearest_even

@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <legacy/ie_ngraph_utils.hpp>
+# include <cpp/ie_cnn_network.h>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
@@ -169,6 +170,7 @@ private:
                                              std::istream& binStream, const GenericLayerParams& params);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, std::istream& binStream);
 
     std::map<std::string, DataPtr> portsToData;
     std::map<std::string, GenericLayerParams> layersParseInfo;

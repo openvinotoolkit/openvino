@@ -541,6 +541,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<space_to_batch>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
@@ -696,7 +698,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
                                 !quantize_node.get_need_pre_shift();
 
                 if (can_skip) {
-                    fused_prims.erase(curr_itr);
+                    fp_itr = fused_prims.erase(curr_itr);
                 }
             }
         }
