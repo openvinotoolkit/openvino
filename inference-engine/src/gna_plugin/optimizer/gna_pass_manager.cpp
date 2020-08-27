@@ -601,7 +601,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
                 layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
 
-                auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+                auto& convolution = static_cast<ConvolutionLayer&>(*next);
 
                 if (convolution._kernel_y != 1) {
                     THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
