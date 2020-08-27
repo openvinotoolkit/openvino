@@ -77,6 +77,26 @@ if [ -f /etc/lsb-release ]; then
     if [ "$system_ver" = "16.04" ]; then
         PKGS+=( libgtk2.0-0 )
     else
+        if [ "$system_ver" = "20.04" ]; then
+            PKGS+=( libgstreamer1.0-0 
+                    gstreamer1.0-plugins-base 
+                    gstreamer1.0-plugins-good  
+                    gstreamer1.0-plugins-bad 
+                    gstreamer1.0-plugins-ugly 
+                    gstreamer1.0-libav 
+                    libgstreamer-plugins-base1.0-dev 
+                    gstreamer1.0-doc
+                    gstreamer1.0-tools
+                    gstreamer1.0-x
+                    gstreamer1.0-alsa 
+                    gstreamer1.0-gl 
+                    gstreamer1.0-gtk3 
+                    gstreamer1.0-qt5 
+                    gstreamer1.0-pulseaudio 
+                    libgstrtspserver-1.0-dev
+                    python3-gst-1.0
+                )
+        fi
         PKGS+=( libgtk-3-0
                 libglib2.0-0
                 flex
@@ -93,7 +113,7 @@ if [ -f /etc/lsb-release ]; then
                 libgl1-mesa-dri
                 libgles2
                 libgl-dev
-                gudev-1.0
+                gir1.2-gudev-1.0
                 libtheora0
                 libcdparanoia0
                 libpango-1.0-0
@@ -124,7 +144,7 @@ if [ -f /etc/lsb-release ]; then
                 libtwolame0
                 libwavpack1
                 libbluetooth3
-                libusb-1.0.0-dev
+                libusb-1.0-0-dev
                 libass9
                 libbs2b0
                 libchromaprint1
