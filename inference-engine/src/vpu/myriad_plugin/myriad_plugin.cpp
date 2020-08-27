@@ -44,30 +44,6 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
-InferenceEngine::ICNNNetwork::Ptr Engine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
-    auto clonedNetwork = cloneNetwork(network);
-
-    if (auto nGraphFunc = clonedNetwork->getFunction()) {
-            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-            ngraph::pass::Manager manager;
-
-            manager.register_pass<ngraph::pass::CommonOptimizations>();
-            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
-            manager.run_passes(nGraphFunc);
-
-            ngraph::pass::Manager ti_manager;
-            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-            ti_manager.run_passes(nGraphFunc);
-
-            clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-    }
-
-    return clonedNetwork;
-}
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const ICNNNetwork& network,
@@ -135,19 +111,14 @@ void Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
-    auto function = network.getFunction();
-
-    if (function != nullptr) {
+    if (auto function = network.getFunction()) {
         std::unordered_set<std::string> originalOps;
-        for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_parameter(node) &&
-                !ngraph::op::is_output(node) &&
-                !ngraph::op::is_constant(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+        for (auto& node : function->get_ops()) {
+            originalOps.emplace(node->get_friendly_name());
         }
 
-        auto clonedNetwork = CloneAndTransformNetwork(network);
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
 
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
@@ -155,15 +126,11 @@ void Engine::QueryNetwork(
         std::unordered_set<std::string> splitNames;
         std::unordered_set<std::string> concatNames;
 
-        std::vector<std::shared_ptr<ngraph::Node>> splits;
-        std::vector<std::shared_ptr<ngraph::Node>> concats;
+        ngraph::NodeVector splits;
+        ngraph::NodeVector concats;
 
-        for (CNNNetworkIterator itLayer{clonedNetwork.get()};
-             itLayer != CNNNetworkIterator();
-             itLayer++) {
-            auto layerIsSupported = [&] {
-                auto node = (*itLayer)->getNode();
-
+        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](CNNNetworkIterator& layer) -> bool {
+                auto node = (*layer)->getNode();
                 if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
                     splitNames.emplace(node->get_friendly_name());
                     splits.push_back(node);
@@ -175,18 +142,21 @@ void Engine::QueryNetwork(
                 } else {
                     auto stageBuilder = std::make_shared<StageBuilder>();
                     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, GetCore());
-                    return frontEnd->layerIsSupported((*itLayer)->type);
+                    return frontEnd->isLayerSupported((*layer)->type);
                 }
-            }();
+        };
 
+        for (CNNNetworkIterator itLayer{convertedNetwork.get()};
+             itLayer != CNNNetworkIterator();
+             itLayer++) {
             const auto fusedNode = (*itLayer)->getNode();
             if (fusedNode == nullptr) {
                 continue;
             }
 
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
+            for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
                 if (contains(originalOps, fusedLayerName)) {
-                    if (layerIsSupported) {
+                    if (isLayerSupported(itLayer)) {
                         supported.emplace(fusedLayerName);
                     } else {
                         unsupported.emplace(fusedLayerName);
@@ -195,7 +165,7 @@ void Engine::QueryNetwork(
             }
         }
 
-        for (auto&& layerName : supported) {
+        for (const auto& layerName : supported) {
             if (contains(unsupported, layerName)) {
                 supported.erase(layerName);
             }
@@ -204,15 +174,18 @@ void Engine::QueryNetwork(
         unsupported.clear();
 
         for (const auto& split : splits) {
+            // We will mark split as a supported only if all consumers is supported
             bool is_supported = true;
             const auto outputs = split->outputs();
             for (const auto& output : outputs) {
-                const auto& name = output.get_node()->get_friendly_name();
-                if (!contains(supported, name) &&
-                    !contains(concatNames, name) &&
-                    !contains(splitNames, name)) {
-                    is_supported = false;
-                    break;
+                for (const auto &consumer : output.get_target_inputs()) {
+                    const auto& name = consumer.get_node()->get_friendly_name();
+                    if (!contains(supported, name) &&
+                        !contains(concatNames, name) &&
+                        !contains(splitNames, name)) {
+                        is_supported = false;
+                        break;
+                    }
                 }
             }
             if (is_supported) {
@@ -221,10 +194,11 @@ void Engine::QueryNetwork(
         }
 
         for (const auto& concat : concats) {
+            // We will mark concat as a supported only if all parent layers is supported
             bool is_supported = true;
             const auto inputs = concat->inputs();
             for (const auto& input : inputs) {
-                const auto& name = input.get_node()->get_friendly_name();
+                const auto& name = input.get_source_output().get_node()->get_friendly_name();
                 if (!contains(supported, name) &&
                     !contains(concatNames, name)) {
                     is_supported = false;
@@ -236,7 +210,24 @@ void Engine::QueryNetwork(
             }
         }
 
-        for (auto&& layerName : supported) {
+        for (const auto& node : function->get_ops()) {
+            if (contains(supported, node->get_friendly_name())) {
+                for (const auto& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (const auto& outputs : node->outputs()) {
+                    for (const auto& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
+        for (auto& layerName : supported) {
             if (!contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());
             }
