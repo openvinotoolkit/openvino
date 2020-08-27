@@ -99,20 +99,6 @@
         ((b) / (sub_group_size))*CAT(prefix, _BATCH_PITCH)              \
     )
 
-inline uint FUNC(get_bf8_xy16_index)(uint b, uint f, uint y, uint x, uint x_size, uint y_size, uint f_size, uint offset)
-{
-    const uint xy_idx = x + y * x_size;
-    const uint xy_offset = (xy_idx % 16) + (xy_idx / 16) * 16 * 8;
-    const uint xy_block_num = (x_size * y_size + 16 - 1) / 16;
-    const uint f_offset = (f % 8) * 16 + (f / 8) * xy_block_num * 16 * 8;
-    const uint f_block_num = (f_size + 8 - 1) / 8;
-    const uint b_offset = b * f_block_num * xy_block_num * 128;
-
-    const size_t idx = offset + xy_offset + f_offset + b_offset;
-
-    return idx;
-}
-
 inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
                                         uint x_size, uint y_size, uint f_size, uint b_size,
                                         uint b_pad_before, uint b_pad_after,
@@ -494,93 +480,6 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
         CAT(prefix, _SIZE_X),                           \
         CAT(prefix, _SIZE_Y),                           \
         CAT(prefix, _SIZE_Z))
-
-inline uint FUNC(get_byxf_af32_index)(uint b, uint f, uint y, uint x, uint y_pitch, uint b_pitch, uint f_size, uint f_pad_before, uint f_pad_after, uint offset)
-{
-    const uint f_aligned_to_32 = ((f_size + 31) / 32) * 32;
-    const uint x_pitch = f_pad_before + f_aligned_to_32 + f_pad_after;
-    const uint b_offset = b * b_pitch;
-    const uint xy_offset = x_pitch * x + y_pitch * y;
-    const uint f_offset = f;
-    const size_t idx = offset + xy_offset + b_offset + f_offset;
-    return idx;
-}
-
-#define GET_DATA_BYXF_AF32_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_byxf_af32_index)(                  \
-        b, f, y, x, CAT(prefix, _Y_PITCH),           \
-        CAT(prefix, _BATCH_PITCH),                   \
-        CAT(prefix, _FEATURE_NUM),                   \
-        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),        \
-        CAT(prefix, _PAD_AFTER_FEATURE_NUM),         \
-        CAT(prefix, _OFFSET))
-
-inline uint FUNC(get_byx8_f4_index)(uint b, uint f, uint y, uint x,
-    uint x_pitch, uint y_pitch, uint b_pitch, uint f_size, uint x_size, uint offset)
-{
-    const uint f_aligned_to_4 = ((f_size + 3) / 4) * 4;
-    const uint x_aligned_to_8 = ((x_size + 7) / 8) * 8;
-    const uint b_offset = b * b_pitch;
-    const uint xy_offset = x * x_pitch + y * y_pitch;
-    const uint f_offset = f;
-    const size_t idx = offset + xy_offset + b_offset + f_offset;
-    return idx;
-}
-
-#define GET_DATA_BYX8_F4_INDEX(prefix, b, f, y, x) \
-	FUNC_CALL(get_byx8_f4_index)(                  \
-		b, f, y, x, CAT(prefix, _X_PITCH),         \
-		CAT(prefix, _Y_PITCH),                     \
-		CAT(prefix, _BATCH_PITCH),                 \
-		CAT(prefix, _FEATURE_NUM),                 \
-		CAT(prefix, _SIZE_X),                      \
-		CAT(prefix, _OFFSET))
-
-#define GET_DATA_BF8_XY16_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_bf8_xy16_index)(                  \
-        b, f, y, x, CAT(prefix, _SIZE_X ),          \
-        CAT(prefix, _SIZE_Y),                       \
-        CAT(prefix, _FEATURE_NUM),                  \
-        CAT(prefix, _OFFSET))
-
-inline uint FUNC(get_fs_bs_yx_bsv4_fsv32_index)(uint b, uint f, uint y, uint x,
-    uint x_pad_before, uint x_size, uint x_pad_after,
-    uint y_pad_before, uint y_size, uint y_pad_after,
-    uint size_f, uint size_b)
-{
-    const uint f_32_aligned = ((size_f + 31)/32) * 32;
-    const uint b_4_aligned = ((size_b + 3)/4) * 4;
-    const uint fsv_idx = f % 32;
-    const uint bsv_idx = b % 4;
-    const uint fs_idx = f / 32;
-    const uint bs_idx = b / 4;
-
-    const uint x_pitch = 32 * 4;
-    const uint y_pitch = 32 * 4 * (x_pad_before + x_size + x_pad_after);
-    const uint bs_pitch = y_pitch * (y_pad_before + y_size + y_pad_after);
-    const uint fs_pitch = bs_pitch * (b_4_aligned / 4);
-    uint offset = x_pitch * x_pad_before + y_pitch * y_pad_before;
-
-    size_t idx = offset + fsv_idx + bsv_idx * 32;
-    idx += 32*4 * x;
-    idx += y * y_pitch;
-    idx += bs_idx * bs_pitch;
-    idx += fs_idx * fs_pitch;
-
-    return idx;
-}
-
-#define GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_fs_bs_yx_bsv4_fsv32_index)(                  \
-        b, f, y, x,                                            \
-        CAT(prefix, _PAD_BEFORE_SIZE_X),                       \
-        CAT(prefix, _SIZE_X),                                  \
-        CAT(prefix, _PAD_AFTER_SIZE_X),                        \
-        CAT(prefix, _PAD_BEFORE_SIZE_Y),                       \
-        CAT(prefix, _SIZE_Y),                                  \
-        CAT(prefix, _PAD_AFTER_SIZE_Y),                        \
-        CAT(prefix, _FEATURE_NUM),                             \
-        CAT(prefix, _BATCH_NUM))
 
 #define GET_FILTER_GOIYX(prefix, g, o, i, y, x) \
     CAT(prefix, _OFFSET) +                      \

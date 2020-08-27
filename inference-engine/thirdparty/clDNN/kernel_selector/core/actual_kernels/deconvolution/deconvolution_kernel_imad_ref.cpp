@@ -41,7 +41,6 @@ ParamsKey DeconvolutionKernel_imad_ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableAllOutputLayout();
 
     k.EnableDifferentTypes();
