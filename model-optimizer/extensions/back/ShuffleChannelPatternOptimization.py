@@ -16,6 +16,7 @@
 import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
+from extensions.ops.depth_to_space import DepthToSpaceOp
 from extensions.ops.shufflechannel import ShuffleChannels
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -197,3 +198,78 @@ class ShuffleChannelFusion(BackReplacementPattern):
         shuffle_channel = ShuffleChannels(graph, {'name': name, 'group': group}).create_node()
         channel_concating_reshape.out_port(0).get_connection().set_source(shuffle_channel.out_port(0))
         shuffle_channel.in_port(0).connect(channel_splitting_reshape.in_port(0).get_source())
+
+
+class DepthToSpaceFusion(BackReplacementPattern):
+    """
+    FUSION: Reshape->Transpose->Reshape  to  DepthToSpace
+    We are able to perform the fusion if the pattern satisfies the conditions:
+    1. Pattern has 6D input and 4D output
+    2. First Reshape splits channel dimension (1 axis) into three dimensions [new_depth, block_size, block_size]
+    3. Transpose permutes splitted dimensions with spatial ones
+    4. Second Reshape pack block size together with spatial dimension
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        return [FuseTransposesSequence]
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('reshape_0_pattern', dict(type='Const')),
+                ('reshape_0_pattern_d', dict(value=lambda v: v is not None and v.size == 6 and np.all(v > 0))),
+                ('reshape_0', dict(type='Reshape')),
+                ('reshape_0_d', dict()),
+
+                ('order', dict(type='Const')),
+                ('order_d', dict(value=lambda v: v is not None and np.array_equal([0, 1, 4, 2, 5, 3], v))),
+                ('transpose', dict(type='Transpose')),
+                ('transpose_d', {}),
+
+                ('reshape_1_pattern', dict(type='Const')),
+                ('reshape_1_pattern_d', dict(value=lambda v: v is not None and v.size == 4 and np.all(v > 0))),
+                ('reshape_1', dict(type='Reshape')),
+            ],
+            edges=[
+                ('reshape_0_pattern', 'reshape_0_pattern_d'),
+                ('reshape_0_pattern_d', 'reshape_0'),
+                ('reshape_0', 'reshape_0_d'),
+                ('reshape_0_d', 'transpose'),
+                ('order', 'order_d'),
+                ('order_d', 'transpose'),
+                ('transpose', 'transpose_d'),
+                ('transpose_d', 'reshape_1'),
+                ('reshape_1_pattern', 'reshape_1_pattern_d'),
+                ('reshape_1_pattern_d', 'reshape_1'),
+            ]
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        channel_splitting_reshape = match['reshape_0']
+        channel_concating_reshape = match['reshape_1']
+
+        initial_shape = channel_splitting_reshape.in_port(0).data.get_shape()
+        resulting_shape = channel_concating_reshape.in_port(1).data.get_value()
+        if initial_shape[0] != resulting_shape[0]:
+            return
+
+        channel_splitted_out_shape = channel_splitting_reshape.in_port(1).data.get_value()
+        if not all([initial_shape[i] == channel_splitted_out_shape[j] for i, j in {0: 0, 2: 4, 3: 5}.items()]) or \
+                channel_splitted_out_shape[2] != channel_splitted_out_shape[3]:
+            return
+
+        block_size = channel_splitted_out_shape[2]
+        expected_output_shape = [initial_shape[0], initial_shape[1] // block_size,
+                                 initial_shape[2] * block_size, initial_shape[3] * block_size]
+        if np.array_equal(expected_output_shape, resulting_shape):
+            return
+
+        name = channel_concating_reshape.soft_get('name', channel_concating_reshape.id)
+        depth_to_space = DepthToSpaceOp(graph,
+                                        {'name': name, 'block_size': block_size, 'mode': 'depth_first'}).create_node()
+        channel_concating_reshape.out_port(0).get_connection().set_source(depth_to_space.out_port(0))
+        depth_to_space.in_port(0).connect(channel_splitting_reshape.in_port(0).get_source())
