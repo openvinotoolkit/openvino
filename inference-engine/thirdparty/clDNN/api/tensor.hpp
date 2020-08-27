@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,8 +132,8 @@ struct format {
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
-        is_os_zyx_osv16_isv16,                        ///< format used for weights for blocked 3D deconvolution
-        is_os_yx_osv16_isv16,                         ///< format used for weights for blocked deconvolution
+        is_os_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D deconvolution
+        is_os_yx_isv16_osv16,                         ///< format used for weights for blocked deconvolution
         os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
@@ -170,6 +170,7 @@ struct format {
         os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
         os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
+        os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv32p,                        ///< format for weights for binary convolutions
@@ -186,9 +187,10 @@ struct format {
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
         gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
-        g_is_os_zyx_osv16_isv16,                      ///< format used for grouped weights for blocked 3D deconvolution
+        g_is_os_zyx_isv16_osv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
-        g_is_os_yx_osv16_isv16,
+        g_os_is_zyx_osv16_isv16,
+        g_is_os_yx_isv16_osv16,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
@@ -237,7 +239,7 @@ struct format {
                 { b_fs_yx_32fp,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
                 { b_fs_zyx_fsv16,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 16}}}},
                 { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
-                { bs_fs_yx_bsv16_fsv16,  { 1, 1, 3, 0, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
+                { bs_fs_yx_bsv16_fsv16,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
                 { nv12,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
                 { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
@@ -265,13 +267,14 @@ struct format {
                 { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
                 { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
                 { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
-                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 16}, {1, 4}}}},
+                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 16}, {1, 4}}}},
+                { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
                 { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
                 { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
                 { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "bfxy",   "bfxy?",      {}}},
                 { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
-                { is_os_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
-                { is_os_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "fbyx",   "bfxyz",      {{0, 16}, {1, 16}}}},
+                { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{1, 16}, {0, 16}}}},
+                { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "fbyx",   "bfxyz",      {{1, 16}, {0, 16}}}},
                 { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
                 { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "bzyxf",  "bfxyz",      {{0, 16}}}},
@@ -286,12 +289,13 @@ struct format {
                 { gs_oizyx_gsv16,                              { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{8, 16}}}},
                 { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 32}}}},
                 { gyxio,                                       { 1, 1, 2, 0, 1, "gyxfb",  "bfxy????g",  {}}},
-                { g_is_os_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "gfbzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
-                { g_is_os_yx_osv16_isv16,                      { 1, 1, 2, 0, 1, "gfbyx",  "bfxy????g",  {{0, 16}, {1, 16}}}},
+                { g_is_os_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gfbzyx", "bfxyz???g",  {{1, 16}, {0, 16}}}},
+                { g_is_os_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "gfbyx",  "bfxy????g",  {{1, 16}, {0, 16}}}},
                 { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
                 { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
                 { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "gbfxy",  "bfxy????g",  {{0, 16}, {1, 4}}}},
+                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 16}, {1, 4}}}},
+                { g_os_is_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
                 { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 4}}}},
                 { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 16}}}},
                 { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 32}}}},

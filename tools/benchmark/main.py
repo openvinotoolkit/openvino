@@ -299,6 +299,13 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
+        duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
+        logger.info("First inference took {} ms".format(duration_ms))
+        if statistics:
+            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                    [
+                                        ('first inference time (ms)', duration_ms)
+                                    ])
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------

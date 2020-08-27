@@ -19,7 +19,6 @@
 #include "details/ie_exception.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/runtime/reference/relu.hpp"
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
@@ -69,6 +68,8 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
         {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
         {ngraph::helpers::ActivationTypes::Mish,        "Mish"},
+        {ngraph::helpers::ActivationTypes::HSwish,      "HSwish"},
+        {ngraph::helpers::ActivationTypes::SoftPlus,    "SoftPlus"},
 };
 
 typedef std::tuple<
@@ -78,22 +79,22 @@ typedef std::tuple<
         std::string> activationParams;
 
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
-                            public LayerTestsUtils::LayerTestsCommon {
+                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     ngraph::helpers::ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
-    void SetUp();
+    void SetUp() override;
 };
 
 class ActivationParamLayerTest : public ActivationLayerTest {
 public:
-    void Infer();
+    void Infer() override;
 
 protected:
-    void SetUp();
+    void SetUp() override;
 
 private:
     void generateActivationBlob();

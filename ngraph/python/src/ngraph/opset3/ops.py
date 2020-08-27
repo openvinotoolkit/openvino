@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 
 from ngraph.impl import Node, Shape
-from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
@@ -402,22 +402,6 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
         "ReadValue",
         [as_node(init_value)],
         {"variable_id": variable_id}
-    )
-
-
-@nameable_op
-def reverse(data: NodeInput, axis: NodeInput, mode: str, name: Optional[str] = None) -> Node:
-    """Perform axis-reverse operation.
-
-    :param data: The input node on which operation will be carried out.
-    :param axis: The list of indices of axes to be reversed.
-    :param mode: The mode specifies how the second input tensor should be interpreted:
-                 as a set of indices or a mask. Range of values: index, mask.
-    :param name: The optional name of the output node.
-    :return: The new node with reversed axes.
-    """
-    return _get_node_factory_opset3("opset1").create(
-        "Reverse", as_nodes(data, axis), {"mode": mode.lower()}
     )
 
 

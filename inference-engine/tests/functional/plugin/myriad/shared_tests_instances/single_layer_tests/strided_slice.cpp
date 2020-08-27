@@ -18,6 +18,8 @@ typedef std::map<std::string, std::string> Config;
 
 std::vector<StridedSliceSpecificParams> testCases = {
     { { 1, 12, 100 }, { 0, 9, 0 }, { 0, 11, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
+    { { 1, 12, 100 }, { 0, 9 }, { 0, 11 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
+    { { 1, 12, 100 }, { 0, 9 }, { 0, 11 }, { 1, 1 }, { 1, 0 }, { 1, 0 },  { 0, 0 },  { 0, 0 },  { 0, 0 } },
     { { 1, 12, 100 }, { 0, 1, 0 }, { 0, -1, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
     { { 1, 12, 100 }, { 0, 8, 0 }, { 0, 9, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  {},  {},  {} },
     { { 1, 12, 100 }, { 0, 4, 0 }, { 0, 9, 0 }, { 1, 2, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
@@ -41,7 +43,7 @@ std::vector<InferenceEngine::Precision> precisions = {
 Config getConfig() {
     Config config;
     if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
     }
     return config;
 }

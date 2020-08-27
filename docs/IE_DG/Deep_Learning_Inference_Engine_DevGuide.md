@@ -58,7 +58,7 @@ inference of a pre-trained and optimized deep learning model and a set of sample
 
 * [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md)
 
-* [Migration from Inference Engine Plugin API to Core API](Migration_CoreAPI.md)
+* [[DEPRECATED] Migration from Inference Engine Plugin API to Core API](Migration_CoreAPI.md)
 
 * [Introduction to Performance Topics](Intro_to_Performance.md)
 
@@ -84,7 +84,7 @@ inference of a pre-trained and optimized deep learning model and a set of sample
       * [HDDL](supported_plugins/HDDL.md)
     * [Heterogeneous execution](supported_plugins/HETERO.md)
     * [GNA](supported_plugins/GNA.md)
-    * **NEW!** [MULTI](supported_plugins/MULTI.md)
+    * [MULTI](supported_plugins/MULTI.md)
 
 * [Pre-Trained Models](@ref omz_models_intel_index)
 

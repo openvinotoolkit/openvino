@@ -27,11 +27,10 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
@@ -86,28 +85,28 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
 
     VPU_THROW_UNLESS(g_compileEnv->config.numSHAVEs <= g_compileEnv->config.numCMXSlices,
         R"(Value of configuration option ("{}") must be not greater than value of configuration option ("{}"), but {} > {} are provided)",
-        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), config.numSHAVEs, config.numCMXSlices);
+        ie::MYRIAD_NUMBER_OF_SHAVES, ie::MYRIAD_NUMBER_OF_CMX_SLICES, config.numSHAVEs, config.numCMXSlices);
 
     const auto numExecutors = config.numExecutors != -1 ? config.numExecutors : DefaultAllocation::numStreams(platform, config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), 1, DeviceResources::numStreams(), numExecutors);
+        ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);
 
     const auto numSlices  = config.numCMXSlices != -1 ? config.numCMXSlices : DefaultAllocation::numSlices(platform, numExecutors);
     VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), 1, DeviceResources::numSlices(platform), numSlices);
+        ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(platform), numSlices);
 
     int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
     const auto tilingCMXLimit  = config.tilingCMXLimitKB != -1 ? std::min(config.tilingCMXLimitKB * 1024, defaultCmxLimit) : defaultCmxLimit;
     VPU_THROW_UNLESS(tilingCMXLimit >= 0,
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
-        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), 0, tilingCMXLimit);
+        ie::MYRIAD_TILING_CMX_LIMIT_KB, 0, tilingCMXLimit);
 
     const auto numShaves = config.numSHAVEs != -1 ? config.numSHAVEs : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), 1, DeviceResources::numShaves(platform), numShaves);
+        ie::MYRIAD_NUMBER_OF_SHAVES, 1, DeviceResources::numShaves(platform), numShaves);
 
     const auto numAllocatedShaves = numShaves * numExecutors;
     VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(platform),
@@ -145,14 +144,15 @@ void CompileEnv::free() {
 
 namespace {
 
-CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network) {
+CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network,
+                               const ie::ICore* core) {
     const auto& env = CompileEnv::get();
 
     env.log->debug("Compile network [%s]", network.getName());
     VPU_LOGGER_SECTION(env.log);
 
     auto stageBuilder = std::make_shared<StageBuilder>();
-    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
+    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
     auto backEnd = std::make_shared<BackEnd>();
     auto passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
 
@@ -197,7 +197,8 @@ CompiledGraph::Ptr compileNetwork(
         ie::ICNNNetwork& network,
         Platform platform,
         const CompilationConfig& config,
-        const Logger::Ptr& log) {
+        const Logger::Ptr& log,
+        const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -205,7 +206,7 @@ CompiledGraph::Ptr compileNetwork(
 
     VPU_PROFILE(compileNetwork);
 
-    return compileImpl(network);
+    return compileImpl(network, core);
 }
 
 CompiledGraph::Ptr compileModel(
@@ -225,7 +226,8 @@ CompiledGraph::Ptr compileModel(
 
 CompiledGraph::Ptr compileSubNetwork(
         ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig) {
+        const CompilationConfig& subConfig,
+        const ie::ICore* core) {
     VPU_PROFILE(compileSubNetwork);
 
     const auto& env = CompileEnv::get();
@@ -237,7 +239,7 @@ CompiledGraph::Ptr compileSubNetwork(
 
     CompileEnv::updateConfig(subConfig);
 
-    return compileImpl(network);
+    return compileImpl(network, core);
 }
 
 //
@@ -248,7 +250,8 @@ std::set<std::string> getSupportedLayers(
         const ie::ICNNNetwork& network,
         Platform platform,
         const CompilationConfig& config,
-        const Logger::Ptr& log) {
+        const Logger::Ptr& log,
+        const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -257,7 +260,7 @@ std::set<std::string> getSupportedLayers(
     VPU_PROFILE(getSupportedLayers);
 
     auto stageBuilder = std::make_shared<StageBuilder>();
-    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
+    auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
 
     auto clonedNetworkImpl = ie::cloneNet(network);
 

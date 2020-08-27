@@ -30,6 +30,13 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() {
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
         if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
             if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION < 11100)
+                if (value == CONFIG_VALUE(NUMA))
+                    THROW_IE_EXCEPTION << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to NUMA. But IE was built with "
+                                       << "TBB version without NUMA-aware API. Current TBB API version is " << TBB_INTERFACE_VERSION
+                                       << ", required API version 11100 or greater.";
+#endif
+
 #if (defined(__APPLE__) || defined(_WIN32))
                 // on the Windows and Apple the CORES and NUMA pinning options are the same
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
@@ -67,8 +74,11 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                                        << ". Expected only positive numbers (#streams) or "
                                        << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
                 }
-                if (val_i > 0)
-                    _streams = val_i;
+                if (val_i < 0) {
+                    THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                                    << ". Expected only positive numbers (#streams)";
+                }
+                _streams = val_i;
             }
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
             int val_i;
@@ -78,7 +88,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }
-            if (val_i <= 0) {
+            if (val_i < 0) {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
                                    << ". Expected only positive numbers (#threads)";
             }

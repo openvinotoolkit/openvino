@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_gemm_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <memory>
@@ -12,6 +12,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -262,7 +263,7 @@ void MKLDNNGemmNode::process_data() {
 
         for (int b2 = 0; b2 < MB2; b2++) {
             if (isThreeInputs) {
-                memcpy(d_ptr, c_ptr, M * N * sizeof(float));
+                cpu_memcpy(d_ptr, c_ptr, M * N * sizeof(float));
                 c_ptr += cOffsets[0];
             }
 

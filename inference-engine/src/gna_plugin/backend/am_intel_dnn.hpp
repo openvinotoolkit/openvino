@@ -308,6 +308,7 @@ public:
     std::vector<intel_dnn_component_t> component;
     uint32_t num_left_context;
     uint32_t num_right_context;
+    uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;

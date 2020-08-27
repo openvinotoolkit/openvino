@@ -26,7 +26,7 @@ class PriorBox_extender(Extender):
     def extend(op: Node):
         op['V10_infer'] = True
 
-        attrs = ['min_size', 'max_size', 'aspect_ratio']
+        attrs = ['min_size', 'max_size', 'aspect_ratio', 'variance', 'fixed_ratio', 'fixed_size', 'density']
         for attr in attrs:
             PriorBox_extender.attr_restore(op, attr)
 

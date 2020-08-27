@@ -13,6 +13,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -33,8 +34,10 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEStatic) {
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         const auto &orig_shape = f->get_output_partial_shape(0);
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMS4ToLegacy().run_on_function(f);
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertNMS4ToLegacyMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
@@ -51,10 +54,9 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEStatic) {
                                                               std::make_shared<opset4::Unsqueeze>(score_threshold,
                                                                                                   opset4::Constant::create(element::i64, Shape{1}, {0})),
                                                               0, true);
-        auto convert = std::make_shared<ngraph::opset4::Convert>(nms, element::i64);
-        convert->set_friendly_name("nms");
+        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
+        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";
     }
 
@@ -75,8 +77,10 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEDynamic1) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMS4ToLegacy().run_on_function(f);
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertNMS4ToLegacyMatcher>();
+        manager.run_passes(f);
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -114,8 +118,11 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEDynamic2) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMS4ToLegacy().run_on_function(f);
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertNMS4ToLegacyMatcher>();
+        manager.run_passes(f);
+
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }

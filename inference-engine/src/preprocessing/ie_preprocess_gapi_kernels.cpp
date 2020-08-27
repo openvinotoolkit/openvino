@@ -910,6 +910,26 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         dst[l] = out.OutLine<T>(l);
     }
 
+    #ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512_core()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 64 && outSz.width >= 32) {
+                avx512::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                           reinterpret_cast<const uint8_t**>(src0),
+                                           reinterpret_cast<const uint8_t**>(src1),
+                                           reinterpret_cast<const short*>(alpha),
+                                           reinterpret_cast<const short*>(clone),
+                                           reinterpret_cast<const short*>(mapsx),
+                                           reinterpret_cast<const short*>(beta),
+                                           reinterpret_cast<uint8_t*>(tmp),
+                                           inSz, outSz, lpi);
+
+                return;
+            }
+        }
+    }
+    #endif
+
     #ifdef HAVE_AVX2
     if (with_cpu_x86_avx2()) {
         if (std::is_same<T, uint8_t>::value) {
@@ -2188,6 +2208,27 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
+
+GAPI_FLUID_KERNEL(FU16toF32, U16toF32, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_32F);
+        GAPI_Assert(src.meta().chan == 1);
+        GAPI_Assert(dst.meta().chan == 1);
+        GAPI_Assert(src.length() == dst.length());
+
+        const auto *in  = src.InLine<uint16_t>(0);
+              auto *out = dst.OutLine<float>();
+
+        auto const width = dst.length();
+        for (int i = 0; i < width; i++) {
+            out[i] = in[i];
+        }
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2214,6 +2255,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
+        , FU16toF32
         >();
 }
 

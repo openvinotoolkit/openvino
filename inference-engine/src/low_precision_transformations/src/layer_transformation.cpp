@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -19,8 +18,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -40,7 +39,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     precisionsOnWeights(params.precisionsOnWeights),
     layerTransformationsManager(nullptr),
     paramsManager(nullptr),
-    quantizationIntervalAsymmetryThreshold(2.e-4),
+    quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
     dequantizationShiftToZeroRatioTreshold(4.e-4f),
     minQuantizationLevels(2ul) {}
@@ -84,6 +83,10 @@ const std::vector<Precision>& LayerTransformation::getPrecisionsOnWeights() cons
 }
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, const CNNLayer& layer) const {
+    if (!CNNNetworkHelper::isLayoutSupported(layer)) {
+        return false;
+    }
+
     if (!isQuantized(layer)) {
         return false;
     }
@@ -353,12 +356,11 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 
             const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
             const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
-            const float actual = std::fabs(
-                (actualRatio - expectedRatio) /
-                std::max(fabs(quantizationDetails.outputLowValues[i]), fabs(quantizationDetails.outputHighValues[i])));
+            const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
             if (actual > quantizationIntervalAsymmetryThreshold) {
                 hasZeroPoint = true;
             }
+
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
             if (hasZeroPoint) {
                 std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold << std::endl;

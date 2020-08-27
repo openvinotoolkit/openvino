@@ -286,7 +286,7 @@ Network_impl will always have net_id = 0 when it will be cldnn internal micronet
 opt pass).
 */
 network_impl::network_impl(const program_impl& program, uint16_t stream_id, bool is_internal)
-    : _program(&program), _stream_id(stream_id), _internal(is_internal) {
+    : _program(&program), _stream_id(stream_id), _internal(is_internal), _reset_arguments(true) {
     static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
         net_id = ++id_gen;
@@ -304,6 +304,10 @@ network_impl::network_impl(const program_impl& program, uint16_t stream_id, bool
 }
 
 network_impl::~network_impl() {
+    for (auto const& prim : _exec_order) {
+        prim->cleanup();
+    }
+
     auto toolkit = get_engine().get_context();
     get_engine().get_memory_pool().clear_pool_for_network(net_id);
     toolkit->release_pending_memory(net_id);
@@ -330,6 +334,16 @@ void network_impl::validate_primitives() {
         bool valid = prim->validate();
         CLDNN_ERROR_NOT_EQUAL(prim->id(), "validate", valid, "", true, "has not a valid instance.");
     }
+}
+
+void network_impl::set_arguments() {
+    if (!_reset_arguments)
+        return;
+
+    for (auto const& prim : _exec_order) {
+        prim->set_arguments();
+    }
+    _reset_arguments = false;
 }
 
 void network_impl::reset_execution(bool wait) {
@@ -504,6 +518,8 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
     cl_int err;
     cl::SharedSurfLock lock(get_engine().get_context()->queue(get_id()).get(), surfaces, &err);
 
+    set_arguments();
+
     for (auto& inst : _exec_order) {
 #ifdef DEBUG_DUMP_PATH
         auto& node = _program->get_node(inst->id());
@@ -524,6 +540,12 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
         }
 #endif
 #endif
+
+        // If a node has mutable input or it's an output, then the input/output buffers might be changed
+        // So we need to set arguments on each execution.
+        if (inst->has_mutable_input() || inst->is_output()) {
+            inst->set_arguments();
+        }
         execute_primitive(inst, events);
 #ifdef DEBUG_DUMP_PATH
 #if DUMP_SINGLE_LAYER
@@ -705,6 +727,13 @@ void network_impl::allocate_primitive_instance(program_node const& node) {
         return;
 
     auto inst = node.type()->create_instance(*this, node);
+    for (auto& dep : node.get_dependencies()) {
+        if (dep->is_type<input_layout>() || dep->is_type<mutable_data>() || dep->can_be_optimized()) {
+            inst->set_mutable_input(true);
+            break;
+        }
+    }
+
     _primitives[node.id()] = inst;
     if (node.is_input())
         _inputs.push_back(inst);

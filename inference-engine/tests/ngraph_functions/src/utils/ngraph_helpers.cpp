@@ -6,9 +6,10 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -41,6 +42,24 @@ std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
             break;
         case LogicalXor:
             os << "LogicalXor";
+            break;
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PadMode &m) {
+    switch (m) {
+        case PadMode::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case PadMode::EDGE:
+            os << "EDGE";
+            break;
+        case PadMode::REFLECT:
+            os << "REFLECT";
+            break;
+        case PadMode::SYMMETRIC:
+            os << "SYMMETRIC";
             break;
     }
     return os;
@@ -125,7 +144,8 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                        return const_cast<std::uint8_t *>(input.data());
                    });
 
-    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
+    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
@@ -600,6 +620,75 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
             break;
         case ngraph::helpers::LogicalTypes::LOGICAL_XOR:
             os << "LogicalXor";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::InterpolateMode::area:
+            os << "area";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::cubic:
+            os << "cubic";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::linear:
+            os << "linear";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::linear_onnx:
+            os << "linear_onnx";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::nearest:
+            os << "nearest";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::align_corners:
+            os << "align_corners";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::asymmetric:
+            os << "asymmetric";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::half_pixel:
+            os << "half_pixel";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+            os << "pytorch_half_pixel";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+            os << "tf_half_pixel_for_nn";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::NearestMode::ceil:
+            os << "ceil";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_ceil:
+            os << "round_prefer_ceil";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::floor:
+            os << "floor";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_floor:
+            os << "round_prefer_floor";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::simple:
+            os << "simple";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
