@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
 #include <cmath>

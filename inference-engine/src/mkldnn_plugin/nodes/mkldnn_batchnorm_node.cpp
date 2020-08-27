@@ -5,7 +5,7 @@
 #include "mkldnn_batchnorm_node.h"
 #include "mkldnn_depthwise_node.h"
 #include <mkldnn_extension_utils.h>
-#include "ie_memcpy.h"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -81,7 +81,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
             THROW_IE_EXCEPTION << "Cannot get weights blob for node " << getName() << ".";
 
         size_t weightsByteSize = blb->byteSize();
-        ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+        cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         data += blb->size();
         blb = scshLayer->_biases;
 
@@ -90,7 +90,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         } else {
             if (weightsByteSize != blb->byteSize())
                 THROW_IE_EXCEPTION << "ScaleShift has incorrect weights!";
-            ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+            cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         }
         internalBlobs.push_back(internalBlob);
     }

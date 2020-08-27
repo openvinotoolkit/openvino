@@ -21,7 +21,7 @@
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -697,7 +697,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                             out_data_t *out_ptr_dhw = out_ptr_dh + C * ox;
                             const in_data_t *in_ptr_dhw = in_ptr_dh + C * index_w[ox];
                             if (fusedWith.empty() && output_prec == input_prec) {
-                                memcpy(out_ptr_dhw + tail, in_ptr_dhw + tail, (C - tail) * sizeof(in_data_t));
+                                cpu_memcpy(out_ptr_dhw + tail, in_ptr_dhw + tail, (C - tail) * sizeof(in_data_t));
                             } else {
                                 for (int c = tail; c < C; c++) {
                                     float dst_value = static_cast<float>(in_ptr_dhw[c]);
@@ -722,7 +722,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                         out_data_t *out_ptr_dhw = out_ptr_dh + C * ox;
                         const in_data_t *in_ptr_dhw = in_ptr_dh + C * index_w[ox];
                         if (fusedWith.empty() && output_prec == input_prec) {
-                            memcpy(out_ptr_dhw, in_ptr_dhw, C * sizeof(in_data_t));
+                            cpu_memcpy(out_ptr_dhw, in_ptr_dhw, C * sizeof(in_data_t));
                         } else {
                             for (int c = 0; c < C; c++) {
                                 float dst_value = static_cast<float>(in_ptr_dhw[c]);
@@ -774,7 +774,7 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
                             out_data_t *out_ptr_cbdhw = out_ptr_cbdh + blk_size * w;
                             const in_data_t *in_ptr_cbdhw = in_ptr_cbdh + blk_size * index_w[w];
                             if (fusedWith.empty()) {
-                                memcpy(out_ptr_cbdhw, in_ptr_cbdhw, blk_size * sizeof(in_data_t));
+                                cpu_memcpy(out_ptr_cbdhw, in_ptr_cbdhw, blk_size * sizeof(in_data_t));
                             } else {
                                 for (int blk = 0; blk < blk_size; blk++) {
                                     float dst_value = static_cast<float>(in_ptr_cbdhw[blk]);
@@ -808,7 +808,7 @@ void MKLDNNResampleNode::LinearInterpolation(const in_data_t *in_ptr_, out_data_
         if (input_prec == Precision::FP32) {
             size *= sizeof(float);
         }
-        simple_copy(out_ptr_, size, in_ptr_, size);
+        cpu_memcpy(out_ptr_, in_ptr_, size);
         return;
     }
 

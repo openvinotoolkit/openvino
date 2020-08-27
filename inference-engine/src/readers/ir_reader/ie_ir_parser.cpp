@@ -4,8 +4,6 @@
 
 #include "ie_ir_parser.hpp"
 
-#include <ie_memcpy.h>
-
 #include <typeinfo>
 #include <unordered_set>
 #include <algorithm>

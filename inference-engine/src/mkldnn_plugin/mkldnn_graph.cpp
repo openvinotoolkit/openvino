@@ -28,7 +28,7 @@
 #include <blob_factory.hpp>
 #include <legacy/net_pass.h>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include <ie_memcpy.h>
+#include "nodes/common/cpu_memcpy.h"
 
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
@@ -775,7 +775,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetSize() * MB_to_process / MB;
 
-        ie_memcpy(ext_blob_ptr, ext_blob->byteSize(), intr_blob_ptr, size_to_copy);
+        cpu_memcpy_s(ext_blob_ptr, ext_blob->byteSize(), intr_blob_ptr, size_to_copy);
     }
 }
 

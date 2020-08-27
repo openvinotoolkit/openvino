@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include "common/cpu_memcpy.h"
 
 
 namespace InferenceEngine {
@@ -60,7 +61,7 @@ public:
         sort(idx.begin(), idx.end(), [&input_probs](size_t i1, size_t i2) {return input_probs[i1] > input_probs[i2];});
 
         for (int i = 0; i < top_rois_num; ++i) {
-            std::memcpy(output_rois + 4 * i, input_rois + 4 * idx[i], 4 * sizeof(float));
+            cpu_memcpy(output_rois + 4 * i, input_rois + 4 * idx[i], 4 * sizeof(float));
         }
 
         return OK;

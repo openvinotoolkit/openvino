@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -263,7 +264,7 @@ void reorder(const float* src_data, const int* ranks, const int n, const int ste
     for (int i = 0; i < n; ++i) {
         const int j = dst_mapping[i];
         assert(0 <= j && j < n);
-        std::memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
+        cpu_memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
     }
 }
 
@@ -386,7 +387,7 @@ public:
         reorder(&output_rois_features_temp[0], &original_rois_mapping[0], num_rois, feaxels_per_roi,
                 output_rois_features, &dummy_mapping[0]);
         if (output_rois != nullptr) {
-            std::memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
+            cpu_memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
         }
 
         return OK;

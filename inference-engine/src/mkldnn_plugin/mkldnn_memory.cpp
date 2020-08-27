@@ -13,6 +13,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
+#include "nodes/common/cpu_memcpy.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -110,7 +111,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        memcpy(dataPtr, data, size);
+        cpu_memcpy(dataPtr, data, size);
     }
 
     if (ftz && dataType == mkldnn_f32) {

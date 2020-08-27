@@ -21,6 +21,7 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include <limits>
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -646,7 +647,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
         parallel_for(iter_count, [&](int i) {
             const size_t dst_off = i * channels_size;
             for (int j = 0; j < num_src; j++) {
-                memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channels[j], channels[j]);
+                cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channels[j], channels[j]);
             }
         });
     } else {

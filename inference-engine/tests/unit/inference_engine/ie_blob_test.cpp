@@ -8,7 +8,7 @@
 
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define UNUSED
 #else
 #define UNUSED  __attribute__((unused))

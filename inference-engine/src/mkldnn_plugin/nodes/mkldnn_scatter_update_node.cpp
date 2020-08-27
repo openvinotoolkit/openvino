@@ -21,7 +21,7 @@
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -352,7 +352,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             splitter(srcBlockND[0], nthr, ithr, start, end);
             size_t size = (end - start) * dataSize;
             start *= dataSize;
-            simple_copy(dstPtr + start, size, srcPtr + start, size);
+            cpu_memcpy(dstPtr + start, srcPtr + start, size);
         });
     }
 
@@ -405,7 +405,7 @@ void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, i
         int64_t idxValue = getIndicesValue(indices, idx);
         uint8_t *dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
         uint8_t *updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
-        simple_copy(dstEntry, blockToUpdateSize, updateEntry, blockToUpdateSize);
+        cpu_memcpy(dstEntry, updateEntry, blockToUpdateSize);
     });
 }
 
@@ -435,7 +435,7 @@ void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update,
         }
         dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
-        simple_copy(dstData + dstOffset, sizeToUpdate, update + updateOffset, sizeToUpdate);
+        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
     });
 }
 
@@ -470,7 +470,7 @@ void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *u
         for (size_t iwork = start; iwork < end; iwork++) {
             int64_t idxValue = getIndicesValue(indices, iwork);
             if (idxValue < srcDataDim[axis])
-            simple_copy(dstData + dataSize * (dst_idx + idxValue * srcBlockND[axis + 1]), dataSize,
+                cpu_memcpy(dstData + dataSize * (dst_idx + idxValue * srcBlockND[axis + 1]),
                             update + iwork * dataSize, dataSize);
 
             for (j = updateRank - 1; j >= 0; j--) {
