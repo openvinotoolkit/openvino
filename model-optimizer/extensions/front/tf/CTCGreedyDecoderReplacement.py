@@ -103,7 +103,7 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         # unless the second input of CTCGreedyDecoder is a parameter, it enforces MO to use --static-shape
         # to try getting the second input with a value
         sequence_length_node = ctc_greedy_decoder.in_node(1)
-        if sequence_length_node.op != 'Parameter' and not graph.graph['cmd_params'].static_shape:
+        if sequence_length_node.soft_get('op') != 'Parameter' and not graph.graph['cmd_params'].static_shape:
             log.error(
                 "Model can not be translated in a reshape-able way.\n"
                 "Model Optimizer key static_shape was turned on to prevent related errors.\n"
@@ -228,9 +228,5 @@ class CTCGreedyDecoderReplacement2(FrontReplacementSubgraph):
         # set output of the new sub-graph as a source for SparseToDense consumer
         sparse_to_dense.out_port(0).get_connection().set_source(cast_to_int.out_port(0))
 
-        # cleanup a graph: disconnect CTCGreedyDecoder from Cast and SparseToDense
-        # since opset CTCGreedyDecoder outputs decoded sequence in a dense format
-        cast.in_port(0).disconnect()
-        sparse_to_dense.in_port(0).disconnect()
-        sparse_to_dense.in_port(1).disconnect()
+        # cleanup a graph
         graph.remove_nodes_from([cast.id, sparse_to_dense.id])
