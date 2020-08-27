@@ -61,9 +61,9 @@ class TestFIFOQueueReplacement(unittest.TestCase):
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
         }
         edges_no_label = [
-            ('placeholder', 'batch_join', {'out': 0}),
-            ('batch_join/fifo_queue', 'batch_join', {'out': 0}),
-            ('batch_join', 'image_batch', {'out': 0})
+            ('placeholder', 'batch_join', {'out': 0, 'in': 0}),
+            ('batch_join/fifo_queue', 'batch_join', {'out': 0, 'in': 1}),
+            ('batch_join', 'image_batch', {'out': 0, 'in': 0})
         ]
 
         graph = build_graph_with_edge_attrs(nodes_no_label, edges_no_label)

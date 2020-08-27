@@ -127,6 +127,7 @@ extensions/front/freeze_placeholder_value.py
 extensions/front/GeLUMerger_Erf.py
 extensions/front/GeLUMerger_Tanh.py
 extensions/front/global_pooling_to_reduce.py
+extensions/front/HSwish_fusion.py
 extensions/front/image_scaler.py
 extensions/front/input_cut.py
 extensions/front/instance_normalization.py
@@ -150,6 +151,7 @@ extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
+extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
 extensions/front/mxnet/__init__.py
 extensions/front/mxnet/activation.py
@@ -326,11 +328,13 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
+extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/standalone_const_eraser.py
 extensions/front/sub.py
+extensions/front/Swish_fusion.py
 extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py

@@ -236,6 +236,18 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
             assert (node_name in graph.nodes())
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
+
+    for node in graph.get_op_nodes():
+        # Add in_ports attribute
+        in_edges = node.in_edges()
+        for attr in in_edges.values():
+            node.add_input_port(idx=attr['in'])
+
+        # Add out_ports attribute
+        out_edges = node.out_edges()
+        for attr in out_edges.values():
+            node.add_output_port(idx=attr['out'])
+
     graph.graph['cmd_params'] = cli
     return graph
 
