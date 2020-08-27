@@ -306,7 +306,7 @@
 			<tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
 				<tab type="user" title="Introduction to DL Workbench" url="@ref workbench_docs_Workbench_DG_Introduction"/>
 				<tab type="usergroup" title="DL Workbench Installation Guide" url="@ref workbench_docs_Workbench_DG_Install_Workbench">
-				    <tab type="usergroup" title="Install from Docker Hub*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub"/>
+				    <tab type="usergroup" title="Install from Docker Hub*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub">
                         <tab type="user" title="Install on Linux*" url="@ref workbench_docs_Workbench_DG_Install_from_DockerHub_Linux"/>
                         <tab type="user" title="Install on Windows*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub_Win"/>
                         <tab type="user" title="Install on macOS*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub_mac"/>
