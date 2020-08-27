@@ -25,6 +25,8 @@
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
+#include <iostream>
+#include <iomanip>
 
 namespace ngraph
 {
@@ -451,6 +453,17 @@ namespace ngraph
                 }
             }
 
+
+            template <typename  T>
+            void print_vector(const std::vector<T>& v)
+            {
+                for (auto x : v)
+                {
+                    std::cout << x <<  " ";
+                }
+                std::cout << "\n";
+            }
+
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
@@ -471,7 +484,39 @@ namespace ngraph
 
                 assert(correct_axes);
 
+                std::cout << "Axes: ";
+                print_vector(m_axes);
+
                 const auto info = helper.get_info_for_linear_onnx_mode();
+
+                std::cout << "info for linear_onnx mode:\n";
+                std::cout << std::setprecision(15);
+                std::cout << "    y_original:         ";
+                print_vector(info.y_original);
+                std::cout << "    x_original:         ";
+                print_vector(info.x_original);
+                std::cout << "    input_width_mul_y1: ";
+                print_vector(info.input_width_mul_y1);
+                std::cout << "    input_width_mul_y2: ";
+                print_vector(info.input_width_mul_y2);
+                std::cout << "    in_x1:              ";
+                print_vector(info.in_x1);
+                std::cout << "    in_x2:              ";
+                print_vector(info.in_x2);
+                std::cout << "    dy1:                ";
+                print_vector(info.dy1);
+                std::cout << "    dy2:                ";
+                print_vector(info.dy2);
+                std::cout << "    dx1:                ";
+                print_vector(info.dx1);
+                std::cout << "    dx2:                ";
+                print_vector(info.dx2);
+                std::cout << "    batch_size:         " << info.batch_size << "\n";
+                std::cout << "    num_channels:       " << info.num_channels << "\n";
+                std::cout << "    output_height:      " << info.output_height << "\n";
+                std::cout << "    output_width:       " << info.output_width << "\n";
+                std::cout << "    input_height:       " << info.input_height << "\n";
+                std::cout << "    input_width:        " << info.input_width << "\n";
 
                 int64_t batch_size = info.batch_size;
                 int64_t num_channels = info.num_channels;
@@ -569,7 +614,10 @@ namespace ngraph
 
                 for (const Coordinate& output_coord : output_transform)
                 {
+                    std::cout << "Output coordinate: " << output_coord << "\n";
                     auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
+                    std::cout << "Input coordinate: " << input_coord << "\n";
+                    std::cout <<  "Input value: " << input_data[input_transform.index(input_coord)] << "\n";
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }
