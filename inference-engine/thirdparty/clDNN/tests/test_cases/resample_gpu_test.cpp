@@ -766,8 +766,6 @@ INSTANTIATE_TEST_CASE_P(smoke,
                         resample_random_test,
                         testing::ValuesIn(
                             resample_random_test_param_generator()
-                            .smoke_params(data_types::i8, format::byxf_af32, format::byxf_af32)
-                            .smoke_params(data_types::u8, format::byxf_af32, format::byxf_af32)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)

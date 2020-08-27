@@ -40,14 +40,12 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);

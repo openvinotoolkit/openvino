@@ -272,40 +272,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         return {output_type, format::b_fs_yx_32fp, output_size};
     }
 
-    // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
-    // will take byxf and return fs_bs_yx_bsv4_fsv32
-    if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 &&
-        input_layout.size.batch[0] % 4 == 0 && input_layout.size.feature[0] == 3) {
-        return layout{output_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size};
-    }
-
-    auto users = node.get_users();
-    if (users.size() == 1 && users.front()->is_type<convolution>()) {
-        auto conv_split = users.front()->as<convolution>().get_split();
-        auto conv_groups = (int32_t)users.front()->as<convolution>().get_groups();
-
-        bool next_is_dw = ((conv_split > 1 && conv_split == output_size.feature[0]) ||
-                           (conv_groups > 1 && conv_groups == output_size.feature[0]));
-
-        if (input_layout.data_type == data_types::i8 && input_layout.format == format::b_fs_yx_fsv4 && next_is_dw) {
-            return layout{output_type, cldnn::format::byxf_af32, output_size};
-        }
-
-        auto prev_node = node.get_dependencies().front();
-        if (prev_node->is_type<reorder>())
-            prev_node = prev_node->get_dependencies().front();
-
-        auto prev_is_convo = prev_node->is_type<convolution>();
-        if (prev_is_convo) {
-            auto prev2_node = prev_node->get_dependencies().front();
-            auto prev_input_format = prev2_node->get_output_layout().format;
-
-            if (input_layout.data_type == data_types::i8 && input_layout.format == format::byxf_af32 && !next_is_dw &&
-                prev_input_format == format::b_fs_yx_fsv4) {
-                return layout{output_type, cldnn::format::b_fs_yx_fsv4, output_size};
-            }
-        }
-    }
     return {output_type, input_layout.format, output_size};
 }
 

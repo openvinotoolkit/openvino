@@ -51,11 +51,7 @@ enum DataLayout {
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_f_bsv8__af8,         // for optimized FC
     bs_f_bsv16__af8,        // for optimized FC
-    bf8_xy16,               // for optimized conv1x1
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
-    byxf_af32,              // for MMAD convolution
-    byx8_f4,                // for MMAD convolution
-    fs_bs_yx_bsv4_fsv32,    // for batched MMAD
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     bfzyx,                  // batch+feature+3D spatial
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes

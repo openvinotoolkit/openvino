@@ -182,9 +182,6 @@ attach_eltwise_gpu::attach_eltwise_gpu() {
          { std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), eltwise_gpu::create },
          // MMAD
-         { std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), eltwise_gpu::create },
-         { std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), eltwise_gpu::create },
-         { std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), eltwise_gpu::create },

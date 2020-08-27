@@ -19,7 +19,6 @@
 #include "reorder_from_winograd_2x3_kernel.h"
 #include "reorder_to_winograd_2x3_kernel.h"
 #include "reorder_kernel_to_yxfb_batched.h"
-#include "reorder_kernel_byxf_f32_to_byx8_f4_i8.h"
 #include "reorder_kernel_binary.h"
 #include "reorder_biplanar_nv12.h"
 #include "reorder_kernel_fs_b_yx_fsv32_to_bfyx.h"
@@ -33,7 +32,6 @@ reorder_kernel_selector::reorder_kernel_selector() {
     Attach<ReorderFromWinograd2x3Kernel>();
     Attach<ReorderToWinograd2x3Kernel>();
     Attach<ReorderKernel_to_yxfb_batched>();
-    Attach<reorder_kernel_byxf_f32_to_byx8_f4_i8>();
     Attach<reorder_biplanar_nv12>();
     Attach<ReorderKernel_fs_b_yx_fsv32_to_bfyx>();
 }

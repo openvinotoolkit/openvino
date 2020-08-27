@@ -27,16 +27,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 #elif defined OUTPUT_LAYOUT_BS_F_BSV8__AF8  || \
       defined OUTPUT_LAYOUT_BS_F_BSV16__AF8
     return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined OUTPUT_LAYOUT_BF8_XY16
-    return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_B_FS_YX_FSV16
     return GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BYXF_AF32
-    return GET_DATA_BYXF_AF32_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BYX8_F4
-    return GET_DATA_BYX8_F4_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_FS_BS_YX_BSV4_FSV32
-    return GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_B_FS_YX_FSV4
     return GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_FS_B_YX_FSV32

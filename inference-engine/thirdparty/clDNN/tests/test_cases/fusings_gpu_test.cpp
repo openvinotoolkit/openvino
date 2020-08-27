@@ -1373,58 +1373,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_shift_swish,
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 6},
                         }), );
 
-
-class conv_int8_byxf_af32 : public ConvFusingTest {};
-TEST_P(conv_int8_byxf_af32, per_channel_coeffs) {
-    auto p = GetParam();
-    create_topologies(input_layout("input", get_input_layout(p)),
-                 data("weights", get_mem(get_weights_layout(p))),
-                 data("bias", get_mem(get_bias_layout(p))),
-                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
-                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
-                 scale("scale", "conv_prim", "scale_data"),
-                 reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
-    );
-
-    implementation_desc conv_impl = { format::byxf_af32, "" };
-    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-TEST_P(conv_int8_byxf_af32, per_element_coeffs) {
-    auto p = GetParam();
-    create_topologies(input_layout("input", get_input_layout(p)),
-                 data("weights", get_mem(get_weights_layout(p))),
-                 data("bias", get_mem(get_bias_layout(p))),
-                 data("eltwise_data", get_mem(get_output_layout(p))),
-                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
-                 eltwise("eltwise", "conv_prim", "eltwise_data", eltwise_mode::sum),
-                 reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
-    );
-
-    implementation_desc conv_impl = { format::byxf_af32, "" };
-    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_byxf_af32,
-                        ::testing::ValuesIn(std::vector<bc_test_params>{
-                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
-                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
-                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
-                                bc_test_params{CASE_CONV_U8S8_4, 2, 3},
-                                bc_test_params{CASE_CONV_U8S8_6, 2, 3},
-                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
-                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
-                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
-                                bc_test_params{CASE_CONV_S8S8_4, 2, 3},
-                                bc_test_params{CASE_CONV_S8S8_6, 2, 3},
-                        }), );
-
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
 TEST_P(conv_int8_prelu_eltwise, basic) {
     auto p = GetParam();
@@ -3452,7 +3400,7 @@ struct activation_test_params {
 #define CASE_ACTIVATION_F32_2 {7, 3, 7, 7}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F32_3 {1, 14, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F32_4 {1, 17, 31, 29}, data_types::f32, format::yxfb, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_5 {1, 17, 31, 29}, data_types::f32, format::byxf_af32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_5 {1, 17, 31, 29}, data_types::f32, format::b_fs_yx_fsv4, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F32_6 {1, 17, 31, 29}, data_types::f32, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F32_7 {1, 17, 31, 29}, data_types::f32, format::fyxb, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_3D_F32_0 {3, 16, 13, 13, 13}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
@@ -3461,14 +3409,13 @@ struct activation_test_params {
 #define CASE_ACTIVATION_3D_F32_3 {1, 17, 7, 7, 7}, data_types::f32, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F32_4 {1, 17, 7, 7, 7}, data_types::f32, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F32_5 {1, 17, 7, 7, 7}, data_types::f32, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
-#define CASE_ACTIVATION_3D_F32_6 {1, 17, 7, 7, 7}, data_types::f32, format::fs_bs_yx_bsv4_fsv32, data_types::f32, format::bfzyx
 
 #define CASE_ACTIVATION_F16_0 {7, 32, 5, 5}, data_types::f16, format::bfyx, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_1 {1, 16, 8, 8}, data_types::f16, format::bfyx, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_2 {7, 16, 7, 7}, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_3 {1, 14, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_4 {1, 17, 31, 29}, data_types::f16, format::yxfb, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_5 {1, 17, 31, 29}, data_types::f16, format::byxf_af32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_5 {1, 17, 31, 29}, data_types::f16, format::b_fs_yx_fsv4, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_6 {1, 17, 31, 29}, data_types::f16, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_F16_7 {1, 17, 31, 29}, data_types::f16, format::fyxb, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_3D_F16_0 {3, 16, 13, 13, 13}, data_types::f16, format::bfzyx, data_types::f32, format::bfzyx
@@ -3477,7 +3424,6 @@ struct activation_test_params {
 #define CASE_ACTIVATION_3D_F16_3 {1, 17, 7, 7, 7}, data_types::f16, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_4 {1, 17, 7, 7, 7}, data_types::f16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
 #define CASE_ACTIVATION_3D_F16_5 {1, 17, 7, 7, 7}, data_types::f16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
-#define CASE_ACTIVATION_3D_F16_6 {1, 17, 7, 7, 7}, data_types::f16, format::fs_bs_yx_bsv4_fsv32, data_types::f32, format::bfzyx
 
 #define CASE_ACTIVATION_U8_1 {1, 16, 8, 8}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_ACTIVATION_U8_2 {1, 12, 8, 8}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
@@ -3572,7 +3518,6 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_F32_7, 2, 3, "activation_ref"},     // FIXME - accuracy bug
         activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3, "activation_ref"},  // FIXME - accuracy bug
         activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 3, "activation_ref"},  // FIXME - accuracy bug
-        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 3, "activation_ref"},  // FIXME - accuracy bug
     }), );
 
 class activation_scale_activation_quantize_u8 : public ActivationFusingTest {};
@@ -3640,7 +3585,6 @@ INSTANTIATE_TEST_CASE_P(
     activation_scale_activation_quantize_u8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
         activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref"},  // FIXME - accuracy bug
-        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 5, "activation_ref"},  // FIXME - accuracy bug
     }), );
 
 class activation_scale_activation : public ActivationFusingTest {};
@@ -3697,8 +3641,7 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_ref"},
         activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 4, "activation_ref"},
         activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 4, "activation_ref"},
-          activation_test_params{CASE_ACTIVATION_3D_F16_4, 2, 4, "activation_ref"},
-          activation_test_params{CASE_ACTIVATION_3D_F16_5, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_4, 2, 4, "activation_ref"},
 
         // InputDataType = UINT8
         activation_test_params{CASE_ACTIVATION_U8_1, 2, 4, "activation_ref"},
@@ -3719,8 +3662,6 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(std::vector<activation_test_params>{
         activation_test_params{CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref"},  // FIXME - accuracy bug
         activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref"},  // FIXME - accuracy bug
-        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 4, "activation_ref"},  // FIXME - accuracy bug
-        activation_test_params{CASE_ACTIVATION_3D_F16_6, 2, 4, "activation_ref"},  // FIXME - accuracy bug
     }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -4450,29 +4391,20 @@ struct pooling_test_params {
 #define CASE_POOLING_U8_1 {1, 16, 8, 8}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_POOLING_U8_2 {2, 16, 8, 8}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_POOLING_U8_3 {1, 32, 10, 10}, data_types::u8, format::b_fs_yx_fsv4, data_types::f32, format::b_fs_yx_fsv4
-#define CASE_POOLING_U8_4 {1, 32, 10, 10}, data_types::u8, format::byxf_af32, data_types::f32, format::bfyx
 #define CASE_POOLING_U8_5 {16, 32, 10, 10, 10}, data_types::u8, format::b_fs_zyx_fsv32, data_types::f32, format::bfyx
 #define CASE_POOLING_U8_6 {16, 32, 10, 10, 10}, data_types::u8, format::b_fs_zyx_fsv32, data_types::f32, format::bfyx
 
 #define CASE_POOLING_U8_FP16_3 {1, 32, 10, 10}, data_types::u8, format::b_fs_yx_fsv4, data_types::f16, format::b_fs_yx_fsv4
-#define CASE_POOLING_U8_FP16_4 {1, 32, 10, 10}, data_types::u8, format::byxf_af32, data_types::f16, format::bfyx
 #define CASE_POOLING_U8_FP16_5 {16, 32, 10, 10, 10}, data_types::u8, format::b_fs_zyx_fsv32, data_types::f16, format::bfyx
 #define CASE_POOLING_U8_FP16_6 {16, 32, 10, 10, 10}, data_types::u8, format::b_fs_zyx_fsv32, data_types::f16, format::bfyx
 
 #define CASE_POOLING_I8_1 {1, 16, 8, 8}, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_POOLING_I8_2 {2, 16, 8, 8}, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
-#define CASE_POOLING_I8_4 {1, 32, 10, 10}, data_types::i8, format::byxf_af32, data_types::f32, format::bfyx
 #define CASE_POOLING_I8_5 {1, 32, 10, 10}, data_types::i8, format::b_fs_yx_fsv4, data_types::f32, format::b_fs_yx_fsv4
 #define CASE_POOLING_I8_6 {16, 32, 10, 10, 10}, data_types::i8, format::b_fs_zyx_fsv32, data_types::f32, format::bfyx
 
-#define CASE_POOLING_I8_FP16_4 {1, 32, 10, 10}, data_types::i8, format::byxf_af32, data_types::f16, format::bfyx
 #define CASE_POOLING_I8_FP16_5 {1, 32, 10, 10}, data_types::i8, format::b_fs_yx_fsv4, data_types::f16, format::b_fs_yx_fsv4
 #define CASE_POOLING_I8_FP16_6 {16, 32, 10, 10, 10}, data_types::i8, format::b_fs_zyx_fsv32, data_types::f16, format::bfyx
-
-// Disabled
-#define CASE_POOLING_I8_3 {4, 32, 10, 10}, data_types::i8, format::fs_bs_yx_bsv4_fsv32, data_types::f32, format::bfyx
-#define CASE_POOLING_I8_FP16_3 {4, 32, 10, 10}, data_types::i8, format::fs_bs_yx_bsv4_fsv32, data_types::f16, format::bfyx
-#define CASE_POOLING_I8_FP16_3 {4, 32, 10, 10}, data_types::i8, format::fs_bs_yx_bsv4_fsv32, data_types::f16, format::bfyx
 
 class PoolingFusingTest : public ::BaseFusingTest<pooling_test_params> {
 public:
@@ -4674,8 +4606,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_F32_10, 2, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16"},
 
                             // Input type: INT8
-                            pooling_test_params{CASE_POOLING_I8_4, 2, 5, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_I8_4, 2, 5, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_I8_5, 2, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_5, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_6, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref"},
@@ -4688,8 +4618,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_U8_3, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_U8_5, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_5, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref"},
-                            pooling_test_params{CASE_POOLING_U8_4, 2, 5, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_U8_4, 2, 5, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_U8_6, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_6, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref"},
                         }), );
@@ -4697,9 +4625,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
 INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
                          pooling_scale_activation_quantize,
                          ::testing::ValuesIn(std::vector<pooling_test_params>{
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 5, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32"},
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 5, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 5, pooling_mode::average, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
                             pooling_test_params{CASE_POOLING_F32_3, 2, 5, pooling_mode::average, "pooling_gpu_average_opt"},  //currently not enabled, fusing not upported
                         }), );
 
@@ -4742,8 +4667,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_F32_10, 2, 4, pooling_mode::max, "pooling_gpu_bsv16_fsv16"},
 
                             // Input type: INT8
-                            pooling_test_params{CASE_POOLING_I8_4, 2, 4, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_I8_4, 2, 4, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_I8_5, 2, 4, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_5, 2, 4, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_6, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
@@ -4754,8 +4677,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_U8_3, 2, 4, pooling_mode::max, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_3, 2, 4, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_U8_3, 2, 4, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
-                            pooling_test_params{CASE_POOLING_U8_4, 2, 4, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_U8_4, 2, 4, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_U8_5, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_5, 2, 4, pooling_mode::max, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_6, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
@@ -4822,8 +4743,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_F32_F16_10, 2, 4, pooling_mode::max, "pooling_gpu_bsv16_fsv16"},
 
                             // Input type: INT8
-                            pooling_test_params{CASE_POOLING_I8_FP16_4, 2, 4, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_I8_FP16_4, 2, 4, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_I8_FP16_5, 2, 4, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_FP16_5, 2, 4, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_I8_FP16_6, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
@@ -4834,22 +4753,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_U8_FP16_3, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_FP16_3, 2, 4, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4"},
                             pooling_test_params{CASE_POOLING_U8_FP16_3, 2, 4, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4"},
-                            pooling_test_params{CASE_POOLING_U8_FP16_4, 2, 4, pooling_mode::average, "pooling_gpu_byxf_af32"},
-                            pooling_test_params{CASE_POOLING_U8_FP16_4, 2, 4, pooling_mode::max, "pooling_gpu_byxf_af32"},
                             pooling_test_params{CASE_POOLING_U8_FP16_5, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_FP16_5, 2, 4, pooling_mode::max, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_FP16_6, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_FP16_6, 2, 4, pooling_mode::max, "pooling_gpu_int8_ref"},
-                     }), );
-
-INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
-                        pooling_scale_activation,
-                        ::testing::ValuesIn(std::vector<pooling_test_params>{
-                            pooling_test_params{CASE_POOLING_I8_FP16_3, 2, 4, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32"},
-                            pooling_test_params{CASE_POOLING_I8_FP16_3, 2, 4, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32"},
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
-                            pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::average, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
                      }), );
 
 /* ----------------------------------------------------------------------------------------------------- */

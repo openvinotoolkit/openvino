@@ -55,9 +55,6 @@ ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
 
-    k.EnableInputLayout(DataLayout::byxf_af32);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
-
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
     k.EnableBatching();
@@ -179,9 +176,6 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
             input_tile_ifm_pitch = zyx_pitch_factor * 16 * 16;
         }
         input_in_tile_batch_pitch = 16;
-    } else if (in_layout == DataLayout::byxf_af32) {
-        input_tile_ifm_pitch = tile_ifm;
-        input_in_tile_batch_pitch = zyx_pitch_factor * Align(in.Feature().LogicalDimPadded(), 32);
     }
 
     jit.AddConstant(MakeJitConstant("INPUT_VALID_TILE_IFM_PITCH", input_tile_ifm_pitch != 0));
@@ -242,8 +236,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
         fsv = 16;
     }
     if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32
-        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32
-        || params.inputs[0].GetLayout() == DataLayout::byxf_af32) {
+        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         fsv = 32;
     }
 
