@@ -149,6 +149,7 @@ from ngraph.opset4 import sign
 from ngraph.opset4 import sin
 from ngraph.opset4 import sinh
 from ngraph.opset4 import softmax
+from ngraph.opset4 import softplus
 from ngraph.opset4 import space_to_batch
 from ngraph.opset4 import space_to_depth
 from ngraph.opset4 import split
