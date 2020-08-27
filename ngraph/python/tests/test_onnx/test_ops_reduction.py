@@ -96,7 +96,6 @@ def test_reduce_l1(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_35925
 def test_reduce_l1_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -108,7 +107,7 @@ def test_reduce_l1_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sum(np.abs(input_data), keepdims=False)
+    expected = np.array([np.sum(np.abs(input_data), keepdims=False)])
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
@@ -135,7 +134,6 @@ def test_reduce_l2(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_35925
 def test_reduce_l2_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -147,7 +145,7 @@ def test_reduce_l2_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sqrt(np.sum(np.square(input_data), keepdims=False))
+    expected = np.array([np.sqrt(np.sum(np.square(input_data), keepdims=False))])
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
