@@ -94,11 +94,13 @@ std::pair<bool, std::string> compare_functions(
         }
 
         if (node1->inputs().size() != node2->inputs().size()) {
-            return {false, "Number of inputs is different: " + std::to_string(node1->inputs().size()) + " and " + std::to_string(node2->inputs().size())};
+            return {false, "Number of inputs is different: " + std::to_string(node1->inputs().size()) + " for " + node1->get_friendly_name() +
+                + " and " + std::to_string(node2->inputs().size()) + " for " + node2->get_friendly_name()};
         }
 
         if (node1->outputs().size() != node2->outputs().size()) {
-            return {false, "Number of outputs is different: " + std::to_string(node1->outputs().size()) + " and " + std::to_string(node2->outputs().size())};
+            return { false, "Number of outputs is different: " + std::to_string(node1->inputs().size()) + " for " + node1->get_friendly_name() +
+                + " and " + std::to_string(node2->inputs().size()) + " for " + node2->get_friendly_name()};
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {

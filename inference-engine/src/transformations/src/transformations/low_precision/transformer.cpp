@@ -37,6 +37,7 @@
 #include "transformations/low_precision/multiply.hpp"
 #include "transformations/low_precision/mvn.hpp"
 #include "transformations/low_precision/normalize_l2.hpp"
+#include "transformations/low_precision/prelu.hpp"
 #include "transformations/low_precision/reshape.hpp"
 #include "transformations/low_precision/relu.hpp"
 #include "transformations/low_precision/squeeze.hpp"
@@ -204,6 +205,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<MVNTransformation, op::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        add<PReluTransformation, opset1::PRelu>(params).
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
@@ -265,6 +267,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
+    make_matcher_type_relaxed<opset1::PRelu>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
