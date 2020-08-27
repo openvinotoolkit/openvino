@@ -11,7 +11,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/convert_function_to_cnn_network.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
@@ -20,17 +19,10 @@
 #include <vpu/utils/error.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
-#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/manager.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
