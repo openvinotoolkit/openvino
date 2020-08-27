@@ -11,7 +11,6 @@
 #include <map>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <legacy/graph_transformer.h>
 
 using namespace mkldnn;
