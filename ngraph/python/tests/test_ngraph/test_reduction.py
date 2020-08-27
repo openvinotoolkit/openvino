@@ -57,9 +57,9 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
         (ng.reduce_logical_and, np.logical_and.reduce, np.array([0])),
         (ng.reduce_logical_or, np.logical_or.reduce, np.array([0])),
         (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 2])),
-        (ng.reduce_logical_or, np.logical_or.reduce,  np.array([0, 2])),
-        (ng.reduce_logical_and, np.logical_and.reduce,  np.array([0, 1, 2, 3])),
-        (ng.reduce_logical_or, np.logical_or.reduce,  np.array([0, 1, 2, 3])),
+        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 2])),
+        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 1, 2, 3])),
+        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
     ],
 )
 def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):

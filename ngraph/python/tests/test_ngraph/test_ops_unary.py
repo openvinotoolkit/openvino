@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_34323, xfail_issue_36483
+from tests import xfail_issue_35929, xfail_issue_36483
 
 
 @xfail_issue_35929
