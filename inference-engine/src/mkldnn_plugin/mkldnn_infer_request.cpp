@@ -238,10 +238,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         checkBlob(data, name, false);
         return;
     }
-    std::string names;
-    for (const auto& out : blobs)
-        names += out.first + " ";
-    THROW_IE_EXCEPTION << "Cannot find blob with name: " << name << " possible names: " << names;
+    THROW_IE_EXCEPTION << "Cannot find blob with name: " << name;
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) {
