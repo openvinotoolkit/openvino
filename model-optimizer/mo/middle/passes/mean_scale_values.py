@@ -25,34 +25,34 @@ def move_scaleshift_to_preprocess_action(graph, match):
     input_op = match['input_op']
     add_op = match['add']
     mul_op = match['mul']
-    weights = np.squeeze(match['const_mul_output'].value)
-    biases = np.squeeze(match['const_add_output'].value)
+    if match['const_mul_output'].has('value'):
+        weights = np.squeeze(match['const_mul_output'].value)
+        if any([x != 1 for x in weights]):
+            return
+    if match['const_add_output'].has('value'):
+        biases = np.squeeze(match['const_add_output'].value)
 
-    if graph.graph['cmd_params'].reverse_input_channels:
-        biases = np.flip(biases)
+        if graph.graph['cmd_params'].reverse_input_channels:
+            biases = np.flip(biases)
 
-    if any([x != 1 for x in weights]):
-        return
+        # If bias contains zeros we just remove it
+        if all([x == 0 for x in biases]):
+            return
 
-    # # Keep biases (mean values) for current input as graph attr and remove ScaleShift layer
-    # # Input->data->ScaleShift->scsh_data    =>    Input->scsh_data
+        biases *= -1
+        # In pre-process section, mean_values are subtracted
+        mean_values.update({input_op.name: np.array(biases)})
+
+        # Add graph attribute 'mean_values' that stores mean_values per input if exists
+        if graph.graph.get('mean_values', None):
+            graph.graph['mean_values'].update(mean_values)
+        else:
+            graph.graph['mean_values'] = mean_values
+
+    # # Keep biases (mean values) for current input as graph attr and remove mean values layers
+    # # Input->data->Mul->Add->scsh_data    =>    Input->scsh_data
     add_op.out_port(0).get_connection().set_source(input_op.out_port(0))
     mul_op.in_port(0).disconnect()
-
-    # If bias contains zeros we just remove it
-    if all([x == 0 for x in biases]):
-        return
-
-    # In pre-process section, mean_values are subtracted
-    biases *= -1
-
-    mean_values.update({input_op.name: np.array(biases)})
-
-    # Add graph attribute 'mean_values' that stores mean_values per input if exists
-    if graph.graph.get('mean_values', None):
-        graph.graph['mean_values'].update(mean_values)
-    else:
-        graph.graph['mean_values'] = mean_values
 
 
 def move_scaleshift_to_preprocess(graph: Graph):
