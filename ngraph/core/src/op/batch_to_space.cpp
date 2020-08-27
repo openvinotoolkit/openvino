@@ -152,7 +152,7 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
     }
     auto data_shape = data->get_shape();
 
-    if (data_shape.size() != 4 || data_shape.size() != 5) {
+    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
         return false;
     }
     size_t block_values_size = shape_size(inputs[1]->get_shape());
@@ -204,7 +204,7 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
         data_shape = squeezed_shape;
     }
 
-    std::vector<int64_t> upperbounds_values;
+    std::vector<int64_t> upperbounds_values(data_shape.size());
     for (size_t i = 0; i < data_shape.size(); ++i) {
         upperbounds_values.push_back(data_shape.at(i) - crops_end_values[i]);
     }
@@ -215,11 +215,16 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector &outputs,
     std::vector<int64_t> begins(shape_size(inputs[2]->get_shape()));
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
-    std::vector<int64_t> ends(shape_size(inputs[2]->get_shape()));
-    ends.assign(crops_end_values, crops_end_values + shape_size(inputs[3]->get_shape()));
     std::vector<int64_t> default_strides(begins.size(), 1);
-    SlicePlan slice_plan = make_slice_plan(data_shape, begins, ends, default_strides, begin_mask, end_mask, AxisSet(),
-                                           AxisSet(), AxisSet());
+    SlicePlan slice_plan = make_slice_plan(data_shape,
+                                           begins,
+                                           upperbounds_values,
+                                           default_strides,
+                                           begin_mask,
+                                           end_mask,
+                                           AxisSet(),
+                                           AxisSet(),
+                                           AxisSet());
     runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
     return true;
 }

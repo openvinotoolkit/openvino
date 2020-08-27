@@ -33,7 +33,8 @@
 #include "reference/hard_sigmoid.hpp"
 #include "reference/elu.hpp"
 #include "reference/selu.hpp"
-#include "reference/ctc_loss.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
+#include "ngraph/runtime/reference/batch_norm.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -435,6 +436,21 @@ namespace {
                 return false;
         }
 #undef REF_CALL
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::BatchNormInference> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::batch_norm_inference(op->get_eps_value(),
+                                                 input[0]->get_data_ptr<T>(),
+                                                 input[1]->get_data_ptr<T>(),
+                                                 input[2]->get_data_ptr<T>(),
+                                                 input[3]->get_data_ptr<T>(),
+                                                 input[4]->get_data_ptr<T>(),
+                                                 outputs[0]->get_data_ptr<T>(),
+                                                 op->get_input_shape(2));
         return true;
     }
 
