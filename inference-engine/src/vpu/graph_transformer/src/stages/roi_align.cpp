@@ -22,6 +22,7 @@ static const char s_pooled_w[] = "pooled_w";
 static const char s_pooled_h[] = "pooled_h";
 static const char s_sampling_ratio[] = "sampling_ratio";
 static const char s_spatial_scale[] = "spatial_scale";
+static const char s_use_buffer[] = "use_buffer";
 
 namespace {
 
@@ -61,12 +62,14 @@ private:
         const auto sampling_ratio = attrs().get<int>(s_sampling_ratio);
         const auto spatial_scale = attrs().get<float>(s_spatial_scale);
         const auto mode = attrs().get<ROIAlignMode>(s_mode);
+        const auto use_buffer = !tempBuffers().empty();
 
         serializer.append(static_cast<uint32_t>(pooled_w));
         serializer.append(static_cast<uint32_t>(pooled_h));
         serializer.append(static_cast<uint32_t>(sampling_ratio));
         serializer.append(static_cast<float>(spatial_scale));
         serializer.append(static_cast<ROIAlignMode>(mode));
+        serializer.append(static_cast<uint32_t>(use_buffer));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -75,6 +78,9 @@ private:
         }
 
         outputEdge(0)->output()->serializeBuffer(serializer);
+        const auto use_buffer = !tempBuffers().empty();
+        if (use_buffer)
+            tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
@@ -104,6 +110,15 @@ void FrontEnd::parseROIAlign(const Model& model, const ie::CNNLayerPtr& layer, c
     stage->attrs().set<int>(s_pooled_h, layer->GetParamAsInt("pooled_h"));
     stage->attrs().set<int>(s_sampling_ratio, layer->GetParamAsInt("sampling_ratio"));
     stage->attrs().set<float>(s_spatial_scale, layer->GetParamAsFloat("spatial_scale"));
+
+    const int width = inputs[0]->desc().dim(Dim::W);
+    const int height = inputs[0]->desc().dim(Dim::H);
+    const int channels = inputs[0]->desc().dim(Dim::C);
+    const int buffer_size = sizeof(int16_t) * width * height * channels;
+    const bool use_buffer = (width >= 200) && (mode == "avg");
+
+    if (use_buffer)
+        model->addTempBuffer(stage, DataDesc({buffer_size}));
 }
 
 }  // namespace vpu
