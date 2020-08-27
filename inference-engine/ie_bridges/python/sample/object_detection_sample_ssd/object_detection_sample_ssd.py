@@ -23,6 +23,7 @@ import numpy as np
 import logging as log
 from openvino.inference_engine import IECore
 
+import ngraph as ng
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
@@ -57,6 +58,8 @@ def main():
     model_bin = os.path.splitext(model_xml)[0] + ".bin"
     log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
     net = ie.read_network(model=model_xml, weights=model_bin)
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
     # -----------------------------------------------------------------------------------------------------
 
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
@@ -73,7 +76,7 @@ def main():
 
     if "CPU" in args.device:
         supported_layers = ie.query_network(net, "CPU")
-        not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
+        not_supported_layers = [op.friendly_name for op in ops if op.friendly_name not in supported_layers]
         if len(not_supported_layers) != 0:
             log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
                       format(args.device, ', '.join(not_supported_layers)))
@@ -143,9 +146,10 @@ def main():
     log.info('Preparing output blobs')
 
     output_name, output_info = "", net.outputs[next(iter(net.outputs.keys()))]
-    for output_key in net.outputs:
-        if net.layers[output_key].type == "DetectionOutput":
-            output_name, output_info = output_key, net.outputs[output_key]
+    output_ops = {op.friendly_name : op for op in ops \
+                  if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput"}
+    if len(output_ops) != 0:
+        output_name, output_info = output_ops.popitem()
 
     if output_name == "":
         log.error("Can't find a DetectionOutput layer in the topology")
