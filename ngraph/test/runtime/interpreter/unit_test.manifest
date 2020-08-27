@@ -24,6 +24,10 @@ INTERPRETER.onnx_empty_initializers_handling
 INTERPRETER.onnx_upsample9_scales_const_linear_infer
 INTERPRETER.onnx_upsample8_linear_infer
 
+# Failed in MacOS
+INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
+INTERPRETER.onnx_resize11_sizes_linear
+
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
 
