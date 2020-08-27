@@ -95,6 +95,14 @@ if [ -f /etc/lsb-release ]; then
                     gstreamer1.0-pulseaudio 
                     libgstrtspserver-1.0-dev
                     python3-gst-1.0
+                    libfluidsynth2
+                    libnettle7
+                    libopenexr24
+                )
+        elif [ "$system_ver" = "18.04" ]; then
+            PKGS+=( libfluidsynth1
+                    libnettle6
+                    libopenexr22
                 )
         fi
         PKGS+=( libgtk-3-0
@@ -157,10 +165,8 @@ if [ -f /etc/lsb-release ]; then
                 libfaac0
                 libfdk-aac1
                 libflite1
-                libfluidsynth1
                 libgme0
                 libgsm1
-                libnettle6
                 libkate1
                 liblrdf0
                 libde265-0
@@ -170,7 +176,6 @@ if [ -f /etc/lsb-release ]; then
                 libmpcdec6
                 libneon27
                 libopenal1
-                libopenexr22
                 libopenjp2-7
                 libopenmpt0
                 libopenni2-0
