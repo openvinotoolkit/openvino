@@ -223,7 +223,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
         output_shape.insert(begin(output_shape), begin(shape), next(begin(shape), start_axis));
         output_shape.insert(end(output_shape), collapsed_axis_size);
         output_shape.insert(end(output_shape), next(begin(shape), end_axis + 1), end(shape));
-        return builder::opset1::reshape(value, output_shape);            
+        return builder::opset1::reshape(value, output_shape);
     }
 
     const auto shape = make_shared<ngraph::opset1::ShapeOf>(value);
