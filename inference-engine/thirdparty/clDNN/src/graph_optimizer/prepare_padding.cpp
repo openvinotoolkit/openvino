@@ -132,6 +132,9 @@ void prepare_padding::run(program_impl& p) {
             conv_layout.format != cldnn::format::b_fs_yx_32fp) {
             continue;
         }
+        if (conv_layout.format == cldnn::format::b_fs_zyx_fsv16 && conv_layout.data_type != data_types::i8 &&
+            conv_layout.data_type != data_types::u8)
+            continue;
 
         // We shoudn't apply any padding to nodes which are marked as outputs
         if (conv_input_node.is_output())
