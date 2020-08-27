@@ -162,7 +162,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             unsqueeze = Unsqueeze(graph, dict())
 
             unsqueeze_dim_data = Const(graph, {'name': rnn_layer.name + '/UnsqueezeNumDirections/{}/Dim'.format(i),
-                                             'value': [direction_dim[i]]}).create_node_with_data()
+                                               'value': int64_array([direction_dim[i]])}).create_node_with_data()
 
             unsqueeze.create_node_with_data([data, unsqueeze_dim_data],
                                             dict(name=rnn_layer_name + '/UnsqueezeNumDirections/{}'.format(i)),

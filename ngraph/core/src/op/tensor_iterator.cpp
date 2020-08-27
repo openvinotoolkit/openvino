@@ -458,6 +458,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static())
@@ -516,7 +517,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
             auto body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
-
+            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             NODE_VALIDATION_CHECK(this,
@@ -541,7 +542,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
-
+            body_parameter->set_element_type(inputs().at(index).get_source_output().get_element_type());
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             NODE_VALIDATION_CHECK(this,
