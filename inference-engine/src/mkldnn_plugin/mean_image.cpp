@@ -4,7 +4,7 @@
 
 #include "mean_image.h"
 #include "ie_parallel.hpp"
-#include "ie_memcpy.h"
+#include "nodes/common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -53,7 +53,7 @@ void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
                     THROW_IE_EXCEPTION << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;
                 }
                 // todo: cast to TBlob and make sure it is floats
-                ie_memcpy(meanBuffer->data() + channel*meanBlob->size(), meanBuffer->byteSize() - channel*meanBlob->byteSize(),
+                cpu_memcpy_s(meanBuffer->data() + channel*meanBlob->size(), meanBuffer->byteSize() - channel*meanBlob->byteSize(),
                           meanBlob->buffer(), meanBlob->byteSize());
             }
         }
