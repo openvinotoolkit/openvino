@@ -419,7 +419,7 @@ def test_runtime_info():
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
 
-    assert runtime_info["affinity"] == runtime_info_after["affinity"]
+    assert runtime_info_after["affinity"] == "test_affinity"
 
     params = [test_param]
     results = [relu_node]
