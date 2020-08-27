@@ -39,10 +39,16 @@ jobs:
           name: code_style_diff
           path: code_style_diff.patch
           
-  Java bindings:
+  JavaBindings:
     runs-on: ubuntu-18.04
     steps:
       - name: Check code style
+        run: |
+        java -jar google-java-format-1.9-all-deps.jar --set-exit-if-changed |
+            ~/openvino/inference-engine/ie_bridges/java/tests/BlobTests.java
+
+      - name: Create code style diff
+        if: failure()
         run: |
           cd ~/openvino/bin/intel64/Release/lib/
           wget -nc https://github.com/google/google-java-format/releases/download/google-java-format-1.9/google-java-format-1.9-all-deps.jar
