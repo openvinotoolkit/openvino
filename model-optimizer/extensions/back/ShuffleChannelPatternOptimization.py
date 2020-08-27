@@ -16,6 +16,7 @@
 import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
+from extensions.ops.shufflechannel import ShuffleChannels
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
@@ -33,27 +34,29 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
         return dict(
             nodes=[
                 ('t_start_order', {'type': 'Const'}),
-                ('t_start_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 2, 3, 1]))}),
+                ('t_start_order_d',
+                 {'value': lambda v: v is not None and np.all(np.array_equal(v, [0, 2, 3, 1]))}),
                 ('t_start', {'type': 'Transpose'}),
                 ('t_start_d', {}),
 
                 ('reshape_dim', {'type': 'Const'}),
-                ('reshape_dim_d', {'value': lambda value: value is not None and value.size == 5 and np.all(value[0] == -1)}),
+                ('reshape_dim_d',
+                 {'value': lambda v: v is not None and v.size == 5 and np.all(v[0] == -1)}),
                 ('reshape_start', {'type': 'Reshape'}),
                 ('reshape_start_d', {}),
 
                 ('t_5d_order', {'type': 'Const'}),
-                ('t_5d_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 1, 2, 4, 3]))}),
+                ('t_5d_order_d', {'value': lambda v: v is not None and np.all(np.array_equal(v, [0, 1, 2, 4, 3]))}),
                 ('t_5d', {'type': 'Transpose'}),
                 ('t_5d_d', {}),
 
                 ('reshape_1_dim', {'type': 'Const'}),
-                ('reshape_1_dim_d', {'value': lambda value: value is not None and value.size == 4 and np.all(value[0] == -1)}),
+                ('reshape_1_dim_d', {'value': lambda v: v is not None and v.size == 4 and np.all(v[0] == -1)}),
                 ('reshape_end', {'type': 'Reshape'}),
                 ('reshape_end_d', {}),
 
                 ('t_end_order', {'type': 'Const'}),
-                ('t_end_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 3, 1, 2]))}),
+                ('t_end_order_d', {'value': lambda v: v is not None and np.all(np.array_equal(v, [0, 3, 1, 2]))}),
                 ('t_end', {'type': 'Transpose'}),
             ],
             edges=[
@@ -126,3 +129,71 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
 
         match['reshape_1_dim']['value'] = int64_array(np.take(new_end.in_port(1).data.get_value(), [0, 3, 1, 2]))
         match['reshape_1_dim'].infer(match['reshape_1_dim'])
+
+
+class ShuffleChannelFusion(BackReplacementPattern):
+    """
+    FUSION: Reshape->Transpose->Reshape  to  ShuffleChannel
+    We are able to perform the fusion if the pattern satisfies the conditions:
+    1. Pattern input 4D shape is the same as pattern output 4D shape
+    2. First Reshape splits channel dimension (1 axis) into two dimensions
+    3. Transpose permutes only splitted dimensions
+    4. Second Reshape pack them back
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        return [FuseTransposesSequence]
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('reshape_0_pattern', dict(type='Const')),
+                ('reshape_0_pattern_d', dict(value=lambda v: v is not None and v.size == 5 and np.all(v > 0))),
+                ('reshape_0', dict(type='Reshape')),
+                ('reshape_0_d', dict()),
+
+                ('order', dict(type='Const')),
+                ('order_d', dict(value=lambda v: v is not None and np.array_equal([0, 2, 1, 3, 4], v))),
+                ('transpose', dict(type='Transpose')),
+                ('transpose_d', {}),
+
+                ('reshape_1_pattern', dict(type='Const')),
+                ('reshape_1_pattern_d', dict(value=lambda v: v is not None and v.size == 4 and np.all(v > 0))),
+                ('reshape_1', dict(type='Reshape')),
+            ],
+            edges=[
+                ('reshape_0_pattern', 'reshape_0_pattern_d'),
+                ('reshape_0_pattern_d', 'reshape_0'),
+                ('reshape_0', 'reshape_0_d'),
+                ('reshape_0_d', 'transpose'),
+                ('order', 'order_d'),
+                ('order_d', 'transpose'),
+                ('transpose', 'transpose_d'),
+                ('transpose_d', 'reshape_1'),
+                ('reshape_1_pattern', 'reshape_1_pattern_d'),
+                ('reshape_1_pattern_d', 'reshape_1'),
+            ]
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        channel_splitting_reshape = match['reshape_0']
+        channel_concating_reshape = match['reshape_1']
+
+        initial_shape = channel_splitting_reshape.in_port(0).data.get_shape()
+        resulting_shape = channel_concating_reshape.in_port(1).data.get_value()
+        if not np.array_equal(initial_shape, resulting_shape):
+            return
+
+        channel_splitted_out_shape = channel_splitting_reshape.in_port(1).data.get_value()
+        if not all([initial_shape[i] == channel_splitted_out_shape[j] for i, j in {0: 0, 2: 3, 3: 4}.items()]):
+            return
+
+        name = channel_concating_reshape.soft_get('name', channel_concating_reshape.id)
+        group = channel_splitted_out_shape[1]
+        shuffle_channel = ShuffleChannels(graph, {'name': name, 'group': group}).create_node()
+        channel_concating_reshape.out_port(0).get_connection().set_source(shuffle_channel.out_port(0))
+        shuffle_channel.in_port(0).connect(channel_splitting_reshape.in_port(0).get_source())
