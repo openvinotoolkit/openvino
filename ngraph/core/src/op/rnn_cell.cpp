@@ -179,19 +179,21 @@ void op::RNNCell::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(4)),
-        "Element types for X, initial_hidden_state, W, R and B do not match.");
+        "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-                          "Parameter batch_size not matched for ht_pshape and x_pshape inputs.");
+    NODE_VALIDATION_CHECK(
+        this,
+        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
+        "Parameter batch_size not matched for X and initial_hidden_state inputs.");
 
     // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
-                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-                          "Parameter hidden_size not matched for ht_pshape and t_pshape inputs.");
+    NODE_VALIDATION_CHECK(
+        this,
+        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
+            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+        "Parameter hidden_size not matched for R and initial_hidden_state inputs.");
 
     // Validate hidden_size value for W, B and R inputs
     if (merged_hidden_size.is_static())
@@ -201,7 +203,7 @@ void op::RNNCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 w_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in w_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in W input. Current value is: ",
                 w_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,
@@ -213,7 +215,7 @@ void op::RNNCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 r_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in r_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
                 r_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,
@@ -225,7 +227,7 @@ void op::RNNCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 b_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in b_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
                 b_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,

@@ -234,10 +234,15 @@ void op::LSTMCell::validate_and_infer_types()
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole for further validation
+    // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input) information
+    // for further validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
     {
-        input_param.push_back(get_input_partial_shape(i));
+        // exclude initial_cell_state input
+        if (i != 2)
+        {
+            input_param.push_back(get_input_partial_shape(i));
+        }
     }
 
     // Get input partial shape for all inputs
@@ -250,6 +255,15 @@ void op::LSTMCell::validate_and_infer_types()
     const auto& p_pshape = get_input_partial_shape(6);
 
     validate_input_rank_dimension(input_param);
+
+    // Validate rank and dimension for initial_cell_state input
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().is_static()),
+                          "LSTMCell input tensor initial_cell_state shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().get_length() == 2),
+                          "LSTMCell input tensor initial_cell_state shall have dimension 2D.");
 
     // Validate rank and dimension for P input
     NODE_VALIDATION_CHECK(
@@ -276,7 +290,8 @@ void op::LSTMCell::validate_and_infer_types()
         Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-        "Parameter batch_size not matched for ht_pshape, ct_pshape and x_pshape.");
+        "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
+        "inputs.");
 
     // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
     NODE_VALIDATION_CHECK(
@@ -284,7 +299,8 @@ void op::LSTMCell::validate_and_infer_types()
         Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
             Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
             Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-        "Parameter hidden_size not matched for ht_pshape, ct_pshape and t_pshape.");
+        "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
+        "inputs.");
 
     // Validate hidden_size value for W, R and P inputs
     if (merged_hidden_size.is_static())
@@ -294,7 +310,7 @@ void op::LSTMCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 w_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in w_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in W input. Current value is: ",
                 w_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,
@@ -306,7 +322,7 @@ void op::LSTMCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 r_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in r_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
                 r_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,
@@ -318,7 +334,7 @@ void op::LSTMCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 b_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in b_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
                 b_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_gates_count,
@@ -330,7 +346,7 @@ void op::LSTMCell::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 p_pshape[0].compatible(merged_hidden_size * s_peepholes_count),
-                "Parameter hidden_size mistmatched in p_pshape. Current value is: ",
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
                 p_pshape[0].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * s_peepholes_count,

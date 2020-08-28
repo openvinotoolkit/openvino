@@ -69,6 +69,15 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     const std::vector<ngraph::PartialShape>& input)
 {
+    enum
+    {
+        X,
+        initial_hidden_state,
+        W,
+        R,
+        B
+    };
+
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)
     {
@@ -81,7 +90,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     // Verify input dimension against values provided in spec (LSTMCell_1.md)
     for (size_t i = 0; i < input.size(); i++)
     {
-        if (i == input.size() - 1)
+        if (i == B)
         {
             // verify only B input dimension which is 1D
             NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
@@ -102,8 +111,8 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     }
 
     // Compare input_size dimension for X and W inputs
-    const auto& x_pshape = input.at(0);
-    const auto& w_pshape = input.at(input.size() - 3);
+    const auto& x_pshape = input.at(X);
+    const auto& w_pshape = input.at(W);
 
     NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
                           (x_pshape[1].compatible(w_pshape[1])),

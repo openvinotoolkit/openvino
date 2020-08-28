@@ -32,9 +32,10 @@ namespace ngraph
             ///             Applies to LSTM, GRU and RNN Sequences.
             ///
             ///
-            /// \param[in]  input        Vector with PartialShape input parameters
+            /// \param[in]  input        Vector with RNNSequence-like op inputs in following order:
+            ///                          X, initial_hidden_state, sequence_lengths, W, R and B.
             ///
             void validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph
