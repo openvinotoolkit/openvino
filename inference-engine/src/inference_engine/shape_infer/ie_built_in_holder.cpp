@@ -7,16 +7,17 @@
 #include <string>
 
 #include "shape_infer/ie_built_in_holder.hpp"
-#include "ie_detectionoutput_onnx_shape_infer.hpp"
-#include "ie_priorgridgenerator_onnx_shape_infer.hpp"
-#include "ie_proposal_onnx_shape_infer.hpp"
-#include "ie_proposal_shape_infer.hpp"
-#include "ie_rnn_cell_shape_infer.hpp"
-#include "ie_roifeatureextractor_onnx_shape_infer.hpp"
-#include "ie_simpler_nms_shape_infer.hpp"
-#include "ie_sparse_to_dense_shape_infer.hpp"
-#include "ie_topkrois_onnx_shape_infer.hpp"
-#include "ie_unique_shape_infer.hpp"
+#include "shape_infer/ie_detectionoutput_onnx_shape_infer.hpp"
+#include "shape_infer/ie_priorgridgenerator_onnx_shape_infer.hpp"
+#include "shape_infer/ie_proposal_onnx_shape_infer.hpp"
+#include "shape_infer/ie_proposal_shape_infer.hpp"
+#include "shape_infer/ie_rnn_cell_shape_infer.hpp"
+#include "shape_infer/ie_roifeatureextractor_onnx_shape_infer.hpp"
+#include "shape_infer/ie_simpler_nms_shape_infer.hpp"
+#include "shape_infer/ie_sparse_to_dense_shape_infer.hpp"
+#include "shape_infer/ie_topkrois_onnx_shape_infer.hpp"
+#include "shape_infer/ie_unique_shape_infer.hpp"
+#include "shape_infer/ie_sparse_to_dense_shape_infer.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -73,6 +74,7 @@ REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronGenerateProposalsSingleImageShapeP
 REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronROIFeatureExtractorShapeProp, ExperimentalDetectronROIFeatureExtractor);
 REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronTopKROIsShapeProp, ExperimentalDetectronTopKROIs);
 REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);
+REG_SHAPE_INFER_FOR_TYPE(SparseToDenseShapeProp, SparseToDense);
 REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
 REG_SHAPE_INFER_FOR_TYPE(RNNCellShapeProp, RNNCell);
 REG_SHAPE_INFER_FOR_TYPE(GRUCellShapeProp, GRUCell);
