@@ -77,7 +77,42 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         }
     }
 
+    const auto dequantization = NetworkHelper::getDequantization(layer);
+    if (!dequantization.empty()) {
+        auto perChannelQuantization = [](const Shape dataShape, Shape constShape) {
+            if ((dataShape.size() - constShape.size()) == 1ul) {
+                constShape.insert(constShape.begin(), 1ul);
+            }
+            for (size_t i = 2; i < constShape.size(); ++i) {
+                if (constShape[i] != 1ul) {
+                    return false;
+                }
+            }
+        };
+
+        if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
+            dequantization.subtract->output(0).get_shape(),
+            dequantization.subtract->input(1).get_shape()))) {
+            return false;
+        }
+
+        if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
+            dequantization.multiply->output(0).get_shape(),
+            dequantization.multiply->input(1).get_shape()))) {
+            return false;
+        }
+    }
+
     return true;
+}
+
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node) const {
+    const auto dequantization = NetworkHelper::getDequantization(node);
+    return isAsymmetricQuantization(node, dequantization);
+}
+
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node, const FakeQuantizeDequantization& dequantization) const {
+    return (!dequantization.empty()) && (dequantization.subtract != nullptr);
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -193,8 +228,7 @@ bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcep
 DataPrecision LayerTransformation::getDataPrecision(
         std::shared_ptr<Node> layer,
         const QuantizationDetails& quantizationDetails,
-        const bool onWeights,
-        const bool supportAsymmetricQuantization) const {
+        const bool onWeights) const {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif

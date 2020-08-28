@@ -161,7 +161,7 @@ public:
                 const bool updatePrecisions = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = true,
+                bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
                 updatePrecisions(updatePrecisions),
@@ -250,6 +250,10 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
+    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node) const;
+
+    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node, const FakeQuantizeDequantization& dequantization) const;
+
     PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
 
     // return true if operation can be quantized and false otherwise
@@ -264,8 +268,7 @@ public:
     DataPrecision getDataPrecision(
             std::shared_ptr<Node> layer,
             const QuantizationDetails& quantizationDetails,
-            const bool onWeights,
-            const bool supportAsymmetricQuantization) const;
+            const bool onWeights) const;
 
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 

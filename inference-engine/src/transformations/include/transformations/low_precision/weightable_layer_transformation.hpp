@@ -21,9 +21,12 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 protected:
-    DataPrecision decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer, const bool supportAsymmetricQuantization) const;
+    DataPrecision decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
+
+    std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(std::shared_ptr<Node> node) const;
+    DataPrecision getDataPrecisionOnWeights(std::shared_ptr<Node> node) const;
 };
 
 } // namespace low_precision

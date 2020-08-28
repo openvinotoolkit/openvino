@@ -145,28 +145,10 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(
-    std::shared_ptr<Node> node,
-    const bool supportAsymmetricQuantization) const {
-    // The first part of code analyzes FQ output parameters to select appropriate precision
-    // This part doesn't use nGraph manipulations and works with raw number
-    // It doesn't rely on parameters shapes and just gathers statistics, so ngraph ops are not required.
-
-    auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
-    // TODO: temporary workaround
-    if (fq == nullptr) {
-        fq = as_type_ptr<opset1::FakeQuantize>(node->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
-    }
-
-
-    // Obtain quantization details and decide on target precision based on dimension-less FQ parameters
-    // This step is shape independent and considers FQ limits as just a set of number
+DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> node) const {
+    const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true, supportAsymmetricQuantization);
-
-    // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
-    // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
-
+    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true);
     auto tuple = NetworkHelper::decomposeFakeQuantize(
         fq,
         dataPrecision.precision,
@@ -201,6 +183,22 @@ bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& lay
     const size_t inputChannelsCount = NetworkHelper::getInputChannelsCount(layer);
     const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(layer);
     return (group == inputChannelsCount) && (inputChannelsCount == outputChannelsCount);
+}
+
+std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(std::shared_ptr<Node> node) const {
+    auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
+    // TODO: temporary workaround
+    if (fq == nullptr) {
+        fq = as_type_ptr<opset1::FakeQuantize>(node->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+    }
+
+    return fq;
+}
+
+DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(std::shared_ptr<Node> node) const {
+    const auto fq = getFakeQuantizeOnWeights(node);
+    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
+    return getDataPrecision(fq, quantizationDetails, true);
 }
 
 } // namespace low_precision

@@ -37,11 +37,22 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
+    if (!supportAsymmetricQuantization) {
+        if (isAsymmetricQuantization(convolution, dequantization)) {
+            return false;
+        }
+
+        const DataPrecision dataPrecision = getDataPrecisionOnWeights(convolution);
+        if (dataPrecision.hasZeroPoint) {
+            return false;
+        }
+    }
+
     convolution = separateInStandaloneBranch(convolution);
+    dequantization = NetworkHelper::getDequantization(convolution);
 
     {
-        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
-
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
@@ -132,7 +143,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     {
-        decomposeFakeQuantizeForWeightsPath(convolution, supportAsymmetricQuantization);
+        decomposeFakeQuantizeForWeightsPath(convolution);
 
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
         std::shared_ptr<opset1::Multiply> multiplyFromWeights = as_type_ptr<opset1::Multiply>(

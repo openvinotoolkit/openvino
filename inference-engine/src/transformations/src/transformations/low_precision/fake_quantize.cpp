@@ -48,7 +48,7 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
-    const DataPrecision dataPrecision = getDataPrecision(layer, quantizationDetails, false, supportAsymmetricQuantization);
+    const DataPrecision dataPrecision = getDataPrecision(layer, quantizationDetails, false);
     if (dataPrecision.precision == element::undefined) {
         return false;
     }
