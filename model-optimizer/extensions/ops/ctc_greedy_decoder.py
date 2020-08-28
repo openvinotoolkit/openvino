@@ -52,12 +52,22 @@ class CTCGreedyDecoderOp(Op):
         sequence_mask_shape = node.in_port(1).data.get_shape()
 
         # check shapes of input tensors
-        assert len(logits_shape) == 3 and len(sequence_mask_shape) == 2, \
-            'Incorrect rank of some input tensor for {} node'.format(node_name)
-        assert logits_shape[1] == sequence_mask_shape[1], \
-            'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
-        assert logits_shape[0] == sequence_mask_shape[0], \
-            'Time dimensions of input tensors must be the same for {} node'.format(node_name)
+        assert len(logits_shape) == 3, \
+            'Incorrect rank of logits for {} node'.format(node_name)
+        if node.has_valid('use_mask_format') and node.use_mask_format is True:
+            # it is a case when CTCGreedyDecoder still uses an original format for sequence_length
+            assert len(sequence_mask_shape) == 1, \
+                'Incorrect rank of sequence length tensor for {} node'.format(node_name)
+            assert logits_shape[1] == sequence_mask_shape[0], \
+                'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
+        else:
+            # it is a case when CTCGreedyDecoder uses a sequence mask
+            assert len(sequence_mask_shape) == 2, \
+                'Incorrect rank of sequence length tensor for {} node'.format(node_name)
+            assert logits_shape[1] == sequence_mask_shape[1], \
+                'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
+            assert logits_shape[0] == sequence_mask_shape[0], \
+                'Time dimensions of input tensors must be the same for {} node'.format(node_name)
 
         batch_size = logits_shape[1]
         time_size = logits_shape[0]

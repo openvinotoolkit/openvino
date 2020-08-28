@@ -561,6 +561,7 @@ extensions/middle/ReverseTransposeNormalization.py
 extensions/middle/ReverseV2ToReverseSequence.py
 extensions/middle/RNNSequenceNormalizeToIE.py
 extensions/middle/ScaleInput.py
+extensions/middle/SequenceLengthToMask.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
