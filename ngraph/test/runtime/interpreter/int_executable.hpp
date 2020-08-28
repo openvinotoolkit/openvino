@@ -93,6 +93,7 @@
 #include "ngraph/runtime/reference/tan.hpp"
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "op/avg_pool.hpp"
 #include "op/convolution.hpp"
@@ -1256,6 +1257,19 @@ protected:
                     "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
             }
 
+            break;
+        }
+        case OP_TYPEID::GatherTree_v1:
+        {
+            reference::gather_tree<T>(args[0]->get_data_ptr<const T>(),
+                                        args[1]->get_data_ptr<const T>(),
+                                        args[2]->get_data_ptr<const T>(),
+                                        args[3]->get_data_ptr<const T>(),
+                                        out[0]->get_data_ptr<T>(),
+                                        node.get_input_shape(0),
+                                        node.get_input_shape(1),
+                                        node.get_input_shape(2),
+                                        node.get_input_shape(3));
             break;
         }
 
