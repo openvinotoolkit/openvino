@@ -325,6 +325,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     uint32_t num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
     uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
 
+    if (num_columns_out != num_columns_out_unpadded) {
+        dnn->new_num_conv_columns = num_columns_out;
+    }
+
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     while (num_columns_out < out_batch * out_channels * out_height * out_width) {
         num_input_padding += 8;
