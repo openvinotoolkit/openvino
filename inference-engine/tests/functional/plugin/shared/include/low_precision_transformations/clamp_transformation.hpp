@@ -6,20 +6,22 @@
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 class ClampTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     double clampLowConst;
     double clampHighConst;
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
     ClampTransformationParam
 > ClampTransformationParams;
@@ -32,6 +34,6 @@ public:
 protected:
     void SetUp() override;
 private:
-    void validate();
+    void validateNGraph();
 };
 }  // namespace LayerTestsDefinitions

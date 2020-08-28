@@ -22,9 +22,9 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+        inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     const std::shared_ptr<Node> clamp = std::make_shared<ngraph::opset1::Clamp>(dequantizationOp, 0, 10);
@@ -40,7 +40,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     const double clampLowConst,
     const double clampHighConst) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
     const std::shared_ptr<Node> fq = fakeQuantize.empty() ? nullptr :
         ngraph::builder::makeFakeQuantize(

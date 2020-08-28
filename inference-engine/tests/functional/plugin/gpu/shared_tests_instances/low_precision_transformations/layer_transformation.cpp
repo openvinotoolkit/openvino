@@ -129,13 +129,48 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine
     return InferenceEngine::CNNNetwork(implNetwork);
 }
 
-std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
+    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::nGraph);
 
     InferenceEngine::NetPass::ConvertPrecision(*clonedNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
 
-    auto transformer = getLowPrecisionTransformerNGraph(params);
-    transformer.transform(clonedNetwork->getFunction());
+    auto nGraphFunc = clonedNetwork->getFunction();
+    auto transformations = getLowPrecisionTransformationsNGraph(params);
+
+    for (auto& additionalTransformation : additionalTransformations.transformations) {
+        transformations.transformations.emplace(additionalTransformation.first, additionalTransformation.second);
+    }
+
+    ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
+    transformer.transform(nGraphFunc);
+
+    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+        // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+        if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+            return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+        }
+
+        // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+        if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
+            return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
+        }
+
+        if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
+            return fc_op->input_value(0).get_shape().size() == 3ul;
+        }
+
+        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
+            std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
+    };
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.set_callback(transformations_callback);
+    manager.run_passes(nGraphFunc);
 
     return clonedNetwork->getFunction();
 }
