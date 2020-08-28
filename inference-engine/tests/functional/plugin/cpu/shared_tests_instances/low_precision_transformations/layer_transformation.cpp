@@ -135,11 +135,19 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine
     return InferenceEngine::CNNNetwork(implNetwork);
 }
 
-std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
+    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::nGraph);
     auto nGraphFunc = clonedNetwork->getFunction();
 
-    auto transformer = getLowPrecisionTransformerNGraph(params);
+    auto transformations = getLowPrecisionTransformationsNGraph(params);
+
+    for (auto& additionalTransformation : additionalTransformations.transformations) {
+        transformations.transformations.emplace(additionalTransformation.first, additionalTransformation.second);
+    }
+
+    ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(nGraphFunc);
 
     const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {

@@ -11,6 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
+#include "transformations/low_precision/split.hpp"
 #include "ngraph_functions/low_precision_transformations/split_function.hpp"
 
 namespace LayerTestsDefinitions {
@@ -62,6 +63,33 @@ void SplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.numSplit);
+
+    if (version == LptVersion::nGraph) {
+        validateNGraph();
+    }
+}
+
+void SplitTransformation::validateNGraph() {
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    SplitTransformationParam param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+
+    ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations;
+    additionalTransformations.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(params);
+    auto transformed = transformNGraph(params, additionalTransformations);
+
+    EXPECT_EQ(param.numSplit, transformed->get_output_size());
+
+    for (size_t i = 0; i < param.numSplit; ++i) {
+        std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
+        std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
+        const std::string typeName = scaleShift->get_type_name();
+        ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
+    }
 }
 
 TEST_P(SplitTransformation, CompareWithRefImpl) {

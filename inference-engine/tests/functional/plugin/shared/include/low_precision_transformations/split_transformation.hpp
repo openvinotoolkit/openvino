@@ -32,5 +32,8 @@ public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 protected:
     void SetUp() override;
+
+private:
+    void validateNGraph();
 };
 }  // namespace LayerTestsDefinitions

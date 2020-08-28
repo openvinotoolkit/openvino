@@ -9,8 +9,8 @@
 #include "low_precision_transformations/split_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
@@ -26,38 +26,62 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 };
 
 const std::vector<LayerTestsDefinitions::SplitTransformationParam> params = {
-    // {
-    //    { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-    //    { 2 }, { 2ul }
-    // },
-    // {
-    //    { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
-    //    { -1 }, { 2ul }
-    // },
-    // {
-    //    {
-    //        256ul, ngraph::Shape{ 1, 3, 1, 1 },
-    //        { -127.f, -127.f, -127.f },
-    //        { 128.f, 128.f, 128.f },
-    //        { 0.f, 0.f, 0.f },
-    //        { 255.f, 255.f, 255.f }
-    //    },
-    //    { 1 }, { 3ul }
-    // },
-    // {
-    //    {
-    //        256ul, ngraph::Shape{ 1, 3, 1, 1 },
-    //        { -127.f, -127.f, -127.f },
-    //        { 128.f, 128.f, 128.f },
-    //        { 0.f, 0.f, 0.f },
-    //        { 255.f, 255.f, 255.f }
-    //    },
-    //    { -1 }, { 2ul }
-    // },
-    // {
-    //    { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
-    //    { 1 }, { 3ul }
-    // }
+    // tensor quantization, split second dimension
+    {
+        { 256ul, ngraph::Shape{ }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f / 2.f } },
+        2, 2ul
+    },
+    // tensor quantization, split third dimension
+    {
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { 0.f }, { 25.5f } },
+        -1, 2ul
+    },
+    // per-channel quantization with the same values, split second dimension
+    {
+        {
+            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, -127.f, -127.f },
+            { 128.f, 128.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f, 255.f }
+        },
+        2, 4ul
+    },
+    // per-channel quantization with the same values, per-channel split
+    {
+        {
+            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, -127.f, -127.f },
+            { 128.f, 128.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f, 255.f }
+        },
+        1, 3ul
+    },
+    // per-channel quantization with different values, split third dimension
+    {
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, 0.f, 128.f / 2.f },
+            { 128.f / 4.f, 128.f / 2.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f / 4.f, 255.f / 2.f, 255.f }
+        },
+        -1, 4ul
+    },
+    // per-channel quantization with different values, per-channel split
+    {
+        {
+            256ul,
+            ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, 0.f, 128.f / 2.f },
+            { 128.f / 4.f, 128.f / 2.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f / 4.f, 255.f / 2.f, 255.f }
+        },
+        1, 3ul
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, SplitTransformation,

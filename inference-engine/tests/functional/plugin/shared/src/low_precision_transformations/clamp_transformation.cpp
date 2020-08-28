@@ -3,7 +3,6 @@
 //
 
 #include "low_precision_transformations/clamp_transformation.hpp"
-
 #include <sstream>
 #include <string>
 #include <vector>
@@ -14,72 +13,79 @@
 namespace LayerTestsDefinitions {
 
 std::string ClampTransformation::getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) << "_" <<
         param.fakeQuantize << "_" <<
-        "_min=" << param.clampLowConst <<
-        "_max=" << param.clampHighConst;
+        "min=" << param.clampLowConst <<
+        "max=" << param.clampHighConst;
     return result.str();
 }
 
 void ClampTransformation::SetUp() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::ClampFunction::getOriginal(
-        precision,
+        netPrecision,
         inputShape,
         param.fakeQuantize,
         param.clampLowConst,
         param.clampHighConst);
 
-    if (version == LptVersion::cnnNetwork) {
-        validate();
+    if (version == LptVersion::nGraph) {
+        validateNGraph();
     }
 }
 
-void ClampTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+void ClampTransformation::validateNGraph() {
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params tmp;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, tmp, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
+    auto transformed = transformNGraph(params);
+    EXPECT_EQ(1ul, transformed->get_output_size());
+    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 
-    IE_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
+    ASSERT_FALSE(parent == nullptr);
+    const std::string typeName = parent->get_type_name();
 
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
+    if (!param.dequantizationAfter.empty()) {
+        EXPECT_TRUE((typeName == "ScaleShiftIE") || (typeName == "ConvolutionIE"));
+        if (typeName == "ScaleShiftIE") {
+            EXPECT_EQ(3, parent->get_input_size());
 
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("Clamp", outputLayer->type);
+            const auto expectedScale = param.dequantizationAfter.multiply.values;
+            const auto actualScale =
+                ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(1))->cast_vector<float>();
+            EXPECT_EQ(expectedScale.size(), actualScale.size());
 
-    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    checkPrecisions(*layer, toCNNNetwork(precision));
-
-    IE_SUPPRESS_DEPRECATED_END
+            const auto expectedShift = param.dequantizationAfter.subtract.values;
+            const auto actualShift =
+                ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(2))->cast_vector<float>();
+            EXPECT_EQ(expectedShift.size(), actualShift.size());
+        }
+    } else {
+        EXPECT_EQ("Clamp", typeName);
+    }
 }
 
 TEST_P(ClampTransformation, CompareWithRefImpl) {

@@ -69,7 +69,9 @@ protected:
 
     InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LayerTransformation::Params& params);
 
-    std::shared_ptr<ngraph::Function> transformNGraph(const ngraph::pass::low_precision::LayerTransformation::Params& params);
+    std::shared_ptr<ngraph::Function> transformNGraph(
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations = {});
 
     InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LowPrecisionTransformations& transformations);
 
