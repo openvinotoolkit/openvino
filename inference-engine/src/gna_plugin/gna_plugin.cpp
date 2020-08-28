@@ -1134,16 +1134,6 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::string &modelFileName) {
-    // no need to return anything dueto weird design of internal base classes
-    std::fstream inputStream(modelFileName, ios_base::in | ios_base::binary);
-    if (inputStream.fail()) {
-        THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelFileName;
-    }
-
-    return ImportNetwork(inputStream);
-}
-
 InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
