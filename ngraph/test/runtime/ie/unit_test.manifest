@@ -1084,11 +1084,6 @@ IE_CPU.acosh
 
 # Result mismatch 2.666666507720947266 is not close to 3 at index 1
 IE_CPU.onnx_resize10_down_scales_const_linear
-IE_CPU.onnx_resize11_scales_down_linear
-
-# C++ exception with description "Interpolate operation should be converted to Interp
-# not constant output_shape passed to Interpolate-1
-IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd
@@ -1107,8 +1102,6 @@ IE_CPU.onnx_resize10_up_scales_const_linear
 IE_CPU.onnx_resize10_up_scales_const_nearest
 IE_CPU.onnx_resize11_scales_up_linear_asymmetric
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor
-IE_CPU.onnx_resize11_sizes_nearest_asymmetric_floor
-IE_CPU.onnx_resize11_sizes_linear
 IE_CPU.onnx_model_round
 IE_CPU.onnx_upsample9_scales_const_linear_infer
 IE_CPU.onnx_upsample9_scales_const_nearest_infer

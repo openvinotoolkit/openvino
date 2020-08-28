@@ -90,6 +90,11 @@ namespace ngraph
                     attrs.antialias = false;
                     attrs.cube_coeff = -0.75;
 
+                    if (attrs.mode == Transform_mode::linear_onnx)
+                    {
+                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+                    }
+
                     auto zero_pad = std::vector<size_t>(1, 0);
 
                     attrs.pads_begin = zero_pad;
@@ -157,6 +162,11 @@ namespace ngraph
                     attrs.nearest_mode = Nearest_mode::round_prefer_floor;
                     attrs.antialias = false;
                     attrs.cube_coeff = -0.75;
+
+                    if (attrs.mode == Transform_mode::linear_onnx)
+                    {
+                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+                    }
 
                     auto zero_pad = std::vector<size_t>(1, 0);
 
