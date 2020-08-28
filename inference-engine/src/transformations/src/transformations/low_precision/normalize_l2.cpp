@@ -40,6 +40,10 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
+    if (!supportAsymmetricQuantization && isAsymmetricQuantization(operation)) {
+        return false;
+    }
+
     const std::shared_ptr<Node> multiply = operation->get_input_node_shared_ptr(0);
     auto scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {

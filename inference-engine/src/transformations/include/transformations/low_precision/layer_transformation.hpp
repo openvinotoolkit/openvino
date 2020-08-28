@@ -250,7 +250,7 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
-    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node) const;
+    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul) const;
 
     bool isAsymmetricQuantization(const std::shared_ptr<Node>& node, const FakeQuantizeDequantization& dequantization) const;
 

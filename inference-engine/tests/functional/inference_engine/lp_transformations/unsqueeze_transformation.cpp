@@ -119,25 +119,26 @@ const std::vector<UnsqueezeTransformationTestValues> testValues = {
 
     {
         LayerTransformation::createParamsU8I8(),
-        { { 0.2f }, { 2, 3 } },
-        { { 0.2f }, { 1, 2, 3, 1 } },
-        { { 128 }, { 2, 3 } },
-        { { 128 }, { 1, 2, 3, 1 } },
+        { { 0.2f }, { 1, 3 } },
+        { { 0.2f }, { 1, 1, 3, 1 } },
+        { { 128 }, { 1, 3 } },
+        { { 128 }, { 1, 1, 3, 1 } },
         { 0.0, 3.0 },
-        { 2, 3 },
+        { 1, 3 },
         ngraph::element::f32
     },
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        { { 0.5f }, { 1 } },
-        { { 0.5f }, { 1 } },
-        { { 32 }, { 3, 32, 32, 32 } },
-        { { 32 }, { 3, 1, 32, 32, 32 } },
-        { 1.0 },
-        { 3, 32, 32, 32 },
-        ngraph::element::f32
-    },
+    // {
+    //    LayerTransformation::createParamsU8I8(),
+    //    { { 0.5f }, { 1 } },
+    //    { { 0.5f }, { 1 } },
+    //    { { 32 }, { 3, 32, 32, 32 } },
+    //    { { 32 }, { 3, 1, 32, 32, 32 } },
+    //    { 1.0 },
+    //    { 3, 32, 32, 32 },
+    //    ngraph::element::f32
+    // },
+
     // {
     //    LayerTransformation::createParamsI8I8(),
     //    { { 0.1f }, { 1 } },

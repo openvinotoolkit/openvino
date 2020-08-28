@@ -83,11 +83,17 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
             if ((dataShape.size() - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
+
+            if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
+                return false;
+            }
+
             for (size_t i = 2; i < constShape.size(); ++i) {
                 if (constShape[i] != 1ul) {
                     return false;
                 }
             }
+            return true;
         };
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
@@ -106,8 +112,8 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node) const {
-    const auto dequantization = NetworkHelper::getDequantization(node);
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node, const size_t parentIndex) const {
+    const auto dequantization = NetworkHelper::getDequantization(node, parentIndex);
     return isAsymmetricQuantization(node, dequantization);
 }
 

@@ -41,6 +41,10 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
+    if (!supportAsymmetricQuantization && isAsymmetricQuantization(operation)) {
+        return false;
+    }
+
     auto mvn = as_type_ptr<op::MVN>(operation);
 
     const std::shared_ptr<Node> multiply = mvn->get_input_node_shared_ptr(0);

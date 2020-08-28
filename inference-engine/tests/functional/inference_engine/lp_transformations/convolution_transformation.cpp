@@ -169,6 +169,27 @@ const std::vector<ConvolutionTransformationTestParams> testParams = {
             { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
+    // without zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::i8,
+            { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
+            { },
+            { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

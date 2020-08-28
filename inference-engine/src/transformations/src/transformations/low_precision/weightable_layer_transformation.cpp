@@ -185,7 +185,7 @@ bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& lay
     return (group == inputChannelsCount) && (inputChannelsCount == outputChannelsCount);
 }
 
-std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(std::shared_ptr<Node> node) const {
+std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) const {
     auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
     // TODO: temporary workaround
     if (fq == nullptr) {
@@ -195,7 +195,7 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
     return fq;
 }
 
-DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(std::shared_ptr<Node> node) const {
+DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
     return getDataPrecision(fq, quantizationDetails, true);

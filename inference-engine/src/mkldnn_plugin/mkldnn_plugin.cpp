@@ -126,12 +126,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
             LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
+            false);  // supportAsymmetricQuantization
         LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
             .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}))
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true)));
 
         transformer.transform(nGraphFunc);
 

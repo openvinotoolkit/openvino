@@ -29,7 +29,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true, supportAsymmetricQuantization);
+            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
 
             auto tuple = NetworkHelper::decomposeFakeQuantize(
                 fakeQuantize,
@@ -101,6 +101,10 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
+    if ((!supportAsymmetricQuantization) && (isAsymmetricQuantization(layer, 0) || isAsymmetricQuantization(layer, 1))) {
         return false;
     }
 

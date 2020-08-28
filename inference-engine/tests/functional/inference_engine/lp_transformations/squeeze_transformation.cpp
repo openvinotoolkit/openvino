@@ -129,16 +129,17 @@ const std::vector<SqueezeTransformationTestValues> testValues = {
         ngraph::element::f32
     },
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        { { 0.5f }, { 1 } },
-        { { 0.5f }, { 1 } },
-        { { 32 }, { 1000, 1, 1, 1 } },
-        { { 32 }, { 1000, 1 } },
-        { 2.0, 3.0 },
-        { 1000, 1, 1, 1 },
-        ngraph::element::f32
-    },
+    // TODO: per tensor & per-channel quantization is supported only
+    // {
+    //    LayerTransformation::createParamsU8I8(),
+    //    { { 0.5f }, { 1 } },
+    //    { { 0.5f }, { 1 } },
+    //    { { 32 }, { 1000, 1, 1, 1 } },
+    //    { { 32 }, { 1000, 1 } },
+    //    { 2.0, 3.0 },
+    //    { 1000, 1, 1, 1 },
+    //    ngraph::element::f32
+    // },
     {
         LayerTransformation::createParamsI8I8(),
         { { 0.1f }, { 1 } },

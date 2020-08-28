@@ -68,7 +68,11 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
-    return out << "_" << values.params.updatePrecisions << "_" << values.actual << "_" << values.expected;
+    return out << "_" <<
+        values.params.supportAsymmetricQuantization << "_" <<
+        values.params.updatePrecisions << "_" <<
+        values.actual << "_" <<
+        values.expected;
 }
 
 typedef std::tuple<
@@ -95,15 +99,24 @@ public:
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
-            precision,
-            shapes.first,
-            testValues.expected.precisionBeforeDequantization1,
-            testValues.expected.dequantization1,
-            shapes.second,
-            testValues.expected.precisionBeforeDequantization2,
-            testValues.expected.dequantization2,
-            testValues.expected.result);
+        referenceFunction =
+            (testValues.expected.precisionBeforeOperation1 == ngraph::element::f32) && testValues.expected.result.empty() ?
+            ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                shapes.first,
+                testValues.actual.precisionBeforeDequantization1,
+                testValues.actual.dequantization1,
+                shapes.second,
+                testValues.actual.precisionBeforeDequantization2,
+                testValues.actual.dequantization2) :
+            ngraph::builder::subgraph::MatMulFunction::getReference(
+                precision,
+                shapes.first,
+                testValues.expected.precisionBeforeDequantization1,
+                testValues.expected.dequantization1,
+                shapes.second,
+                testValues.expected.precisionBeforeDequantization2,
+                testValues.expected.dequantization2,
+                testValues.expected.result);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
@@ -140,6 +153,42 @@ const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
 const std::vector<bool> updatePrecisions = { true, false };
 
 std::vector<MatMullTransformationTestValues> testValues = {
+    {
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, { 127.f }, { 0.02f } },
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.03f } },
+        },
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, { 127.f }, { 0.02f } },
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.03f } },
+            ngraph::element::f32,
+            ngraph::element::f32,
+            { },
+        }
+    },
+    {
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.03f } },
+        },
+        {
+            ngraph::element::u8,
+            { {}, {}, {} },
+            ngraph::element::i8,
+            { {}, {}, {} },
+            ngraph::element::u8,
+            ngraph::element::i8,
+            { {}, {}, { 0.02f * 0.03f } },
+        }
+    },
     {
         LayerTransformation::createParamsU8U8(),
         {

@@ -54,11 +54,17 @@ public:
             low_precision::LayerTransformation::Params(params.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
-            precision,
-            shape,
-            epsMode,
-            params.expected);
+        referenceFunction = (!params.transformationParams.supportAsymmetricQuantization) && (!params.expected.subtractValues.empty()) ?
+            ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+                precision,
+                shape,
+                epsMode,
+                params.actual) :
+            ngraph::builder::subgraph::NormalizeL2Function::getReference(
+                precision,
+                shape,
+                epsMode,
+                params.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
@@ -97,6 +103,12 @@ std::vector<ngraph::op::EpsMode> epsMode = {
 };
 
 const std::vector<NormalizeL2TransformationTestValues> normalizeL2TransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+        { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
+    },
+
     // U8
     {
         LayerTransformation::createParamsU8I8(),

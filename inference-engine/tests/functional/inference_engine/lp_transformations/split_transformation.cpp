@@ -58,7 +58,7 @@ inline std::ostream& operator<<(std::ostream& os,
 class SplitTransformation : public LayerTransformation, public testing::WithParamInterface<SplitTransformationTestValues> {
 public:
     void SetUp() override {
-        const SplitTransformationTestValues testValues = GetParam();
+        SplitTransformationTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::SplitFunction::getOriginal(
             testValues.inputShape,
@@ -68,7 +68,7 @@ public:
             testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params.setSupportAsymmetricQuantization(true));
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
@@ -217,14 +217,14 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
+        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
             ngraph::element::i8,
             {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4, 1}},
-            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 1, 4, 1}}}
+            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
+            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
         },
         // ExpectedValues
         {
@@ -232,27 +232,27 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {
                 {
                     {ngraph::element::f32},
-                    {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
-                    {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
                 },
                 {
                     {ngraph::element::f32},
-                    {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
-                    {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                    {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
                 }
             }
         }
     },
     // no Convert
     {
-        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
+        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
             ngraph::element::f32,
             {{},
-            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4, 1}},
-            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 1, 4, 1}}}
+            {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}},
+            {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
         },
         // ExpectedValues
         {
@@ -260,13 +260,13 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {
                 {
                     {},
-                    {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
-                    {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
                 },
                 {
                     {},
-                    {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
-                    {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                    {{3.f, 4.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{33.f, 44.f}, ngraph::element::f32, {1, 2, 1, 1}}
                 }
             }
         }
