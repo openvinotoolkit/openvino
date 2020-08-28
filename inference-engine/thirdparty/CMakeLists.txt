@@ -9,6 +9,11 @@ elseif(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQ
     # On g++ 9.3.0 (Ubuntu 20.04) the ADE library raises "redundant-move" warnings
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=redundant-move")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=redundant-move")
+elseif(("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC") AND ("${MSVC_VERSION}" VERSION_GREATER_EQUAL "1920"))
+    # 1920 version of MSVC 2019
+    # This flagis needed for enabling SIMD vectorization with command '#pragma omp simd'.
+    # Compilation with '/openmp:experimental' key allow us to enable vectorizatikon capability in MSVC.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:experimental")
 endif()
 
 function(build_with_lto)

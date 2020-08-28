@@ -27,3 +27,5 @@ class PriorBoxClustered_extender(Extender):
         op['V10_infer'] = True
 
         PriorBox_extender.attr_restore(op, 'width', value=1.0)
+        PriorBox_extender.attr_restore(op, 'height', value=1.0)
+        PriorBox_extender.attr_restore(op, 'variance')

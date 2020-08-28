@@ -42,11 +42,7 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1,  0,  1 } },
     { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::bf8_xy16,              {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
-    { DataLayout::byxf_af32,             {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::byx8_f4,               {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::fs_bs_yx_bsv4_fsv32,   {  0,  1, -1, -1,  3,  2 } },
     { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
     { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
@@ -167,26 +163,6 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 32);
             break;
-        case bf8_xy16:
-            assert(newDims.size() == 4);
-            newDims[1] = RoundUp(newDims[1], 8);
-            newDims[3] = RoundUp(newDims[2] * newDims[3], 16);
-            newDims[2] = 1;
-            break;
-        case byxf_af32:
-            assert(newDims.size() == 4);
-            newDims[0] = RoundUp(newDims[0], 32);
-            break;
-        case byx8_f4:
-            assert(newDims.size() == 4);
-            newDims[0] = RoundUp(newDims[0], 4);
-            newDims[1] = RoundUp(newDims[1], 8);
-            break;
-        case fs_bs_yx_bsv4_fsv32:
-            assert(newDims.size() == 4);
-            newDims[3] = RoundUp(newDims[3], 32);
-            newDims[2] = RoundUp(newDims[2], 4);
-            break;
         case b_fs_yx_32fp:
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
@@ -220,14 +196,6 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
         Pad p = {0, newDims[i] - d[i]};
         ret[i] = {d[i], pitch, p};
         pitch *= newDims[i];
-    }
-
-    if (l == byxf_af32 || l == fs_bs_yx_bsv4_fsv32 || l == byx8_f4) {
-        ret[0].pitch = 1;
-        ret[1].pitch = ret[0].pitch * newDims[0];
-        ret[2].pitch = ret[1].pitch * newDims[1];
-        ret[3].pitch = ret[2].pitch * newDims[2];
-        ret[4].pitch = ret[3].pitch * newDims[3];
     }
 
     return ret;
