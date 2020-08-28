@@ -63,7 +63,8 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
-        self.assertEqual(graph.get_op_nodes(op='Cast')[0]['name'], 'sparse_to_dense',
+        self.assertEqual(len(graph.get_op_nodes(op='Cast')) == 1 and
+                         graph.get_op_nodes(op='Cast')[0]['name'] == 'sparse_to_dense', True,
                          'Name is not inherited from original node for CTCGreedyDecoderReplacement')
         self.assertTrue(flag, resp)
 
@@ -158,6 +159,7 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
-        self.assertEqual(graph.get_op_nodes(op='Cast')[0]['name'], 'sparse_to_dense',
+        self.assertEqual(len(graph.get_op_nodes(op='Cast')) == 1 and
+                         graph.get_op_nodes(op='Cast')[0]['name'] == 'sparse_to_dense', True,
                          'Name is not inherited from original node for CTCGreedyDecoderReplacement2')
         self.assertTrue(flag, resp)
