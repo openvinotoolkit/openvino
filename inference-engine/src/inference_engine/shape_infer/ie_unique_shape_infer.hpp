@@ -23,18 +23,15 @@ public:
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
-        LayerParams lp {};
-        UniqueLayer unique_layer(lp);
-        unique_layer.params = params;
-        unique_layer.type = _type;
-        validate(&unique_layer, inBlobs, params, blobs);
+        bool return_inverse = GetParamAsBool("return_inverse", params);
+        bool return_counts = GetParamAsBool("return_counts", params);
 
         // compute a number of outputs
         size_t num_outputs = 1;
-        if (unique_layer.return_counts) {
+        if (return_counts) {
             num_outputs++;
         }
-        if (unique_layer.return_inverse) {
+        if (return_inverse) {
             num_outputs++;
         }
 

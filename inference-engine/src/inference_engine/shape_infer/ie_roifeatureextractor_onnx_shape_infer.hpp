@@ -27,18 +27,12 @@ public:
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
-        LayerParams lp {};
-        CNNLayer cnnLayer(lp);
-        cnnLayer.params = params;
-        cnnLayer.type = _type;
-        validate(&cnnLayer, inBlobs, params, blobs);
-
         size_t rois_num = inShapes.at(ROIS).at(0);
         size_t channels_num = inShapes.at(FEATMAPS).at(1);
-        size_t output_size = static_cast<size_t>(cnnLayer.GetParamAsInt("output_size"));
+        size_t output_size = static_cast<size_t>(GetParamAsInt("output_size", params));
         outShapes.push_back({rois_num, channels_num, output_size, output_size});
 
-        auto num_outputs = cnnLayer.GetParamAsUInt("num_outputs");
+        auto num_outputs = GetParamAsUInt("num_outputs", params);
         if (num_outputs > 2) THROW_IE_EXCEPTION << "Incorrect value num_outputs: " << num_outputs;
         if (num_outputs == 2) {
             outShapes.push_back({rois_num, 4});

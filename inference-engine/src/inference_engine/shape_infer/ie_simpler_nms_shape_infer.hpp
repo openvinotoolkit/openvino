@@ -26,13 +26,7 @@ public:
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
-        LayerParams lp {};
-        CNNLayer cnnLayer(lp);
-        cnnLayer.params = params;
-        cnnLayer.type = _type;
-        validate(&cnnLayer, inBlobs, params, blobs);
-
-        size_t post_nms_topn = static_cast<size_t>(cnnLayer.GetParamAsInt("post_nms_topn"));
+        size_t post_nms_topn = static_cast<size_t>(GetParamAsInt("post_nms_topn", params));
         outShapes.push_back({post_nms_topn, 5});
     }
 };

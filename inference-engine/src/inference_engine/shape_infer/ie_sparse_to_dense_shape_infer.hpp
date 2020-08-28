@@ -21,15 +21,9 @@ public:
     explicit SparseToDenseShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-        const std::map<std::string, std::string>& params,
-        const std::map<std::string, Blob::Ptr>& blobs,
-        std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
-        SparseToDenseLayer sparse_to_dense_layer(lp);
-        sparse_to_dense_layer.params = params;
-        sparse_to_dense_layer.type = _type;
-        validate(&sparse_to_dense_layer, inBlobs, params, blobs);
-
+                         const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs,
+                         std::vector<SizeVector>& outShapes) override {
         SizeVector shapes;
         if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::I32) {
             auto* buffer = inBlobs[1]->cbuffer().as<int*>();
