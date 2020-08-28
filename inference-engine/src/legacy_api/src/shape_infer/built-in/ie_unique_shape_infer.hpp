@@ -15,7 +15,7 @@ namespace InferenceEngine {
 namespace ShapeInfer {
 
 /**
- *@brief Implementation of Shape inference for Unique layer
+ * @brief Implementation of Shape inference for Unique layer
  */
 class UniqueShapeProp : public BuiltInShapeInferImpl {
 public:

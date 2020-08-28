@@ -18,7 +18,7 @@ namespace InferenceEngine {
 namespace ShapeInfer {
 
 /**
- *@brief Implementation of Shape inference for SimplerNMS layer
+ * @brief Implementation of Shape inference for SimplerNMS layer
  */
 class SimplerNMSShapeProp : public BuiltInShapeInferImpl {
 public:

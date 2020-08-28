@@ -5,11 +5,9 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <legacy/ie_layers.h>
 #include <legacy/ie_ishape_infer_extension.hpp>
 
 #include <description_buffer.hpp>
-#include <ie_layer_validators.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -17,24 +15,27 @@
 #include <vector>
 
 namespace InferenceEngine {
+
+class CNNLayer;
+
+namespace details {
+
+class LayerValidator;
+
+}  // namespace details
+
 namespace ShapeInfer {
 
 /**
- *@brief Base class for all built-in shape infer implementations. Contains common logic with validators and errors
- *handling
+ * @brief Base class for all built-in shape infer implementations. Contains common logic with validators and errors
+ * handling
  */
 class BuiltInShapeInferImpl : public IShapeInferImpl {
 public:
-    explicit BuiltInShapeInferImpl(const std::string& type): _type(type) {
-        _validator = details::LayerValidators::getInstance()->getValidator(_type);
-        if (!_validator)
-            THROW_IE_EXCEPTION << "Internal error: failed to find validator for layer with type: " << _type;
-    }
+    explicit BuiltInShapeInferImpl(const std::string& type);
 
     void validate(CNNLayer* layer, const std::vector<Blob::CPtr>& inBlobs,
-                  const std::map<std::string, std::string>& params, const std::map<std::string, Blob::Ptr>& blobs) {
-        _validator->parseParams(layer);
-    }
+                  const std::map<std::string, std::string>& params, const std::map<std::string, Blob::Ptr>& blobs);
 
     virtual void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                                  const std::map<std::string, std::string>& params,
@@ -60,7 +61,7 @@ public:
 
 protected:
     std::string _type;
-    details::LayerValidator::Ptr _validator;
+    std::shared_ptr<details::LayerValidator> _validator;
     std::vector<SizeVector> inShapes;
 };
 

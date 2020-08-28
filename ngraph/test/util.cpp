@@ -31,6 +31,8 @@
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

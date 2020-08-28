@@ -9,7 +9,7 @@
 #include <vector>
 #include <cassert>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -111,7 +111,7 @@ public:
                 for (i = 0, src_idx = 0; i < dst_dims.size(); ++i)
                     src_idx += counters[i] ? ((counters[i] % src_aligned[i]) * srcStrides_aligned[i]) : 0;
 
-                simple_copy(&dst_data[iwork], data_size, &src_data[src_idx * data_size], data_size);
+                cpu_memcpy(&dst_data[iwork], &src_data[src_idx * data_size], data_size);
 
                 for (int j = dst_dims.size() - 1; j >= 0; j--) {
                     counters[j] = (counters[j] + 1) % dst_dims[j];

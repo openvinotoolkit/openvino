@@ -25,8 +25,6 @@ struct StageMetaInfo final {
     std::vector<ie::Precision> outPrecisions;
     std::vector<ie::Layout> outLayouts;
 
-    int inputsNum = 0;
-
     std::string layerName;
     std::string layerType;
 
@@ -34,6 +32,12 @@ struct StageMetaInfo final {
 
     std::string stageName;
     std::string stageType;
+
+    std::vector<size_t> parentIndices;
+    std::vector<ie::Precision> inputPrecisions;
+    std::vector<ie::SizeVector> inputDims;
+
+    size_t childsNum = 0;
 
     int execOrder = -1;
     float execTime = 0;

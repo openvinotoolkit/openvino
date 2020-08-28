@@ -1,4 +1,4 @@
-## Software Requirements {#openvino_inference_engine_ie_bridges_python_README}
+## Software Requirements
 - [CMake\*](https://cmake.org/download/) 3.9 or later
 - Microsoft\* Visual Studio 2015 or later on Windows\*
 - gcc 4.8 or later on Linux

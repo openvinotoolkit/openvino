@@ -18,9 +18,11 @@ import json
 import numpy as np
 import pytest
 
+from _pyngraph import VariantInt, VariantString
+
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type, VariantInt, VariantString
+from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -162,9 +164,9 @@ def test_convert_to_bool(destination_type, input_data):
 @pytest.mark.parametrize(
     "destination_type, rand_range, in_dtype, expected_type",
     [
-        pytest.param(np.float32, (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param(np.float32, (-8, 8), np.int32, np.float32),
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
-        pytest.param("f32", (-8, 8), np.int32, np.float32, marks=xfail_issue_34323),
+        pytest.param("f32", (-8, 8), np.int32, np.float32),
         pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
     ],
 )
@@ -408,7 +410,7 @@ def test_variants():
 
 
 def test_runtime_info():
-    test_shape = PartialShape([1, 3, 22, 22])
+    test_shape = PartialShape([1, 1, 1, 1])
     test_type = Type.f32
     test_param = Parameter(test_type, test_shape)
     relu_node = ng.relu(test_param)
@@ -417,7 +419,7 @@ def test_runtime_info():
     relu_node.set_friendly_name("testReLU")
     runtime_info_after = relu_node.get_rt_info()
 
-    assert runtime_info == runtime_info_after
+    assert runtime_info_after["affinity"] == "test_affinity"
 
     params = [test_param]
     results = [relu_node]

@@ -74,38 +74,6 @@ size_t bfloat16::size() const
     return sizeof(m_value);
 }
 
-bool bfloat16::operator==(const bfloat16& other) const
-{
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#endif
-    return (static_cast<float>(*this) == static_cast<float>(other));
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-}
-
-bool bfloat16::operator<(const bfloat16& other) const
-{
-    return (static_cast<float>(*this) < static_cast<float>(other));
-}
-
-bool bfloat16::operator<=(const bfloat16& other) const
-{
-    return (static_cast<float>(*this) <= static_cast<float>(other));
-}
-
-bool bfloat16::operator>(const bfloat16& other) const
-{
-    return (static_cast<float>(*this) > static_cast<float>(other));
-}
-
-bool bfloat16::operator>=(const bfloat16& other) const
-{
-    return (static_cast<float>(*this) >= static_cast<float>(other));
-}
-
 bfloat16::operator float() const
 {
     uint32_t tmp = (static_cast<uint32_t>(m_value) << 16);

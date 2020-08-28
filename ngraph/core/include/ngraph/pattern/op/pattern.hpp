@@ -52,6 +52,21 @@ namespace ngraph
         NGRAPH_API
         std::function<bool(Output<Node>)> consumers_count(size_t n);
 
+        NGRAPH_API
+        std::function<bool(Output<Node>)> has_static_dim(size_t pos);
+
+        NGRAPH_API
+        std::function<bool(Output<Node>)> has_static_dims(const std::vector<size_t>& dims);
+
+        NGRAPH_API
+        std::function<bool(Output<Node>)> has_static_shape();
+
+        NGRAPH_API
+        std::function<bool(Output<Node>)> type_matches(const element::Type& type);
+
+        NGRAPH_API
+        std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Type>& types);
+
         namespace op
         {
             using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;

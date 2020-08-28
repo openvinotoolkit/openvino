@@ -6,8 +6,18 @@
 #include <memory>
 #include <string>
 
-#include <legacy/shape_infer/built-in/ie_built_in_holder.hpp>
+#include <legacy/ie_layers.h>
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
+#include "ie_layer_validators.hpp"
+#include "ie_detectionoutput_onnx_shape_infer.hpp"
+#include "ie_priorgridgenerator_onnx_shape_infer.hpp"
+#include "ie_proposal_onnx_shape_infer.hpp"
+#include "ie_proposal_shape_infer.hpp"
+#include "ie_rnn_cell_shape_infer.hpp"
+#include "ie_roifeatureextractor_onnx_shape_infer.hpp"
 #include "ie_simpler_nms_shape_infer.hpp"
+#include "ie_sparse_to_dense_shape_infer.hpp"
+#include "ie_topkrois_onnx_shape_infer.hpp"
 #include "ie_unique_shape_infer.hpp"
 
 namespace InferenceEngine {
@@ -19,6 +29,17 @@ BuiltInShapeInferHolder::ImplsHolder::Ptr BuiltInShapeInferHolder::GetImplsHolde
         localHolder = std::make_shared<ImplsHolder>();
     }
     return localHolder;
+}
+
+BuiltInShapeInferImpl::BuiltInShapeInferImpl(const std::string& type): _type(type) {
+    _validator = details::LayerValidators::getInstance()->getValidator(_type);
+    if (!_validator)
+        THROW_IE_EXCEPTION << "Internal error: failed to find validator for layer with type: " << _type;
+}
+
+void BuiltInShapeInferImpl::validate(CNNLayer* layer, const std::vector<Blob::CPtr>& inBlobs,
+                                     const std::map<std::string, std::string>& params, const std::map<std::string, Blob::Ptr>& blobs) {
+    _validator->parseParams(layer);
 }
 
 void BuiltInShapeInferHolder::AddImpl(const std::string& name, const IShapeInferImpl::Ptr& impl) {
@@ -59,8 +80,16 @@ public:
 #define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
     static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
-REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);  // USED: ask Nosov
-REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);  // USED: need replacement in ngraph
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronDetectionOutputShapeProp, ExperimentalDetectronDetectionOutput);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronPriorGridGeneratorShapeProp, ExperimentalDetectronPriorGridGenerator);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronGenerateProposalsSingleImageShapeProp, ExperimentalDetectronGenerateProposalsSingleImage);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronROIFeatureExtractorShapeProp, ExperimentalDetectronROIFeatureExtractor);
+REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronTopKROIsShapeProp, ExperimentalDetectronTopKROIs);
+REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);
+REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
+REG_SHAPE_INFER_FOR_TYPE(RNNCellShapeProp, RNNCell);
+REG_SHAPE_INFER_FOR_TYPE(GRUCellShapeProp, GRUCell);
+REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
