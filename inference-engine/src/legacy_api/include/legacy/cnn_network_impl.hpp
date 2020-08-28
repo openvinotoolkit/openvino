@@ -18,9 +18,12 @@
 #include "description_buffer.hpp"
 
 #include <legacy/ie_layers.h>
-#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace InferenceEngine {
+
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
+
 namespace details {
 
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {

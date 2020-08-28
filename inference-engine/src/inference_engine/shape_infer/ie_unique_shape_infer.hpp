@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "ie_built_in_impl.hpp"
+#include "shape_infer/ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {

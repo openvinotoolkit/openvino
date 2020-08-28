@@ -13,17 +13,15 @@
 #include <description_buffer.hpp>
 #include "caseless.hpp"
 
-#include <legacy/ie_ishape_infer_extension.hpp>
+#include "shape_infer/ie_ishape_infer_extension.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
  *@brief Holder of shape infer implementations for build-in IE layers, that plugins support out-of-the-box
  */
-class INFERENCE_ENGINE_API_CLASS(BuiltInShapeInferHolder) : public IShapeInferExtension {
+class BuiltInShapeInferHolder : public IShapeInferExtension {
     struct ImplsHolder {
         using Ptr = std::shared_ptr<ImplsHolder>;
         InferenceEngine::details::caseless_map<std::string, IShapeInferImpl::Ptr> list;
@@ -47,8 +45,6 @@ public:
 private:
     static ImplsHolder::Ptr GetImplsHolder();
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

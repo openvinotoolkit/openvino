@@ -5,9 +5,9 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <legacy/ie_ishape_infer_extension.hpp>
-
+#include <shape_infer/ie_ishape_infer_extension.hpp>
 #include <description_buffer.hpp>
+
 #include <list>
 #include <map>
 #include <memory>
@@ -15,14 +15,6 @@
 #include <vector>
 
 namespace InferenceEngine {
-
-class CNNLayer;
-
-namespace details {
-
-class LayerValidator;
-
-}  // namespace details
 
 namespace ShapeInfer {
 
@@ -32,10 +24,7 @@ namespace ShapeInfer {
  */
 class BuiltInShapeInferImpl : public IShapeInferImpl {
 public:
-    explicit BuiltInShapeInferImpl(const std::string& type);
-
-    void validate(CNNLayer* layer, const std::vector<Blob::CPtr>& inBlobs,
-                  const std::map<std::string, std::string>& params, const std::map<std::string, Blob::Ptr>& blobs);
+    explicit BuiltInShapeInferImpl(const std::string& type): _type(type) { }
 
     virtual void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                                  const std::map<std::string, std::string>& params,
@@ -61,7 +50,6 @@ public:
 
 protected:
     std::string _type;
-    std::shared_ptr<details::LayerValidator> _validator;
     std::vector<SizeVector> inShapes;
 };
 
