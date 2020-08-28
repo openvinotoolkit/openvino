@@ -3206,7 +3206,7 @@ TEST(DISABLED_eltwise_gpu, generic_random) {
 }
 
 // mode, input type, input sizes
-using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<tensor>>;
+using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<int32_t>>>;
 
 template<typename T>
 class BaseEltwiseTest : public ::testing::TestWithParam<T> {
@@ -3264,7 +3264,7 @@ public:
     }
 };
 
-TEST_P(eltwise_test, b_fs_yx_fsv16) {
+TEST_P(eltwise_test, fsv16) {
     auto p = GetParam();
 
     ASSERT_EQ(std::get<2>(p).size(), 2);
@@ -3274,35 +3274,43 @@ TEST_P(eltwise_test, b_fs_yx_fsv16) {
     auto input0_size = std::get<2>(p)[0];
     auto input1_size = std::get<2>(p)[1];
 
-    int b0 = input0_size.batch[0];
-    int f0 = input0_size.feature[0];
-    int y0 = input0_size.spatial[1];
-    int x0 = input0_size.spatial[0];
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int z0 = input0_size.size() == 4 ? 1 : input0_size[2];
+    int y0 = input0_size[input0_size.size() == 4 ? 2 : 3];
+    int x0 = input0_size[input0_size.size() == 4 ? 3 : 4];
 
-    int b1 = input1_size.batch[0];
-    int f1 = input1_size.feature[0];
-    int y1 = input1_size.spatial[1];
-    int x1 = input1_size.spatial[0];
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int z1 = input1_size.size() == 4 ? 1 : input1_size[2];
+    int y1 = input1_size[input1_size.size() == 4 ? 2 : 3];
+    int x1 = input1_size[input1_size.size() == 4 ? 3 : 4];
 
     int min_random = -2, max_random = 2;
-    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, 1, y0, x0, min_random, max_random);
-    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, 1, y1, x1, min_random, max_random);
+    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, z1, y1, x1, min_random, max_random);
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
 
     const auto& engine = get_test_engine();
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, input0_size });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, input1_size });
+    auto fmt_pln = input0_size.size() == 4 ? format::bfyx : format::bfzyx;
+    auto fmt_fsv16 = input0_size.size() == 4 ? format::b_fs_yx_fsv16 : format::b_fs_zyx_fsv16;
+
+    auto in0_size = tensor(fmt_pln, input0_size);
+    auto in1_size = tensor(fmt_pln, input1_size);
+
+    auto input1 = memory::allocate(engine, { data_types::f32, fmt_pln, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::f32, fmt_pln, in1_size });
     set_values(input1, input1_rnd_vec);
     set_values(input2, input2_rnd_vec);
 
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(reorder("reorder1", "input1", format::b_fs_yx_fsv16, dt));
-    topology.add(reorder("reorder2", "input2", format::b_fs_yx_fsv16, dt));
+    topology.add(reorder("reorder1", "input1", fmt_fsv16, dt));
+    topology.add(reorder("reorder2", "input2", fmt_fsv16, dt));
     topology.add(eltwise("eltwise", {"reorder1", "reorder2"}, mode));
-    topology.add(reorder("out", "eltwise", format::bfyx, data_types::f32));
+    topology.add(reorder("out", "eltwise", fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
     build_options bo;
@@ -3318,7 +3326,7 @@ TEST_P(eltwise_test, b_fs_yx_fsv16) {
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_ptr = output_memory.pointer<float>();
 
-    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, input0_size, input1_size, mode);
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
         EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
@@ -3327,7 +3335,7 @@ TEST_P(eltwise_test, b_fs_yx_fsv16) {
 
 static std::vector<eltwise_mode> modes = {eltwise_mode::sum, eltwise_mode::prod};
 static std::vector<data_types> types = {data_types::f32, data_types::f16};
-static std::vector<std::vector<tensor>> inputs = {
+static std::vector<std::vector<std::vector<int32_t>>> inputs = {
         {{1, 2, 3, 4}, {1, 2, 3, 4}},
         {{1, 16, 8, 2}, {1, 16, 8, 2}},
         {{1, 128, 16, 8}, {1, 1, 16, 8}},
@@ -3345,6 +3353,11 @@ static std::vector<std::vector<tensor>> inputs = {
         {{1, 16, 1, 1}, {1, 16, 8, 2}},
         {{1, 32, 1, 1}, {1, 32, 2, 2}},
         {{1, 32, 1, 1}, {8, 32, 4, 5}},
+
+        {{1, 16, 8, 2, 4}, {1, 16, 8, 2, 4}},
+        {{8, 32, 4, 5, 6}, {1, 32, 1, 1, 1}},
+        {{1, 2, 3, 4, 5}, {1, 2, 3, 4, 5}},
+        {{1, 32, 1, 1, 1}, {8, 32, 3, 4, 5}},
 };
 
 INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test,
@@ -3365,19 +3378,19 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     auto input0_size = std::get<2>(p)[0];
     auto input1_size = std::get<2>(p)[1];
 
-    int b0 = input0_size.batch[0];
-    int f0 = input0_size.feature[0];
-    int w0 = input0_size.spatial[3];
-    int z0 = input0_size.spatial[2];
-    int y0 = input0_size.spatial[1];
-    int x0 = input0_size.spatial[0];
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int w0 = input0_size[2];
+    int z0 = input0_size[3];
+    int y0 = input0_size[4];
+    int x0 = input0_size[5];
 
-    int b1 = input1_size.batch[0];
-    int f1 = input1_size.feature[0];
-    int w1 = input1_size.spatial[3];
-    int z1 = input1_size.spatial[2];
-    int y1 = input1_size.spatial[1];
-    int x1 = input1_size.spatial[0];
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int w1 = input1_size[2];
+    int z1 = input1_size[3];
+    int y1 = input1_size[4];
+    int x1 = input1_size[5];
 
     int min_random = -2, max_random = 2;
     VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, w0, z0, y0, x0, min_random, max_random);
@@ -3385,9 +3398,12 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
 
+    auto in0_size = tensor(format::bfwzyx, input0_size);
+    auto in1_size = tensor(format::bfwzyx, input1_size);
+
     const auto& engine = get_test_engine();
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfwzyx, input0_size });
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfwzyx, input1_size });
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfwzyx, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfwzyx, in1_size });
     set_values(input1, input1_rnd_vec);
     set_values(input2, input2_rnd_vec);
 
@@ -3413,17 +3429,17 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_ptr = output_memory.pointer<float>();
 
-    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, input0_size, input1_size, mode);
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
         EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
         ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
     }
 }
 
-static std::vector<std::vector<tensor>> inputs_6d = {
-        {tensor(format::bfwzyx, {1, 2, 3, 4, 5, 6}),  tensor(format::bfwzyx, {1, 2, 3, 4, 5, 6})},
-        {tensor(format::bfwzyx, {1, 32, 1, 1, 1, 1}), tensor(format::bfwzyx, {8, 32, 4, 5, 6, 7})},
-        {tensor(format::bfwzyx, {1, 32, 1, 1, 1, 7}), tensor(format::bfwzyx, {8, 32, 4, 5, 6, 7})},
+static std::vector<std::vector<std::vector<int32_t>>> inputs_6d = {
+        {{1, 2, 3, 4, 5, 6},  {1, 2, 3, 4, 5, 6}},
+        {{1, 32, 1, 1, 1, 1}, {8, 32, 4, 5, 6, 7}},
+        {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
 };
 
 INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_6d,
