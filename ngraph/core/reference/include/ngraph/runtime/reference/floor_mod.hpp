@@ -28,15 +28,6 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void floor_mod(const T* arg0, const T* arg1, T* out, size_t count)
-            {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = arg0[i] - arg1[i] * floor(arg0[i] / arg1[i]);
-                }
-            }
-
-            template <typename T>
             void floor_mod(const T* arg0,
                            const T* arg1,
                            T* out,
