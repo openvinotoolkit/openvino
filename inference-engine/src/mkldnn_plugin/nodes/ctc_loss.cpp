@@ -24,26 +24,31 @@ public:
         _preprocessCollapseRepeated = layer->GetParamAsBool("preprocess_collapse_repeated", false);
         _unique = layer->GetParamAsBool("unique", false);
 
+        auto logitsData = layer->insData[0].lock();
+        if (logitsData == nullptr)
+            THROW_IE_EXCEPTION << _logPrefix << " has nullable logits data";
+        auto logitsPrecision = logitsData->getTensorDesc().getPrecision();
+        if (logitsPrecision == Precision::BF16)
+            logitsPrecision = Precision::FP32;
+
         LayerConfig config;
         config.inConfs.resize(layer->insData.size());
-        for (int i = 0; i < layer->insData.size(); i++) {
+        config.inConfs[0].desc = TensorDesc(logitsPrecision,
+            logitsData->getTensorDesc().getDims(),
+            TensorDesc::getLayoutByDims(logitsData->getTensorDesc().getDims()));
+        auto intPrecision = Precision::I32;
+        for (int i = 1; i < layer->insData.size(); i++) {
             auto data = layer->insData[i].lock();
             if (data == nullptr)
-                THROW_IE_EXCEPTION << _logPrefix << " has nullable input data";
-            auto prc = data->getTensorDesc().getPrecision();
-            if (prc == Precision::BF16)
-                prc = Precision::FP32;
-            config.inConfs[i].desc = TensorDesc(prc,
+                THROW_IE_EXCEPTION << _logPrefix << " has nullable input data at " << i;
+            config.inConfs[i].desc = TensorDesc(intPrecision,
                 data->getTensorDesc().getDims(),
                 TensorDesc::getLayoutByDims(data->getTensorDesc().getDims()));
         }
 
-        auto logitsData = layer->insData[0].lock();
-        if (logitsData == nullptr)
-            THROW_IE_EXCEPTION << _logPrefix << " has nullable logits data.";
         DataConfig outConfig;
         auto& outDims = layer->outData[0]->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(logitsData->getTensorDesc().getPrecision(),
+        outConfig.desc = TensorDesc(logitsPrecision,
             outDims,
             TensorDesc::getLayoutByDims(outDims));
         config.outConfs.push_back(outConfig);
@@ -55,60 +60,13 @@ public:
     StatusCode execute(std::vector<Blob::Ptr>& inputs,
                        std::vector<Blob::Ptr>& outputs,
                        ResponseDesc *resp) noexcept override {
-        switch (inputs[1]->getTensorDesc().getPrecision()) {
-            case Precision::I32: {
-                return processData<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs, resp);
-            }
-            case Precision::I64: {
-                return processData<PrecisionTrait<Precision::I64>::value_type>(inputs, outputs, resp);
-            }
-            default: {
-                if (resp) {
-                    std::string errorMsg = _logPrefix + " does not support precision '"
-                            + std::string(inputs[1]->getTensorDesc().getPrecision().name()) + "'";
-                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-                }
-                return GENERAL_ERROR;
-            }
-        }
-    }
-
-protected:
-    template<typename I1>
-    StatusCode processData(
-                std::vector<Blob::Ptr>& inputs,
-                std::vector<Blob::Ptr>& outputs,
-                ResponseDesc* resp) noexcept {
-        switch (inputs[2]->getTensorDesc().getPrecision()) {
-            case Precision::I32: {
-                return processData<I1, PrecisionTrait<Precision::I32>::value_type>(inputs, outputs, resp);
-            }
-            case Precision::I64: {
-                return processData<I1, PrecisionTrait<Precision::I64>::value_type>(inputs, outputs, resp);
-            }
-            default: {
-                if (resp) {
-                    std::string errorMsg = _logPrefix + " does not support labels precision '"
-                            + std::string(inputs[2]->getTensorDesc().getPrecision().name()) + "'";
-                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-                }
-                return GENERAL_ERROR;
-            }
-        }
-    }
-
-    template<typename I1, typename I2>
-    StatusCode processData(
-                std::vector<Blob::Ptr>& inputs,
-                std::vector<Blob::Ptr>& outputs,
-                ResponseDesc* resp) noexcept {
         const float* logits = inputs[0]->cbuffer().as<const float*>() +
             inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        const I1* logitsLength = inputs[1]->cbuffer().as<const I1*>() +
+        const int* logitsLength = inputs[1]->cbuffer().as<const int*>() +
             inputs[1]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        const I2* labels = inputs[2]->cbuffer().as<const I2*>() +
+        const int* labels = inputs[2]->cbuffer().as<const int*>() +
             inputs[2]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        const I1* labelsLength = inputs[3]->cbuffer().as<const I1*>() +
+        const int* labelsLength = inputs[3]->cbuffer().as<const int*>() +
             inputs[3]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         float* dstData = outputs[0]->buffer().as<float*>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -118,33 +76,35 @@ protected:
         const auto maxTime = logitsShape[1];
         const auto classesNum = logitsShape[2];
 
-        I2 blankIndex = classesNum - 1;
+        int blankIndex = classesNum - 1;
         if (inputs.size() > 4) {
-            blankIndex = inputs[4]->cbuffer().as<const I2*>()[0];
+            blankIndex = inputs[4]->cbuffer().as<const int*>()[0];
         }
 
-        std::vector<I2> targetD(maxTime);
+        std::vector<int> targetD(maxTime);
 
         const size_t TC = maxTime * classesNum;
 
         for (size_t b = 0; b < batchNum; b++) {
-            const I1 actualLogitLen = logitsLength[b];
-            const I1 actualTargetLen = labelsLength[b];
-            if (actualLogitLen > maxTime || actualTargetLen > maxTime || actualTargetLen > actualLogitLen) {
-                std::string errorMsg = _logPrefix + ". Logit or label length cannot greater than max sequence length. "
-                    + "Also a label length cannot be greater than a logit length.\nMaxSeqLen: "
+            const int actualLogitLen = logitsLength[b];
+            const int actualTargetLen = labelsLength[b];
+            if (actualLogitLen < 0 || actualTargetLen < 0 || actualLogitLen > maxTime || actualTargetLen > maxTime
+                    || actualTargetLen > actualLogitLen) {
+                std::string errorMsg = _logPrefix + ". Logit or label length cannot be greater than max sequence length. "
+                    + "Also a label length cannot be greater than a logit length"
+                    + " and both cannot be negative.\nMaxSeqLen: "
                     + std::to_string(maxTime) + "; Logit len: " + std::to_string(actualLogitLen)
                     + "; Label len: " + std::to_string(actualTargetLen);
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
                 return GENERAL_ERROR;
             }
 
-            const I2* target = &labels[b * maxTime];
+            const int* target = &labels[b * maxTime];
             // Decoding target: merge repeated characters if preprocess_collapse_repeated == True,
             // find unique elemnts if unique == True
             size_t decodedTargetLen = 0lu;
             if (_unique) {
-                std::unordered_set<I2> uniqVals;
+                std::unordered_set<int> uniqVals;
                 for (size_t t = 0lu; t < actualTargetLen; t++) {
                     if (uniqVals.find(target[t]) != uniqVals.end()) {
                         continue;
@@ -153,7 +113,7 @@ protected:
                     targetD[decodedTargetLen++] = target[t];
                 }
             } else if (_preprocessCollapseRepeated) {
-                I2 prevValue = target[0];
+                int prevValue = target[0];
                 targetD[decodedTargetLen++] = target[0];
                 for (size_t t = 1lu; t < actualTargetLen; t++) {
                     if (target[t] == prevValue) {
@@ -219,12 +179,18 @@ protected:
                         for (size_t pos = start; pos < end; pos++) {
                             newLogProb = prevLogProb;
                             for (size_t bl = start; bl < pos; bl++) {
-                                newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                                auto lnProbIt = logProbabilities[bl].find(blankIndex);
+                                if (lnProbIt != logProbabilities[bl].end())
+                                    newLogProb += lnProbIt->second;
                             }
-                            newLogProb += logProbabilities[pos].find(targetD[targetIdx])->second;
+                            auto lnProbIt = logProbabilities[pos].find(targetD[targetIdx]);
+                            if (lnProbIt != logProbabilities[pos].end())
+                                newLogProb += lnProbIt->second;
                             if (end == actualLogitLen) {
                                 for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
-                                    newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                                    auto lnProbIt = logProbabilities[ble].find(blankIndex);
+                                    if (lnProbIt != logProbabilities[ble].end())
+                                        newLogProb += lnProbIt->second;
                                 }
                             }
                             findPaths(nextIdx, pos + 1, end + 1, newLogProb);
@@ -232,24 +198,33 @@ protected:
                     } else {
                         for (size_t pos = start; pos < end; pos++) {
                             newLogProb = prevLogProb;
-                        size_t next_start = pos + 1;
-                        for (size_t bl = start; bl < pos; bl++) {
-                            newLogProb += logProbabilities[bl].find(blankIndex)->second;
-                        }
-                        if (end == actualLogitLen) {
-                            for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
-                                newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                            size_t next_start = pos + 1;
+                            for (size_t bl = start; bl < pos; bl++) {
+                                auto lnProbIt = logProbabilities[bl].find(blankIndex);
+                                if (lnProbIt != logProbabilities[bl].end())
+                                    newLogProb += lnProbIt->second;
                             }
-                        }
-                        if (targetIdx < decodedTargetLen - 1
-                               && targetD[targetIdx] == targetD[targetIdx + 1]) {
-                            newLogProb += logProbabilities[next_start++].find(blankIndex)->second;
-                        }
-                        for (int64_t bl = pos; bl >= st64; bl--) {
-                            newLogProb += logProbabilities[bl].find(targetD[targetIdx])->second;
-                            findPaths(nextIdx, next_start, end + 1, newLogProb);
-                            if (bl > 0)
-                                newLogProb -= logProbabilities[bl - 1].find(blankIndex)->second;
+                            if (end == actualLogitLen) {
+                                for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
+                                    auto lnProbIt = logProbabilities[ble].find(blankIndex);
+                                    if (lnProbIt != logProbabilities[ble].end())
+                                        newLogProb += lnProbIt->second;
+                                }
+                            }
+                            if (targetIdx < decodedTargetLen - 1
+                                   && targetD[targetIdx] == targetD[targetIdx + 1]) {
+                                auto lnProbIt = logProbabilities[next_start++].find(blankIndex);
+                                if (lnProbIt != logProbabilities[next_start].end())
+                                    newLogProb += lnProbIt->second;
+                            }
+                            for (int64_t bl = pos; bl >= st64; bl--) {
+                                newLogProb += logProbabilities[bl].find(targetD[targetIdx])->second;
+                                findPaths(nextIdx, next_start, end + 1, newLogProb);
+                                if (bl > 0) {
+                                    auto lnProbIt = logProbabilities[bl - 1].find(blankIndex);
+                                    if (lnProbIt != logProbabilities[bl - 1].end())
+                                        newLogProb -= lnProbIt->second;
+                                }
                             }
                         }
                     }
@@ -262,16 +237,22 @@ protected:
                     for (size_t pos = start0; pos < end0; pos++) {
                         newLogProb = 0.f;
                         for (size_t bl = 0; bl < pos; bl++) {
-                            newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                            auto lnProbIt = logProbabilities[bl].find(blankIndex);
+                            if (lnProbIt != logProbabilities[bl].end())
+                                newLogProb += lnProbIt->second;
                         }
-                        newLogProb += logProbabilities[pos].find(targetD[0])->second;
+                        auto lnProbIt = logProbabilities[pos].find(targetD[0]);
+                        if (lnProbIt != logProbabilities[pos].end())
+                            newLogProb += lnProbIt->second;
                         if (work_amount == actualLogitLen) {
                             for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
-                                newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                                auto lnProbIt = logProbabilities[ble].find(blankIndex);
+                                if (lnProbIt != logProbabilities[ble].end())
+                                    newLogProb += lnProbIt->second;
                             }
                         }
                         if (decodedTargetLen > 1) {
-                            findPaths(1, pos + 1, work_amount + 1, newLogProb);;
+                            findPaths(1, pos + 1, work_amount + 1, newLogProb);
                         } else {
                             if (sumPerThread[ithr] == -float_inf)
                                 sumPerThread[ithr] = newLogProb;
@@ -284,19 +265,27 @@ protected:
                         newLogProb = 0.f;
                         size_t next_start = pos + 1;
                         for (size_t bl = 0; bl < pos; bl++) {
-                            newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                            auto lnProbIt = logProbabilities[bl].find(blankIndex);
+                            if (lnProbIt != logProbabilities[bl].end())
+                                newLogProb += lnProbIt->second;
                         }
                         if (work_amount == actualLogitLen) {
                             for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
-                                newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                                auto lnProbIt = logProbabilities[ble].find(blankIndex);
+                                if (lnProbIt != logProbabilities[ble].end())
+                                    newLogProb += lnProbIt->second;
                             }
                         }
                         if (decodedTargetLen > 1
                                && targetD[0] == targetD[1]) {
-                            newLogProb += logProbabilities[next_start++].find(blankIndex)->second;
+                            auto lnProbIt = logProbabilities[next_start++].find(blankIndex);
+                            if (lnProbIt != logProbabilities[next_start].end())
+                                newLogProb += lnProbIt->second;
                         }
                         for (int64_t bl = pos; bl >= 0; bl--) {
-                            newLogProb += logProbabilities[bl].find(targetD[0])->second;
+                            auto lnProbIt = logProbabilities[bl].find(targetD[0]);
+                            if (lnProbIt != logProbabilities[bl].end())
+                                newLogProb += lnProbIt->second;
                             if (decodedTargetLen > 1) {
                                 findPaths(1, next_start, work_amount + 1, newLogProb);
                             } else {
@@ -305,8 +294,11 @@ protected:
                                 else if (newLogProb != -float_inf)
                                     sumPerThread[ithr] = sumPerThread[ithr] + std::log1pf(std::exp(newLogProb - sumPerThread[ithr]));
                             }
-                            if (bl > 0)
-                                newLogProb -= logProbabilities[bl - 1].find(blankIndex)->second;
+                            if (bl > 0) {
+                                auto lnProbIt = logProbabilities[bl - 1].find(blankIndex);
+                                if (lnProbIt != logProbabilities[bl - 1].end())
+                                    newLogProb -= lnProbIt->second;
+                            }
                         }
                     }
                 }
@@ -331,8 +323,9 @@ protected:
         } // for (size_t b = 0; b < batchNum; b++)
 
         return OK;
-    } // processData
+    } // execute
 
+protected:
     bool _ctcMergeRepeated;
     bool _preprocessCollapseRepeated;
     bool _unique;
