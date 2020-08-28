@@ -212,6 +212,7 @@ sources = [
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
     "pyngraph/variant.cpp",
+    "pyngraph/rt_map.cpp",
 ]
 
 packages = [
