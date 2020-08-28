@@ -256,6 +256,22 @@ inline int CNNLayerFindOutDataIdx(CNNLayerPtr layer, int insDataIdx) {
     return std::distance(prevLayer->outData.begin(), outDataIt);
 }
 
+/// @brief utility to locate output data from given insData index and given layer
+/// also it returns iterator that represent link to this layer in inputToMap
+inline std::pair<DataPtr, std::map<std::string, CNNLayerPtr>::iterator> CNNLayerFindOutData(CNNLayerPtr layer, int insDataIdx) {
+    auto oDataIdx  = CNNLayerFindOutDataIdx(layer, insDataIdx);
+    auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
+    auto oData = prevLayer->outData[oDataIdx];
+    for (auto inputTo  = getInputTo(oData).begin();
+    inputTo != getInputTo(oData).end();
+    inputTo++) {
+        if (inputTo->second == layer) {
+            return {oData, inputTo};
+        }
+    }
+    THROW_GNA_LAYER_EXCEPTION(layer) << "cannot locate input data for: " << insDataIdx;
+}
+
 /**
  * @brief swap two layer in graph - with modifying input/output references
  * also if layers have different dimensions they are preserved, so layers should be dimensions agnostic
