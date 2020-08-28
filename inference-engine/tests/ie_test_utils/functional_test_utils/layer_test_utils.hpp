@@ -69,17 +69,34 @@ protected:
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = std::abs(res - ref);
-            if (absoluteDifference <= threshold) {
-                continue;
-            }
 
-            const auto max = std::max(std::abs(res), std::abs(ref));
-            ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
+            ASSERT_TRUE(isSame(ref, res, threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
                                         << " failed";
         }
+    }
+
+    template<typename T>
+    using IsFloat = typename std::enable_if<std::is_floating_point<T>::value, bool>::type;
+    template<typename T>
+    using IsNotFloat = typename std::enable_if<!std::is_floating_point<T>::value, bool>::type;
+
+    template<typename T, IsFloat<T> = true>
+    bool isSame(const T& ref, const T& res, const T& threshold) {
+        const auto absoluteDifference = std::abs(res - ref);
+        if (absoluteDifference <= threshold) {
+            return true;
+        }
+
+        const auto max = std::max(std::abs(res), std::abs(ref));
+        return max != 0 && ((absoluteDifference / max) <= threshold);
+    }
+
+    template<typename T, IsNotFloat<T> = true>
+    bool isSame(const T& ref, const T& res, const T& threshold) {
+        const auto absoluteDifference = std::abs(res - ref);
+        return absoluteDifference <= threshold;
     }
 
     RefMode GetRefMode() {
