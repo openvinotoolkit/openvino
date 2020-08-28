@@ -94,8 +94,7 @@ TEST(op_eval, interpolate_v4_cubic)
                        Shape{1, 1, 8, 8},
                        {2.0f, 2.0f},
                        CoordinateTransformMode::align_corners,
-                       ShapeCalcMode::scales},
-        };
+                       ShapeCalcMode::scales}};
 
     std::vector<float> input_data = {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
@@ -268,7 +267,15 @@ TEST(op_eval, interpolate_v4_nearest)
                        {2.0f, 2.0f},
                        CoordinateTransformMode::align_corners,
                        ShapeCalcMode::sizes,
-                       Nearest_mode::floor}};
+                       Nearest_mode::floor},
+         // resize_upsample_sizes_nearest_round_prefer_ceil_asymmetric:
+        ShapesAndAttrs{Shape{1, 1, 4, 4},
+                       {8, 8},
+                       Shape{1, 1, 8, 8},
+                       {2.0f, 2.0f},
+                       CoordinateTransformMode::asymmetric,
+                       ShapeCalcMode::sizes,
+                       Nearest_mode::round_prefer_ceil}};
 
     std::vector<std::vector<float>> input_data_list = {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
@@ -322,6 +329,22 @@ TEST(op_eval, interpolate_v4_nearest)
          13.0f,
          14.0f,
          15.0f,
+         16.0f},
+        {1.0f,
+         2.0f,
+         3.0f,
+         4.0f,
+         5.0f,
+         6.0f,
+         7.0f,
+         8.0f,
+         9.0f,
+         10.0f,
+         11.0f,
+         12.0f,
+         13.0f,
+         14.0f,
+         15.0f,
          16.0f}};
 
     std::vector<std::vector<float>> expected_results = {
@@ -343,7 +366,12 @@ TEST(op_eval, interpolate_v4_nearest)
          3.0f,  3.0f,  4.0f,  1.0f,  1.0f,  1.0f,  2.0f,  2.0f,  3.0f,  3.0f,  4.0f,  5.0f, 5.0f,
          5.0f,  6.0f,  6.0f,  7.0f,  7.0f,  8.0f,  5.0f,  5.0f,  5.0f,  6.0f,  6.0f,  7.0f, 7.0f,
          8.0f,  9.0f,  9.0f,  9.0f,  10.0f, 10.0f, 11.0f, 11.0f, 12.0f, 9.0f,  9.0f,  9.0f, 10.0f,
-         10.0f, 11.0f, 11.0f, 12.0f, 13.0f, 13.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f}};
+         10.0f, 11.0f, 11.0f, 12.0f, 13.0f, 13.0f, 13.0f, 14.0f, 14.0f, 15.0f, 15.0f, 16.0f},
+        {1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 6.0, 6.0, 7.0, 7.0, 8.0, 8.0, 8.0,
+         5.0, 6.0, 6.0, 7.0, 7.0, 8.0, 8.0, 8.0, 9.0, 10.0, 10.0, 11.0, 11.0, 12.0, 12.0, 12.0,
+         9.0, 10.0, 10.0, 11.0, 11.0, 12.0, 12.0, 12.0, 13.0, 14.0, 14.0, 15.0, 15.0, 16.0, 16.0,
+         16.0, 13.0, 14.0, 14.0, 15.0, 15.0, 16.0, 16.0, 16.0, 13.0, 14.0, 14.0, 15.0, 15.0, 16.0,
+         16.0, 16.0}};
 
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)

@@ -25,8 +25,6 @@
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
-#include <iostream>
-#include <iomanip>
 
 namespace ngraph
 {
@@ -571,10 +569,7 @@ namespace ngraph
 
                 for (const Coordinate& output_coord : output_transform)
                 {
-                    std::cout << "Output coordinate: " << output_coord << "\n";
                     auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
-                    std::cout << "Input coordinate: " << input_coord << "\n";
-                    std::cout <<  "Input value: " << input_data[input_transform.index(input_coord)] << "\n";
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }
