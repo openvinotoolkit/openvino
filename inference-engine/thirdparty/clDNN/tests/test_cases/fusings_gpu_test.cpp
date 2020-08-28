@@ -2453,11 +2453,11 @@ TEST_P(gemm_3in_quantize_i8, basic) {
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_3in_quantize_i8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
-                        //gemm_test_params{ CASE_GEMM_3IN_FP32_1, 4, 5 },
                         gemm_test_params{ CASE_GEMM_3IN_FP16_1, 4, 5 },
                         gemm_test_params{ CASE_GEMM_3IN_S8S8_1, 4, 5 },
                         gemm_test_params{ CASE_GEMM_3IN_S8S8_2, 4, 5 },
                         gemm_test_params{ CASE_GEMM_3IN_S8S8_3, 4, 5 },
+                      //gemm_test_params{ CASE_GEMM_3IN_FP32_1, 4, 5 },
 }), );
 
 class gemm_2in_quantize_u8 : public GemmFusingTest {};
@@ -2480,11 +2480,11 @@ TEST_P(gemm_2in_quantize_u8, basic) {
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_2in_quantize_u8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
-                        //gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_U8U8_1, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_U8U8_2, 3, 4 },
                         gemm_test_params{ CASE_GEMM_2IN_U8U8_3, 3, 4 },
+                      //gemm_test_params{ CASE_GEMM_2IN_FP32_1, 3, 4 },
 }), );
 
 class gemm_2in_scale : public GemmFusingTest {};
@@ -6282,9 +6282,9 @@ INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
                         ::testing::ValuesIn(std::vector<reduce_test_params>{
                             // No layout format available for quantize/scale
                             reduce_test_params{CASE_REDUCE_F32_3, 2, 4, reduce_mode::l1, {reduce::along_x}, true, "reduce_ref"},
-                            reduce_test_params{CASE_REDUCE_F16_3, 2, 4, reduce_mode::l1, {reduce::along_x}, true, "reduce_ref"},
+                            reduce_test_params{CASE_REDUCE_F16_3, 2, 4, reduce_mode::min, {reduce::along_x}, true, "reduce_ref"},
                             reduce_test_params{CASE_REDUCE_I32_2, 2, 4, reduce_mode::max, {reduce::along_x, reduce::along_y}, true, "reduce_ref"},
-                            reduce_test_params{CASE_REDUCE_I32_3, 2, 4, reduce_mode::l1, {reduce::along_x}, true, "reduce_ref"},
-                            reduce_test_params{CASE_REDUCE_I8_3, 2, 4, reduce_mode::l1, {reduce::along_x}, true, "reduce_ref"},
-                            reduce_test_params{CASE_REDUCE_U8_3, 2, 4, reduce_mode::l1, {reduce::along_x}, true, "reduce_ref"}
+                            reduce_test_params{CASE_REDUCE_I32_3, 2, 4, reduce_mode::sum, {reduce::along_x}, true, "reduce_ref"},
+                            reduce_test_params{CASE_REDUCE_I8_3, 2, 4, reduce_mode::mean, {reduce::along_x}, true, "reduce_ref"},
+                            reduce_test_params{CASE_REDUCE_U8_3, 2, 4, reduce_mode::l2, {reduce::along_x}, true, "reduce_ref"}
                         }), );

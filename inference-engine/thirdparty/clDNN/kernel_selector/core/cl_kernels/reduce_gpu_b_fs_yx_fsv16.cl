@@ -190,6 +190,9 @@ KERNEL(reduce_fsv16)(
         const uint out_idx = OUTPUT_GET_INDEX(f + get_sub_group_local_id(), y, x, b);
     #elif REDUCE_Y                                                                      // Y
         const uint out_idx = OUTPUT_GET_INDEX(b, f, x, y);
+    #else
+        const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
+    #endif
 #endif
 
     const uint linear_idx = FUNC_CALL(calc_linear_offset)(b, f, y, x);

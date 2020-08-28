@@ -4372,7 +4372,9 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
     cldnn::format out_format = cldnn::format::any;
     auto out_dt = DataTypeFromPrecision(reduce->outData[0]->getTensorDesc().getPrecision());
     if (!reduce->keep_dims && reduceDimNumber > 4) {
-        if (reduceDimNumber - rawAxes.size() == 5)
+        if (reduceDimNumber - rawAxes.size() == 6)
+            out_format = cldnn::format::bfwzyx;
+        else if (reduceDimNumber - rawAxes.size() == 5)
             out_format = cldnn::format::bfzyx;
         else if (reduceDimNumber - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;

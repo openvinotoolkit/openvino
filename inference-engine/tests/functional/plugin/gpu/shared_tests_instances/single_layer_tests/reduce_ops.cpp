@@ -15,13 +15,13 @@ namespace {
     };
 
     const std::vector<std::vector<size_t>> inputShapes = {
-        std::vector<size_t>{10, 20, 40},
-        std::vector<size_t>{5, 6, 10, 11},
+        std::vector<size_t>{1, 2, 4, 4},
+        std::vector<size_t>{3, 2, 5, 6},
     };
 
     const std::vector<std::vector<int>> axes = {
         {0, 2},
-        {1, -1}
+        {1, 3}
     };
 
     std::vector<CommonTestUtils::OpType> opTypes = {
@@ -35,9 +35,6 @@ namespace {
         ngraph::helpers::ReductionType::Max,
         ngraph::helpers::ReductionType::Sum,
         ngraph::helpers::ReductionType::Prod,
-        ngraph::helpers::ReductionType::LogicalOr,
-        ngraph::helpers::ReductionType::LogicalXor,
-        ngraph::helpers::ReductionType::LogicalAnd,
     };
 
     const auto paramsOneAxis = testing::Combine(
@@ -47,15 +44,13 @@ namespace {
         testing::ValuesIn(reductionTypes),
         testing::ValuesIn(netPrecisions),
         testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-    );
+        testing::Values(CommonTestUtils::DEVICE_GPU));
 
     INSTANTIATE_TEST_CASE_P(
         ReduceOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxis,
-        ReduceOpsLayerTest::getTestCaseName
-    );
+        ReduceOpsLayerTest::getTestCaseName);
 
     const auto params = testing::Combine(
         testing::ValuesIn(axes),
@@ -64,14 +59,12 @@ namespace {
         testing::ValuesIn(reductionTypes),
         testing::ValuesIn(netPrecisions),
         testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-    );
+        testing::Values(CommonTestUtils::DEVICE_GPU));
 
     INSTANTIATE_TEST_CASE_P(
         Reduce,
         ReduceOpsLayerTest,
         params,
-        ReduceOpsLayerTest::getTestCaseName
-    );
+        ReduceOpsLayerTest::getTestCaseName);
 
 }  // namespace

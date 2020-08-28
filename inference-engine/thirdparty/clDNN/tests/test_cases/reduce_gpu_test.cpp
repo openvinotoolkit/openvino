@@ -67,7 +67,7 @@ struct reduce_accumulator {
             acc = get_min_value<AccT>();
         else if (reduce_mode == cldnn::reduce_mode::min)
             acc = std::numeric_limits<AccT>::max();
-        else if (reduce_mode == cldnn::reduce_mode::prod || reduce_mode == cldnn::reduce_mode::logical_and || reduce_mode == cldnn::reduce_mode::logical_or)
+        else if (reduce_mode == cldnn::reduce_mode::prod || reduce_mode == cldnn::reduce_mode::logical_and)
             acc = 1;
         else
             acc = 0;

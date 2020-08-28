@@ -211,14 +211,10 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
 }
 
 Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) const {
-    const auto& input_dt = params.inputs[0].GetDType();
     const auto& reduce_mode = params.reduceMode;
 
     if (reduce_mode == ReduceMode::MEAN || reduce_mode  == ReduceMode::LOG_SUM_EXP ||
         reduce_mode == ReduceMode::LOG_SUM || reduce_mode == ReduceMode::L2 || reduce_mode == ReduceMode::L1) {
-        if (input_dt == Datatype::F16)
-            return Datatype::F16;
-        else
             return Datatype::F32;
     } else
         return GetAccumulatorType(params);
