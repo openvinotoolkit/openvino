@@ -183,20 +183,11 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<fully_connected>() &&
         (fmt_prev == format::bfyx || fmt_prev == format::yxfb ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::fs_b_yx_fsv32 ||
-         fmt_prev == format::byxf_af32 || fmt_prev == format::b_fs_yx_fsv32 ||
+         fmt_prev == format::b_fs_yx_fsv32 ||
          (fmt_prev == format::b_fs_yx_fsv4 &&
           prev_output_layout.size.feature[0] % 32 == 0 &&
           prev_output_layout.size.spatial[0] == 1 &&
           prev_output_layout.size.spatial[1] == 1)))
-        return true;
-
-    if (next.is_type<convolution>() && fmt_prev == format::byxf_af32 && fmt_next == format::b_fs_yx_fsv4 && next.as<convolution>().get_groups() != 1)
-        return true;
-
-    if (next.is_type<convolution>() && fmt_prev == format::byxf_af32 && fmt_next == format::bfyx)
-        return true;
-
-    if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::byxf_af32 && next.as<convolution>().get_groups() == 1)
         return true;
 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
@@ -232,7 +223,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<convolution>() &&
         (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && prev_output_layout.size.feature[0] == 3 &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::byxf_af32 ||
+        (fmt_next == format::b_fs_yx_fsv4 ||
          fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
@@ -727,23 +718,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         // nothing to do, just go out from here.
     } else if (layout_optimizer::convolution_bfyx_opt(current_layout, output_or_weights_layout, prim) ||
                 (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
-        // commented out due to performance reasons, maybe enable in future
-        /*if (current_layout.data_type == data_types::f32 &&
-        current_layout.size.batch[0] % 16 == 0 &&
-        current_layout.format == format::bfyx &&
-        output_or_weights_layout.size.spatial[0] == 1 && output_or_weights_layout.size.spatial[1] == 1 &&
-        prim->stride.spatial[0] == 1 && prim->stride.spatial[1] == 1 &&
-        prim->input_offset.spatial[0] == 0 && prim->input_offset.spatial[1] == 0 &&
-        !node.get_transposed())
-    {
-        if (!((current_layout.size.feature[0] % 8) == 0 && (current_layout.size.spatial[0] *
-    current_layout.size.spatial[1]) == 16 && current_layout.data_padding == padding{ { 0,0,0,0 }, 0 }))
-        {
-            expected_tensor = current_layout.size.transform(cldnn::format::bf8_xy16, 1);
-            expected_format = cldnn::format::bf8_xy16;
-        }
-    }
-    else*/
         {
             expected_tensor = current_layout.size;
             if (current_layout.format == format::b_fs_zyx_fsv16 || current_layout.format == format::bs_fs_zyx_bsv16_fsv16)

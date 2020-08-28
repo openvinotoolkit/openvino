@@ -3,29 +3,13 @@
 //
 
 #include "transformations/hswish_fusion.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
-bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
-                          const float value,
-                          float epsilon = std::numeric_limits<float>::epsilon()) {
-    if (!constant) {
-        return false;
-    }
-    if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
-        auto data = constant->cast_vector<float>();
-        if (data.size() != 1 || std::fabs(data[0] - value) > epsilon) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
 
 ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
@@ -47,9 +31,9 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto min_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
-                                        && check_constant_value(min_const_value, 6.0)
-                                        && check_constant_value(div_const_value, 6.0);
+        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0)
+                                        && op::util::has_constant_value<float>(min_const_value, 6.0)
+                                        && op::util::has_constant_value<float>(div_const_value, 6.0);
 
         if (!valid_constant_values) {
             return false;
@@ -96,9 +80,9 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto min_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
-                                        && check_constant_value(min_const_value, 6.0)
-                                        && check_constant_value(mul_const_value, (1.0/6.0), 0.0001);
+        bool valid_constant_values =  op::util::has_constant_value<float>(add_const_value, 3.0f)
+                                        &&  op::util::has_constant_value<float>(min_const_value, 6.0f)
+                                        &&  op::util::has_constant_value<float>(mul_const_value, (1.0f/6.0f), 0.0001f);
 
         if (!valid_constant_values) {
             return false;
@@ -148,10 +132,10 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
         auto min_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
-                                        && check_constant_value(max_const_value, 0.0)
-                                        && check_constant_value(min_const_value, 6.0)
-                                        && check_constant_value(div_const_value, 6.0);
+        bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f)
+                                        && op::util::has_constant_value<float>(max_const_value, 0.0f)
+                                        && op::util::has_constant_value<float>(min_const_value, 6.0f)
+                                        && op::util::has_constant_value<float>(div_const_value, 6.0f);
 
         if (!valid_constant_values) {
             return false;
@@ -196,8 +180,8 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         auto add_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
-        bool valid_constant_values = check_constant_value(add_const_value, 3.0)
-                                     && check_constant_value(mul_const_value, (1.0/6.0), 0.0001);
+        bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0)
+                                     && op::util::has_constant_value(mul_const_value, (1.0/6.0), 0.0001);
 
         if (!valid_constant_values) {
             return false;
