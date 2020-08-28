@@ -393,7 +393,8 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
                  (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
-                 (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
+                 (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))) &&
+                 (!((conv->groups == 1) && (in_features_per_group <= 8) && (out_features_per_group < 4))))
                 return true;
         return false;
     }
@@ -472,7 +473,8 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
-        (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))))
+        (!((conv->groups > 1) && (in_features_per_group == 1) && (out_features_per_group == 1))) &&
+        (!((conv->groups == 1) && (in_features_per_group <= 8) && (out_features_per_group < 4))))
         return true;
     return false;
 }
