@@ -40,9 +40,9 @@ TEST(op_eval, floor_mod)
     std::vector<float> expected_result{2.1, 0.9, -0.9, -2.1};
 
     auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(
-        fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{4}, a_value),
-                                 make_host_tensor<element::Type_t::f32>(Shape{4}, b_value)}));
+    ASSERT_TRUE(fun->evaluate({result},
+                              {make_host_tensor<element::Type_t::f32>(Shape{4}, a_value),
+                               make_host_tensor<element::Type_t::f32>(Shape{4}, b_value)}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{4});
     auto result_data = read_vector<float>(result);

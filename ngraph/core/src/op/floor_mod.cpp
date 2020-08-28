@@ -65,30 +65,31 @@ namespace
         switch (arg0->get_element_type())
         {
             TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u8)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-                break;
-            default: rc = false; break;
+            break;
+        default: rc = false; break;
         }
         return rc;
     }
 }
 
-bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::FloorMod::evaluate");
     return evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());

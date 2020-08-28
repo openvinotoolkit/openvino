@@ -38,16 +38,16 @@ namespace ngraph
 
             template <typename T>
             void floor_mod(const T* arg0,
-                     const T* arg1,
-                     T* out,
-                     const Shape& arg0_shape,
-                     const Shape& arg1_shape,
-                     const op::AutoBroadcastSpec& broadcast_spec)
+                           const T* arg1,
+                           T* out,
+                           const Shape& arg0_shape,
+                           const Shape& arg1_shape,
+                           const op::AutoBroadcastSpec& broadcast_spec)
             {
                 autobroadcast_binop(
-                        arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
-                            return x - y * floor(x / y);
-                        });
+                    arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
+                        return x - y * floor(x / y);
+                    });
             }
         }
     }
