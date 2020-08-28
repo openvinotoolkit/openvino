@@ -146,7 +146,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName);
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(std::istream& networkModel);
 
     /**
