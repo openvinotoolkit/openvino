@@ -10,6 +10,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 **Operating Systems**
 
 - Ubuntu* 18.04 long-term support (LTS), 64-bit
+- CentOS* 7.4, 64-bit
 - macOS* 10.14.x versions. 
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
 - Windows Server* 2016 or higher
