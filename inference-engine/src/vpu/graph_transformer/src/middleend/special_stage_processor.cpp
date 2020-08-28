@@ -318,6 +318,25 @@ void SpecialStageProcessor::processReshape(
         input = inputCopy;
     }
 
+    auto needAddCopyBeforeOutput = output->usage() == DataUsage::Output;
+    if (needAddCopyBeforeOutput) {
+        Data outputCopy;
+        outputCopy = model->duplicateData(output, "@copy");
+        outputCopy->updateRequiredStrides(StridesRequirement::compact());
+
+        model->replaceStageOutput(stage->outputEdge(0), outputCopy);
+        auto copyStage = _stageBuilder->addCopyStage(
+                model,
+                formatString("%s@copy-for-reshape", stage->name()),
+                stage->origLayer(),
+                outputCopy,
+                output,
+                "special::reshape");
+        if (stage->attrs().has("batchInd")) {
+            copyStage->attrs().set("batchInd", stage->attrs().get<int>("batchInd"));
+        }
+        output = outputCopy;
+    }
     //
     // Add Data<->Data edge
     //
