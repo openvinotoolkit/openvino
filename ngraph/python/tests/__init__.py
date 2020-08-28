@@ -96,12 +96,12 @@ xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadc
 
 xfail_issue_33540 = xfail_test(reason="RuntimeError: GRUCell operation has a form that is not supported "
                                       "GRUCell_<number> should be converted to GRUCellIE operation")
-xfail_issue_1 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i) "
-                                  "is_static() nGraph NonZero operation with name: result cannot be"
-                                  "converted to NonZero layer with name: result because output"
-                                  "with index 0 contains dynamic shapes: {2,?}. Try to use "
-                                  "CNNNetwork::reshape() method in order to specialize shapes "
-                                  "before the conversion.")
+xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i) "
+                                      "is_static() nGraph NonZero operation with name: result cannot be"
+                                      "converted to NonZero layer with name: result because output"
+                                      "with index 0 contains dynamic shapes: {2,?}. Try to use "
+                                      "CNNNetwork::reshape() method in order to specialize shapes "
+                                      "before the conversion.")
 xfail_issue_33616 = xfail_test(reason="Add ceil_mode for Max and Avg pooling (reference implementation)")
 xfail_issue_2 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_3 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
