@@ -29,10 +29,24 @@ if [ -f /etc/lsb-release ]; then
         x86_64_specific_packages=""
     fi
 
+    [[ "$( cat /etc/os-release | grep VERSION_ID= )" =~ ^VERSION_ID=\"(.*)\"$ ]]
+    DISTRO_VERSION=${BASH_REMATCH[1]}
+
+    # Ubuntu 18.04 provides only cmake 3.10 but >= 3.11 is required
+    if [ $DISTRO_VERSION = 18.04 ]; then
+        wget https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
+        tar xf cmake-3.12.3.tar.gz
+        cd cmake-3.12.3
+        ./configure
+        make -j16
+        sudo -E make install
+    else
+        sudo -E apt-get install -y cmake
+    fi
+
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
             curl \
             wget \
             libssl-dev \
