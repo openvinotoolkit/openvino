@@ -120,7 +120,7 @@ def test_serialization():
 
 
 def test_broadcast_1():
-    input_data = np.array([1, 2, 3], dtype=np.int32)  # enable int64 @xfail_issue_35926
+    input_data = np.array([1, 2, 3], dtype=np.int32)
 
     new_shape = [3, 3]
     expected = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
@@ -129,7 +129,7 @@ def test_broadcast_1():
 
 
 def test_broadcast_2():
-    input_data = np.arange(4, dtype=np.int32)  # enable int64 @xfail_issue_35926
+    input_data = np.arange(4, dtype=np.int32)
     new_shape = [3, 4, 2, 4]
     expected = np.broadcast_to(input_data, new_shape)
     result = run_op_node([input_data], ng.broadcast, new_shape)
@@ -137,7 +137,7 @@ def test_broadcast_2():
 
 
 def test_broadcast_3():
-    input_data = np.array([1, 2, 3], dtype=np.int32)  # enable int64 @xfail_issue_35926
+    input_data = np.array([1, 2, 3], dtype=np.int32)
     new_shape = [3, 3]
     axis_mapping = [0]
     expected = [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
@@ -146,10 +146,10 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35926
+# TODO: AssertionError: assert dtype('float32') == <class 'bool'>
 @pytest.mark.parametrize(
     "destination_type, input_data",
-    [(bool, np.zeros((2, 2), dtype=int)), ("boolean", np.zeros((2, 2), dtype=int))],
+    [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
     expected = np.array(input_data, dtype=bool)

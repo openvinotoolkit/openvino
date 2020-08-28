@@ -58,13 +58,12 @@ def test_lrn():
     )
 
 
-@xfail_issue_35926
 def test_lrn_factory():
     alpha = 0.0002
     beta = 0.5
     bias = 2.0
     nsize = 3
-    axis = np.array([1])
+    axis = np.array([1], dtype=np.int32)
     x = np.array(
         [
             [
@@ -99,7 +98,7 @@ def test_lrn_factory():
         ],
         dtype=np.float32,
     )
-    result = run_op_node([x, axis], ng.lrn, alpha, beta, bias, nsize)
+    result = run_op_node([x], ng.lrn, axis, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 

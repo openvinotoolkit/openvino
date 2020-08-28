@@ -22,7 +22,6 @@ from tests.test_ngraph.util import run_op_node
 from tests import xfail_issue_34323, xfail_issue_35926
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
@@ -46,11 +45,11 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35926
+# @xfail="RuntimeError: Incorrect Reduce layer type" TODO: self annotation
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
@@ -68,7 +67,7 @@ def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.bool)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
@@ -84,7 +83,6 @@ def test_topk():
     assert list(node.get_output_shape(1)) == [6, 3, 10, 24]
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
@@ -99,7 +97,7 @@ def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 

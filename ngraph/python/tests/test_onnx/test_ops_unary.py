@@ -29,13 +29,12 @@ from tests import (xfail_issue_35926,
                    xfail_issue_35932)
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_abs(input_data):
@@ -93,13 +92,12 @@ def test_log(input_data):
     assert np.allclose(ng_results, [expected_output])
 
 
-@xfail_issue_35926
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_neg(input_data):
