@@ -49,6 +49,19 @@ class Policy {
         REMOVE_LAST,
         REMOVE_ALL
     } NHWCToNCHWPolicy = NHWCToNCHW::REMOVE_ALL;
+
+ /**
+ * @brief trim of gna diagonal affine layer maximum elements number
+ */
+    class GNAAffineDiagonal {
+    public:
+        enum : uint32_t {
+            UNLIMIT,
+            // gna limit this to be OxFFFF
+            LIMITED_TO_DEFAULT_GNA2_65536 = 65536 - 64
+        };
+        uint32_t limitedTo = LIMITED_TO_DEFAULT_GNA2_65536;
+    } GNAAffineDiagonalPolicy;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
