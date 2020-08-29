@@ -13,6 +13,7 @@
 #include <cassert>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -78,7 +79,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         std::vector<Output<Node>> inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
+        inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :

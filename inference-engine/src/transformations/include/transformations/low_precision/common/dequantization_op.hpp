@@ -13,12 +13,14 @@
 #include <ngraph/check.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "transformations_visibility.hpp"
+
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 // template<typename BaseOp2>
-// class DequantizationOp : public BaseOp2 {
+// class TRANSFORMATIONS_API DequantizationOp : public BaseOp2 {
 // public:
 //    template <typename ... Args>
 //    DequantizationOp(Args&&... args) : BaseOp2(std::forward<Args>(args)...) {
@@ -60,7 +62,7 @@ void copyRuntimeInfo(const ngraph::Node& from, ngraph::Node& to) {
 
 } // namespace
 
-class DequantizationConvert : public ngraph::opset1::Convert {
+class TRANSFORMATIONS_API DequantizationConvert : public ngraph::opset1::Convert {
 public:
     DequantizationConvert(const ngraph::Output<Node>& arg, const ngraph::element::Type& destination_type) :
         ngraph::opset1::Convert(arg, destination_type) {
@@ -74,7 +76,7 @@ public:
     }
 };
 
-class DequantizationSubtract : public ngraph::opset1::Subtract {
+class TRANSFORMATIONS_API DequantizationSubtract : public ngraph::opset1::Subtract {
 public:
     DequantizationSubtract(
         const ngraph::Output<Node>& arg0,
@@ -91,13 +93,18 @@ public:
     }
 };
 
-class DequantizationMultiply : public ngraph::opset1::Multiply {
+class TRANSFORMATIONS_API DequantizationMultiply : public ngraph::opset1::Multiply {
 public:
     DequantizationMultiply(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
         const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
         ngraph::opset1::Multiply(arg0, arg1, auto_broadcast) {
+        initRuntimeInfo(*this);
+    }
+
+    DequantizationMultiply(const ngraph::opset1::Multiply& multiply) :
+        ngraph::opset1::Multiply(multiply) {
         initRuntimeInfo(*this);
     }
 
@@ -108,7 +115,7 @@ public:
     }
 };
 
-class DequantizationAdd : public ngraph::opset1::Add {
+class TRANSFORMATIONS_API DequantizationAdd : public ngraph::opset1::Add {
 public:
     DequantizationAdd(
         const ngraph::Output<Node>& arg0,

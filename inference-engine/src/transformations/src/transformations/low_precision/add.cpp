@@ -13,6 +13,7 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -91,7 +92,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
-        newMultiply = std::make_shared<opset1::Multiply>(newAdd, multiplyEmptyPathValues);
+        newMultiply = std::make_shared<DequantizationMultiply>(newAdd, multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);
     }

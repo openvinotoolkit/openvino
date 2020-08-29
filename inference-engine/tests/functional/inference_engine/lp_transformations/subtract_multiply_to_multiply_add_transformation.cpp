@@ -59,14 +59,10 @@ public:
             testValues.actual.dequantization,
             testValues.actual.precisionAfter);
 
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
-
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 
         referenceFunction = SubtractMultiplyToMultiplyAddFunction::getReference(
             testValues.shape,
@@ -75,8 +71,6 @@ public:
             testValues.expected.precisionAfter,
             testValues.expected.multiply,
             testValues.expected.add);
-
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationTestValues> obj) {

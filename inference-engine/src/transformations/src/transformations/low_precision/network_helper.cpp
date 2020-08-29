@@ -196,7 +196,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     NetworkHelper::setOutDataPrecision(newAdd, addAfterMultiply->get_output_element_type(0));
 
-    auto newMultiply = std::make_shared<opset1::Multiply>(newAdd, a);
+    auto newMultiply = std::make_shared<DequantizationMultiply>(newAdd, a);
     replace_node(addAfterMultiply, newMultiply);
 
     copyInfo(addAfterMultiply, newAdd);

@@ -16,6 +16,7 @@
 #include "transformations/low_precision/common/fake_quantize_dequantization.hpp"
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/common/subgraph.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -338,7 +339,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                         // concatenation axis is 1
                         if (!subtractNodes.empty()) {
-                            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
+                            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<DequantizationSubtract>(
                                 source,
                                 NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
                                     subtractNodes[0] :
@@ -348,7 +349,7 @@ void ConcatTransformation::addDequantizationLayers(
                         }
 
                         if (!multiplyNodes.empty()) {
-                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
+                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
                                 source,
                                 NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
                                     multiplyNodes[0] :

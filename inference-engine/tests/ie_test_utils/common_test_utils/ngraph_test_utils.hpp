@@ -24,7 +24,8 @@ std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues = false,
-    const bool compareNames = false);
+    const bool compareNames = false,
+    const bool compareRuntimeKeys = false);
 
 void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
 

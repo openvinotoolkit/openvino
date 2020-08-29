@@ -24,7 +24,6 @@ using namespace ngraph::pass;
 
 using ngraph::builder::subgraph::UnsqueezeFunction;
 
-
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
     os << "{ ";
     for (size_t i = 0; i < values.size(); ++i) {
@@ -98,9 +97,8 @@ public:
 };
 
 TEST_P(UnsqueezeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
 
     ASSERT_TRUE(res.first) << res.second;
 }

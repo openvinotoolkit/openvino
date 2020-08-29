@@ -7,6 +7,9 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
+
+using namespace ngraph::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -70,11 +73,11 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getRefe
     std::shared_ptr<Node> parent = dequantizationOp;
 
     if (!multiply.empty()) {
-        parent = makeElementwise<ngraph::opset1::Multiply>(parent, multiply);
+        parent = makeElementwise<DequantizationMultiply>(parent, multiply);
     }
 
     if (!add.empty()) {
-        parent = makeElementwise<ngraph::opset1::Add>(parent, add);
+        parent = makeElementwise<DequantizationAdd>(parent, add);
     }
     parent->set_friendly_name("output");
 

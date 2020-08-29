@@ -7,7 +7,10 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
+
+using namespace ngraph::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -54,7 +57,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     std::shared_ptr<Node> parent = fakeQuantize;
 
     if (updatePrecisions) {
-        const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
+        const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<DequantizationConvert>(parent, precision);
         parent = convert;
 
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, fakeQuantizeOutputPrecision);
@@ -62,7 +65,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
 
     const std::shared_ptr<ngraph::opset1::Subtract> subtract = expectedSubtractValues.empty() ?
         nullptr :
-        std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
             parent,
             ngraph::opset1::Constant::create(
                 precision,
@@ -75,7 +78,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = expectedMultiplyValues.empty() ?
         nullptr :
-        std::make_shared<ngraph::opset1::Multiply>(
+        std::make_shared<DequantizationMultiply>(
             parent,
             ngraph::opset1::Constant::create(
                 precision,

@@ -13,7 +13,10 @@
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
+
+using namespace ngraph::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -29,17 +32,17 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
         ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
+    const std::shared_ptr<ngraph::Node> convert = std::make_shared<DequantizationConvert>(parent, precision);
     parent = convert;
 
     if (!actualValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<DequantizationSubtract>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.subtractValues.size() }), actualValues.subtractValues));
         parent = subtract;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
+    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<DequantizationMultiply>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.mutliplyValues.size() }), actualValues.mutliplyValues));
     parent = multiply;
@@ -107,7 +110,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<ngraph::opset1::Subtract>(fqOnWeights,
+    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 1, 1, 1}, 3.0f));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
@@ -171,7 +174,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<ngraph::opset1::Subtract>(fqOnWeights,
+    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
@@ -190,7 +193,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
     std::shared_ptr<ngraph::Node> multiply;
     if (!dequantizationAfter.multiply.empty()) {
         ngraph::Shape constShape = isCorrect ? Shape{ 1, 1, 1 } : Shape{ 1, 1, 1, 1 };
-        multiply = std::make_shared<ngraph::opset1::Multiply>(convolution,
+        multiply = std::make_shared<DequantizationMultiply>(convolution,
             std::make_shared<ngraph::opset1::Constant>(precision, constShape, dequantizationAfter.multiply.values[0]));
     }
 
@@ -231,7 +234,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
 
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
     if (!expectedValues.subtractValues.empty()) {
-        subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
                 precision,
