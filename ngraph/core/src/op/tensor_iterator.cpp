@@ -578,6 +578,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 as_type_ptr<ConcatOutputDescription>(output_description))
         {
             auto body_value_partial_shape = body_value.get_partial_shape();
+            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
             if (body_value_partial_shape.is_static())
             {
                 auto body_value_shape = body_value_partial_shape.to_shape();

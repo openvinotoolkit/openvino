@@ -106,6 +106,8 @@ bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::GRUCell::pre_validate_and_infer_types()
 {
+    set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+
     if (is_dynamic())
     {
         return;
