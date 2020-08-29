@@ -247,29 +247,31 @@ void op::v4::Interpolate::validate_and_infer_types()
     PartialShape padded_input_shape = get_padded_input_shape(input_shape);
     PartialShape output_shape = padded_input_shape;
 
-    for (auto axis : axes)
+    if (output_shape.rank().is_static())
     {
-        NGRAPH_CHECK(axis < input_rank);
-        output_shape[axis] = Dimension::dynamic();
+        for (auto axis : axes)
+        {
+            NGRAPH_CHECK(axis < input_rank);
+            output_shape[axis] = Dimension::dynamic();
+        }
     }
 
+    set_output_type(0, get_input_element_type(0), output_shape);
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
-        auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-        NODE_VALIDATION_CHECK(this, const_scales, "Input 'scales' should be Constant.");
-
-        auto scales = const_scales->cast_vector<float>();
-
-        infer_using_scales(output_shape, axes, scales, padded_input_shape);
+        if (auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
+        {
+            auto scales = const_scales->cast_vector<float>();
+            infer_using_scales(output_shape, axes, scales, padded_input_shape);
+        }
     }
     else
     {
-        auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-        NODE_VALIDATION_CHECK(this, const_shape, "Input 'sizes' should be Constant.");
-
-        auto sizes = const_shape->cast_vector<int64_t>();
-
-        infer_using_shapes(output_shape, axes, sizes);
+        if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+        {
+            auto sizes = const_shape->cast_vector<int64_t>();
+            infer_using_shapes(output_shape, axes, sizes);
+        }
     }
 
     set_output_type(0, get_input_element_type(0), output_shape);

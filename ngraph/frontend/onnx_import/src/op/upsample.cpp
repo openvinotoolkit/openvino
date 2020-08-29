@@ -90,7 +90,7 @@ namespace ngraph
                     attrs.antialias = false;
                     attrs.cube_coeff = -0.75;
 
-                    if (attrs.mode == Transform_mode::linear_onnx)
+                    if (attrs.mode == InterpolateMode::linear_onnx)
                     {
                         attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
                     }
@@ -163,7 +163,7 @@ namespace ngraph
                     attrs.antialias = false;
                     attrs.cube_coeff = -0.75;
 
-                    if (attrs.mode == Transform_mode::linear_onnx)
+                    if (attrs.mode == InterpolateMode::linear_onnx)
                     {
                         attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
                     }

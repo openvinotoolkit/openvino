@@ -280,7 +280,7 @@ namespace ngraph
                     const auto& scales_shape = scales.get_partial_shape();
 
                     auto attrs = get_resize_attrs(node);
-                    if (attrs.mode == Transform_mode::linear_onnx)
+                    if (attrs.mode == InterpolateMode::linear_onnx)
                     {
                         attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
                     }
