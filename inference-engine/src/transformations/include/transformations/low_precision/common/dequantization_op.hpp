@@ -36,7 +36,7 @@ namespace low_precision {
 // protected:
 //    void init() {
 //        auto& rtInfo = get_rt_info();
-//        rtInfo["DEQUANIZATION"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+//        rtInfo["DEQUANTIZATION"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
 //    }
 // };
 //
@@ -47,7 +47,7 @@ namespace low_precision {
 namespace {
 void initRuntimeInfo(ngraph::Node& operation) {
     auto& rtInfo = operation.get_rt_info();
-    rtInfo["DEQUANIZATION"] = std::make_shared<VariantWrapper<std::string>>("");
+    rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<std::string>>("");
 }
 
 // #include <ngraph/rt_info.hpp>
@@ -103,6 +103,23 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         std::shared_ptr<Node> cloned = ngraph::opset1::Multiply::clone_with_new_inputs(inputs);
+        copyRuntimeInfo(*this, *cloned);
+        return cloned;
+    }
+};
+
+class DequantizationAdd : public ngraph::opset1::Add {
+public:
+    DequantizationAdd(
+        const ngraph::Output<Node>& arg0,
+        const ngraph::Output<Node>& arg1,
+        const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
+        ngraph::opset1::Add(arg0, arg1, auto_broadcast) {
+        initRuntimeInfo(*this);
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        std::shared_ptr<Node> cloned = ngraph::opset1::Add::clone_with_new_inputs(inputs);
         copyRuntimeInfo(*this, *cloned);
         return cloned;
     }

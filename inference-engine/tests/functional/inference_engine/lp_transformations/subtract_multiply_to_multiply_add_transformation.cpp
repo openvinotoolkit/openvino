@@ -59,10 +59,14 @@ public:
             testValues.actual.dequantization,
             testValues.actual.precisionAfter);
 
+        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_function(actualFunction);
+
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
+
+        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_function(actualFunction);
 
         referenceFunction = SubtractMultiplyToMultiplyAddFunction::getReference(
             testValues.shape,
@@ -71,6 +75,8 @@ public:
             testValues.expected.precisionAfter,
             testValues.expected.multiply,
             testValues.expected.add);
+
+        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationTestValues> obj) {
@@ -83,7 +89,13 @@ public:
             testValues.actual.precisionAfter << "_" <<
             testValues.expected.precisionBefore << "_" <<
             testValues.expected.dequantization << "_" <<
-            testValues.expected.precisionAfter;
+            testValues.expected.precisionAfter << "_" <<
+            testValues.expected.multiply.values << "_" <<
+            testValues.expected.multiply.constantShape << "_" <<
+            testValues.expected.multiply.outPrecision << "_" <<
+            testValues.expected.add.values << "_" <<
+            testValues.expected.add.constantShape << "_" <<
+            testValues.expected.add.outPrecision;
         return result.str();
     }
 };
@@ -108,8 +120,42 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             ngraph::element::f32,
             {},
             ngraph::element::f32,
-            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
-            {{0.f, 0.f, 0.f}, {ngraph::element::f32}}
+            {{0.1f}, {ngraph::element::f32}},
+            {{0.f}, {ngraph::element::f32}}
+        },
+    },
+    // Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {{0.1f, 0.2f, 0.3f}, {ngraph::element::f32}},
+            {{0.f}, {ngraph::element::f32}}
+        },
+    },
+    // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{ngraph::element::f32}, {{128.f, 128.f / 2.f, 128.f / 4.f}}, {0.1f}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32,
+            {{0.1f}, {ngraph::element::f32}},
+            {{-12.8f, -12.8f / 2.f, -12.8f / 4.f}, {ngraph::element::f32}}
         },
     },
     // FP32 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
@@ -125,8 +171,8 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             ngraph::element::f32,
             {},
             ngraph::element::f32,
-            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
-            {{-12.8f, -12.8f, -12.8f}, {ngraph::element::f32}}
+            {{0.1f}, {ngraph::element::f32}},
+            {{-12.8f}, {ngraph::element::f32}}
         },
     },
     // U8 Multiply {} -> Multiply + Subtract {1x3x1x1}
@@ -142,8 +188,8 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             ngraph::element::u8,
             {},
             ngraph::element::u8,
-            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
-            {{0.f, 0.f, 0.f}, {ngraph::element::f32}}
+            {{0.1f}, {ngraph::element::f32}},
+            {{0.f}, {ngraph::element::f32}}
         },
     },
     // U8 Subtract + Multiply {} -> Multiply + Subtract {1x3x1x1}
@@ -159,8 +205,25 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             ngraph::element::u8,
             {},
             ngraph::element::u8,
-            {{0.1f, 0.1f, 0.1f}, {ngraph::element::f32}},
-            {{-12.8f, -12.8f, -12.8f}, {ngraph::element::f32}}
+            {{0.1f}, {ngraph::element::f32}},
+            {{-12.8f}, {ngraph::element::f32}}
+        },
+    },
+    // empty
+    {
+        {1, 3, 299, 299},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {}},
+            ngraph::element::f32,
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {}},
+            ngraph::element::u8,
+            {},
+            {}
         },
     },
     // empty

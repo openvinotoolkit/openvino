@@ -230,7 +230,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     auto onWeights = convolution->get_input_node_shared_ptr(1);
     if (is_type<opset1::Subtract>(onWeights)) {
         auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"];
+        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
     }
     return true;
 }

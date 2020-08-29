@@ -49,6 +49,18 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {2.55f, 2.55f / 2.f, 2.55f / 3.f}
         },
     },
+    {
+        {1, 3, 16, 16},
+        ngraph::element::f32,
+        {
+            256ul,
+            ngraph::Shape({1}),
+            {2.55f / 2},
+            {2.55f},
+            {2.55f / 2},
+            {2.55f}
+        },
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, SubtractMultiplyToMultiplyAddTransformation,
