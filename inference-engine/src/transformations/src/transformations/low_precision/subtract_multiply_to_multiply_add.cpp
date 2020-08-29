@@ -53,16 +53,6 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     }
 
     FakeQuantizeDequantization dequantization = get(multiply);
-    // multiply operation is mandatory: subtract without multiply is part of new LPT operation set
-    if (dequantization.empty() || (dequantization.multiply == nullptr)) {
-        return false;
-    }
-
-    auto multiply_rt_info = dequantization.multiply->get_rt_info();
-
-    if (!multiply_rt_info.count("DEQUANIZATION_OPERATION")) {
-        return false;
-    }
 
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?
         (dequantization.subtract == nullptr ?
@@ -165,7 +155,14 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     FakeQuantizeDequantization dequantization = get(op);
-    if (dequantization.empty() || is_type<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
+    if (dequantization.empty() ||
+        (dequantization.multiply == nullptr) ||
+        is_type<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
+        return false;
+    }
+
+    if (((dequantization.subtract == nullptr) || (!dequantization.subtract->get_rt_info().count("DEQUANIZATION"))) &&
+        (!dequantization.multiply->get_rt_info().count("DEQUANIZATION"))) {
         return false;
     }
 
