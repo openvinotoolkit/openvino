@@ -38,14 +38,14 @@ namespace cldnn {
 ///        <tr><th>Data type               <th>activation format       <th>weights format
 ///        <tr><td rowspan="7">F32         <td rowspan="4">bfyx        <td>yxfb
 ///        <tr>                                                        <td>fyxb
-///        <tr>                                                        <td>bs_xs_xsv8_bsv8
-///        <tr>                                                        <td>bs_x_bsv16
+///        <tr>                                                        <td>bs_fs_fsv8_bsv8
+///        <tr>                                                        <td>bs_f_bsv16
 ///        <tr>                            <td rowspan="3">yxfb        <td>bfyx
 ///        <tr>                                                        <td>yxfb
-///        <tr>                                                        <td>bs_xs_xsv8_bsv8
+///        <tr>                                                        <td>bs_fs_fsv8_bsv8
 ///        <tr><td rowspan="4">F16         <td rowspan="3">bfyx        <td>yxfb
 ///        <tr>                                                        <td>fyxb
-///        <tr>                                                        <td>bs_x_bsv16
+///        <tr>                                                        <td>bs_f_bsv16
 ///        <tr>                            <td >yxfb                   <td>bfyx
 /// </table>
 

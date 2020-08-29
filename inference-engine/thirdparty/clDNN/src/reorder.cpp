@@ -163,7 +163,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::bs_xs_xsv8_bsv16 || ofmt == format::bs_x_bsv16 ||
+    if (ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::bs_fs_fsv8_bsv16 || ofmt == format::bs_f_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||

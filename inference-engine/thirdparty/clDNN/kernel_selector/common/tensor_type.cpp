@@ -306,6 +306,13 @@ DataTensor DataTensor::TransformIgnorePadding(DataLayout l) const {
 DataTensor DataTensor::FlattenFeatureAndSpatials() const {
     DataLayout l;
 
+    if (Dimentions() == 2 &&
+        Channelndex(layout, DataChannelName::FEATURE) != -1 &&
+        Channelndex(layout, DataChannelName::BATCH) != -1) {
+        // Already flattened layout, return copy of self.
+        return DataTensor(*this);
+    }
+
     const auto x = X();
     const auto y = Y();
     const auto z = Z();

@@ -106,12 +106,12 @@ struct format {
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
         b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
-        bs_xs_xsv8_bsv8,                        ///< format used only for fully connected weights: bs - batch slice,
-                                                ///< xs - x slice, bsv8 - 8 values of single slice.
-        bs_xs_xsv8_bsv16,                       ///< format used only for fully connected weights: bs - batch slice,
-                                                ///< xs - x slice, bsv16 - 16 values of single slice.
-        bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
-                                                ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
+        bs_fs_fsv8_bsv8,                        ///< format used only for fully connected weights: bs - batch slice,
+                                                ///< fs - f slice, bsv8 - 8 values of single slice.
+        bs_fs_fsv8_bsv16,                       ///< format used only for fully connected weights: bs - batch slice,
+                                                ///< fs - f slice, bsv16 - 16 values of single slice.
+        bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
+                                                ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
                                                 ///< \n \image html bs_x_bsv16.jpg
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
@@ -235,9 +235,9 @@ struct format {
                 { b_fs_yx_fsv16,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 16}}}},
                 { b_fs_yx_fsv32,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 32}}}},
                 { b_fs_zyx_fsv32,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 32}}}},
-                { bs_xs_xsv8_bsv8,       { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 8}}}},
-                { bs_xs_xsv8_bsv16,      { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
-                { bs_x_bsv16,            { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{0, 16}}}},
+                { bs_fs_fsv8_bsv8,       { 1, 1, 0, 0, 0, "bf",     "bf???",  {{1, 8}, {0, 8}}}},
+                { bs_fs_fsv8_bsv16,      { 1, 1, 0, 0, 0, "bf",     "bf???",  {{1, 8}, {0, 16}}}},
+                { bs_f_bsv16,            { 1, 1, 0, 0, 0, "bf",     "bf???",  {{0, 16}}}},
                 { winograd_2x3_s1_data,  { 1, 1, 2, 0, 0, "bxyf",   "bfxy?",  {}}},
                 { b_fs_yx_fsv4,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
                 { bfzyx,                 { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {}}},
@@ -885,26 +885,22 @@ public:
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
-        auto tmp = 1;
+        auto tmp_x = 1;
         auto tmp_z = 1;
         auto tmp_w = 1;
         for (size_t i = 0; i < format.order().size(); i++) {
             auto c = val_order[i];
-            // skip f and y, z for the formats that do not have it
-            if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
-                 (new_fmt == format::bs_xs_xsv8_bsv16) ||
-                 (new_fmt == format::bs_x_bsv16)) &&
-                ((c == 'f') ||
-                 (c == 'y') ||
-                 (c == 'z') ||
-                 (c == 'w'))) {
+            // formats with batch and feature dimensions
+            if ((new_fmt == format::bs_fs_fsv8_bsv8 ||
+                 new_fmt == format::bs_fs_fsv8_bsv16 ||
+                 new_fmt == format::bs_f_bsv16) &&
+                c != 'b' && c != 'f') {
                 if (new_order[i] == '?')
                     new_sizes[i] = default_size;
 
-                tmp *= old_sizes[i];
+                tmp_x *= old_sizes[i];
                 continue;
             }
-
             // skip z for the formats that do not have it
             if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 &&
                   new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16)) && (c == 'z')) {
@@ -934,12 +930,12 @@ public:
         }
 
         // in case of formats with smaller number of dimensions than input, flatten is performed below
-        if (tmp != 1 || tmp_z != 1 || tmp_w != 1) {
+        if (tmp_x != 1 || tmp_z != 1 || tmp_w != 1) {
             for (size_t i = 0; i < format.order().size(); i++) {
                 auto c = val_order[i];
-                if (c == 'x') {
+                if (c == 'f') {
                     auto new_pos = new_order.find(c);
-                    new_sizes[new_pos] *= tmp;
+                    new_sizes[new_pos] *= tmp_x;
                 }
                 if (c == 'y') {
                     auto new_pos = new_order.find(c);

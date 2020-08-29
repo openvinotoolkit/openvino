@@ -79,12 +79,12 @@ inline std::string fmt_to_str(format fmt) {
             return "b_fs_yx_fsv32";
         case format::b_fs_zyx_fsv32:
             return "b_fs_zyx_fsv32";
-        case format::bs_xs_xsv8_bsv8:
-            return "bs_xs_xsv8_bsv8";
-        case format::bs_xs_xsv8_bsv16:
-            return "bs_xs_xsv8_bsv16";
-        case format::bs_x_bsv16:
-            return "bs_x_bsv16";
+        case format::bs_fs_fsv8_bsv8:
+            return "bs_fs_fsv8_bsv8";
+        case format::bs_fs_fsv8_bsv16:
+            return "bs_fs_fsv8_bsv16";
+        case format::bs_f_bsv16:
+            return "bs_f_bsv16";
         case format::winograd_2x3_s1_data:
             return "winograd_2x3_s1_data";
         case format::b_fs_yx_fsv4:
