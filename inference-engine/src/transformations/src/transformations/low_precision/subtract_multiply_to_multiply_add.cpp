@@ -85,12 +85,14 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
 
-            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew.get_node_shared_ptr()), precisionAfterDequantization);
+            auto lastNewPtr = lastNew.get_node_shared_ptr();
+            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNewPtr), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<DequantizationMultiply>(lastNew, multiplyConstant);
         }
         if (dequantization.multiply != nullptr) {
-            NetworkHelper::copyInfo(dequantization.multiply, lastNew.get_node_shared_ptr());
+            auto lastNewPtr = lastNew.get_node_shared_ptr();
+            NetworkHelper::copyInfo(dequantization.multiply, lastNewPtr);
         }
 
         lastNewPrecision = precisionAfterDequantization;
@@ -119,13 +121,16 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
                 ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(subtractConstant, element::f32).get());
-            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Add>(lastNew.get_node_shared_ptr()), precisionAfterDequantization);
+
+            auto lastNewPtr = lastNew.get_node_shared_ptr();
+            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Add>(lastNewPtr), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<DequantizationAdd>(lastNew, subtractConstant);
         }
 
         if (dequantization.subtract != nullptr) {
-            NetworkHelper::copyInfo(dequantization.subtract, lastNew.get_node_shared_ptr());
+            auto lastNewPtr = lastNew.get_node_shared_ptr();
+            NetworkHelper::copyInfo(dequantization.subtract, lastNewPtr);
         }
 
         lastNewPrecision = precisionAfterDequantization;
@@ -134,9 +139,10 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     const std::shared_ptr<Node> lastOriginal = dequantization.multiply == nullptr ?
         std::dynamic_pointer_cast<Node>(dequantization.subtract) :
         dequantization.multiply;
-    replace_node(lastOriginal, lastNew.get_node_shared_ptr());
+    const std::shared_ptr<Node> lastNewPtr = lastNew.get_node_shared_ptr();
+    replace_node(lastOriginal, lastNewPtr);
 
-    updateOutput(context, lastNew.get_node_shared_ptr(), lastPrevious);
+    updateOutput(context, lastNewPtr, lastPrevious);
     return true;
 }
 
