@@ -1081,22 +1081,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_linear.prototxt"));
-
-    // Input data shape (1, 1, 2, 4)
-    // Input const scales values {1.0, 1.0, 0.6, 0.6}
-    // mode: nearest
-
-    Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
-    test_case.add_expected_output<float>(expected_output_shape, {1.0, 2.66666651});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
 {
     const auto function = onnx_import::import_onnx_model(
