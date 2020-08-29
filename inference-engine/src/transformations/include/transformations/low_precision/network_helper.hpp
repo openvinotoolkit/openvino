@@ -237,14 +237,6 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     return node;
 }
 
-template <typename T, typename... Args>
-std::shared_ptr<T> make_dequantization_operation(Args&&... args) {
-    std::shared_ptr<Node> operation = std::make_shared<T>(std::forward<Args>(args)...);
-    auto& rt_info = operation->get_rt_info();
-    rt_info["DequantizationOperation"] = std::make_shared<VariantWrapper<std::string>>("");
-    return as_type_ptr<T>(operation);
-}
-
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

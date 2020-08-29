@@ -22,7 +22,7 @@ std::shared_ptr<Node> makeDequantization(
     Output<Node> parent = data;
 
     if (!dequantizationOperations.convert.empty()) {
-        std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(
+        std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::pass::low_precision::DequantizationConvert>(
             data,
             dequantizationOperations.convert.outPrecision);
         parent = convert;
@@ -50,9 +50,9 @@ std::shared_ptr<Node> makeDequantization(
 
         if ((dequantizationOperations.subtract.outPrecision == element::undefined) ||
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) {
-            subtract = std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+            subtract = std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst);
         } else {
-            subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(parent, subtractConst);
+            subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(parent, subtractConst);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
         parent = subtract;
@@ -71,7 +71,7 @@ std::shared_ptr<Node> makeDequantization(
             }
         }
 
-        std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
+        std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
                 parent.get_element_type(),

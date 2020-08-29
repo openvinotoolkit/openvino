@@ -15,6 +15,7 @@
 
 #ifdef LPT_SUPPORT
 #include "ngraph/opsets/opset1.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #endif
 
 namespace ngraph {
