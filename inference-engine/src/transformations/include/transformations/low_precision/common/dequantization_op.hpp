@@ -17,9 +17,9 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-//template<typename BaseOp2>
-//class DequantizationOp : public BaseOp2 {
-//public:
+// template<typename BaseOp2>
+// class DequantizationOp : public BaseOp2 {
+// public:
 //    template <typename ... Args>
 //    DequantizationOp(Args&&... args) : BaseOp2(std::forward<Args>(args)...) {
 //        init();
@@ -33,16 +33,16 @@ namespace low_precision {
 //        return cloned;
 //    }
 //
-//protected:
+// protected:
 //    void init() {
 //        auto& rtInfo = get_rt_info();
 //        rtInfo["DEQUANIZATION"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
 //    }
-//};
+// };
 //
-//using DequantizationConvert = DequantizationOp<ngraph::opset1::Convert>;
-//using DequantizationSubtract = DequantizationOp<ngraph::opset1::Subtract>;
-//using DequantizationMultiply = DequantizationOp<ngraph::opset1::Multiply>;
+// using DequantizationConvert = DequantizationOp<ngraph::opset1::Convert>;
+// using DequantizationSubtract = DequantizationOp<ngraph::opset1::Subtract>;
+// using DequantizationMultiply = DequantizationOp<ngraph::opset1::Multiply>;
 
 namespace {
 void initRuntimeInfo(ngraph::Node& operation) {
@@ -58,7 +58,7 @@ void copyRuntimeInfo(const ngraph::Node& from, ngraph::Node& to) {
     rtInfoTo = rtInfoFrom;
 }
 
-}
+} // namespace
 
 class DequantizationConvert : public ngraph::opset1::Convert {
 public:
