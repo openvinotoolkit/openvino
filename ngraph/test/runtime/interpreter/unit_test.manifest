@@ -16,7 +16,6 @@ onnx_controlflow_loop_2d_add_execution
 # Temporarily disabled:
 INTERPRETER.onnx_model_round
 INTERPRETER.interpolate_down_scales_const_linear
-INTERPRETER.onnx_empty_initializers_handling
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
