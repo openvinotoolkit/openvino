@@ -124,9 +124,6 @@ public:
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
-    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept;
-
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 

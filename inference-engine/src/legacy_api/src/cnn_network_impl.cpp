@@ -372,18 +372,16 @@ StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_
                 auto newDims = it->second;
                 auto currentDims = data->getTensorDesc().getDims();
                 if (newDims != currentDims) {
-                    return NOT_IMPLEMENTED;
+                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
+                        "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
+                        "- [SUGGESTED] Regenerate IR with current version of OpenVINO and MO\n"
+                        "- [WARKAROUND] Call only reshape method where proper batch is already set\n";
                 }
             }
         }
     }
 
     return OK;
-}
-
-StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                        InferenceEngine::ResponseDesc* resp) noexcept {
-    return NOT_IMPLEMENTED;
 }
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
