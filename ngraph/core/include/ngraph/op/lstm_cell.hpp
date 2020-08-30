@@ -58,7 +58,7 @@ namespace ngraph
             ///
             /// \sa         LSTMSequence, RNNCell, GRUCell
             ///
-            class NGRAPH_API LSTMCell : public Op, public util::RNNCellBase
+            class NGRAPH_API LSTMCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"LSTMCell", 0};

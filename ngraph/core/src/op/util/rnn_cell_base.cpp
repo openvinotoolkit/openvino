@@ -43,12 +43,14 @@ op::util::RNNCellBase::RNNCellBase()
 {
 }
 
-op::util::RNNCellBase::RNNCellBase(size_t hidden_size,
+op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
+                                   size_t hidden_size,
                                    float clip,
                                    const vector<string>& activations,
                                    const vector<float>& activations_alpha,
                                    const vector<float>& activations_beta)
-    : m_hidden_size(hidden_size)
+    : Op(args)
+    , m_hidden_size(hidden_size)
     , m_clip(clip)
     , m_activations(to_lower_case(activations))
     , m_activations_alpha(activations_alpha)

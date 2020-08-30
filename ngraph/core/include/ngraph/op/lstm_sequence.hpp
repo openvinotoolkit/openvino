@@ -27,6 +27,7 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/op/util/rnn_cell_base.hpp"
 
 namespace ngraph
 {
@@ -43,7 +44,7 @@ namespace ngraph
             /// \sa         LSTMCell, RNNCell, GRUCell
             ///
             ///
-            class NGRAPH_API LSTMSequence : public Op
+            class NGRAPH_API LSTMSequence : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"LSTMSequence", 0};
@@ -68,13 +69,14 @@ namespace ngraph
                                                                                     "tanh",
                                                                                     "tanh"},
                                       const float clip = 0.f)
-                    : Op({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B})
-                    , m_activations_alpha(activations_alpha)
-                    , m_activations_beta(activations_beta)
-                    , m_activations(activations)
-                    , m_clip(clip)
+                    : RNNCellBase(
+                          {X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B},
+                          hidden_size,
+                          clip,
+                          activations,
+                          activations_alpha,
+                          activations_beta)
                     , m_direction(lstm_direction)
-                    , m_hidden_size(hidden_size)
                 {
                     constructor_validate_and_infer_types();
                 }
@@ -86,12 +88,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                std::vector<float> get_activations_alpha() const { return m_activations_alpha; }
-                std::vector<float> get_activations_beta() const { return m_activations_beta; }
-                std::vector<std::string> get_activations() const { return m_activations; }
                 direction get_direction() const { return m_direction; }
-                std::int64_t get_hidden_size() const { return m_hidden_size; }
-                float get_clip() const { return m_clip; }
             private:
                 ///
                 /// \brief      Gets the masked value according to sequence lenght in a batch.
@@ -119,12 +116,7 @@ namespace ngraph
                                                     bool is_reverse,
                                                     size_t num_direction_axis = 0) const;
 
-                std::vector<float> m_activations_alpha;
-                std::vector<float> m_activations_beta;
-                std::vector<std::string> m_activations;
-                float m_clip = 0.f;
                 direction m_direction;
-                std::int64_t m_hidden_size;
             };
         }
         using v0::LSTMSequence;

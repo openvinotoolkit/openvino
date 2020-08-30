@@ -50,7 +50,7 @@ namespace ngraph
             ///
             /// \sa         LSTMSequence, LSTMCell, GRUCell
             ///
-            class NGRAPH_API RNNCell : public Op, public util::RNNCellBase
+            class NGRAPH_API RNNCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"RNNCell", 0};

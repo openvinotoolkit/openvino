@@ -1629,11 +1629,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(
-        X, H_t, C_t, W, R, B, P, hidden_size, op::LSTMWeightsFormat::IOFC);
+    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1700,11 +1699,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(
-        X, H_t, C_t, W, R, B, P, hidden_size, op::LSTMWeightsFormat::IOFC);
+    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1798,16 +1796,14 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
                                                      W,
                                                      R,
                                                      B,
-                                                     P,
                                                      hidden_size,
-                                                     op::LSTMWeightsFormat::IOFC,
                                                      vector<string>{"sigmoid", "tanh", "tanh"},
                                                      vector<float>{},
                                                      vector<float>{},
                                                      clip_threshold,
                                                      input_forget);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1904,16 +1900,14 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
                                                      W,
                                                      R,
                                                      B,
-                                                     P,
                                                      hidden_size,
-                                                     op::LSTMWeightsFormat::IOFC,
                                                      activations,
                                                      activation_alpha,
                                                      activation_beta,
                                                      clip_threshold,
                                                      input_forget);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X

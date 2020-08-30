@@ -63,8 +63,12 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
                          const vector<float>& activations_beta,
                          float clip,
                          bool linear_before_reset)
-    : Op({X, initial_hidden_state, W, R})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, W, R},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
     , m_linear_before_reset{linear_before_reset}
@@ -84,8 +88,12 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
                          const vector<float>& activations_beta,
                          float clip,
                          bool linear_before_reset)
-    : Op({X, initial_hidden_state, W, R, B})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, W, R, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
     , m_linear_before_reset{linear_before_reset}

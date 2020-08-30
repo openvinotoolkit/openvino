@@ -40,7 +40,7 @@ namespace ngraph
             ///
             ///             Note this class represents only single *cell* and not whole GRU *layer*.
             ///
-            class NGRAPH_API GRUCell : public Op, public util::RNNCellBase
+            class NGRAPH_API GRUCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GRUCell", 3};

@@ -43,8 +43,12 @@ op::RNNCell::RNNCell(const Output<Node>& X,
                      const vector<float>& activations_alpha,
                      const vector<float>& activations_beta,
                      float clip)
-    : Op({X, initial_hidden_state, W, R})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, W, R},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
 {
     set_argument(4, get_default_bias_input());
@@ -61,8 +65,12 @@ op::RNNCell::RNNCell(const Output<Node>& X,
                      const vector<float>& activations_alpha,
                      const vector<float>& activations_beta,
                      float clip)
-    : Op({X, initial_hidden_state, W, R, B})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, W, R, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
 {
     constructor_validate_and_infer_types();

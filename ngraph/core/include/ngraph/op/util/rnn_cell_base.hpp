@@ -34,7 +34,7 @@ namespace ngraph
             ///
             /// \note       It holds all common attributes.
             ///
-            class NGRAPH_API RNNCellBase
+            class NGRAPH_API RNNCellBase : public Op
             {
             public:
                 ///
@@ -50,7 +50,8 @@ namespace ngraph
                 /// \param[in]  activations_beta   The vector of beta parameters for activation
                 ///                                functions in order respective to activation list.
                 ///
-                RNNCellBase(std::size_t hidden_size,
+                RNNCellBase(const OutputVector& args,
+                            std::size_t hidden_size,
                             float clip,
                             const std::vector<std::string>& activations,
                             const std::vector<float>& activations_alpha,

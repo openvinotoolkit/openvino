@@ -47,8 +47,12 @@ op::LSTMCell::LSTMCell(const Output<Node>& X,
                        const vector<float>& activations_alpha,
                        const vector<float>& activations_beta,
                        float clip)
-    : Op({X, initial_hidden_state, initial_cell_state, W, R})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
     , m_activation_h{get_activation_function(2)}
@@ -68,8 +72,12 @@ op::LSTMCell::LSTMCell(const Output<Node>& X,
                        const vector<float>& activations_alpha,
                        const vector<float>& activations_beta,
                        float clip)
-    : Op({X, initial_hidden_state, initial_cell_state, W, R, B})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
     , m_activation_h{get_activation_function(2)}
@@ -79,12 +87,7 @@ op::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("hidden_size", m_hidden_size);
-    visitor.on_attribute("activations", m_activations);
-    visitor.on_attribute("activations_alpha", m_activations_alpha);
-    visitor.on_attribute("activations_beta", m_activations_beta);
-    visitor.on_attribute("clip", m_clip);
-    return true;
+    op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::LSTMCell::validate_and_infer_types()
