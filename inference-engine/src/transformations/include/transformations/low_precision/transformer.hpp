@@ -197,7 +197,7 @@ private:
         GraphRewrite& pass,
         TransformationContext& context);
 
-    std::vector<element::Type> LowPrecisionTransformer::precisionIntersection(
+    std::vector<element::Type> precisionIntersection(
         const std::vector<element::Type>& v1,
         const std::vector<element::Type>& v2) const noexcept;
 };
