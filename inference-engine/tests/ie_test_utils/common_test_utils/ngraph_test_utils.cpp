@@ -46,12 +46,21 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo& info1, const ngraph::Discre
 bool compare_rt_keys(const std::shared_ptr<ngraph::Node>& node1, const std::shared_ptr<ngraph::Node>& node2) {
     const auto& first_node_rt_info = node1->get_rt_info();
     const auto& second_node_rt_info = node2->get_rt_info();
-    auto comparator = [](
-        const std::pair<const std::string, std::shared_ptr<ngraph::Variant>>& lhs,
-        const std::pair<const std::string, std::shared_ptr<ngraph::Variant>>& rhs) {
-        return lhs.first == rhs.first;
-    };
-    return std::equal(first_node_rt_info.begin(), first_node_rt_info.end(), second_node_rt_info.begin(), second_node_rt_info.end(), comparator);
+
+    for (auto first_it = first_node_rt_info.begin(); first_it != first_node_rt_info.end(); ++first_it) {
+        bool was_found = false;
+        for (auto secont_it = second_node_rt_info.begin(); secont_it != second_node_rt_info.end(); ++secont_it) {
+            if (first_it->first == secont_it->first) {
+                was_found = true;
+                break;
+            }
+        }
+        if (!was_found) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::pair<bool, std::string> compare_functions(
