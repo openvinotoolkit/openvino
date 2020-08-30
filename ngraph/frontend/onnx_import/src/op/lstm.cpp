@@ -183,8 +183,6 @@ namespace ngraph
                               "activation_alpha", std::vector<float>{})}
                         , m_activation_beta{node.get_attribute_value<std::vector<float>>(
                               "activation_beta", std::vector<float>{})}
-                        , m_input_forget{static_cast<bool>(
-                              node.get_attribute_value<std::int64_t>("input_forget", 0))}
                     {
                         m_clip_threshold = std::abs(m_clip_threshold);
                         std::string direction = ngraph::to_lower(
@@ -200,7 +198,6 @@ namespace ngraph
                     std::vector<std::string> m_activations;
                     std::vector<float> m_activation_alpha;
                     std::vector<float> m_activation_beta;
-                    bool m_input_forget;
                 };
 
             } // anonymous namespace
@@ -220,15 +217,12 @@ namespace ngraph
                         input_map.at(LSTMInput::LSTM_INPUT_W),
                         input_map.at(LSTMInput::LSTM_INPUT_R),
                         input_map.at(LSTMInput::LSTM_INPUT_B),
-                        input_map.at(LSTMInput::LSTM_INPUT_P),
                         attributes.m_hidden_size,
                         attributes.m_direction,
-                        ngraph::op::LSTMWeightsFormat::IOFC,
                         attributes.m_activation_alpha,
                         attributes.m_activation_beta,
                         attributes.m_activations,
-                        attributes.m_clip_threshold,
-                        attributes.m_input_forget);
+                        attributes.m_clip_threshold);
 
                     const auto Y = lstmSequence->output(0);
                     const auto Y_h = lstmSequence->output(1);

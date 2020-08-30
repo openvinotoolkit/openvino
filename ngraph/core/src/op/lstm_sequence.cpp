@@ -35,11 +35,8 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
     visitor.on_attribute("activations_beta", m_activations_beta);
-    visitor.on_attribute("clip", m_clip_threshold);
+    visitor.on_attribute("clip", m_clip);
     visitor.on_attribute("direction", m_direction);
-
-    visitor.on_attribute("input_forget", m_input_forget);
-    visitor.on_attribute("weights_format", m_weights_format);
     return true;
 }
 OutputVector op::v0::LSTMSequence::decompose_op() const
@@ -69,26 +66,7 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    if (new_args.size() == 8)
-    {
-        return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
-                                                 new_args.at(1), // initial_hidden_state
-                                                 new_args.at(2), // initial_cell_state
-                                                 new_args.at(3), // sequence_lengths
-                                                 new_args.at(4), // W
-                                                 new_args.at(5), // R
-                                                 new_args.at(6), // B
-                                                 new_args.at(7), // P
-                                                 m_hidden_size,
-                                                 m_direction,
-                                                 m_weights_format,
-                                                 m_activations_alpha,
-                                                 m_activations_beta,
-                                                 m_activations,
-                                                 m_clip_threshold,
-                                                 m_input_forget);
-    }
-    else if (new_args.size() == 7)
+    if (new_args.size() == 7)
     {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
                                                  new_args.at(1), // initial_hidden_state
@@ -99,12 +77,10 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  new_args.at(6), // B
                                                  m_hidden_size,
                                                  m_direction,
-                                                 m_weights_format,
                                                  m_activations_alpha,
                                                  m_activations_beta,
                                                  m_activations,
-                                                 m_clip_threshold,
-                                                 m_input_forget);
+                                                 m_clip);
     }
     else
     {
@@ -197,14 +173,11 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
                                                                    W,
                                                                    R,
                                                                    B,
-                                                                   P,
                                                                    m_hidden_size,
-                                                                   m_weights_format,
                                                                    m_activations,
                                                                    m_activations_alpha,
                                                                    m_activations_beta,
-                                                                   m_clip_threshold,
-                                                                   m_input_forget);
+                                                                   m_clip);
 
         Output<Node> H = lstm_cell->output(0);
         Output<Node> C = lstm_cell->output(1);

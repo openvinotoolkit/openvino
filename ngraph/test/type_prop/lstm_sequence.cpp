@@ -112,14 +112,12 @@ TEST(type_prop, lstm_sequence_forward)
 
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(lstm_sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);
-    EXPECT_EQ(lstm_sequence->get_weights_format(), op::LSTMWeightsFormat::IFCO);
     EXPECT_TRUE(lstm_sequence->get_activations_alpha().empty());
     EXPECT_TRUE(lstm_sequence->get_activations_beta().empty());
     EXPECT_EQ(lstm_sequence->get_activations()[0], "sigmoid");
     EXPECT_EQ(lstm_sequence->get_activations()[1], "tanh");
     EXPECT_EQ(lstm_sequence->get_activations()[2], "tanh");
-    EXPECT_EQ(lstm_sequence->get_clip_threshold(), 0.f);
-    EXPECT_FALSE(lstm_sequence->get_input_forget());
+    EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));
@@ -150,7 +148,6 @@ TEST(type_prop, lstm_sequence_bidirectional)
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto weights_format = op::LSTMWeightsFormat::FICO;
     const auto lstm_direction = op::LSTMSequence::direction::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
     const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
@@ -165,20 +162,17 @@ TEST(type_prop, lstm_sequence_bidirectional)
                                                              B,
                                                              hidden_size,
                                                              lstm_direction,
-                                                             weights_format,
                                                              activations_alpha,
                                                              activations_beta,
                                                              activations);
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(lstm_sequence->get_direction(), op::LSTMSequence::direction::BIDIRECTIONAL);
-    EXPECT_EQ(lstm_sequence->get_weights_format(), op::LSTMWeightsFormat::FICO);
     EXPECT_EQ(lstm_sequence->get_activations_alpha(), activations_alpha);
     EXPECT_EQ(lstm_sequence->get_activations_beta(), activations_beta);
     EXPECT_EQ(lstm_sequence->get_activations()[0], "tanh");
     EXPECT_EQ(lstm_sequence->get_activations()[1], "sigmoid");
     EXPECT_EQ(lstm_sequence->get_activations()[2], "sigmoid");
-    EXPECT_EQ(lstm_sequence->get_clip_threshold(), 0.f);
-    EXPECT_FALSE(lstm_sequence->get_input_forget());
+    EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));

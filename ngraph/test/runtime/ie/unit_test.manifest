@@ -116,7 +116,7 @@ matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 IE_CPU.fused_clamp_int64
-IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+onnx_dyn_shapes_slice_10_default_axes
 onnx_dyn_shapes_ab_plus_c_inference
 onnx_dyn_shapes_dynamic_rank_input_inference
 onnx_dyn_shapes_model_conv_with_dynamic_batch
@@ -524,7 +524,7 @@ select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
-IE_CPU.fused_clamp_double
+fused_clamp_double
 
 # Incorrect precision bf16!
 convert_float32_bf16

@@ -83,15 +83,14 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
 namespace
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg1,
-                  const HostTensorPtr& arg2,
-                  const HostTensorPtr& out)
+    bool evaluate(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out)
     {
         const Shape& data_shape = arg1->get_shape();
         const Shape& axis_shape = arg2->get_shape();
         Shape out_shape(data_shape.size());
         auto axis_order = arg2->get_data_ptr<ET>();
-        for (size_t i = 0; i < axis_shape.size(); ++i) {
+        for (size_t i = 0; i < axis_shape[0]; ++i)
+        {
             out_shape[i] = data_shape[axis_order[i]];
         }
         out->set_shape(out_shape);
@@ -113,22 +112,22 @@ namespace
         switch (axis_type)
         {
             TYPE_CASE(i8)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(i16)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(i32)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(i64)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(u8)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(u16)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(u32)(arg1, arg2, out);
-                break;
+            break;
             TYPE_CASE(u64)(arg1, arg2, out);
-                break;
-            default: rc = false; break;
+            break;
+        default: rc = false; break;
         }
         return rc;
     }

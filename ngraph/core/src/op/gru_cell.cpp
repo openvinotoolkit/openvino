@@ -15,22 +15,15 @@
 //*****************************************************************************
 
 #include <cmath>
-#include <functional>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gru_cell.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/dot.hpp"
 #include "ngraph/op/gru_cell.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::v3::GRUCell::type_info;
 
@@ -245,69 +238,4 @@ shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_
     {
         throw ngraph_error("Incorrect number of new arguments");
     }
-}
-
-namespace
-{
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg1,
-                  const HostTensorPtr& arg2,
-                  const HostTensorPtr& arg3,
-                  const HostTensorPtr& arg4,
-                  const HostTensorPtr& arg5,
-                  const HostTensorPtr& out,
-                  const std::string& activation_f,
-                  const std::string& activation_g,
-                  float clip,
-                  bool linear_before_reset)
-    {
-        runtime::reference::gru_cell(arg1->get_data_ptr<ET>(),
-                                     arg1->get_shape(),
-                                     arg2->get_data_ptr<ET>(),
-                                     arg2->get_shape(),
-                                     arg3->get_data_ptr<ET>(),
-                                     arg3->get_shape(),
-                                     arg4->get_data_ptr<ET>(),
-                                     arg4->get_shape(),
-                                     arg5->get_data_ptr<ET>(),
-                                     arg5->get_shape(),
-                                     out->get_data_ptr<ET>(),
-                                     activation_f,
-                                     activation_g,
-                                     clip,
-                                     linear_before_reset);
-        return true;
-    }
-
-    bool evaluate_gru_cell(const HostTensorPtr& arg1,
-                           const HostTensorPtr& arg2,
-                           const HostTensorPtr& arg3,
-                           const HostTensorPtr& arg4,
-                           const HostTensorPtr& arg5,
-                           const HostTensorPtr& out,
-                           const std::string& activation_f,
-                           const std::string& activation_g,
-                           float clip,
-                           bool linear_before_reset)
-    {
-        element::Type_t axis_type = arg2->get_element_type();
-        bool rc = true;
-        switch (axis_type)
-        {
-            TYPE_CASE(f32)(arg1, arg2, arg3, arg4, arg5, out, activation_f, activation_g, clip, linear_before_reset);
-                break;
-                // todo: determinate necessary types
-            default: rc = false; break;
-        }
-        return rc;
-    }
-}
-
-bool op::GRUCell::evaluate(const HostTensorVector& output_values,
-                           const HostTensorVector& input_values) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::RNNCell::evaluate");
-    return evaluate_gru_cell(input_values[0], input_values[1], input_values[2],
-                             input_values[3], input_values[4], output_values[0], m_activations[0], m_activations[1],
-                             m_clip, m_linear_before_reset);
 }

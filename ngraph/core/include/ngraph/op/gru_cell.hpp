@@ -26,8 +26,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -153,8 +151,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
                 bool get_linear_before_reset() const { return m_linear_before_reset; }
             private:
                 /// brief Add and initialize bias input to all zeros.
@@ -182,5 +178,3 @@ namespace ngraph
         using v3::GRUCell;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

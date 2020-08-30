@@ -44,8 +44,6 @@ TEST(type_prop, lstm_cell)
     EXPECT_EQ(lstm_cell->get_activations()[0], "sigmoid");
     EXPECT_EQ(lstm_cell->get_activations()[1], "tanh");
     EXPECT_EQ(lstm_cell->get_activations()[2], "tanh");
-    EXPECT_EQ(lstm_cell->get_weights_format(), op::LSTMWeightsFormat::IFCO);
-    EXPECT_FALSE(lstm_cell->get_input_forget());
     EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
     EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
@@ -130,7 +128,7 @@ TEST(type_prop, lstm_cell_invalid_input)
     auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)
@@ -144,7 +142,7 @@ TEST(type_prop, lstm_cell_invalid_input)
     P = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)
@@ -321,7 +319,7 @@ TEST(type_prop, lstm_cell_invalid_input_rank0)
     auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)
@@ -335,7 +333,7 @@ TEST(type_prop, lstm_cell_invalid_input_rank0)
     P = make_shared<op::Parameter>(element::f32, PartialShape{});
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)
@@ -437,7 +435,7 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
     auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)
@@ -451,7 +449,7 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
     P = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     try
     {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size);
+        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     }
     catch (const NodeValidationFailure& error)

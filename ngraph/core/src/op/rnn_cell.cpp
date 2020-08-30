@@ -14,26 +14,17 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "itt.hpp"
+#include "ngraph/op/rnn_cell.hpp"
 #include <cmath>
-#include <functional>
-#include <ngraph/ops.hpp>
-#include <opsets/opset4.hpp>
-
-#include "ngraph/runtime/reference/rnn_cell.hpp"
+#include "itt.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
-#include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/dot.hpp"
-#include "ngraph/op/rnn_cell.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::RNNCell::type_info;
 
@@ -219,61 +210,4 @@ shared_ptr<Node> op::RNNCell::clone_with_new_inputs(const OutputVector& new_args
     {
         throw ngraph_error("Incorrect number of new arguments");
     }
-}
-
-namespace
-{
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg1,
-                  const HostTensorPtr& arg2,
-                  const HostTensorPtr& arg3,
-                  const HostTensorPtr& arg4,
-                  const HostTensorPtr& arg5,
-                  const HostTensorPtr& out,
-                  const std::string& activation_f,
-                  float clip)
-    {
-        runtime::reference::rnn_cell(arg1->get_data_ptr<ET>(),
-                                     arg1->get_shape(),
-                                     arg2->get_data_ptr<ET>(),
-                                     arg2->get_shape(),
-                                     arg3->get_data_ptr<ET>(),
-                                     arg3->get_shape(),
-                                     arg4->get_data_ptr<ET>(),
-                                     arg4->get_shape(),
-                                     arg5->get_data_ptr<ET>(),
-                                     arg5->get_shape(),
-                                     out->get_data_ptr<ET>(),
-                                     activation_f,
-                                     clip);
-        return true;
-    }
-
-    bool evaluate_rnn_cell(const HostTensorPtr& arg1,
-                            const HostTensorPtr& arg2,
-                            const HostTensorPtr& arg3,
-                            const HostTensorPtr& arg4,
-                            const HostTensorPtr& arg5,
-                            const HostTensorPtr& out,
-                            const std::string& activation_f,
-                            float clip)
-    {
-        element::Type_t axis_type = arg2->get_element_type();
-        bool rc = true;
-        switch (axis_type)
-        {
-            TYPE_CASE(f32)(arg1, arg2, arg3, arg4, arg5, out, activation_f, clip);
-                break;
-            default: rc = false; break;
-        }
-        return rc;
-    }
-}
-
-bool op::RNNCell::evaluate(const HostTensorVector& output_values,
-                                 const HostTensorVector& input_values) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::RNNCell::evaluate");
-    return evaluate_rnn_cell(input_values[0], input_values[1], input_values[2],
-            input_values[3], input_values[4], output_values[0], m_activations[0], m_clip);
 }

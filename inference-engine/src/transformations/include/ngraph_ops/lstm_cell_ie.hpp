@@ -41,13 +41,14 @@ public:
     const std::vector<float>& get_activations_alpha() { return m_activations_alpha; }
     const std::vector<float>& get_activations_beta() { return m_activations_beta; }
     float get_clip() {return m_clip;}
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     int64_t m_hidden_size{};
 
-    const std::vector<std::string> m_activations;
-    const std::vector<float> m_activations_alpha;
-    const std::vector<float>  m_activations_beta;
+    std::vector<std::string> m_activations;
+    std::vector<float> m_activations_alpha;
+    std::vector<float>  m_activations_beta;
     float m_clip;
 };
 
