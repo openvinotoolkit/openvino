@@ -87,7 +87,7 @@ op::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
-    op::util::RNNCellBase::visit_attributes(visitor);
+    return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::LSTMCell::validate_and_infer_types()
