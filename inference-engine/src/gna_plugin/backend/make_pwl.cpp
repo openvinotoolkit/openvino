@@ -8,6 +8,7 @@
 #include <runtime/pwl.h>
 #include <gna_slope_scale.h>
 #include "dnn_types.h"
+#include "backend/gna_types.h"
 #include "round_float_define.hpp"
 
 void make_gna_pwl(const DnnActivation  fun,
@@ -16,7 +17,7 @@ void make_gna_pwl(const DnnActivation  fun,
                   const double u_bound,
                   const double in_scale,
                   const double out_scale,
-                  std::vector<intel_pwl_segment_t> &gna_pwl) {
+                  std::vector<gna_pwl_segment_t> &gna_pwl) {
     pwl_gna_slope_scale_t s;
     uint32_t pwl_size = static_cast<int32_t>(pwl.size());
     gnalog() << "make_gna_pwl\n";

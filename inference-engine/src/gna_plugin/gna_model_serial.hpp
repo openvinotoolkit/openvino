@@ -8,7 +8,6 @@
 #include <vector>
 #include <utility>
 
-#include <gna-api.h>
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
 #include "gna_plugin_log.hpp"
