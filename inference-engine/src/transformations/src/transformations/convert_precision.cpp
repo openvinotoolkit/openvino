@@ -127,9 +127,10 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
                     break;
                 }
 
-                // If node type in map and convert can be fused into node we skip Convert creation
+                // Check that node type exists in map and we can fuse type into node
                 if (type_to_fuse.count(node->get_type_info()) &&
                     type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
+                    // We need to break if original node was replaced
                     break;
                 }
             }
@@ -160,7 +161,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         for (auto &node : f->get_ordered_ops()) {
             // Recursively run for TensorIterator body function
             if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                convert_function_precision(ti->get_body()->to_function());
+                convert_function_precision(ti->get_body());
             }
             convert_node_input_precision(node);
         }
@@ -261,7 +262,8 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
 
 bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     node->set_output_type(idx, to, node->output(idx).get_partial_shape());
-    return true;
+    // return false as we do not replace original node
+    return false;
 }
 
 bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {

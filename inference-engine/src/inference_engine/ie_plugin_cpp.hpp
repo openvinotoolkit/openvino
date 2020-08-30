@@ -102,7 +102,7 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string> &config) {
-        CALL_STATEMENT(return actual->ImportNetwork(networkModel, config));
+        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, config), actual));
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -111,7 +111,7 @@ public:
 
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) {
-        CALL_STATEMENT(return actual->LoadNetwork(network, config, context));
+        CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& params) {
@@ -125,7 +125,7 @@ public:
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
-        CALL_STATEMENT(return actual->ImportNetwork(networkModel, context, config));
+        CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(networkModel, context, config), actual));
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {

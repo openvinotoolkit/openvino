@@ -109,6 +109,12 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
         }
     }
 
+    const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
+    for (auto& fused_op : orgParams.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     return true;
 }
 
@@ -546,7 +552,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2}, params.engineInfo);
 
     const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
-    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
         params.output.Feature().v % 16 == 0 && kd.gws1 % 16 == 0) {
         kd.lws0 = 1;
         for (auto lws : optimal_lws_values) {
@@ -606,7 +614,8 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
-                                   false);
+                                   false,
+                                   GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

@@ -368,6 +368,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
+        passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
         passes->registerPass<InsertConcatAligningFilterPass>();
@@ -384,6 +385,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
+        passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
 
@@ -1131,16 +1133,6 @@ std::string GNAPlugin::GetName() const noexcept {
 
 void GNAPlugin::SetName(const std::string & pluginName) noexcept {
     _pluginName = pluginName;
-}
-
-InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::string &modelFileName) {
-    // no need to return anything dueto weird design of internal base classes
-    std::fstream inputStream(modelFileName, ios_base::in | ios_base::binary);
-    if (inputStream.fail()) {
-        THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelFileName;
-    }
-
-    return ImportNetwork(inputStream);
 }
 
 InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {

@@ -82,7 +82,7 @@ public:
             else if (math_func == "Sign") mathFunction = Math::Sign;
             else if (math_func == "Sin") mathFunction = Math::Sin;
             else if (math_func == "Sinh") mathFunction = Math::Sinh;
-            else if (math_func == "Softplus") mathFunction = Math::Softplus;
+            else if (math_func == "SoftPlus") mathFunction = Math::SoftPlus;
             else if (math_func == "Softsign") mathFunction = Math::Softsign;
             else if (math_func == "Tan") mathFunction = Math::Tan;
             else
@@ -212,7 +212,7 @@ public:
                 dst_data[i] = sinhf(src_data[i]);
             });
             break;
-        case Math::Softplus:
+        case Math::SoftPlus:
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = logf(expf(src_data[i]) + 1);
             });
@@ -260,7 +260,7 @@ private:
         Sign,
         Sin,
         Sinh,
-        Softplus,
+        SoftPlus,
         Softsign,
         Tan
     };
@@ -291,7 +291,7 @@ REG_FACTORY_FOR(MathImpl, Selu);
 REG_FACTORY_FOR(MathImpl, Sign);
 REG_FACTORY_FOR(MathImpl, Sin);
 REG_FACTORY_FOR(MathImpl, Sinh);
-REG_FACTORY_FOR(MathImpl, Softplus);
+REG_FACTORY_FOR(MathImpl, SoftPlus);
 REG_FACTORY_FOR(MathImpl, Softsign);
 REG_FACTORY_FOR(MathImpl, Tan);
 

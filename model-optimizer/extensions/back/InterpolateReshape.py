@@ -56,7 +56,7 @@ class InterpolateConcat(BackReplacementPattern):
 
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
     force_shape_inference = True
     id = 'reshape_interpolate_through_concat'
 
@@ -122,7 +122,7 @@ class InterpolateReshapeWA(BackReplacementPattern):
       shape=[1, 3, 60, 160]
     """
     enabled = False
-    graph_condition = [lambda graph: graph.graph['cmd_params'].keep_shape_ops]
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
     force_shape_inference = True
     id = 'reshape_interpolate_wa'
 

@@ -178,7 +178,8 @@ public:
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+                                          const std::map<std::string, std::string>& config,
                                           RemoteContext::Ptr context) = 0;
     /**
      * @brief Registers extension within plugin

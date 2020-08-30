@@ -541,6 +541,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<space_to_batch>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
@@ -696,7 +698,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
                                 !quantize_node.get_need_pre_shift();
 
                 if (can_skip) {
-                    fused_prims.erase(curr_itr);
+                    fp_itr = fused_prims.erase(curr_itr);
                 }
             }
         }
@@ -758,11 +760,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     for (auto& dep : eltw_node->get_dependencies()) {
         format fmt = dep->get_output_layout().format;
         data_types dep_dt = dep->get_output_layout().data_type;
-        if ((fmt != format::fs_bs_yx_bsv4_fsv32 || dep_dt != data_types::i8) &&
-            (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
+        if ((fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
             (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::u8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::i8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::f32) && (fmt != format::bfyx || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16) &&
             (fmt != format::bfyx || dep_dt != data_types::f16 || !if_already_depth_to_space_fused))

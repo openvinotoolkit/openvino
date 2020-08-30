@@ -108,18 +108,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        const int env_threads = parallel_get_env_threads();
-        const auto& numa_nodes = getAvailableNUMANodes();
-        const auto numa_nodes_num = numa_nodes.size();
-        auto streamExecutorConfig = cfg.streamExecutorConfig;
-        // use logical cores only for single-socket targets in throughput mode
-        const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-        const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
-        streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
-                                                ? std::max(1, threads/streamExecutorConfig._streams)
-                                                : threads;
-        streamExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        streamsExecutorConfig._name = "CPUStreamsExecutor";
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
         _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(

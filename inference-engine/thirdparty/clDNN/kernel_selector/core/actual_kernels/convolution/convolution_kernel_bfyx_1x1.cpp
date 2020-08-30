@@ -25,11 +25,9 @@ ParamsKey ConvolutionKernel_bfyx_1x1::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
-    k.EnableInputLayout(DataLayout::bf8_xy16);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::bf8_xy16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();

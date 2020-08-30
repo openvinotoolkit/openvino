@@ -102,6 +102,10 @@ DECL_PASS(SubstitutePRelu);
 DECL_PASS(SubstituteSoftSign);
 
 /**
+ * brief split ofver channels for Elementwise-layer to avoid GNA-HW limitation of 65 elements per eltwise
+ */
+DECL_PASS(EltwiseSplitOverChannels);
+/**
  * diagonal layer insertion required in cases where activation followed by split layers, or any other
  * topology changing layers
  */
@@ -159,6 +163,11 @@ DECL_PASS_BEFORE_COPY(RemoveConst);
  * @brief removed extra identity layer for multi-output
  */
 DECL_PASS(FuseMultipleIdentities);
+
+/**
+* @brief Brodcast data in Const layer
+*/
+DECL_PASS(BroadcastConst);
 
 struct PassManagerSettings {
     Policy policy;
