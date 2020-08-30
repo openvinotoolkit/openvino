@@ -59,7 +59,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-class MultiplyToGroupConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationTestValues> {
+class MultiplyToGroupConvolutionTransformation :
+    public LayerTransformation,
+    public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationTestValues> {
 public:
     void SetUp() override {
         const MultiplyToGroupConvolutionTransformationTestValues testValues = GetParam();
