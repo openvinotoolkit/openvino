@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -550,8 +550,8 @@ TEST(fc_permute_crop_gpu, basic_0)
 
     const auto& engine = get_test_engine();
 
-    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 5, 11264, 1, 1 } });
-    auto weights_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 512, 11264, 1, 1 } });
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::yxfb,{ 5, 11264, 1, 1 } });
+    auto weights_mem = memory::allocate(engine, { data_types::f32, format::yxio,{ 512, 11264, 1, 1 } });
     auto bias_mem = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 512, 1 } });
 
     topology topology(
