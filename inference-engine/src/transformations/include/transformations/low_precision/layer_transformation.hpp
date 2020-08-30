@@ -71,11 +71,15 @@ public:
         }
     }
 
-    static float getMaxValue(const element::Type precision) {
+    static float getMaxValue(const element::Type precision, const size_t levels) {
+        if ((levels != 255ul) && (levels != 256ul)) {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected levels " << levels;
+        }
+
         if (precision == element::i8) {
             return static_cast<float>(std::numeric_limits<signed char>::max());
         } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::max());
+            return static_cast<float>(std::numeric_limits<unsigned char>::max()) - (256 - levels);
         } else if (precision == element::f16) {
             return 1.0e15f;
         } else if (precision == element::f32) {

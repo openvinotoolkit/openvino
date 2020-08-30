@@ -151,9 +151,13 @@ public:
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues = true);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
 
 private:
+
+    static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
+
     // 1  - on weights
     // 0  - weightable layer was not found
     // -1 - on activations

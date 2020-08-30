@@ -54,7 +54,10 @@ std::vector<std::shared_ptr<Node>> NetworkHelper::consumers(std::shared_ptr<Node
 int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
     const std::vector<std::shared_ptr<Node>> children = consumers(layer);
     for (std::shared_ptr<Node> child : children) {
-        if ((is_type<opset1::Convolution>(child) || is_type<opset1::GroupConvolution>(child) || is_type<opset1::MatMul>(child)) &&
+        if ((is_type<opset1::Convolution>(child) ||
+            is_type<opset1::GroupConvolution>(child) ||
+            is_type<opset1::MatMul>(child) ||
+            (is_type<opset1::Multiply>(child) && (is_type<opset1::Constant>(layer->get_input_node_shared_ptr(0))))) &&
             (child->inputs().size() >= 2lu)) {
             const std::vector<std::shared_ptr<Node>> parents = getParentsRecursivelyExceptTypes(child, {}, 1);
             for (const std::shared_ptr<Node>& parent : parents) {
@@ -301,7 +304,18 @@ std::shared_ptr<opset1::Constant> NetworkHelper::roundWithTolerance(std::shared_
     return constant;
 }
 
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq) {
+    return foldFakeQuantize(fq, false, false);
+}
+
 std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues) {
+    return foldFakeQuantize(fq, roundValues, true);
+}
+
+std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
+    const std::shared_ptr<opset1::FakeQuantize>& fq,
+    const bool roundValuesArg,
+    const bool roundValuesWasSet) {
     if (is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0)) &&
         is_type<opset1::Constant>(fq->get_input_node_shared_ptr(1)) &&
         is_type<opset1::Constant>(fq->get_input_node_shared_ptr(2)) &&
@@ -317,6 +331,8 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     auto constant = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
 
     if (constant) {
+        const bool roundValues = roundValuesWasSet ? roundValuesArg : fq->output(0).get_element_type().is_integral();
+
         Shape constShape = fq->get_output_shape(0);
         if (constShape.empty() || constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
@@ -428,7 +444,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         newMin->output(0),
         newMax->output(0),
         fq->get_levels(),
-        fq->get_auto_broadcast()));
+        fq->get_auto_broadcast()), true);
     // TODO: for debuging only - remove later
     newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
 

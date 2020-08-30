@@ -256,7 +256,7 @@ DataPrecision LayerTransformation::getDataPrecision(
                 const DataPrecision dataPrecision(
                         resultPrecision,
                         DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                        DataPrecision::getMaxValue(resultPrecision),
+                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
                         foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -272,7 +272,7 @@ DataPrecision LayerTransformation::getDataPrecision(
                                         DataPrecision(
                                                 *precisions.begin(),
                                                 DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
-                                                DataPrecision::getMaxValue(*precisions.begin()),
+                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
                                                 true);
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(dataPrecision);
