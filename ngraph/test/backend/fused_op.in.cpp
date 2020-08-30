@@ -1800,8 +1800,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
                                                      vector<string>{"sigmoid", "tanh", "tanh"},
                                                      vector<float>{},
                                                      vector<float>{},
-                                                     clip_threshold,
-                                                     input_forget);
+                                                     clip_threshold);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
@@ -1904,8 +1903,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
                                                      activations,
                                                      activation_alpha,
                                                      activation_beta,
-                                                     clip_threshold,
-                                                     input_forget);
+                                                     clip_threshold);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
