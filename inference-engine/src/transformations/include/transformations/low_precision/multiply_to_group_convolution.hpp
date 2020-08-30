@@ -25,7 +25,6 @@ public:
     size_t getGroupSize() const;
 private:
     size_t groupSize;
-
 };
 
 } // namespace low_precision

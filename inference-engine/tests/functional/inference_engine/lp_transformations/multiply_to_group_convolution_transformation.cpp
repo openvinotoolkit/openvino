@@ -69,12 +69,9 @@ public:
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
-        VisualizeTree("C:\\work\\model.actual.dot").run_on_function(actualFunction);
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
-        VisualizeTree("C:\\work\\model.transformed.dot").run_on_function(actualFunction);
 
         if (testValues.transformed) {
             referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
@@ -89,8 +86,6 @@ public:
                 testValues.actual.precisionBeforeDequantization,
                 testValues.actual.dequantization);
         }
-        VisualizeTree("C:\\work\\model.reference.dot").run_on_function(referenceFunction);
-
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationTestValues> obj) {
