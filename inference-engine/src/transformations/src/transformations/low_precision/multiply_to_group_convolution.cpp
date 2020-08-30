@@ -62,20 +62,29 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         }
     }
 
-    const auto weightsNode = std::make_shared<opset1::Constant>(
-        weightsPrecision,
-        Shape{ group, outputChannelsCount / group, inputChannelsCount / group, 1, 1 },
-        weightsBuffer);
+    const Shape shape = multiply->output(0).get_shape();
+
+    Shape weightsShape = Shape(shape.size() + 1, 1ul);
+    weightsShape[0] = group;
+    weightsShape[1] = outputChannelsCount / group;
+    weightsShape[2] = inputChannelsCount / group;
+    const auto weightsNode = std::make_shared<opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
+
+    const size_t spatialDimsSize = shape.size() - 2;
+    ngraph::Strides strides(spatialDimsSize, 1ul);
+    ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
+    ngraph::Strides dilations(spatialDimsSize, 1ul);
+
     const auto convolution = std::make_shared<op::TypeRelaxed<opset1::GroupConvolution>>(
-        opset1::GroupConvolution(
-            ngraph::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
-            ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 0 },
-            ngraph::CoordinateDiff{ 0, 0 },
-            ngraph::Strides{ 1, 1 }),
         std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+        std::vector<element::Type>{ element::f32 },
+        ngraph::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
+        strides,
+        pads,
+        pads,
+        dilations);
+
     std::shared_ptr<Node> lastNode = convolution;
     if (dequantization.subtract != nullptr) {
         lastNode = std::make_shared<opset1::Add>(
@@ -94,6 +103,11 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 }
 
 bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+    const Shape shape = operation->output(0).get_shape();
+    if ((shape.size() != 4ul) && (shape.size() != 5ul)) {
+        return false;
+    }
+
     Shape constShape;
     int inputIndex;
     if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
