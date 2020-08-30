@@ -52,6 +52,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         return false;
     }
 
+    multiply = separateInStandaloneBranch(multiply);
     FakeQuantizeDequantization dequantization = get(multiply);
 
     const element::Type precisionBeforeDequantization = dequantization.convert == nullptr ?
@@ -64,8 +65,6 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
 
-    multiply = separateInStandaloneBranch(multiply);
-    dequantization = get(multiply);
     if (dequantization.empty()) {
         return false;
     }
@@ -149,6 +148,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     FakeQuantizeDequantization dequantization = get(op);
     if (dequantization.empty() ||
+        (dequantization.subtract == nullptr) ||
         (dequantization.multiply == nullptr) ||
         is_type<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
         return false;
