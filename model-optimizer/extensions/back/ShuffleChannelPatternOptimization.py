@@ -259,13 +259,12 @@ class DepthToSpaceFusion(BackReplacementPattern):
 
         channel_splitted_out_shape = channel_splitting_reshape.in_port(1).data.get_value()
         if not all([initial_shape[i] == channel_splitted_out_shape[j] for i, j in {0: 0, 2: 4, 3: 5}.items()]) or \
-                channel_splitted_out_shape[2] != channel_splitted_out_shape[3]:
+                channel_splitted_out_shape[1] != channel_splitted_out_shape[2]:
             return
-
         block_size = channel_splitted_out_shape[2]
-        expected_output_shape = [initial_shape[0], initial_shape[1] // block_size,
+        expected_output_shape = [initial_shape[0], initial_shape[1] // (block_size * block_size),
                                  initial_shape[2] * block_size, initial_shape[3] * block_size]
-        if np.array_equal(expected_output_shape, resulting_shape):
+        if not np.array_equal(expected_output_shape, resulting_shape):
             return
 
         name = channel_concating_reshape.soft_get('name', channel_concating_reshape.id)
