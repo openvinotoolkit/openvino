@@ -68,17 +68,20 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
             auto mul_h_1 = std::make_shared<opset4::Multiply>(r_t, Ht_Rh_Rbh);
             auto add_h_1 = std::make_shared<opset4::Add>(mul_h_1, biases_zrh->output(2));
             _h = std::make_shared<opset4::Add>(Xt_W_zrh->output(2), add_h_1);
+            ngraph::copy_runtime_info(gru_cell, {Ht_Rh_Rbh, mul_h_1, add_h_1, _h});
         } else {
             // _h = Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh
             auto rt_Ht = std::make_shared<opset4::Multiply>(r_t, H_t);
             auto mul_h_1 = std::make_shared<opset4::MatMul>(rt_Ht, R_zrh->output(2), false, true);
             auto add_h_1 = std::make_shared<opset4::Add>(mul_h_1, biases_zrh->output(2));
             _h = std::make_shared<opset4::Add>(Xt_W_zrh->output(2), add_h_1);
+            ngraph::copy_runtime_info(gru_cell, {rt_Ht, mul_h_1, add_h_1, _h});
         }
         // ht = g(_h)
         std::shared_ptr<Node> clamp_h = _h;
         if (clip > 0.f) {
             clamp_h = std::make_shared<opset4::Clamp>(_h, -clip, clip);
+            ngraph::copy_runtime_info(gru_cell, {clamp_h});
         }
         auto h_t = ngraph::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
@@ -92,7 +95,8 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto out_H = std::make_shared<opset4::Add>(mul_1, mul_2);
 
         out_H->set_friendly_name(gru_cell->get_friendly_name());
-        //ngraph::copy_runtime_info(gru_cell, {exp, add, log});
+        ngraph::copy_runtime_info(gru_cell, {Xt_W, Ht_R, axis_0, Xt_W_zrh, R_zrh, Ht_R_zrh, biases_zrh,
+                                             add_z_1, add_z_2, add_r_1, add_r_2, h_t, one, sub, mul_1, mul_2, out_H});
         ngraph::replace_node(gru_cell, out_H);
         return true;
     };

@@ -124,7 +124,6 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     // W - The weight tensor. [num_directions, 4*hidden_size, input_size]
     // R - The recurrence weight tensor. [num_directions, 4*hidden_size, hidden_size]
     // B - The bias tensor for input gate. [num_directions, 8*hidden_size]
-    // P - The weight tensor for peepholes. [num_directions, 3*hidde_size]
     // ------ ACRONYMS ------
     // i - input gate
     // o - output gate
@@ -144,7 +143,6 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     shared_ptr<Node> W = prepare_input(input_value(4), is_reverse);
     shared_ptr<Node> R = prepare_input(input_value(5), is_reverse);
     shared_ptr<Node> B = prepare_input(input_value(6), is_reverse);
-    shared_ptr<Node> P = prepare_input(input_value(7), is_reverse);
 
     if (is_reverse)
     {
@@ -231,7 +229,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     std::vector<ngraph::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
-    auto lstm_seq_peepholes_count = 3;
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
@@ -255,7 +252,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     const auto& w_pshape = get_input_partial_shape(4);
     const auto& r_pshape = get_input_partial_shape(5);
     const auto& b_pshape = get_input_partial_shape(6);
-    const auto& p_pshape = get_input_partial_shape(7);
 
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
@@ -267,14 +263,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           (ct_pshape.rank().get_length() == 3),
                           "LSTMSequence input tensor initial_cell_state shall have dimension 3D.");
-
-    // Validate rank and dimension for P input
-    NODE_VALIDATION_CHECK(
-        this, (p_pshape.rank().is_static()), "LSTMSequence input tensor P shall have static rank.");
-
-    NODE_VALIDATION_CHECK(this,
-                          (p_pshape.rank().get_length() == 2),
-                          "LSTMSequence input tensor P shall have dimension 2D.");
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(
@@ -315,7 +303,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
         "Parameter num_directions not matched in LSTMSequence.");
 
-    // Validate hidden_size value for W, R, B and P inputs
+    // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static())
     {
         if (w_pshape[0].is_static())
@@ -323,7 +311,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 w_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
-                "Parameter hidden_size mistmatched in P input. Current value is: ",
+                "Parameter hidden_size mistmatched in W input. Current value is: ",
                 w_pshape[1].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * lstm_seq_gates_count,
@@ -351,18 +339,6 @@ void op::v0::LSTMSequence::validate_and_infer_types()
                 b_pshape[1].get_length(),
                 ", expected: ",
                 merged_hidden_size.get_length() * lstm_seq_gates_count,
-                ".");
-        }
-
-        if (p_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                p_pshape[1].compatible(merged_hidden_size * lstm_seq_peepholes_count),
-                "Parameter hidden_size mistmatched in P input. Current value is: ",
-                p_pshape[1].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * lstm_seq_peepholes_count,
                 ".");
         }
     }

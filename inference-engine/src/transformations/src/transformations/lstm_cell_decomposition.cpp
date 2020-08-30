@@ -36,21 +36,21 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
 
         auto axis_node = ngraph::opset4::Constant::create(element::u64, Shape{}, {1});
         auto split = std::make_shared<opset4::Split>(XHB, axis_node, 4);
-        Output<Node> f_t = split->output(0);
-        Output<Node> i_t = split->output(1);
-        Output<Node> c_t = split->output(2);
-        Output<Node> o_t = split->output(3);
+        Output<Node> f = split->output(0);
+        Output<Node> i = split->output(1);
+        Output<Node> c = split->output(2);
+        Output<Node> o = split->output(3);
 
         auto clip = lstm_cell->get_clip();
         if (clip > 0.f) {
-            auto clamp_f = std::make_shared<opset4::Clamp>(f_t, -clip, clip);
-            auto clamp_i = std::make_shared<opset4::Clamp>(i_t, -clip, clip);
-            auto clamp_c = std::make_shared<opset4::Clamp>(c_t, -clip, clip);
-            auto clamp_o = std::make_shared<opset4::Clamp>(o_t, -clip, clip);
-            f_t = clamp_f;
-            i_t = clamp_i;
-            c_t = clamp_c;
-            o_t = clamp_o;
+            auto clamp_f = std::make_shared<opset4::Clamp>(f, -clip, clip);
+            auto clamp_i = std::make_shared<opset4::Clamp>(i, -clip, clip);
+            auto clamp_c = std::make_shared<opset4::Clamp>(c, -clip, clip);
+            auto clamp_o = std::make_shared<opset4::Clamp>(o, -clip, clip);
+            f = clamp_f;
+            i = clamp_i;
+            c = clamp_c;
+            o = clamp_o;
             ngraph::copy_runtime_info(lstm_cell, {clamp_f, clamp_i, clamp_c, clamp_o});
         }
 
@@ -58,10 +58,10 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
-        f_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], f_t);
-        i_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], i_t);
-        c_t = ngraph::op::util::activation(lstm_cell->get_activations()[1], c_t);
-        o_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], o_t);
+        auto f_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], f);
+        auto i_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], i);
+        auto c_t = ngraph::op::util::activation(lstm_cell->get_activations()[1], c);
+        auto o_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], o);
 
         // Ct = ft (.) Ct-1 + it (.) ct
         auto mul1 = std::make_shared<opset4::Multiply>(f_t, C_t);
@@ -74,7 +74,8 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
 
         out_H->set_friendly_name(lstm_cell->get_friendly_name()+".0");
         out_C->set_friendly_name(lstm_cell->get_friendly_name()+".1");
-        ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node});
+        ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
+                                              f_t, i_t, c_t, o_t});
         ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
         return true;
     };
