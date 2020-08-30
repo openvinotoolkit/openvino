@@ -18,6 +18,9 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
+// suppress FusedOp deprecation warnings
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -31,11 +34,8 @@ struct recurrent_sequence_parameters
     Dimension seq_length = 12;
     Dimension input_size = 8;
     Dimension hidden_size = 256;
-    ngraph::element::Type et;
+    ngraph::element::Type et = element::f32;
 };
-
-// suppress FusedOp deprecation warnings
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 //
 // Create and initialize default input test tensors.
@@ -383,8 +383,9 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension)
     }
     catch (const CheckFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("RNN Sequence input tensor dimension is not correct "));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("LSTMSequence input tensor initial_cell_state shall have dimension 3D"));
     }
 
     // Invalid rank0 for sequence_lengths tensor.
@@ -466,28 +467,51 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
 
-    // Validate invalid dynamic tensors for inputs from X to B. P input is validated separetely
+    // Validate invalid dynamic tensors for following inputs: X, initial_hidden_state, W, R and B
     for (auto i = 0; i < lstm_sequence->get_input_size() - 1; i++)
     {
-        auto dynamic_tensor =
-            make_shared<op::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-        try
+        // exclude initial_cell_state input from the loop
+        if (i != 2)
         {
-            lstm_sequence = lstm_seq_tensor_initialization(param);
+            auto dynamic_tensor =
+                make_shared<op::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+            try
+            {
+                lstm_sequence = lstm_seq_tensor_initialization(param);
 
-            lstm_sequence->set_argument(i, dynamic_tensor);
-            lstm_sequence->validate_and_infer_types();
-            FAIL() << "LSTMSequence node was created with invalid data.";
-        }
-        catch (const CheckFailure& error)
-        {
-            EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("RNN Sequence supports only static rank for input tensors."));
+                lstm_sequence->set_argument(i, dynamic_tensor);
+                lstm_sequence->validate_and_infer_types();
+                FAIL() << "LSTMSequence node was created with invalid data.";
+            }
+            catch (const CheckFailure& error)
+            {
+                EXPECT_HAS_SUBSTRING(
+                    error.what(),
+                    std::string("RNN Sequence supports only static rank for input tensors."));
+            }
         }
     }
 
-    // Invalid dynamic rank for P tensor.
+    // Invalid dynamic rank for initial_cell_state input tensor.
+    auto initial_cell_state =
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    try
+    {
+        lstm_sequence = lstm_seq_tensor_initialization(param);
+
+        lstm_sequence->set_argument(2, initial_cell_state);
+        lstm_sequence->validate_and_infer_types();
+
+        FAIL() << "LSTMSequence node was created with invalid data.";
+    }
+    catch (const CheckFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("LSTMSequence input tensor initial_cell_state shall have static rank."));
+    }
+
+    // Invalid dynamic rank for P input tensor.
     auto P = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     try
     {
@@ -504,5 +528,3 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
                              std::string("LSTMSequence input tensor P shall have static rank."));
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

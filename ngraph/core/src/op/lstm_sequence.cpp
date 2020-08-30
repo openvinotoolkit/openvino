@@ -235,16 +235,21 @@ void op::v0::LSTMSequence::validate_and_infer_types()
 {
     std::vector<ngraph::PartialShape> input_param{};
 
-    auto lstm_gates_count = 4;
+    auto lstm_seq_gates_count = 4;
+    auto lstm_seq_peepholes_count = 3;
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole information for further validation
+    // Copy all inputs without peephole and initial_cell_state information for further validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
     {
-        input_param.push_back(get_input_partial_shape(i));
+        // exclude initial_cell_state from the loop
+        if (i != 2)
+        {
+            input_param.push_back(get_input_partial_shape(i));
+        }
     }
 
     // Get input partial shape for all inputs
@@ -258,6 +263,15 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     const auto& p_pshape = get_input_partial_shape(7);
 
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+
+    // Validate rank and dimension for initial_cell_state input
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().is_static()),
+                          "LSTMSequence input tensor initial_cell_state shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().get_length() == 3),
+                          "LSTMSequence input tensor initial_cell_state shall have dimension 3D.");
 
     // Validate rank and dimension for P input
     NODE_VALIDATION_CHECK(
@@ -276,7 +290,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not match.");
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(
@@ -285,7 +300,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-        "Parameter batch_size not matched in LSTMSeqeunce.");
+        "Parameter batch_size not matched in LSTMSequence.");
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(
@@ -305,18 +320,18 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
         "Parameter num_directions not matched in LSTMSequence.");
 
-    // Validate hidden_size value for W and R inputs
+    // Validate hidden_size value for W, R, B and P inputs
     if (merged_hidden_size.is_static())
     {
         if (w_pshape[0].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
-                w_pshape[1].compatible(merged_hidden_size * lstm_gates_count),
-                "Parameter hidden_size mistmatched in w_pshape. Current value is: ",
+                w_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
                 w_pshape[1].get_length(),
                 ", expected: ",
-                merged_hidden_size.get_length() * lstm_gates_count,
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
                 ".");
         }
 
@@ -324,11 +339,11 @@ void op::v0::LSTMSequence::validate_and_infer_types()
         {
             NODE_VALIDATION_CHECK(
                 this,
-                r_pshape[1].compatible(merged_hidden_size * lstm_gates_count),
-                "Parameter hidden_size mistmatched in r_pshape. Current value is: ",
+                r_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
                 r_pshape[1].get_length(),
                 ", expected: ",
-                merged_hidden_size.get_length() * lstm_gates_count,
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
                 ".");
         }
 
@@ -336,11 +351,23 @@ void op::v0::LSTMSequence::validate_and_infer_types()
         {
             NODE_VALIDATION_CHECK(
                 this,
-                b_pshape[1].compatible(merged_hidden_size * lstm_gates_count),
-                "Parameter hidden_size mistmatched in b_pshape. Current value is: ",
+                b_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
                 b_pshape[1].get_length(),
                 ", expected: ",
-                merged_hidden_size.get_length() * lstm_gates_count,
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
+                ".");
+        }
+
+        if (p_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                p_pshape[1].compatible(merged_hidden_size * lstm_seq_peepholes_count),
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
+                p_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * lstm_seq_peepholes_count,
                 ".");
         }
     }

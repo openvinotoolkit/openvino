@@ -21,6 +21,16 @@ using namespace ngraph;
 
 void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input)
 {
+    enum
+    {
+        X,
+        initial_hidden_state,
+        sequence_lengths,
+        W,
+        R,
+        B
+    };
+
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)
     {
@@ -30,13 +40,13 @@ void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::Parti
 
     for (size_t i = 0; i < input.size(); i++)
     {
-        if (i == input.size() - 1)
+        if (i == B)
         {
             // verify B input dimension which is 2D
             NGRAPH_CHECK((input[i].rank().get_length() == 2),
                          "RNN Sequence B input tensor dimension is not correct.");
         }
-        else if (i == input.size() - 4)
+        else if (i == sequence_lengths)
         {
             // verify sequence_length input dimension which is 1D
             NGRAPH_CHECK((input[i].rank().get_length() == 1),
@@ -54,8 +64,8 @@ void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::Parti
     }
 
     // Compare input_size dimension for X and W inputs
-    const auto& x_pshape = input.at(0);
-    const auto& w_pshape = input.at(input.size() - 3);
+    const auto& x_pshape = input.at(X);
+    const auto& w_pshape = input.at(W);
 
     NGRAPH_CHECK((x_pshape[2].compatible(w_pshape[2])),
                  "RNN Sequence mismatched input_size dimension.");

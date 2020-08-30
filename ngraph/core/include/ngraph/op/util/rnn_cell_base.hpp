@@ -64,7 +64,8 @@ namespace ngraph
                 ///             Additionally input_size dimension is checked for X and W inputs.
                 ///
                 ///
-                /// \param[in]  input        Vector with input parameters
+                /// \param[in]  input           Vector with RNN-Cell op inputs in following order:
+                ///                             X, initial_hidden_state, W, R and B.
                 ///
                 void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
 
