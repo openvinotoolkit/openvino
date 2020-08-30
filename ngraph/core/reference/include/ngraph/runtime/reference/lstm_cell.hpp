@@ -93,7 +93,7 @@ namespace ngraph
                 // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
                 // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
                 // Ct = ft (.) Ct-1 + it (.) ct
-                // Ht = ot (.) h(Ct)ы
+                // Ht = ot (.) h(Ct)
                 // --------------------
                 Shape gate_shape{X_shape[0], H_shape[1]};
                 Shape all_gates_shape{X_shape[0], 4 * H_shape[1]};

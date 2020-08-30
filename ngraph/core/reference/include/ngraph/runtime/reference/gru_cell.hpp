@@ -104,16 +104,6 @@ namespace ngraph
                 reference::matmul(
                     X, W, Xt_W.data(), X_shape, W_shape, all_gates_shape, false, true);
 
-                // R^t
-                int64_t axis_order[] = {1, 0};
-                std::vector<T> R_t(ngraph::shape_size(R_shape));
-                reference::transpose(reinterpret_cast<const char*>(R),
-                                     R_shape,
-                                     sizeof(T),
-                                     axis_order,
-                                     {2},
-                                     reinterpret_cast<char*>(R_t.data()));
-
                 // Ht-1*(R^T)
                 std::vector<T> Ht_R(all_gates_shape_size);
                 reference::matmul(

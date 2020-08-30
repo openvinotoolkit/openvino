@@ -133,7 +133,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
+                util::ActivationFunction get_activation_f() const { return m_activation_f; }
             private:
                 ///
                 /// \brief      Creates the default bias input initialized with zeros.

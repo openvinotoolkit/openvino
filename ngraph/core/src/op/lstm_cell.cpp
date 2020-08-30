@@ -110,7 +110,7 @@ void op::LSTMCell::validate_and_infer_types()
                           (ct_pshape.rank().get_length() == 2),
                           "LSTMCell input tensor initial_cell_state shall have dimension 2D.");
 
-    validate_input_rank_dimension({x_pshape, ht_pshape, ct_pshape, w_pshape, r_pshape, b_pshape});
+    validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input element types and save result for output type
     NODE_VALIDATION_CHECK(
