@@ -6873,7 +6873,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
     build_options options;
     options.set_option(build_option::optimize_data(true));
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));  
+    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));
 
     network network(engine, topology, options);
     network.set_input_data("input", input);
@@ -6893,7 +6893,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
 
     EXPECT_EQ(output_layout.format, format::bfyx);
 
-    EXPECT_EQ(y_size, output_size.spatial[1]);    
+    EXPECT_EQ(y_size, output_size.spatial[1]);
     EXPECT_EQ(x_size, output_size.spatial[0]);
     EXPECT_EQ(f_size, output_size.feature[0]);
     EXPECT_EQ(b_size, output_size.batch[0]);
@@ -7945,8 +7945,6 @@ INSTANTIATE_TEST_CASE_P(
         .all_test_params(format::bfyx, false, true)
         .all_test_params(format::bfyx, true, false)
         .all_test_params(format::b_fs_yx_fsv4)
-        // byxf_af32 - depthwise broken for batch > 1
-        // .smoke_test_params(format::byxf_af32)
         .all_test_params(format::b_fs_yx_fsv32)
         .all_test_params(format::b_fs_yx_fsv32, true, true)
         .all_test_params(format::b_fs_yx_fsv32, false, true)

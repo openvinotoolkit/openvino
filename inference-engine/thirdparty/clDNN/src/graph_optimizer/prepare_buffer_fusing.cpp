@@ -127,10 +127,6 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
             return false;
 
-        // TODO: If we replace byxf_af32 with byxf we can probably do this optimization, but support in kernels is required
-        if (l.format == format::byxf_af32 && (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
-            return false;
-
         if (l.format == format::bs_fs_yx_bsv16_fsv16)
             return false;
 
