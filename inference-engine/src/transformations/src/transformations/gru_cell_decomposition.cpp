@@ -81,7 +81,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         std::shared_ptr<Node> clamp_h = _h;
         if (clip > 0.f) {
             clamp_h = std::make_shared<opset4::Clamp>(_h, -clip, clip);
-            ngraph::copy_runtime_info(gru_cell, {clamp_h});
+            ngraph::copy_runtime_info(gru_cell, clamp_h);
         }
         auto h_t = ngraph::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
