@@ -30,17 +30,18 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const AxisSet& reductionAxes,
-    const bool& normalizeVariance) {
-    float k = 50.f;
-
+    const FakeQuantizeOnData& fqOnData) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
-        input, precision, 256ul, { 1ul },
-        { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
-    const auto mvn = std::make_shared<ngraph::op::MVN>(fakeQuantizeOnActivations, reductionAxes, normalizeVariance);
+    const auto fakeQuantizeOnActivations = makeFakeQuantize(input, precision, fqOnData);
+    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(
+        fakeQuantizeOnActivations,
+        std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape),
+        true);
+    reshape->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(mvn) };
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(reshape)
+    };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 
@@ -54,16 +55,20 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getReferen
         inputPrecision,
         ngraph::Shape(inputShape));
 
+    const size_t spatialDimsSize = inputShape.size() - 2;
+    ngraph::Strides strides(spatialDimsSize, 1ul);
+    ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
+    ngraph::Strides dilations(spatialDimsSize, 1ul);
+
     const auto gconv = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
-        ngraph::opset1::GroupConvolution(
-            ngraph::op::TemporaryReplaceOutputType(input, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-            ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 0 },
-            ngraph::CoordinateDiff{ 0, 0 },
-            ngraph::Strides{ 1, 1 }),
         std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+        std::vector<element::Type>{ element::f32 },
+        ngraph::op::TemporaryReplaceOutputType(input, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        strides,
+        pads,
+        pads,
+        dilations);
     std::shared_ptr<ngraph::Node> lastNode = gconv;
     if (biases) {
         lastNode = std::make_shared<ngraph::opset1::Add>(gconv, biases);

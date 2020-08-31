@@ -22,8 +22,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const AxisSet& reductionAxes,
-        const bool& normalizeVariance);
+        const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::Shape& inputShape,
