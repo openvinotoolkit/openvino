@@ -35,7 +35,7 @@ namespace
         return ngraph::test::all_close_f(expected, result, tolerance_bits);
     }
 
-    testing::AssertionResult>::type
+    testing::AssertionResult
         compare_with_fp_tolerance(const std::shared_ptr<ngraph::op::Constant>& expected_results,
                                   const std::shared_ptr<ngraph::runtime::Tensor>& results,
                                   const float tolerance)
@@ -173,8 +173,8 @@ testing::AssertionResult
         switch (element_type)
         {
         case element::Type_t::f32:
-            comparison_result = compare_with_fp_tolerance(
-                expected_result_constant, result_tensor, tolerance);
+            comparison_result =
+                compare_with_fp_tolerance(expected_result_constant, result_tensor, tolerance);
             break;
         default:
             comparison_result = testing::AssertionFailure()
