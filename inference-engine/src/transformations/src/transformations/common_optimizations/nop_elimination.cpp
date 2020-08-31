@@ -192,7 +192,7 @@ static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
 static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     auto out_shape = node->get_output_partial_shape(0);
     // try to replace all squeeze/unsqueeze with reshape
-    if (out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
+    if (out_shape.rank().is_static() && out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
         return replace_squeeze_unsqueeze(node);
     }
 
@@ -258,7 +258,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
 static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     auto out_shape = node->get_output_partial_shape(0);
     // try to replace all unsqueeze/squeeze with reshape
-    if (out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
+    if (out_shape.rank().is_static() && out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
         return replace_squeeze_unsqueeze(node);
     }
 
@@ -334,8 +334,7 @@ static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-        dispatcher{{TI(op::v0::Pad), &eliminate_nop},
-                   {TI(opset3::Pad), &eliminate_nop},
+        dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(op::v0::Sum), &eliminate_sum},
                    {TI(opset3::Convert), &eliminate_convert},
                    {TI(op::v0::Slice), &eliminate_nop},

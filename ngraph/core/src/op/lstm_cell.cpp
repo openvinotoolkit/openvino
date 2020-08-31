@@ -135,7 +135,8 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::LSTMCell::pre_validate_and_infer_types()
 {
-    set_output_size(2);
+    set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+    set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
     if (is_dynamic())
     {
         return;

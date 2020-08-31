@@ -85,7 +85,9 @@ def protobuf2nx(graph, pb):
     for outp in pb.graph.output:
         name = str(outp.name)
         if graph.has_node(name):
-            raise Error('Name {} of output node already exists in graph.', name)
+            log.error('Name {} of output node already exists in graph. Ignoring this output. If the output is required,'
+                      ' please rename it.'.format(name), extra={'is_warning': True})
+            continue
         else:
             # add fake node on output
             graph.add_node(name, kind='op', op='FakeOutput', pb=outp)

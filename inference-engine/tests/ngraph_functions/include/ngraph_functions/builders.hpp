@@ -334,5 +334,8 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
 
+std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
+                                                     double epsilon);
+
 }  // namespace builder
 }  // namespace ngraph

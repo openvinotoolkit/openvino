@@ -213,6 +213,7 @@ sources = [
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
     "pyngraph/variant.cpp",
+    "pyngraph/rt_map.cpp",
 ]
 sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
 
