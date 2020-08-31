@@ -57,11 +57,13 @@ void ConcatMultiInput::SetUp() {
     std::vector<int64_t> end_mask = { 0, 0 };
     std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>> ssArray;
     ngraph::OutputVector concatInput;
-    
+
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
     for (int64_t i = 0; i < inputNum; ++i) {
-        auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 0, i * static_cast<int64_t>(inputShapes[1]) });
-        auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, (i + 1) * static_cast<int64_t>(inputShapes[1]) });
+        auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 },
+            std::vector<int64_t>{ 0, i * static_cast<int64_t>(inputShapes[1]) });
+        auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 },
+            std::vector<int64_t>{ 1, (i + 1) * static_cast<int64_t>(inputShapes[1]) });
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
         ssArray.push_back(ss);
         concatInput.push_back(ssArray[i]);
