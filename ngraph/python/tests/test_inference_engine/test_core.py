@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-from openvino.inference_engine import IECore
+from openvino.inference_engine import IECore, ie_api
 import numpy as np
 import ngraph as ng
 from openvino.inference_engine import IENetwork
@@ -30,7 +30,16 @@ def test_ie_core_class():
     capsule = Function.to_capsule(func)
     cnn_network = IENetwork(capsule)
 
-    ie = IECore()
-    ie.set_config({}, device_name='CPU')
-    # executable_network = ie.load_network(cnn_network, 'CPU')
+    ie_core = IECore()
+    ie_core.set_config({}, device_name='CPU')
+    executable_network = ie_core.load_network(cnn_network, 'CPU')
 
+    td = ie_api.TensorDesc("FP32", input_shape, "NCHW")
+
+    # from IPython import embed; embed()
+
+    request = executable_network.create_infer_request()
+    input_shape = np.random.rand(*input_shape)
+    request.infer({'parameter': input_shape})
+
+    result = request.output_blobs['relu'].buffer
