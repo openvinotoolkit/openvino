@@ -240,21 +240,6 @@ TEST(type_prop, avg_pool_3d_deduce_strided_padded_small)
     EXPECT_EQ(avg_pool->get_pads_end(), (Shape{6, 4, 5}));
 }
 
-// TEST(type_prop, avg_pool_ceil_mode)
-// {
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 10});
-//     const Shape kernel{2};
-//     const auto move_strides = Strides{4};
-//     const Shape pads_begin{4};
-//     const Shape pads_end{5};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(
-//         param, kernel, move_strides, pads_begin, pads_end, false, op::RoundingType::CEIL);
-
-//     // ceil((10 + 9 - 2)/4) + 1
-//     EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 6}));
-//     // TODO: type prop calculates {64, 3, 8}
-// }
-
 TEST(type_prop, avg_pool_invalid_0d_input)
 {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{});
@@ -385,7 +370,7 @@ TEST(type_prop, avg_pool_larger_than_pre_padding_but_fits_in_post_padding)
 {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
     const Shape kernel{9, 9};
-    Strides window_strides{1, 1};
+    const Strides window_strides{1, 1};
     const Shape pads_begin{0, 0};
     const Shape pads_end{1, 1};
     const auto avg_pool = make_shared<op::v1::AvgPool>(
@@ -426,208 +411,147 @@ TEST(type_prop, avg_pool_partial_rank_dynamic_ok)
     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
 }
 
-// TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch)
-// {
-//     PartialShape arg_shape{PartialShape::dynamic()};
-//     const Shape kernel{2, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch)
+{
+    const PartialShape arg_shape{PartialShape::dynamic()};
+    const Shape kernel{2, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-//     try
-//     {
-//         auto ap = make_shared<op::v1::AvgPool>(param,
-//                                                window_shape,
-//                                                window_movement_strides,
-//                                                pads_begin,
-//                                                pads_end,
-//                                                include_padding_in_average);
-//         FAIL() << "Mismatch of attribute ranks not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(
-//             error.what(),
-//             std::string("Ranks for data item shape (data batch has shape ?, so data item rank is
-//             "
-//                         "?), padding below (CoordinateDiff{0, 0, 0, 0}), padding above "
-//                         "(CoordinateDiff{0, 0, 0, 0}), window shape ({2,3,4,5}), and window "
-//                         "strides (Strides{1, 1, 1, 1, 1}) do not match"));
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
+                                              window_movement_strides,
+                                              pads_begin,
+                                              pads_end,
+                                              kernel,
+                                              false,
+                                              op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_ok)
-// {
-//     PartialShape arg_shape{PartialShape::dynamic(6)};
-//     const Shape kernel{2, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_ok)
+{
+    const PartialShape arg_shape{PartialShape::dynamic(6)};
+    const Shape kernel{2, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
-//     auto ap = make_shared<op::v1::AvgPool>(param,
-//                                            window_shape,
-//                                            window_movement_strides,
-//                                            pads_begin,
-//                                            pads_end,
-//                                            include_padding_in_average);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto ap = make_shared<op::v1::AvgPool>(param,
+                                           window_movement_strides,
+                                           pads_begin,
+                                           pads_end,
+                                           kernel,
+                                           false,
+                                           op::RoundingType::FLOOR);
 
-//     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-//     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
-// }
+    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok)
-// {
-//     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-//     const Shape kernel{2, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok)
+{
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
+    const Shape kernel{2, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
-//     auto ap = make_shared<op::v1::AvgPool>(param,
-//                                            window_shape,
-//                                            window_movement_strides,
-//                                            pads_begin,
-//                                            pads_end,
-//                                            include_padding_in_average);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto ap = make_shared<op::v1::AvgPool>(param,
+                                           window_movement_strides,
+                                           pads_begin,
+                                           pads_end,
+                                           kernel,
+                                           false,
+                                           op::RoundingType::FLOOR);
 
-//     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-//     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
-//         PartialShape{5, Dimension::dynamic(), 7, Dimension::dynamic(), 1, 3}));
-// }
+    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
+        PartialShape{5, Dimension::dynamic(), 7, Dimension::dynamic(), 1, 3}));
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch)
-// {
-//     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-//     const Shape kernel{2, 3, 4, 5, 6};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch)
+{
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
+    const Shape kernel{2, 3, 4, 5, 6};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-//     try
-//     {
-//         auto ap = make_shared<op::v1::AvgPool>(param,
-//                                                window_shape,
-//                                                window_movement_strides,
-//                                                pads_begin,
-//                                                pads_end,
-//                                                include_padding_in_average);
-//         FAIL() << "Mismatch of attribute ranks not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(
-//             error.what(),
-//             std::string("Ranks for data item shape (data batch has shape {5,?,8,?,4,7}, so data "
-//                         "item rank is 4), padding below (CoordinateDiff{0, 0, 0, 0}), padding "
-//                         "above (CoordinateDiff{0, 0, 0, 0}), window shape ({2,3,4,5,6}), and "
-//                         "window strides (Strides{1, 1, 1, 1}) do not match"));
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
+                                              window_movement_strides,
+                                              pads_begin,
+                                              pads_end,
+                                              kernel,
+                                              true,
+                                              op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_not_too_big)
-// {
-//     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-//     const Shape kernel{9, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_not_too_big)
+{
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
+    const Shape kernel{9, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-//     try
-//     {
-//         auto ap = make_shared<op::v1::AvgPool>(param,
-//                                                window_shape,
-//                                                window_movement_strides,
-//                                                pads_begin,
-//                                                pads_end,
-//                                                include_padding_in_average);
-//         FAIL() << "Oversized window not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              std::string("Window after dilation has dimension (dim: 9) larger
-//                              than "
-//                                          "the data shape after padding (dim: 8) at axis 0"));
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
+                                              window_movement_strides,
+                                              pads_begin,
+                                              pads_end,
+                                              kernel,
+                                              true,
+                                              op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_padded_window_not_too_big)
-// {
-//     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-//     const Shape kernel{9, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 0};
-//     const Shape pads_end{1, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_padded_window_not_too_big)
+{
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
+    const Shape kernel{9, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{1, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
-//     auto ap = make_shared<op::v1::AvgPool>(param,
-//                                            window_shape,
-//                                            window_movement_strides,
-//                                            pads_begin,
-//                                            pads_end,
-//                                            include_padding_in_average);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto ap = make_shared<op::v1::AvgPool>(param,
+                                           window_movement_strides,
+                                           pads_begin,
+                                           pads_end,
+                                           kernel,
+                                           true,
+                                           op::RoundingType::FLOOR);
 
-//     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-//     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
-//         PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1, 3}));
-// }
+    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
+        PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1, 3}));
+}
 
-// TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding)
-// {
-//     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-//     const Shape kernel{9, 3, 4, 3};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     const Shape pads_begin{0, 0, 0, 4};
-//     const Shape pads_end{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
+TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding)
+{
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
+    const Shape kernel{9, 3, 4, 3};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 4};
+    const Shape pads_end{0, 0, 0, 0};
 
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-//     try
-//     {
-//         auto ap = make_shared<op::v1::AvgPool>(param,
-//                                                window_shape,
-//                                                window_movement_strides,
-//                                                pads_begin,
-//                                                pads_end,
-//                                                include_padding_in_average);
-//         FAIL() << "Window in padding not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              std::string("Window after dilation has dimension (dim: 9) larger
-//                              than "
-//                                          "the data shape after padding (dim: 8) at axis 0"));
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
+                                              window_movement_strides,
+                                              pads_begin,
+                                              pads_end,
+                                              kernel,
+                                              true,
+                                              op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
