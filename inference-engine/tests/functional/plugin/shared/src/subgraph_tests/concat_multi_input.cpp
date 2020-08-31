@@ -68,9 +68,8 @@ void ConcatMultiInput::SetUp() {
     }
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(concatInput, 1);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(concat);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(relu2) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
 }
 
