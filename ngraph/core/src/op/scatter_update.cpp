@@ -53,20 +53,10 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
     const auto elem_size = data->get_element_type().size();
     out->set_shape(data->get_shape());
 
-    int64_t axis_val = 0;
-    switch (axis->get_element_type())
-    {
-    case element::Type_t::i8: axis_val = axis->get_data_ptr<element::Type_t::i8>()[0]; break;
-    case element::Type_t::i16: axis_val = axis->get_data_ptr<element::Type_t::i16>()[0]; break;
-    case element::Type_t::i32: axis_val = axis->get_data_ptr<element::Type_t::i32>()[0]; break;
-    case element::Type_t::i64: axis_val = axis->get_data_ptr<element::Type_t::i64>()[0]; break;
-    case element::Type_t::u8: axis_val = axis->get_data_ptr<element::Type_t::u8>()[0]; break;
-    case element::Type_t::u16: axis_val = axis->get_data_ptr<element::Type_t::u16>()[0]; break;
-    case element::Type_t::u32: axis_val = axis->get_data_ptr<element::Type_t::u32>()[0]; break;
-    case element::Type_t::u64: axis_val = axis->get_data_ptr<element::Type_t::u64>()[0]; break;
-    default: throw ngraph_error("axis element type is not integral data type");
-    }
+    NGRAPH_CHECK(axis->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
 
+    int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0)
     {
         axis_val =
