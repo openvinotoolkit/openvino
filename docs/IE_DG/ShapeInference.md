@@ -1,22 +1,45 @@
 Using Shape Inference {#openvino_docs_IE_DG_ShapeInference}
 ==========================================
 
-Inference Engine takes two kinds of model description as an input: [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) and [nGraph::Function](nGraph_Flow.md) objects. 
-Both should have fixed input shapes to be successfully loaded to the Inference Engine.
-To feed input data of a shape that is different from the model input shape, resize the model first.
+Inference Engine takes three kinds of model description as an input, which are all converted to `InferenceEngine::CNNNetwork` object:
+1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
+2. [ONNX model](../IE_DG/OnnxImporterTutorial.md) through `InferenceEngine::Core::ReadNetwork`
+3. [nGraph::Function](../IE_DG/nGraph_Flow.md) through constructor of `InferenceEngine::CNNNetwork`
 
-Model resizing on the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](nGraphTutorial.md) is the recommended approach. 
-OpenVINO™ provides the following experimental methods for runtime model reshaping:
+`InferenceEngine::CNNNetwork` keeps `ngraph::Function` object with the model description.
+It should have static (fixed) input shapes to be successfully loaded to the Inference Engine plugins.
+To fix input shapes of the model, call `CNNNetwork::reshape` method providing new input shapes before loading to the Inference Engine plugin.
+
+For explicit check what are the inputs of the model please run the following code right after `InferenceEngine::CNNNetwork` creation:
+```
+CNNNetwork network = ... // read IR / ONNX model or create from nGraph::Function explicitly
+const auto parameters = network.getFunction()->get_parameters();
+for (const auto & parameter : parameters) {
+    std::cout << "name: " << parameter->get_friendly_name() << " shape: " << parameter->get_partial_shape() << std::endl;
+    if (parameter->get_partial_shape().is_dynamic())
+        std::cout << "ATTENTION: input shape is not fully defined, please use CNNNetwork::reshape method to override it!" << std::endl;
+}
+```
+
+To feed input data of a shape that is different from the model input shape, reshape the model first.
+
+OpenVINO™ provides the following methods for runtime model reshaping:
 
 1.  Setting a new input shape with the `InferenceEngine::CNNNetwork::reshape` method
  
 	`InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers.
-    
-    Shape propagation for `InferenceEngine::CNNNetwork` objects created from `nGraph::Function` or IR of the version 10 works through the `nGraph` shape inference mechanism. 
-    `InferenceEngine::CNNNetwork` objects created from lower IR versions are considered deprecated and may be reshaped incorrectly or give unexpected results.
- 
-	To keep the v10 IR resizable by the `InferenceEngine::CNNNetwork::reshape` method, convert the model with the additional Model Optimizer key `--keep_shape_ops`.
- 
+
+    It is allowed to reshape model multiple times like in this application scheme:
+    <pre>
+    ReadNetwork -> reshape(input_1_shape) -> LoadNetwork -> infer(input_1)
+               \
+                -> reshape(input_2_shape) -> LoadNetwork -> infer(input_2)
+    </pre>
+    >NOTE:
+    >* Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which allows correct shape propagation during reshaping.
+    >* Older versions of IRs are not guaranteed to reshape successfully. Please re-generate them with the Model Optimizer of the latest version of OpenVINO.
+    >* It is required to reshape the network before loading to the plugin for ONNX models with dynamic input shape that were imported with the help of ONNX importer
+
 2.  Setting a new batch dimension value with the `InferenceEngine::CNNNetwork::setBatchSize` method
     
     The meaning of a model batch may vary depending on choices you made during the model designing. 
@@ -27,8 +50,12 @@ OpenVINO™ provides the following experimental methods for runtime model reshap
     Batch of input and output shapes for all layers is set to a new batch value without layer validation.
     It may cause both positive and negative side effects.
  
-    Due to the limitations described above, the current method is recommended for simple image processing models only.
+    Due to the limitations described above, the current method is not recommended to use.
+    If there is a need to set new batch size for the model, please use `CNNNetwork::reshape` method instead.
 
+Please do not use runtime reshaping methods together, especially do not call `CNNNetwork::reshape` method after `InferenceEngine::CNNNetwork::setBatchSize` usage.
+
+There are other approaches for model reshaping on the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../IE_DG/nGraphTutorial.md).
 
 Practically, some models are not ready to be resized. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
 
@@ -55,7 +82,7 @@ For example, Object Detection models from TensorFlow have resizing restrictions 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
 For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#tf_od_custom_input_shape">Tensorflow Object Detection API models resizing techniques</a>.
 
-## Usage of Reshape Method
+## Usage of Reshape Method <a name="usage_of_reshape_method"></a>
 
 The primary method of the feature is `InferenceEngine::CNNNetwork::reshape`.
 It gets new input shapes and propagates it from input to output for all intermediates layers of the given network.
