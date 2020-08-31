@@ -57,7 +57,7 @@ namespace
 
         for (std::size_t j = 0; j < num_of_elems; ++j)
         {
-            float diff = std::abs(result[j] - expected[i][j])
+            float diff = std::abs(result[j] - expected[j]);
             if (diff > tolerance)
             {
                 msg << expected[j] << " is not close to " << result[j] << " at index " << j << "\n";
