@@ -33,7 +33,7 @@ public:
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
     void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
-    void GetContext(RemoteContext::Ptr &pContext) const override;
+    RemoteContext::Ptr GetContext() const override;
 
 
     std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;

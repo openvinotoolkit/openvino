@@ -101,9 +101,9 @@ public:
 
     /**
      * @brief Gets the remote context.
-     * @param pContext  A reference to a context
+     * @return A reference to a context
      */
-    virtual void GetContext(RemoteContext::Ptr& pContext) const = 0;
+    virtual RemoteContext::Ptr GetContext() const = 0;
 };
 
 }  // namespace InferenceEngine

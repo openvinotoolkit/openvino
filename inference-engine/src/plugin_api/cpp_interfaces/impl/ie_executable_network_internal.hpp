@@ -110,8 +110,9 @@ public:
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void GetContext(RemoteContext::Ptr& /* pContext */) const override {
+    RemoteContext::Ptr GetContext() const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        return {};
     }
 
 protected:

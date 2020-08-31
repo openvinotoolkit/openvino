@@ -142,8 +142,8 @@ void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Param
     }
 }
 
-void CLDNNExecNetwork::GetContext(RemoteContext::Ptr &pContext) const {
-    pContext = m_context;
+RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+    return m_context;
 }
 
 };  // namespace CLDNNPlugin
