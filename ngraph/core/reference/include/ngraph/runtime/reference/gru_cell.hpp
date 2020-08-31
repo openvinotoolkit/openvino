@@ -122,7 +122,7 @@ namespace ngraph
                                                    reinterpret_cast<char*>(Ht_R_zrh[1].data()),
                                                    reinterpret_cast<char*>(Ht_R_zrh[2].data())};
 
-                int64_t num_b_splits = linear_before_reset ? 4 : 3;
+                size_t num_b_splits = linear_before_reset ? 4 : 3;
                 std::vector<std::vector<T>> biases_zrh(num_b_splits,
                                                        std::vector<T>(B_shape[0] / num_b_splits));
                 std::vector<char*> pointers_biases = {
