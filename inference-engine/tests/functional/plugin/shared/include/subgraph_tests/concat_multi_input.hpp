@@ -23,13 +23,13 @@ typedef std::tuple<
 
 namespace LayerTestsDefinitions {
 
-    class ConcatMultiInput : public testing::WithParamInterface<concatQuantizationParams>,
-        virtual public LayerTestsUtils::LayerTestsCommon {
-    public:
-        static std::string getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj);
+class ConcatMultiInput : public testing::WithParamInterface<concatQuantizationParams>,
+    virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj);
 
-    protected:
-        void SetUp() override;
-    };
+protected:
+    void SetUp() override;
+};
 
 }  // namespace LayerTestsDefinitions
