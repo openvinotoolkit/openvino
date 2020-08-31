@@ -52,7 +52,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         std::shared_ptr<Node> clamp_r = add_r_2;
         if (clip > 0.f) {
             clamp_z = std::make_shared<opset4::Clamp>(add_z_2, -clip, clip);
-            clamp_r = std::make_shared<opset4::Clamp>(add_z_2, -clip, clip);
+            clamp_r = std::make_shared<opset4::Clamp>(add_r_2, -clip, clip);
             ngraph::copy_runtime_info(gru_cell, {clamp_z, clamp_r});
         }
 

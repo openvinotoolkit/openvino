@@ -121,6 +121,8 @@ namespace ngraph
                 else if (activation_f == "tanh")
                 {
                     reference::tanh(i_t.data(), dst_data, i_t.size());
+                } else {
+                    throw ngraph_error("Activation function " + activation_f + " is not supported.");
                 }
             }
         }

@@ -177,6 +177,8 @@ namespace ngraph
                     else if (activation == "tanh")
                     {
                         reference::tanh(gate.data(), gate.data(), gate.size());
+                    } else {
+                        throw ngraph_error("Activation function " + activation + " is not supported.");
                     }
                 };
 
@@ -259,15 +261,16 @@ namespace ngraph
                                         gate_shape,
                                         H_shape,
                                         op::AutoBroadcastSpec::NUMPY);
+                    std::vector<T> matmul(gate_shape_size);
                     reference::matmul(h_t.data(),
                                       R_zrh[2].data(),
-                                      h_t.data(),
+                                      matmul.data(),
                                       gate_shape,
                                       bias_shape,
                                       gate_shape,
                                       false,
                                       true);
-                    reference::add(h_t.data(),
+                    reference::add(matmul.data(),
                                    biases_zrh[2].data(),
                                    h_t.data(),
                                    gate_shape,
@@ -281,7 +284,6 @@ namespace ngraph
                                    op::AutoBroadcastSpec::NUMPY);
                 }
                 clip_activation(h_t, activation_g);
-
                 // Ht = (1 - zt) (.) ht + zt (.) Ht-1
                 vector<T> mul1(gate_shape_size);
                 vector<T> mul2(gate_shape_size);
