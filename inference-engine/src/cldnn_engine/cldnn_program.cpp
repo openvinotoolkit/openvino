@@ -69,17 +69,18 @@
 
 #include <chrono>
 #include <cmath>
+#include <cfloat>
 #include <algorithm>
 #include "cldnn_program.h"
 #include "simple_math.h"
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <graph_tools.hpp>
-#include <ie_layers_internal.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
@@ -87,9 +88,8 @@
 #include <exec_graph_info.hpp>
 
 #include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/eltwise.hpp"
-#include "low_precision_transformations/concat_multi_channels.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
+#include "low_precision_transformations/gemm.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -240,7 +240,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
 
         auto transforms = LowPrecisionTransformer::getAllTransformations(params)
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
+                .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 
         auto it = details::CNNNetworkIterator(&network);
         auto end = details::CNNNetworkIterator();
@@ -575,10 +575,13 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "HSwish", HSwish },
+        { "Mish" , Mish },
         { "Gelu" , Gelu },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
+        { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
         { "Log" , Log },
@@ -768,9 +771,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
             }
         }
     } else {
-        for (size_t i = 0; i < bufSize; i++) {
-            buf[i] = data[i];
-        }
+        std::memcpy(&buf[0], &data[0], bufSize);
     }
     topology.add(cldnn::data(primID, mem));
     blobMemCache[data] = primID;
@@ -1149,6 +1150,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Atanh:
         case Floor:
         case Ceil:
+        case Ceiling:
         case Erf:
         case HardSigmoid:
         case Log:
@@ -1159,6 +1161,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case HSwish:
+        case Mish:
         case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
@@ -1314,9 +1318,18 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
     cldnn::primitive_id biasPrimID = scaleShiftLayer->name + m_biasesTag;
 
     const auto& wDims = scaleShiftLayer->_weights->getTensorDesc().getDims();
+    const auto& iDims = scaleShiftLayer->insData.front().lock()->getTensorDesc().getDims();
     cldnn::tensor weightTensor(1);
     switch (wDims.size()) {
-    case 1: weightTensor = (cldnn::tensor) cldnn::feature(TensorValue(wDims[0]));  // value per feature (or 1 global value)
+    case 1:
+        if (iDims.size() != 1) {
+            weightTensor = (cldnn::tensor) cldnn::feature(TensorValue(wDims[0]));  // value per feature (or 1 global value)
+        } else if (iDims.size() == 1 && wDims[0] == iDims[0]) {
+            // If input tensor is 1D, then we need to interpret weights as batch to have consistent shapes.
+            weightTensor = (cldnn::tensor) cldnn::batch(TensorValue(wDims[0]));
+        } else {
+            THROW_IE_EXCEPTION << "inconsistent input tensor and scale shapes in scaleshift layer " << layer->name;
+        }
         break;
     default: weightTensor = CldnnTensorFromIEDims(wDims);
         break;
@@ -1338,7 +1351,8 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
         scaleShiftLayerName,
         inputPrimitives[0],
         scalePrimID,
-        biasPrimID);
+        biasPrimID,
+        cldnn::optional_data_type{DataTypeFromPrecision(layer->outData[0]->getPrecision())});
 
     topology.add(scaleShiftPrim);
     AddPrimitiveToProfiler(scaleShiftLayerName, layer);
@@ -2767,6 +2781,10 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "hswish")  {
+            activationType = HSwish;
+        } else if (activation_type == "mish")  {
+            activationType = Mish;
         } else if (activation_type == "gelu")  {
             activationType = Gelu;
         } else if (activation_type == "relu")  {
@@ -2883,6 +2901,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::ceil;
         break;
     }
+    case Ceiling:
+    {
+        func = cldnn::activation_func::ceil;
+        break;
+    }
     case Erf:
     {
         func = cldnn::activation_func::erf;
@@ -2955,6 +2978,16 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case HSwish:
+    {
+        func = cldnn::activation_func::hswish;
+        break;
+    }
+    case Mish:
+    {
+        func = cldnn::activation_func::mish;
         break;
     }
     case Gelu:
@@ -3516,6 +3549,15 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
                     needsBatchInterpretation = true;
                     break;
                 }
+            } else if (LayerTypeFromStr(next->type) == Eltwise) {
+                bool all_inputs_1d = true;
+                for (auto& in : next->insData) {
+                    auto& in_shape = in.lock()->getTensorDesc().getDims();
+                    if (in_shape.size() != 1)
+                        all_inputs_1d = false;
+                }
+                needsBatchInterpretation = all_inputs_1d;
+                break;
             } else if (LayerTypeFromStr(next->type) == Gather) {
                 needsBatchInterpretation = true;
                 break;
@@ -3726,18 +3768,52 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
     int axis = gatherLayer->GetParamAsInt("axis", 0);
 
     // Be careful, TensorFlow consist negative axis interpretation bug. Here: -3 = b, -2 = f, -1 = y, but must be -3 = f, -2 = y, -1 = x
-    auto cldnnAxisFromIE = [](int axis) {
-        switch (axis) {
-            case 0: return cldnn::gather::gather_axis::along_b;
-            case 1: return cldnn::gather::gather_axis::along_f;
-            case 2: return cldnn::gather::gather_axis::along_y;
-            case 3: return cldnn::gather::gather_axis::along_x;
-            case -1: return cldnn::gather::gather_axis::along_y;
-            case -2: return cldnn::gather::gather_axis::along_f;
-            case -3: return cldnn::gather::gather_axis::along_b;
-            default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+    auto cldnnAxisFromIE = [](int axis, cldnn::format inputFormat) {
+        if (axis == 0) {
+            return cldnn::gather::gather_axis::along_b;
+        } else if (axis == 1) {
+            return cldnn::gather::gather_axis::along_f;
+        }
+
+        if (inputFormat == cldnn::format::bfyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_y;
+                case 3: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_f;
+                case -3: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else if (inputFormat == cldnn::format::bfzyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_z;
+                case 3: return cldnn::gather::gather_axis::along_y;
+                case 4: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_z;
+                case -3: return cldnn::gather::gather_axis::along_f;
+                case -4: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else if (inputFormat == cldnn::format::bfwzyx) {
+            switch (axis) {
+                case 2: return cldnn::gather::gather_axis::along_w;
+                case 3: return cldnn::gather::gather_axis::along_z;
+                case 4: return cldnn::gather::gather_axis::along_y;
+                case 5: return cldnn::gather::gather_axis::along_x;
+                case -1: return cldnn::gather::gather_axis::along_y;
+                case -2: return cldnn::gather::gather_axis::along_z;
+                case -3: return cldnn::gather::gather_axis::along_w;
+                case -4: return cldnn::gather::gather_axis::along_f;
+                case -5: return cldnn::gather::gather_axis::along_b;
+                default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
+            }
+        } else {
+            THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
         }
     };
+
+    auto gatherLayerName = layer_type_name_ID(layer);
 
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
@@ -3755,20 +3831,22 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
                 targetFormat,
                 cldnn::data_types::i32);
             topology.add(preprocessPrim);
-            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
-            reorderedInputs[portIndex] = (reorderPrimName);
+            AddInnerPrimitiveToProfiler(reorderPrimName, gatherLayerName, layer);
+            reorderedInputs[portIndex] = reorderPrimName;
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
         }
     }
 
-    std::string gatherLayerName = layer_type_name_ID(layer);
+    auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
+    auto outDims = layer->outData[0]->getTensorDesc().getDims();
+
     auto gatherPrim = cldnn::gather(
-            gatherLayerName,
-            reorderedInputs[0],
-            reorderedInputs[1],
-            cldnnAxisFromIE(axis),
-            CldnnTensorFromIEDims(gatherLayer->outData[0]->getTensorDesc().getDims()));
+        gatherLayerName,
+        reorderedInputs[0],
+        reorderedInputs[1],
+        cldnnAxisFromIE(axis, FormatFromLayout(inputLayout)),
+        CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
     AddPrimitiveToProfiler(gatherLayerName, layer);
@@ -3850,7 +3928,7 @@ void Program::CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEn
     auto spaceToDepth = as<InferenceEngine::GenericLayer*> (layer);
 
     size_t blockSize = static_cast<size_t>(spaceToDepth->GetParamAsUInt("block_size", 1));
-    std::string modeAsString = spaceToDepth->GetParamAsString("depth_mode", "blocks_first");
+    std::string modeAsString = spaceToDepth->GetParamAsString("mode", "blocks_first");
     cldnn::space_to_depth::depth_mode mode;
     mode = (modeAsString == "blocks_first") ? cldnn::space_to_depth::blocks_first : cldnn::space_to_depth::depth_first;
 
@@ -3870,14 +3948,52 @@ void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEn
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto batchToSpace = as<InferenceEngine::GenericLayer*> (layer);
+    auto rank = batchToSpace->input().get()->getTensorDesc().getDims().size();
+    auto format = FormatFromLayout(batchToSpace->input()->getLayout());
+
+    std::vector<cldnn::tensor> inputs;
+    inputs.reserve(3);
+
+    for (size_t i = 1; i < 4; ++i) {
+        auto defaultIndexInput = layer->insData[i].lock();
+        auto defaultIndexInputCreator = getCreatorLayer(defaultIndexInput).lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            std::vector<int32_t> sizes;
+            sizes.reserve(rank);
+            int32_t default_size = i == 1 ? 1 : 0;
+            switch (defaultIndexPrecision) {
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    sizes = std::vector<int32_t>(data, data + rank);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + rank);
+                    for (size_t j = 0; j < sizes_i64.size(); ++j)
+                        sizes.emplace_back(static_cast<int32_t>(sizes_i64[j]));
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << layer->name << "Incorrect BatchToSpace precision";
+                    break;
+                }
+            }
+            inputs.emplace_back(format, sizes, default_size);
+        }
+    }
+    auto out_size = CldnnTensorFromIEDims(batchToSpace->outData[0]->getTensorDesc().getDims());
 
     std::string batchToSpaceName = layer_type_name_ID(layer);
     auto batchToSpacePrim = cldnn::batch_to_space(
             batchToSpaceName,
-            inputPrimitives[0],
-            inputPrimitives[1],
-            inputPrimitives[2],
-            inputPrimitives[3]);
+            inputPrimitives[0], // input
+            inputs[0], // block_shape
+            inputs[1], // crops_begin
+            inputs[2], // crops_end
+            out_size);
 
     topology.add(batchToSpacePrim);
     AddPrimitiveToProfiler(batchToSpaceName, layer);
@@ -3929,10 +4045,10 @@ void Program::CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEn
     std::string spaceToBatchName = layer_type_name_ID(layer);
     auto spaceToBatchPrim = cldnn::space_to_batch(
             spaceToBatchName,
-            inputPrimitives[0], //input
-            inputs[0], //block_shape
-            inputs[1], //pads_begin
-            inputs[2], //pads_end
+            inputPrimitives[0], // input
+            inputs[0], // block_shape
+            inputs[1], // pads_begin
+            inputs[2], // pads_end
             out_size);
 
     topology.add(spaceToBatchPrim);
@@ -4608,6 +4724,11 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
                 case InferenceEngine::Precision::I32: {
                     auto data = constantBlob->buffer().as<int32_t*>();
                     axis = data[0];
+                    break;
+                }
+                case InferenceEngine::Precision::U32: {
+                    auto data = constantBlob->buffer().as<uint32_t*>();
+                    axis = static_cast<int32_t>(data[0]);
                     break;
                 }
                 case InferenceEngine::Precision::U64: {

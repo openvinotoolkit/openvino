@@ -5,15 +5,16 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <memory>
 #include <fstream>
+#include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
+#include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -21,6 +22,7 @@
 
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
+#include <common_test_utils/test_assertions.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -104,33 +106,22 @@ public:
         }
     }
     void setHeteroNetworkAffinity(const std::string& targetDevice) {
-        InferenceEngine::InputsDataMap networkInputs = actualNetwork.getInputsInfo();
-
-        CNNLayerPtr layer;
-        for (auto input : networkInputs) {
-            InputInfo::Ptr q = input.second;
-            DataPtr p = q->getInputData();
-            layer = getInputTo(p).begin()->second;
-        }
-
-        std::map<std::string, std::string> deviceMapping = {
-                {"Convololution_4", targetDevice},
-                {"Convololution_7", CommonTestUtils::DEVICE_CPU},
+        const std::map<std::string, std::string> deviceMapping = {
+                {"Split_2",         targetDevice},
+                {"Convolution_4",   targetDevice},
+                {"Convolution_7",   CommonTestUtils::DEVICE_CPU},
                 {"Relu_5",          CommonTestUtils::DEVICE_CPU},
                 {"Relu_8",          targetDevice},
                 {"Concat_9",        CommonTestUtils::DEVICE_CPU}
         };
 
-        CNNNetDFS(layer, [&](const CNNLayerPtr &layer) {
-            IE_SUPPRESS_DEPRECATED_START
-            auto it = deviceMapping.find(layer->name);
+        for (const auto & op : actualNetwork.getFunction()->get_ops()) {
+            auto it = deviceMapping.find(op->get_friendly_name());
             if (it != deviceMapping.end()) {
-                layer->affinity = it->second;
-            } else {
-                layer->affinity = CommonTestUtils::DEVICE_CPU;
+                std::string affinity = it->second;
+                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
             }
-            IE_SUPPRESS_DEPRECATED_END
-        });
+        }
     }
 };
 
@@ -272,12 +263,6 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-// TODO: Issue: 31197 Remove this code
-#if defined(_WIN32) || defined(_WIN64)
-    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
-        GTEST_SKIP();
-    }
-#endif
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(pluginXML, content);
@@ -291,14 +276,14 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             Core ie;
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.RegisterPlugins(wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #if defined __linux__  && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
@@ -545,6 +530,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
 //
 // QueryNetwork
 //
+
 TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
@@ -554,7 +540,13 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
 TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_NO_THROW(ie.QueryNetwork(actualNetwork, deviceName));
+
+    try {
+        ie.QueryNetwork(actualNetwork, deviceName);
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    }
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
@@ -1136,7 +1128,12 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_NO_THROW(ie.QueryNetwork(simpleNetwork, deviceName + ".0"));
+        try {
+            ie.QueryNetwork(simpleNetwork, deviceName + ".0");
+        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            std::string message = ex.what();
+            ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        }
     } else {
         GTEST_SKIP();
     }
@@ -1319,16 +1316,15 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrow_v7) {
             }
         }
 
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         QueryNetworkResult result;
         std::string targetFallback(std::string(CommonTestUtils::DEVICE_MULTI) + "," + CommonTestUtils::DEVICE_CPU);
-        ASSERT_NO_THROW(result = ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {
+        ASSERT_NO_THROW(result = ie.QueryNetwork(InferenceEngine::CNNNetwork{convertedActualNetwork}, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
 
         for (auto &&layer : result.supportedLayersMap) {
-//            IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
-//            IE_SUPPRESS_DEPRECATED_END
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }
     } else {
         GTEST_SKIP();
@@ -1350,14 +1346,13 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
         }
 
         QueryNetworkResult result;
-        ASSERT_NO_THROW(result = ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI, {
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
+        ASSERT_NO_THROW(result = ie.QueryNetwork(InferenceEngine::CNNNetwork{convertedActualNetwork}, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
 
         for (auto &&layer : result.supportedLayersMap) {
-            IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
-            IE_SUPPRESS_DEPRECATED_END
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }
     } else {
         GTEST_SKIP();
@@ -1381,7 +1376,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }
@@ -1418,7 +1413,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }

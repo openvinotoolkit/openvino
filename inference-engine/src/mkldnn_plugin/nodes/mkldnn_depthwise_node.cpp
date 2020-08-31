@@ -4,12 +4,12 @@
 
 #include "mkldnn_depthwise_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

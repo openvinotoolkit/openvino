@@ -17,6 +17,9 @@ namespace op {
 
 class TRANSFORMATIONS_API LSTMCellIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"LSTMCellIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     LSTMCellIE(const Output<Node> &X,
                 const Output<Node> &H_t,
                 const Output<Node> &C_t,
@@ -28,12 +31,9 @@ public:
                 const std::vector<float>& activations_beta,
                 float clip);
 
-    static constexpr NodeTypeInfo type_info{"LSTMCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
-
     LSTMCellIE() = delete;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
     std::size_t get_hidden_size() { return m_hidden_size; }

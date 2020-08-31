@@ -21,6 +21,7 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_34323
 
 
 @pytest.mark.parametrize(
@@ -96,7 +97,7 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
 
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
-    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor),],
+    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor)],
 )
 def test_binary_logical_op(ng_api_helper, numpy_function):
     runtime = get_runtime()
@@ -118,7 +119,7 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
 
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
-    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor),],
+    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor)],
 )
 def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
     runtime = get_runtime()
@@ -201,6 +202,7 @@ def test_binary_operators_with_scalar(operator, numpy_function):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_multiply():
     A = np.arange(48).reshape((8, 1, 6, 1))
     B = np.arange(35).reshape((7, 1, 5))

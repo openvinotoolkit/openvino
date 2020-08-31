@@ -4,6 +4,7 @@
 //
 
 #include "hetero/query_network.hpp"
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/variant.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -27,9 +28,7 @@ TEST_P(QueryNetworkTest, queryNetworkResultContainAllAndOnlyInputLayers) {
     ASSERT_NE(nullptr, cnnNetwork.getFunction());
     std::set<std::string> expectedLayers;
     for (auto&& node : function->get_ops()) {
-        if (!node->is_parameter() && !node->is_constant() && !node->is_output()) {
-            expectedLayers.insert(node->get_friendly_name());
-        }
+        expectedLayers.insert(node->get_friendly_name());
     }
     std::set<std::string> actualLayers;
     for (auto&& res : queryNetworkResult.supportedLayersMap) {

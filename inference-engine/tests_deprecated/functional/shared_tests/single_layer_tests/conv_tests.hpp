@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
@@ -493,8 +493,7 @@ protected:
     }
 
     void updatePaddings(const CNNNetwork &network, conv_test_params& p) {
-        auto & inetwork = static_cast<const ICNNNetwork &>(network);
-        details::CNNNetworkIterator i(&inetwork), end;
+        details::CNNNetworkIterator i(network), end;
         auto found = std::find_if(i, end, [](const CNNLayer::Ptr& layer) {
             return layer->type == "Convolution";
         });

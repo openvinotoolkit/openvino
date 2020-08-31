@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <description_buffer.hpp>
 #include <ie_layer_validators.hpp>
@@ -14,8 +14,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "details/caseless.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -37,9 +35,6 @@ public:
     void validate(CNNLayer* layer, const std::vector<Blob::CPtr>& inBlobs,
                   const std::map<std::string, std::string>& params, const std::map<std::string, Blob::Ptr>& blobs) {
         _validator->parseParams(layer);
-        _validator->checkParams(layer);
-        _validator->checkShapes(layer, inShapes);
-        _validator->checkCorrespondence(layer, blobs, inShapes);
     }
 
     virtual void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,

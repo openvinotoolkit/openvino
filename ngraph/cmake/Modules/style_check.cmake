@@ -27,7 +27,8 @@ macro(STYLE_CHECK_FILE PATH)
 endmacro()
 
 set(DIRECTORIES_OF_INTEREST
-    src
+    frontend
+    core
     doc
     test
     python/pyngraph

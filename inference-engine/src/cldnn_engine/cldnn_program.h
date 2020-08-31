@@ -13,7 +13,7 @@
 #include <algorithm>
 
 #include <cpp/ie_cnn_network.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
 
@@ -191,6 +191,7 @@ public:
         TopK,
         Floor,
         Ceil,
+        Ceiling,
         Erf,
         HardSigmoid,
         Log,
@@ -201,6 +202,8 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        HSwish,
+        Mish,
         Gelu,
         Sin,
         Sinh,

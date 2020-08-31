@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
-#include "details/caseless.hpp"
-#include "ie_layers.h"
+#include <legacy/cnn_network_impl.hpp>
+#include "caseless.hpp"
+#include <legacy/ie_layers.h>
 #include "parsers.h"
 
 namespace InferenceEngine {
@@ -71,7 +71,7 @@ public:
     }
 };
 
-class INFERENCE_ENGINE_API_CLASS(FormatParser): public IFormatParser {
+class FormatParser: public IFormatParser {
 public:
     explicit FormatParser(size_t version);
 

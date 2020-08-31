@@ -515,19 +515,6 @@ def test_convert_like():
     assert node.get_output_element_type(0) == Type.i8
 
 
-def test_reverse():
-    parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
-    parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)
-    expected_shape = [3, 10, 100, 200]
-
-    node = ng.reverse(parameter_data, parameter_axis, "index")
-
-    assert node.get_type_name() == "Reverse"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
-    assert node.get_output_element_type(0) == Type.f32
-
-
 def test_bucketize():
     data = ng.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
     buckets = ng.parameter([5], name="buckets", dtype=np.int64)
@@ -763,25 +750,25 @@ def test_detection_output(int_dtype, fp_dtype):
 )
 def test_proposal(int_dtype, fp_dtype):
     attributes = {
-        "attrs.base_size": int_dtype(1),
-        "attrs.pre_nms_topn": int_dtype(20),
-        "attrs.post_nms_topn": int_dtype(64),
-        "attrs.nms_thresh": fp_dtype(0.34),
-        "attrs.feat_stride": int_dtype(16),
-        "attrs.min_size": int_dtype(32),
-        "attrs.ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
-        "attrs.scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
+        "base_size": int_dtype(1),
+        "pre_nms_topn": int_dtype(20),
+        "post_nms_topn": int_dtype(64),
+        "nms_thresh": fp_dtype(0.34),
+        "feat_stride": int_dtype(16),
+        "min_size": int_dtype(32),
+        "ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
     }
     batch_size = 7
 
     class_probs = ng.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
-    class_logits = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "class_logits")
+    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
     image_shape = ng.parameter([3], fp_dtype, "image_shape")
-    node = ng.proposal(class_probs, class_logits, image_shape, attributes)
+    node = ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
     assert node.get_type_name() == "Proposal"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["attrs.post_nms_topn"], 5]
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
 
 
 def test_tensor_iterator():
@@ -813,7 +800,7 @@ def test_tensor_iterator():
     zero = ng.constant(0, dtype=np.int32)
     one = ng.constant(1, dtype=np.int32)
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
-    iter_cnt = ng.ops.range(zero, np.int32(16), np.int32(1))
+    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])

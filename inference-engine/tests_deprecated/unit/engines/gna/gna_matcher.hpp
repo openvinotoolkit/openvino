@@ -15,7 +15,7 @@
 #include <random>
 
 #include <gtest/gtest.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <ngraph/function.hpp>
 #include <ie_precision.hpp>
 #include <ie_icnn_network.hpp>
@@ -484,7 +484,7 @@ class GNADumpXNNMatcher : public GNATestConfigurability<GNADumpXNNMatcher> {
  protected:
 
     bool match_in_dctor = true;
-    void load(GNAPluginNS::GNAPlugin & plugin);
+    void load(std::shared_ptr<GNAPluginNS::GNAPlugin> & plugin);
     void match();
 };
 

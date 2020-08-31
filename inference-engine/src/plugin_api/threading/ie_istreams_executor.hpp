@@ -10,11 +10,11 @@
 #pragma once
 
 #include <memory>
-#include "threading/ie_itask_executor.hpp"
-#include "ie_api.h"
-#include "ie_parameter.hpp"
 #include <vector>
 #include <string>
+
+#include "ie_parameter.hpp"
+#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -67,6 +67,14 @@ public:
         * @return configuration value wrapped into Parameter
         */
         Parameter GetConfig(const std::string& key);
+
+        /**
+        * @brief Create appropriate multithreaded configuration
+        *        filing unconfigured values from initial configuration using hardware properties
+        * @param initial Inital configuration
+        * @return configured values
+        */
+        static Config MakeDefaultMultiThreaded(const Config& initial);
 
         std::string        _name;  //!< Used by `ITT` to name executor threads
         int                _streams                 = 1;  //!< Number of streams.

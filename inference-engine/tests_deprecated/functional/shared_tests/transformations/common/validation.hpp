@@ -10,8 +10,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "details/ie_cnn_network_tools.h"
-#include <details/caseless.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <caseless.hpp>
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/layer_transformation.hpp"
 

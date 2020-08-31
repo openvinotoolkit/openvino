@@ -26,17 +26,32 @@ bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
         return false;
     }
 
+    const batch_to_space_params& params = static_cast<const batch_to_space_params&>(p);
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    if (params.inputs[0].Dimentions() > 6)
+        return false;
+
     return true;
 }
 
 CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params, const optional_params&) const {
+    const auto& out = params.output;
+
     CommonDispatchData runInfo;
+    std::vector<size_t> global;
+    std::vector<size_t> local;
 
-    std::vector<size_t> global = { params.output.Batch().v,
-                                   params.output.Feature().v,
-                                   params.output.W().v * params.output.Z().v * params.output.Y().v * params.output.X().v };
-
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
+        global = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
+        local = {1, 16, 1};
+    } else {
+        global = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
+        local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    }
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
@@ -52,36 +67,28 @@ CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_param
 JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    auto makeJitConstForParam = [](JitConstants& jit, const std::string name, const std::vector<int32_t> vec, const size_t default_value) {
-        jit.AddConstant(MakeJitConstant(name + "_SIZES", vec));
-        jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
-        jit.AddConstant(MakeJitConstant(name + "_FEATURE", vec[1]));
+    auto makeJitConstForParam = [](JitConstants& jit, const std::string name, const DimTensor<uint32_t>& args, const size_t default_value) {
+        jit.AddConstant(MakeJitConstant(name + "_SIZES", args));
+        jit.AddConstant(MakeJitConstant(name + "_BATCH", args.b));
+        jit.AddConstant(MakeJitConstant(name + "_FEATURE", args.f));
+        jit.AddConstant(MakeJitConstant(name + "_Y", args.y));
+        jit.AddConstant(MakeJitConstant(name + "_X", args.x));
 
-        switch(vec.size()) {
-            case 4: //BFYX
-                jit.AddConstant(MakeJitConstant(name + "_W", default_value));
-                jit.AddConstant(MakeJitConstant(name + "_Z", default_value));
-                jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
-                jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
-            break;
-            case 5: //BFZYX
-                jit.AddConstant(MakeJitConstant(name + "_W", default_value));
-                jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
-                jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
-                jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
-            break;
-            case 6: //BFWZYX
-                jit.AddConstant(MakeJitConstant(name + "_W", vec[2]));
-                jit.AddConstant(MakeJitConstant(name + "_Z", vec[3]));
-                jit.AddConstant(MakeJitConstant(name + "_Y", vec[4]));
-                jit.AddConstant(MakeJitConstant(name + "_X", vec[5]));
-            break;
+        if (args.w != 0) {
+            jit.AddConstant(MakeJitConstant(name + "_W", args.w));
+            jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
+        } else if(args.z != 0) {
+            jit.AddConstant(MakeJitConstant(name + "_W", default_value));
+            jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
+        } else {
+            jit.AddConstant(MakeJitConstant(name + "_W", default_value));
+            jit.AddConstant(MakeJitConstant(name + "_Z", default_value));
         }
     };
 
-    makeJitConstForParam(jit, "BLOCK_SHAPE", params.bts_params[0], 1);
-    makeJitConstForParam(jit, "CROPS_BEGIN", params.bts_params[1], 0);
-    makeJitConstForParam(jit, "CROPS_END", params.bts_params[2], 0);
+    makeJitConstForParam(jit, "BLOCK_SHAPE", params.block_shape, 1);
+    makeJitConstForParam(jit, "CROPS_BEGIN", params.crops_begin, 0);
+    makeJitConstForParam(jit, "CROPS_END", params.crops_end, 0);
 
     return jit;
 }
@@ -101,7 +108,8 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = estimatedTime;
 

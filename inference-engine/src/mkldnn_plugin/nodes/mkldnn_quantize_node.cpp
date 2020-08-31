@@ -4,15 +4,17 @@
 
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
-#include "details/caseless.hpp"
+#include <cmath>
+
+// Quantization ranges validation is switched off by default in order to avoid regressions on user side
+// #define VALIDATE_QUANTIZATION_RANGES
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -221,6 +223,13 @@ void MKLDNNQuantizeNode::init() {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                                   << "inputLow = " << il << ", inputHigh = " << ih;
+            }
+#endif
+
             inputScale[i] = (levels - 1) / (ih - il);
             inputShift[i] = -il * (levels - 1) / (ih - il);
         }
@@ -228,6 +237,13 @@ void MKLDNNQuantizeNode::init() {
         for (int i = 0; i < outputScale.size(); i++) {
             float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
             float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                                   << "outputLow = " << ol << ", outputHigh = " << oh;
+            }
+#endif
 
             outputScale[i] = (oh - ol) / (levels - 1);
 

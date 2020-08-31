@@ -14,17 +14,18 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertProposalToProposalIE;
+class TRANSFORMATIONS_API ConvertProposalToLegacyMatcher;
+class TRANSFORMATIONS_API ConvertProposal4ToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertProposalToProposalIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertProposal4ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertProposalToProposalIE() : GraphRewrite() {
-        convert_proposal();
-    }
+    ConvertProposal4ToLegacyMatcher();
+};
 
-private:
-    void convert_proposal();
+class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
+public:
+    ConvertProposalToLegacyMatcher();
 };

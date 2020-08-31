@@ -70,9 +70,9 @@ TEST_P(myriadLayersPermuteTests_smoke, Permute) {
     auto order =        std::get<1>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     if (input_tensor.size()) {
         gen_dims(output_tensor, input_tensor.size(), input_tensor[order[3]],
                                                      input_tensor[order[2]], 

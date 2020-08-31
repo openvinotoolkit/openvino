@@ -4,13 +4,11 @@
 
 #include "template_function_transformation.hpp"
 
-#include <ngraph/opsets/opset3.hpp>
-
 using namespace ngraph;
 
 // ! [function_pass:template_transformation_cpp]
 // template_function_transformation.cpp
-bool MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // Example transformation code
     std::vector<std::shared_ptr<Node> > nodes;
 

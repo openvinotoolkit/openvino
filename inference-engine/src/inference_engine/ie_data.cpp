@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 
 #include <map>
 #include <memory>
@@ -13,8 +13,35 @@
 
 using namespace InferenceEngine;
 
+
 Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
-    return CreateBlobFromData(data);
+    // TODO Here some decision should be made about the layout.
+    // For now we just pass the layout and use conversion to NCHW for ANY.
+    InferenceEngine::Layout targetLayout = data->getLayout();
+    if (data->getLayout() == InferenceEngine::Layout::ANY) {
+        targetLayout = InferenceEngine::Layout::NCHW;
+    }
+
+    InferenceEngine::TensorDesc desc(data->getPrecision(), data->getTensorDesc().getDims(), targetLayout);
+
+    switch (data->getPrecision()) {
+    case InferenceEngine::Precision::FP32:
+        return std::make_shared<InferenceEngine::TBlob<float>>(desc);
+    case InferenceEngine::Precision::Q78:
+    case InferenceEngine::Precision::I16:
+    case InferenceEngine::Precision::FP16:
+        return std::make_shared<InferenceEngine::TBlob<short>>(desc);
+    case InferenceEngine::Precision::U8:
+        return std::make_shared<InferenceEngine::TBlob<uint8_t>>(desc);
+    case InferenceEngine::Precision::I8:
+        return std::make_shared<InferenceEngine::TBlob<int8_t>>(desc);
+    case InferenceEngine::Precision::I32:
+        return std::make_shared<InferenceEngine::TBlob<int32_t>>(desc);
+    case InferenceEngine::Precision::BF16:
+        return std::make_shared<InferenceEngine::TBlob<short>>(desc);
+    default:
+        THROW_IE_EXCEPTION << "precision is no set";
+    }
 }
 
 struct Data::Impl {
@@ -110,40 +137,13 @@ const SizeVector& Data::getDims() const {
 // compatibility
 
 CNNLayerWeakPtr& InferenceEngine::getCreatorLayer(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        return ndata->getCreatorLayer();
-    } else {
-        return data->_impl->creatorLayer;
-    }
+    return data->_impl->creatorLayer;
 }
 
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        return ndata->getInputTo();
-    } else {
-        return data->_impl->inputTo;
-    }
+    return data->_impl->inputTo;
 }
 
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
-    if (auto ndata = dynamic_cast<details::NGraphData *>(data)) {
-        return ndata->getInputTo();
-    } else {
-        return data->_impl->inputTo;
-    }
-}
-
-CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {
-    if (_impl->creatorLayer.lock() == nullptr && network != nullptr) {
-        network->convertToCNNNetworkImpl();
-    }
-    return _impl->creatorLayer;
-}
-
-std::map<std::string, CNNLayerPtr>& details::NGraphData::getInputTo() {
-    if (_impl->inputTo.empty() && network != nullptr) {
-        network->convertToCNNNetworkImpl();
-    }
-
-    return _impl->inputTo;
+    return data->_impl->inputTo;
 }

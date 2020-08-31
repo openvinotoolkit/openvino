@@ -50,6 +50,6 @@ private:
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
     MKLDNNGraph*                        graph = nullptr;
     std::map<std::string, void*>        externalPtr;
-    InferenceEngine::ProfilingTask      profilingTask;
+    openvino::itt::handle_t             profilingTask;
 };
 }  // namespace MKLDNNPlugin

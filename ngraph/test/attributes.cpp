@@ -28,6 +28,8 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 TEST(attributes, value_map)
 {
     ValueMap value_map;
@@ -1105,11 +1107,11 @@ TEST(attributes, lstm_sequence_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::LSTMSequence>();
 
-    const auto batch_size = 4;
-    const auto num_directions = 2;
-    const auto seq_length = 8;
-    const auto input_size = 16;
-    const auto hidden_size = 64;
+    const size_t batch_size = 4;
+    const size_t num_directions = 2;
+    const size_t seq_length = 8;
+    const size_t input_size = 16;
+    const size_t hidden_size = 64;
 
     const auto X =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});

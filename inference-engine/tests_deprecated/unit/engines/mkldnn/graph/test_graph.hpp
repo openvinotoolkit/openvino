@@ -18,6 +18,7 @@
 #endif
 
 #include <gtest/gtest.h>
+#include <legacy/cnn_network_impl.hpp>
 #include <nodes/list.hpp>
 #include <mkldnn_graph.h>
 #include <mkldnn_memory.h>
@@ -25,6 +26,7 @@
 #include <mkldnn_graph_optimizer.h>
 #include <nodes/mkldnn_input_node.h>
 #include <functional>
+#include <cmath>
 
 #define GARB_VAL(x) ((x + 100.0f + sin(x)) / (x + 150.f))
 
@@ -212,12 +214,24 @@ public:
 
     void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
             MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
-        MKLDNNGraph::CreateGraph(network, extMgr, cache);
+        if (network.getFunction()) {
+            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
+                extMgr, cache);            
+        } else {
+            MKLDNNGraph::CreateGraph(network, extMgr, cache);
+        }
     }
 
     void CreateGraph(InferenceEngine::ICNNNetwork &network) {
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
-        MKLDNNGraph::CreateGraph(network, extensionManager, cache);
+        if (network.getFunction()) {
+            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
+                extensionManager, cache);            
+        } else {
+            MKLDNNGraph::CreateGraph(network, extensionManager, cache);
+        }
     }
 
     void checkDynBatch(InferenceEngine::BlobMap& srcs, InferenceEngine::BlobMap& outputBlobs, int batch, size_t MB,

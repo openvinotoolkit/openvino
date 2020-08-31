@@ -14,7 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/node.hpp"
@@ -22,9 +24,16 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
+#include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
+#include "pyngraph/rt_map.hpp"
+#include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
+
+using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_pyngraph_Node(py::module m)
 {
@@ -65,7 +74,7 @@ void regclass_pyngraph_Node(py::module m)
             {
                 shapes_ss << ", ";
             }
-            shapes_ss << py::cast(self.get_output_shape(i)).attr("__str__")().cast<std::string>();
+            shapes_ss << self.get_output_partial_shape(i);
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
@@ -76,10 +85,28 @@ void regclass_pyngraph_Node(py::module m)
     node.def("get_output_shape", &ngraph::Node::get_output_shape);
     node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
     node.def("get_type_name", &ngraph::Node::get_type_name);
-    node.def("get_unique_name", &ngraph::Node::get_name);
+    node.def("get_name", &ngraph::Node::get_name);
+    node.def("get_friendly_name", &ngraph::Node::get_friendly_name);
+    node.def("set_friendly_name", &ngraph::Node::set_friendly_name);
+    node.def("input", (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
+    node.def("inputs",
+             (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs);
+    node.def("output",
+             (ngraph::Output<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::output);
+    node.def("outputs",
+             (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
+                 ngraph::Node::outputs);
+    node.def("get_rt_info",
+             (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
+             py::return_value_policy::reference_internal);
 
-    node.def_property("name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
+    node.def_property_readonly("name", &ngraph::Node::get_name);
+    node.def_property_readonly("rt_info",
+                               (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
+                               py::return_value_policy::reference_internal);
+    node.def_property(
+        "friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 
     node.def("_get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
         util::DictAttributeSerializer dict_serializer(self);

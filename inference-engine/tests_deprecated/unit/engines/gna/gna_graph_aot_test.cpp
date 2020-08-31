@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
@@ -41,14 +41,11 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
         .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-
+TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_imported_verify_structure) {
 // Disabled because of random fails: Issue-23611
-TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
-
-#if GNA_LIB_VER == 2
+#if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
-
     auto & nnet_type = storage<intel_nnet_type_t>();
 
     // saving pointer to nnet - todo probably deep copy required
@@ -104,11 +101,24 @@ TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
+TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
 
-#if GNA_LIB_VER == 2
+#if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
+
+    const std::string X = registerFileForRemove("unit_tests.bin");
+
+    // running export to a file
+    export_network(maxpoolAfterRelu())
+            .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).as().gna().model().to(X);
+
+    // running infer using imported model instead of IR
+    assert_that().onInferModel().importedFrom(X)
+            .inNotCompactMode().gna().propagate_forward().called().once();
+}
+
+TEST_F(GNAAOTTests, DISABLED_CanConvertFromAOTtoSueModel) {
 
     auto & nnet_type = storage<intel_nnet_type_t>();
 

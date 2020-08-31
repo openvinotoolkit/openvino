@@ -23,11 +23,9 @@ typedef std::tuple<
 > squeezeParams;
 
 class SqueezeUnsqueezeLayerTest : public testing::WithParamInterface<squeezeParams>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<squeezeParams> obj);
-    static std::vector<ShapeAxesTuple> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<int>>>& inputShapes);
-
 protected:
     void SetUp() override;
 };

@@ -15,15 +15,15 @@
 #include <limits>
 #include <iomanip>
 
-#include <graph_transformer.h>
+#include <legacy/graph_transformer.h>
 #include <gna-api.h>
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
-#include <net_pass.h>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
+#include <legacy/net_pass.h>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -564,6 +564,56 @@ void ReversePermutationsPass::run() {
     }
 }
 
+void RemovePermutationsNHWCToNCHWPass::run() {
+    std::list<CNNLayerPtr> permutationsToRemove;
+
+    for (auto& l : *pLayers) {
+        if (!LayerInfo(l).isConvolution()) {
+            continue;
+        }
+
+        if (getInputTo(l->outData.front()).empty()) {
+            continue;
+        }
+        auto next = getInputTo(l->outData.front()).begin()->second;
+        auto prev = CNNNetPrevLayer(l);
+
+        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+            continue;
+        }
+
+        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutationsToRemove.push_back(prev);
+        }
+        permutationsToRemove.push_back(next);
+    }
+
+    for (auto&& toRemove : permutationsToRemove) {
+        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+
+        auto next = getInputTo(toRemove->outData.front()).begin()->second;
+        if (LayerInfo(next).isConvolution()) {
+            next->input()->setDims(toRemove->input()->getDims());
+            next->input()->setLayout(Layout::NHWC);
+            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
+            if (convolution._kernel_y != 1) {
+                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+            }
+            auto in_channels = next->input()->getDims()[3];
+            convolution._kernel_y = in_channels;
+        }
+        auto prev = CNNNetPrevLayer(toRemove);
+        if (LayerInfo(prev).isConvolution()) {
+            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
+            prev->outData[0]->setLayout(Layout::NHWC);
+        }
+        CNNNetworkRemoveLayer(toRemove, false);
+    }
+}
+
 void InsertIdentityLayerPass::run() {
     int numOfIdentityLayers = 0;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
@@ -576,6 +626,20 @@ void InsertIdentityLayerPass::run() {
 
             CNNLayerPtr activationLayer =
                 std::make_shared<GenericLayer>(LayerParams({activationName, "identity", Precision::FP32}));
+
+            // TODO: why index is 0 ? - better use direct indexing in getCandidateFunction
+            // detecting ins-data-idx
+            size_t insDataIdx = std::numeric_limits<size_t>::max();
+            for (size_t i = 0; i != l->insData.size(); i++) {
+                if (getCreatorLayer(l->insData[i].lock()).lock() == prev) {
+                    insDataIdx = i;
+                    break;
+                }
+            }
+            if (insDataIdx == std::numeric_limits<size_t>::max()) {
+                THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << l->name;
+            }
+
             auto inputData = l->insData[0].lock();
 
             auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
@@ -936,10 +1000,126 @@ void InsertSplitAligningFilterPass::run() {
                 CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
             }
 
-
             // search data that starts from unaligned location
             currentOffset += outputSize * bytesPerSplitElement;
             splitOutIndex++;
+        }
+    }
+}
+
+static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
+    auto weightsElements = blob->size();
+    auto weightsBytes = blob->byteSize();
+    if (weightsElements == 0) {
+        THROW_IE_EXCEPTION << "Blob size is 0";
+    }
+
+    auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), { TileTo });
+    tiledBlob->allocate();
+
+    for (int i = 0; i < (TileTo / weightsElements); ++i) {
+        ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
+    }
+    return tiledBlob;
+}
+
+void EltwiseSplitOverChannelsPass::run() {
+    if (getPassManager()->getPolicy().GNAAffineDiagonalPolicy.limitedTo == Policy::GNAAffineDiagonal::UNLIMIT) {
+        return;
+    }
+
+    for (auto & l : *pLayers) {
+        if (!LayerInfo(l).isEltwise()) {
+            continue;
+        }
+        auto masterEltwise = std::dynamic_pointer_cast<EltwiseLayer>(l);
+        if (l->outData.size() != 1) {
+            THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
+        }
+        auto oData = l->outData.front();
+        auto totalElementsForOutput = details::product(oData->getDims().begin(), oData->getDims().end());
+        auto maxAffineElements = getPassManager()->getPolicy().GNAAffineDiagonalPolicy.limitedTo;
+        if (totalElementsForOutput <= maxAffineElements) {
+            continue;
+        }
+
+        // TODO: for now lets put split of 2 elements as restrictions
+        auto totalSplits = 1 + totalElementsForOutput / maxAffineElements;
+        if (totalSplits > 2) {
+            THROW_GNA_LAYER_EXCEPTION(l) << "split layer over output channels on more than 2 layers unsupported";
+        }
+
+        pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
+
+        std::vector<CNNLayerPtr> splitLayers(2);
+        for (size_t kThEltwiseInput = 0; kThEltwiseInput != 2; kThEltwiseInput++) {
+            // create split layer
+            auto splitRaw = std::make_shared<SplitLayer>(
+                    LayerParams{l->name + "/split/" + std::to_string(kThEltwiseInput), "Split", Precision::FP32});
+            auto split = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(splitRaw) : splitRaw;
+            splitLayers[kThEltwiseInput] = split;
+
+            split->insData.push_back(l->insData[kThEltwiseInput]);
+            auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
+            // need to split this desc
+            if (inputDesc.getLayout() != Layout::NC) {
+                THROW_GNA_LAYER_EXCEPTION(l)
+                << "cannot split over channel: input " << std::to_string(kThEltwiseInput)
+                << " layout need to be NC";
+            }
+
+            // create split layer outputs
+            for (size_t i = 0;; i++) {
+                auto elements_num = std::min(totalElementsForOutput - i * maxAffineElements,
+                        static_cast<size_t>(maxAffineElements));
+
+                SizeVector newDims = {1, elements_num};
+                auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
+                auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
+                getCreatorLayer(data) = split;
+                split->outData.push_back(data);
+
+                if (elements_num != maxAffineElements) {
+                    break;
+                }
+            }
+            // replacing connection X->eltwise to X->split
+            auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
+            oData.second->second = split;
+        }
+
+        // create concatlayer
+        auto concatRaw = std::make_shared<ConcatLayer>(
+                LayerParams{l->name + "/concat", "Concat", Precision::FP32});
+        auto concat = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(concatRaw) : concatRaw;
+
+        concat->outData.push_back(masterEltwise->outData.front());
+        getCreatorLayer(masterEltwise->outData.front()) = concat;
+
+
+        // create new eltwise layers - here 2 hardcode
+        for (size_t k = 0; k != totalSplits; k++) {
+            auto eltwiseRaw = std::make_shared<EltwiseLayer>(
+                    LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
+            eltwiseRaw->_operation = masterEltwise->_operation;
+            eltwiseRaw->coeff = masterEltwise->coeff;
+            auto eltwise = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(eltwiseRaw) : eltwiseRaw;
+
+
+            eltwise->insData.push_back(splitLayers[0]->outData[k]);
+            eltwise->insData.push_back(splitLayers[1]->outData[k]);
+            getInputTo(splitLayers[0]->outData[k])[eltwise->name] = eltwise;
+            getInputTo(splitLayers[1]->outData[k])[eltwise->name] = eltwise;
+
+            SizeVector newDims = splitLayers[1]->outData[k]->getDims();
+            auto newDesc = TensorDesc(splitLayers[1]->outData[k]->getPrecision(), newDims,
+                    splitLayers[1]->outData[k]->getLayout());
+            auto data = std::make_shared<Data>(l->name + "/elwise/out/" + std::to_string(k), newDesc);
+            getCreatorLayer(data) = eltwise;
+            eltwise->outData.push_back(data);
+            getInputTo(data)[concat->name] = concat;
+            concat->insData.push_back(data);
         }
     }
 }
@@ -986,34 +1166,15 @@ void SubstituteScaleShiftBroadCastPass::run() {
         gnalog() << "Substitution ScaleShift broadcast for layer: " << l->name << "\n";
         // approach 1 - weights tiling
         if (getPassManager()->getPolicy().ScaleShiftPolicy == Policy::ScaleShift::WEIGHTS_TILING) {
-            auto tileBlob = [](Blob::Ptr &blob, size_t TileTo){
-                auto weightsElements = blob->size();
-                auto weightsBytes = blob->byteSize();
-                if (weightsElements == 0) {
-                    THROW_IE_EXCEPTION << "Blob size is 0";
-                }
-                if (TileTo % weightsElements) {
-                    return false;
-                }
-
-                auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), {TileTo});
-                tiledBlob->allocate();
-
-
-                for (int i=0; i != TileTo / weightsElements; i++) {
-                    ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
-                }
-                blob = tiledBlob;
-                return true;
-            };
-
-            if (!tileBlob(scaleShift->_weights, nElements)) {
+            if (nElements % scaleShift->_weights->size()) {
                 THROW_GNA_EXCEPTION << "Cannot tile weights for layer: " << l->name << ", due to weights size not GCD of dims product";
             }
+            scaleShift->_weights = tileBlob(scaleShift->_weights, nElements);
             if (scaleShift->_biases) {
-                if (!tileBlob(scaleShift->_biases, nElements)) {
+                if (nElements % scaleShift->_biases->size()) {
                     THROW_GNA_EXCEPTION << "Cannot tile biases for layer: " << l->name << ", due to biases size not GCD of dims product";
                 }
+                scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
             }
 
             // currently data type no providing reshape method of tensor desc
@@ -1023,6 +1184,51 @@ void SubstituteScaleShiftBroadCastPass::run() {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
         }
+    }
+}
+
+void BroadcastConstPass::run() {
+    for (auto& constLayer : *pLayers) {
+        if (!LayerInfo(constLayer).isConst()) {
+            continue;
+        }
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+        if (!CNNNetHasNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional)) {
+            continue;
+        }
+
+        auto nextLayer = CNNNetGetNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional).first;
+
+        if (!LayerInfo(nextLayer).isEltwise()) {
+            continue;
+        }
+
+        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+        auto constDimsSize = product(constDims.begin(), constDims.end());
+        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
+        auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
+
+        if (constDimsSize == eltwiseDimsSize) {
+            continue;
+        }
+
+        if (eltwiseDimsSize % constDimsSize) {
+            continue;
+        }
+
+        if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+            THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " is missing 'custom' parameter";
+        }
+
+        auto currentConstBlob = constLayer->blobs.find("custom")->second;
+
+        constLayer->blobs.find("custom")->second = tileBlob(currentConstBlob, eltwiseDimsSize);
+
+        constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+        constLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
+        gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
 }
 

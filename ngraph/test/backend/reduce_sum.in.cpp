@@ -18,6 +18,7 @@
 #include <cinttypes>
 #include <cmath>
 #include <cstdlib>
+#include <numeric>
 #include <random>
 #include <string>
 

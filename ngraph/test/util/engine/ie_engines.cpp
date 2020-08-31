@@ -16,12 +16,13 @@
 
 #include "ie_engines.hpp"
 
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "opset1_upgrade.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace ngraph;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace
 {
@@ -105,6 +106,9 @@ namespace
         case InferenceEngine::Precision::U16:
             return compare_blobs<uint16_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::U32:
+            return compare_blobs<uint32_t>(computed, expected, tolerance_bits);
+            break;
         case InferenceEngine::Precision::U64:
             return compare_blobs<uint64_t>(computed, expected, tolerance_bits);
             break;
@@ -177,16 +181,8 @@ std::shared_ptr<Function>
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            if (node->get_type_info() == op::GetOutputElement::type_info)
-            {
-                // IE currently can handle GetOutputElement op;
-                continue;
-            }
-            else
-            {
-                THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
-                                   << node->get_type_info().name;
-            }
+            THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
+                               << node->get_type_info().name;
         }
     }
 
@@ -200,6 +196,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset2.begin(), opset2.end());
     const auto& opset3 = get_opset3().get_type_info_set();
     ie_ops.insert(opset3.begin(), opset3.end());
+    const auto& opset4 = get_opset4().get_type_info_set();
+    ie_ops.insert(opset4.begin(), opset4.end());
     return ie_ops;
 }
 
@@ -226,5 +224,6 @@ namespace InferenceEngine
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
+    template class TBlob<char>;
 #endif
 }

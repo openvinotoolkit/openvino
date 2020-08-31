@@ -18,10 +18,12 @@
 
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/serializer.hpp"
 #include "util/test_tools.hpp"
 
 #include <memory>
+
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -35,12 +37,12 @@ TEST(build_graph, build_simple)
     auto broadcast_1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto b1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::Dot>(arg2, arg0);
-    ASSERT_EQ(dot->get_arguments()[0], arg2);
-    ASSERT_EQ(dot->get_arguments()[1], arg0);
+    ASSERT_EQ(dot->input_value(0).get_node_shared_ptr(), arg2);
+    ASSERT_EQ(dot->input_value(1).get_node_shared_ptr(), arg0);
 
     auto cluster_0 = make_shared<Function>(dot, ParameterVector{arg0, arg1, arg2, arg3});
 
-    ASSERT_EQ(cluster_0->get_output_op(0)->get_argument(0), dot);
+    ASSERT_EQ(cluster_0->get_output_op(0)->input_value(0).get_node_shared_ptr(), dot);
 }
 
 // Check node comparisons
@@ -67,8 +69,8 @@ TEST(build_graph, literal)
     ASSERT_EQ(float0->get_element_type(), element::f32);
     ASSERT_EQ(float0->get_shape(), Shape{});
     auto d = make_shared<op::Dot>(float0, float0);
-    ASSERT_EQ(d->get_arguments().at(0), float0);
-    ASSERT_EQ(d->get_arguments().at(1), float0);
+    ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
+    ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
 
     vector<int32_t> int32{3};
     auto int32_0 = make_shared<op::Constant>(element::i32, Shape{}, int32);
@@ -87,8 +89,8 @@ TEST(build_graph, tensor)
     ASSERT_EQ(float0->get_element_type(), element::f32);
     ASSERT_EQ(float0->get_shape(), shape);
     auto d = make_shared<op::Add>(float0, float0);
-    ASSERT_EQ(d->get_arguments().at(0), float0);
-    ASSERT_EQ(d->get_arguments().at(1), float0);
+    ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
+    ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
 
     Shape ishape{3, 5};
     vector<int32_t> idata(shape_size(ishape), 0);
@@ -108,8 +110,8 @@ TEST(build_graph, function_undeclared_parameters)
     auto broadcast_1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto b1 = make_shared<op::Broadcast>(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::Dot>(arg2, arg0);
-    ASSERT_EQ(dot->get_arguments()[0], arg2);
-    ASSERT_EQ(dot->get_arguments()[1], arg0);
+    ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
+    ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);
     try
     {
         auto f = make_shared<Function>(dot, ParameterVector{arg0, arg1, arg3});
@@ -151,23 +153,6 @@ TEST(build_graph, no_arg_construction)
     ASSERT_EQ(add1->get_output_shape(0), Shape{7});
 }
 
-TEST(build_graph, multi_output_split)
-{
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{64, 8, 100, 150});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{128, 2, 10, 20});
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
-    auto conv = make_shared<op::GroupConvolution>(split->output(1),
-                                                  filters,
-                                                  Strides{1, 1},
-                                                  Strides{1, 1},
-                                                  CoordinateDiff{0, 0},
-                                                  CoordinateDiff{0, 0},
-                                                  Strides{1, 1},
-                                                  2);
-    EXPECT_EQ(conv->get_shape(), (Shape{64, 128, 91, 131}));
-}
-
 TEST(build_graph, multi_output_split_dynamic)
 {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
@@ -204,24 +189,6 @@ TEST(build_graph, function_revalidate_and_infer)
     f->validate_nodes_and_infer_types();
     EXPECT_EQ(r->get_output_shape(0), (Shape{32, 12}));
     EXPECT_EQ(f->get_output_shape(0), (Shape{32, 12}));
-}
-
-TEST(build_graph, validate_function_for_dynamic_shape)
-{
-    auto make_function = [&](bool dynamic_shape) {
-
-        auto param1_shape =
-            dynamic_shape ? PartialShape{Dimension::dynamic(), 2, 3} : Shape{5, 4, 2};
-        auto param2_shape = dynamic_shape ? PartialShape::dynamic() : Shape{5, 2, 3};
-        auto param_1 = std::make_shared<op::Parameter>(element::f32, param1_shape);
-        auto param_2 = std::make_shared<op::Parameter>(element::f32, param2_shape);
-        auto batch_dot = make_shared<op::BatchMatMul>(param_1, param_2);
-        auto f = make_shared<Function>(NodeVector{batch_dot}, ParameterVector{param_1, param_2});
-        return f;
-    };
-
-    EXPECT_TRUE(make_function(true)->is_dynamic());
-    EXPECT_FALSE(make_function(false)->is_dynamic());
 }
 
 TEST(build_graph, default_output_checks)

@@ -23,10 +23,12 @@ ParamsKey GemmKernelMMADint8::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F32);
+
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -128,7 +130,6 @@ GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gem
     bool leftovers_simd8 = HasLeftovers(tuning_data, 8);
 
     bool small_matrices = mmad_operations_number <= 128 * 128 * 128;
-    bool average_matrices = mmad_operations_number <= 448 * 448 * 448;
     bool very_big_matrices = mmad_operations_number >= 1024 * 1024 * 1024;
     bool no_input2 = params.inputs.size() == 3 ? false : true;
 
@@ -137,14 +138,8 @@ GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gem
 
     if (!leftovers_simd16x2 && very_big_matrices && no_input2)
         { simd_size = 16; tile_num = 2; }
-    else if (leftovers_simd16 && !leftovers_simd8)
+    else if ((leftovers_simd16 && !leftovers_simd8) || small_matrices)
         { simd_size = 8; }
-    else if ((!params.transpose_input0 && !params.transpose_input1) && average_matrices)
-        { simd_size = 8; }
-    else if (small_matrices)
-        { simd_size = 8; }
-    else
-        { simd_size = 16; }
 
     tuning_data.simd_size = simd_size;
     tuning_data.tile_num = tile_num;

@@ -171,11 +171,12 @@ class InterpolateWithConcat(FrontReplacementPattern):
 
             # Interpolate could be connected to Concat through identity operations, skipping them
             next_node = self.get_single_output_destination_safely(interpolate)
-            while next_node.soft_get('type') != 'Concat' and next_node.has_and_set('identity'):
-                node = self.get_single_output_destination_safely(next_node)
-                if node is not None:
-                    next_node = node
-                else:
-                    break
-            if next_node.soft_get('type') == 'Concat':
-                self.make_interpolate_reshape_able(interpolate, next_node)
+            if next_node is not None:
+                while next_node.soft_get('type') != 'Concat' and next_node.has_and_set('identity'):
+                    node = self.get_single_output_destination_safely(next_node)
+                    if node is not None:
+                        next_node = node
+                    else:
+                        break
+                if next_node.soft_get('type') == 'Concat':
+                    self.make_interpolate_reshape_able(interpolate, next_node)

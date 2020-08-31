@@ -49,7 +49,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef weak_ptr[Data] DataWeakPtr
     ctypedef shared_ptr[const Data] CDataPtr
 
-
     cdef cppclass InputInfo:
         ctypedef shared_ptr[InputInfo] Ptr
         ctypedef shared_ptr[const InputInfo] CPtr
@@ -142,7 +141,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         BLOCKED
 
 
-cdef extern from "<ie_layers.h>" namespace "InferenceEngine":
+cdef extern from "<legacy/ie_layers.h>" namespace "InferenceEngine":
     cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
     map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
 
@@ -194,12 +193,15 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void reshape(map[string, vector[size_t]] input_shapes) except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
+        void convertToOldRepresentation() except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
         int index;
         void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
         void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
+        void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
+        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +

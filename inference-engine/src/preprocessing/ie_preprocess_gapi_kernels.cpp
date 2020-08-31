@@ -22,6 +22,10 @@
 
 #endif
 
+#ifdef HAVE_NEON
+  #include "arm_neon/ie_preprocess_gapi_kernels_neon.hpp"
+#endif
+
 #include <opencv2/gapi/opencv_includes.hpp>
 #include <opencv2/gapi/fluid/gfluidkernel.hpp>
 #include <opencv2/gapi/gcompoundkernel.hpp>
@@ -173,6 +177,47 @@ void mergeRow(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int leng
         }
     }
 #endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 2) {
+        neon::mergeRow_8UC2(ins[0], ins[1], out, length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 3) {
+        neon::mergeRow_8UC3(ins[0], ins[1], ins[2], out, length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 4) {
+        neon::mergeRow_8UC4(ins[0], ins[1], ins[2], ins[3], out, length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 2) {
+        neon::mergeRow_32FC2(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 3) {
+        neon::mergeRow_32FC3(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<const float*>(ins[2]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 4) {
+        neon::mergeRow_32FC4(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<const float*>(ins[2]),
+                             reinterpret_cast<const float*>(ins[3]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+#endif  // HAVE_NEON
 
     const T* insT[chs];
     for (int c = 0; c < chs; c++) {
@@ -327,6 +372,50 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
         }
     }
 #endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 2) {
+        neon::splitRow_8UC2(in, outs[0], outs[1], length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 3) {
+        neon::splitRow_8UC3(in, outs[0], outs[1], outs[2], length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 4) {
+        neon::splitRow_8UC4(in, outs[0], outs[1], outs[2], outs[3], length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 2) {
+        neon::splitRow_32FC2(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 3) {
+        neon::splitRow_32FC3(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             reinterpret_cast<float*>(outs[2]),
+                             length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 4) {
+        neon::splitRow_32FC4(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             reinterpret_cast<float*>(outs[2]),
+                             reinterpret_cast<float*>(outs[3]),
+                             length);
+        return;
+    }
+#endif  // HAVE_NEON
 
     auto inT = reinterpret_cast<const T*>(in);
 
@@ -484,6 +573,7 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
     }
     #endif  // HAVE_AVX512
 #endif
+
     #ifdef HAVE_AVX2
     if (with_cpu_x86_avx2()) {
         if (std::is_same<T, uint8_t>::value && chs == 1) {
@@ -514,6 +604,20 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
         }
     }
     #endif  // HAVE_SSE
+
+    #ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 1) {
+        neon::copyRow_8U(in, out, length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 1) {
+        neon::copyRow_32F(reinterpret_cast<const float*>(in),
+                          reinterpret_cast<float*>(out),
+                          length);
+        return;
+    }
+    #endif  // HAVE_NEON
 
     const auto inT  = reinterpret_cast<const T*>(in);
           auto outT = reinterpret_cast<      T*>(out);
@@ -806,19 +910,59 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         dst[l] = out.OutLine<T>(l);
     }
 
+    #ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512_core()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 64 && outSz.width >= 32) {
+                avx512::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                           reinterpret_cast<const uint8_t**>(src0),
+                                           reinterpret_cast<const uint8_t**>(src1),
+                                           reinterpret_cast<const short*>(alpha),
+                                           reinterpret_cast<const short*>(clone),
+                                           reinterpret_cast<const short*>(mapsx),
+                                           reinterpret_cast<const short*>(beta),
+                                           reinterpret_cast<uint8_t*>(tmp),
+                                           inSz, outSz, lpi);
+
+                return;
+            }
+        }
+    }
+    #endif
+
+    #ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 32 && outSz.width >= 16) {
+                avx::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                        reinterpret_cast<const uint8_t**>(src0),
+                                        reinterpret_cast<const uint8_t**>(src1),
+                                        reinterpret_cast<const short*>(alpha),
+                                        reinterpret_cast<const short*>(clone),
+                                        reinterpret_cast<const short*>(mapsx),
+                                        reinterpret_cast<const short*>(beta),
+                                        reinterpret_cast<uint8_t*>(tmp),
+                                        inSz, outSz, lpi);
+
+                return;
+            }
+        }
+    }
+    #endif
+
     #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
             if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8U(reinterpret_cast<uint8_t**>(dst),
-                                 reinterpret_cast<const uint8_t**>(src0),
-                                 reinterpret_cast<const uint8_t**>(src1),
-                                 reinterpret_cast<const short*>(alpha),
-                                 reinterpret_cast<const short*>(clone),
-                                 reinterpret_cast<const short*>(mapsx),
-                                 reinterpret_cast<const short*>(beta),
-                                 reinterpret_cast<uint8_t*>(tmp),
-                                 inSz, outSz, lpi);
+                calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                   reinterpret_cast<const uint8_t**>(src0),
+                                   reinterpret_cast<const uint8_t**>(src1),
+                                   reinterpret_cast<const short*>(alpha),
+                                   reinterpret_cast<const short*>(clone),
+                                   reinterpret_cast<const short*>(mapsx),
+                                   reinterpret_cast<const short*>(beta),
+                                   reinterpret_cast<uint8_t*>(tmp),
+                                   inSz, outSz, lpi);
                 return;
             }
         }
@@ -1991,6 +2135,7 @@ GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
         }
     #endif  // HAVE_AVX512
     #endif
+
     #ifdef HAVE_AVX2
         if (with_cpu_x86_avx2()) {
             avx::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
@@ -2003,6 +2148,11 @@ GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
             return;
         }
     #endif  // HAVE_SSE
+
+    #ifdef HAVE_NEON
+        neon::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
+        return;
+    #endif  // HAVE_NEON
 
         calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
     }
@@ -2025,33 +2175,60 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         int buf_width = out.length();
         GAPI_DbgAssert(in_u.length() ==  in_v.length());
 
-// AVX512 implementation of wide universal intrinsics is slower than AVX2.
-// It is turned off until the cause isn't found out.
-    #if 0
-    #ifdef HAVE_AVX512
-        if (with_cpu_x86_avx512_core()) {
-           #define CV_AVX_512DQ 1
-           avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_AVX512
-    #endif
-    #ifdef HAVE_AVX2
-        if (with_cpu_x86_avx2()) {
-           avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_AVX2
-    #ifdef HAVE_SSE
-        if (with_cpu_x86_sse42()) {
-           calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_SSE
+        // AVX512 implementation of wide universal intrinsics is slower than AVX2.
+        // It is turned off until the cause isn't found out.
+        #if 0
+        #ifdef HAVE_AVX512
+            if (with_cpu_x86_avx512_core()) {
+               #define CV_AVX_512DQ 1
+               avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_AVX512
+        #endif
+
+        #ifdef HAVE_AVX2
+            if (with_cpu_x86_avx2()) {
+               avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_AVX2
+        #ifdef HAVE_SSE
+            if (with_cpu_x86_sse42()) {
+               calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_SSE
+
+        #ifdef HAVE_NEON
+            neon::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+            return;
+        #endif  // HAVE_NEON
 
         calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
+
+GAPI_FLUID_KERNEL(FU16toF32, U16toF32, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_32F);
+        GAPI_Assert(src.meta().chan == 1);
+        GAPI_Assert(dst.meta().chan == 1);
+        GAPI_Assert(src.length() == dst.length());
+
+        const auto *in  = src.InLine<uint16_t>(0);
+              auto *out = dst.OutLine<float>();
+
+        auto const width = dst.length();
+        for (int i = 0; i < width; i++) {
+            out[i] = in[i];
+        }
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2078,6 +2255,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
+        , FU16toF32
         >();
 }
 

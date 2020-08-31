@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
+#include "ie_layers.h"
 
 namespace GNAPluginNS {
 /**
@@ -24,6 +24,12 @@ public:
     InferenceEngine::CNNLayerPtr getOutput() const { return outputLayer; }
     InferenceEngine::SizeVector getDims() const {
         return inputLayer->outData.front()->getDims();
+    }
+    /**
+     * @brief Reset the gna memory
+     */
+    void Reset() {
+        std::memset(gna_ptr, 0, reserved_size);
     }
 
     /**

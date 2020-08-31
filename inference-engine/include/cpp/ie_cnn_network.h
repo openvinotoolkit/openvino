@@ -9,17 +9,17 @@
  */
 #pragma once
 
-#include <details/ie_exception_conversion.hpp>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ie_icnn_network.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
+#include "details/ie_exception_conversion.hpp"
 
 namespace ngraph {
 
@@ -51,9 +51,11 @@ public:
 
     /**
      * @brief A constructor from ngraph::Function object
+     * This constructor wraps existing ngraph::Function
+     * If you want to avoid modification of original Function, please create a copy
      * @param network Pointer to the ngraph::Function object
      */
-    explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
+    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);
 
     /**
      * @brief A destructor

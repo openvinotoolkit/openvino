@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 #include <precision_utils.h>
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include "ie_parallel.hpp"
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 
@@ -647,6 +647,9 @@ std::shared_ptr<float> CNNNetworkHelper::getFloatData(const Blob::Ptr& srcBlob) 
     } else if (precision == Precision::I32) {
         const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::I32>::value_type*>();
         std::copy(srcData, srcData + dataSize, floatPtr.get());
+    } else if (precision == Precision::U32) {
+        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::U32>::value_type*>();
+        std::copy(srcData, srcData + dataSize, floatPtr.get());
     } else if (precision == Precision::I64) {
         const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::I64>::value_type*>();
         std::copy(srcData, srcData + dataSize, floatPtr.get());
@@ -666,6 +669,7 @@ bool CNNNetworkHelper::isBlobPrecisionSupported(const Precision precision) {
         (precision == Precision::I8) ||
         (precision == Precision::U8) ||
         (precision == Precision::I32) ||
+        (precision == Precision::U32) ||
         (precision == Precision::I64) ||
         (precision == Precision::U64);
 }
@@ -868,7 +872,41 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
     return parents;
 }
 
+bool CNNNetworkHelper::isLayoutSupported(const CNNLayer& layer) {
+    auto isSupported = [](const Data& data) -> bool {
+        switch (data.getLayout()) {
+            case Layout::NC:
+            case Layout::NCHW:
+            case Layout::NCDHW: {
+                return true;
+            }
+            case Layout::CHW: {
+                if (data.getDims().size() != 3lu) {
+                    return false;
+                }
+                return true;
+            }
+            default: {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    for (const auto& data : layer.outData) {
+        if (!isSupported(*data)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
+    if (!isLayoutSupported(layer)) {
+        THROW_IE_LPT_EXCEPTION(layer) << "Not supported layout";
+    }
+
     if (layer.insData.size() == 0) {
         THROW_IE_EXCEPTION << "There are no input layers";
     }
@@ -878,25 +916,8 @@ size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
         THROW_IE_EXCEPTION << "insert data is absent";
     }
 
-    switch (insertData->getLayout()) {
-    case Layout::NC:
-    case Layout::NCHW:
-    case Layout::NCDHW: {
-        return insertData->getDims()[1];
-    }
-    case Layout::CHW: {
-        if (insertData->getDims().size() != 3lu) {
-            THROW_IE_EXCEPTION << "Unexpected dimensions size " << insertData->getDims().size() << " for layer "
-                               << layer.name;
-        }
-
-        // Actually MO assumes NCH layout for 3D blobs, so we get channels count from dimension 1
-        return insertData->getDims()[1];
-    }
-    default: {
-        THROW_IE_EXCEPTION << "Not supported layout " << insertData->getLayout();
-    }
-    }
+    // For CHW: actually MO assumes NCH layout for 3D blobs, so we get channels count from dimension 1
+    return insertData->getDims()[1];
 }
 
 size_t CNNNetworkHelper::getParamOutput(const CNNLayer& layer) {

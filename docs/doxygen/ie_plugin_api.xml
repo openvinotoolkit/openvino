@@ -1,0 +1,24 @@
+<doxygenlayout version="1.0">
+    <navindex>
+        <!-- Steps -->
+        <tab type="usergroup" url="index.html" visibile="yes" title="GUIDE">
+            <tab type="usergroup" url="index.html" title="Developer Guide for Inference Engine Plugin Library">
+                <tab type="user" url="@ref plugin" visibile="yes" title="Implement Plugin Functionality"/>
+                <tab type="user" url="@ref executable_network" visibile="yes" title="Implement Executable Network Functionality"/>
+                <tab type="user" url="@ref infer_request" visibile="yes" title="Implement Synchronous Inference Request"/>
+                <tab type="user" url="@ref async_infer_request" visibile="yes" title="Implement Asynchronous Inference Request"/>
+            </tab>
+        </tab>
+        <!-- Additional resources -->
+         <tab type="usergroup" visibile="no" title="ADDITIONAL RESOURCES">
+            <tab type="user" url="@ref plugin_build" visibile="yes" title="Build Your Plugin with CMake*"/>
+            <tab type="user" url="@ref plugin_testing" visibile="yes" title="Test Your Plugin"/>
+        </tab>
+        <!-- API References -->
+        <tab type="usergroup" title="API REFERENCE">
+            <!-- IE Developer Package -->
+            <tab type="modules" visible="yes" title="Inference Engine Plugin API Reference"/>
+        </tab>
+        <tab type="usergroup" title="MAIN OPENVINO™ DOCS" url="../index.html"/>
+    </navindex>
+</doxygenlayout>

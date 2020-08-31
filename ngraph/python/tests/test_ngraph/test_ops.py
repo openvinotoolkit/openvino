@@ -14,14 +14,13 @@
 # limitations under the License.
 # ******************************************************************************
 # flake8: noqa
-from __future__ import absolute_import
-
 import numpy as np
 
 import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
+from tests import xfail_issue_36483, xfail_issue_34323
 
 
 def binary_op(op_str, a, b):
@@ -228,10 +227,16 @@ def unary_op(op_str, a):
         return ng.abs(a)
     elif op_str == "Acos":
         return ng.acos(a)
+    elif op_str == "Acosh":
+        return ng.acosh(a)
     elif op_str == "Asin":
         return ng.asin(a)
+    elif op_str == "Asinh":
+        return ng.asinh(a)
     elif op_str == "Atan":
         return ng.atan(a)
+    elif op_str == "Atanh":
+        return ng.atanh(a)
     elif op_str == "Ceiling":
         return ng.ceiling(a)
     elif op_str == "Cos":
@@ -246,8 +251,6 @@ def unary_op(op_str, a):
         return ng.exp(a)
     elif op_str == "negative":
         return ng.negative(a)
-    elif op_str == "Reverse":
-        return ng.reverse(a, np.array([1]), "index")
     elif op_str == "Sign":
         return ng.sign(a)
     elif op_str == "Sin":
@@ -267,10 +270,16 @@ def unary_op_ref(op_str, a):
         return np.abs(a)
     elif op_str == "Acos":
         return np.arccos(a)
+    elif op_str == "Acosh":
+        return np.arccosh(a)
     elif op_str == "Asin":
         return np.arcsin(a)
+    elif op_str == "Asinh":
+        return np.arcsinh(a)
     elif op_str == "Atan":
         return np.arctan(a)
+    elif op_str == "Atanh":
+        return np.arctanh(a)
     elif op_str == "Ceiling":
         return np.ceil(a)
     elif op_str == "Cos":
@@ -331,9 +340,21 @@ def test_acos():
     unary_op_exec(op_str, input_list)
 
 
+def test_acosh():
+    input_list = [2., 3., 1.5, 1.0]
+    op_str = "Acosh"
+    unary_op_exec(op_str, input_list)
+
+
 def test_asin():
     input_list = [-1, 0, 0.5, 1]
     op_str = "Asin"
+    unary_op_exec(op_str, input_list)
+
+
+def test_asinh():
+    input_list = [-1, 0, 0.5, 1]
+    op_str = "Asinh"
     unary_op_exec(op_str, input_list)
 
 
@@ -343,6 +364,13 @@ def test_atan():
     unary_op_exec(op_str, input_list)
 
 
+def test_atanh():
+    input_list = [-1, 0, 0.5, 1]
+    op_str = "Atanh"
+    unary_op_exec(op_str, input_list)
+
+
+@xfail_issue_36483
 def test_ceiling():
     input_list = [0.5, 0, 0.4, 0.5]
     op_str = "Ceiling"
@@ -421,12 +449,6 @@ def test_tanh():
     unary_op_exec(op_str, input_list)
 
 
-def test_reverse():
-    input_list = [[-1, 0], [0.5, 1]]
-    op_str = "Reverse"
-    unary_op_exec(op_str, input_list)
-
-
 def test_reshape():
 
     element_type = Type.f32
@@ -460,6 +482,7 @@ def test_broadcast():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_34323
 def test_constant():
     element_type = Type.f32
     parameter_list = []

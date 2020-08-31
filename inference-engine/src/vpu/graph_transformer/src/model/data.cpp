@@ -176,6 +176,10 @@ void DataNode::setShapeAllocationInfo(const ShapeLocation& shapeLocation) {
     _shapeLocation = shapeLocation;
 }
 
+bool DataNode::isShapeAllocated() const {
+    return _shapeLocation != defaultShapeLocation;
+}
+
 void DataNode::serializeBuffer(
         BlobSerializer& serializer) {
     serializeDescImpl(serializer, _desc, this->shapeLocation());
@@ -213,13 +217,14 @@ void DataNode::serializeIOInfo(BlobSerializer& serializer) const {
     serializer.append(checked_cast<uint32_t>(ioBufferOffset));
 
     auto nameLength = checked_cast<uint32_t>(_name.length());
-    auto nameLengthAligned = alignVal(nameLength, 16u);
+    auto nameSize = nameLength + 1; // required to support c-string when the name length is multiple of 16
+    auto nameSizeAligned = alignVal(nameSize, 16u);
 
-    serializer.append(nameLengthAligned);
+    serializer.append(nameSizeAligned);
     for (auto c : _name) {
         serializer.append(c);
     }
-    for (uint32_t i = 0; i < nameLengthAligned - nameLength; ++i) {
+    for (uint32_t i = 0; i < nameSizeAligned - nameLength; ++i) {
         serializer.append(uint8_t(0));
     }
 

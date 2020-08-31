@@ -2,9 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "../common/tests_utils.h"
 
 #include <pugixml.hpp>
+
+// Measure values
+enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+// Measure values headers
+const std::array<std::string, MeasureValueMax> MeasureValueHeader { "VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS" };
+
+namespace util {
+    template <typename Type>
+    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> & array,
+                                                 const std::string & delimiter = "\t\t") {
+        std::string str = std::to_string(*array.begin());
+        for (auto it = array.begin() + 1; it != array.end(); it++)
+            str += delimiter + std::to_string(*it);
+        return str;
+    }
+
+    static std::string get_measure_values_headers(const std::string & delimiter = "\t\t") {
+        std::string str = *MeasureValueHeader.begin();
+        for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
+            str += delimiter + *it;
+        return str;
+    }
+}
 
 class MemCheckEnvironment {
 private:
@@ -29,23 +54,21 @@ public:
 
 class TestReferences {
 private:
-    std::vector<std::string> model_path_v, test_name_v, device_v;
+    std::vector<std::string> model_name_v, test_name_v, device_v;
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
-    long ref_vmsize = -1, ref_vmpeak = -1, ref_vmrss = -1, ref_vmhwm = -1;
+    std::array<long, MeasureValueMax> references;
 
     TestReferences () {
-        // Parse RefsConfig from MemCheckEnvironment
-        std::string models_path = Environment::Instance().getEnvConfig()
-                .child("attributes").child("irs_path").child("value").text().as_string();
-        models_path = expand_env_vars(models_path);
+        std::fill(references.begin(), references.end(), -1);
 
+        // Parse RefsConfig from MemCheckEnvironment
         const pugi::xml_document &refs_config = MemCheckEnvironment::Instance().getRefsConfig();
         auto values = refs_config.child("attributes").child("models");
         for (pugi::xml_node node = values.first_child(); node; node = node.next_sibling()) {
             for (pugi::xml_attribute_iterator ait = node.attributes_begin(); ait != node.attributes_end(); ait++) {
                 if (strncmp(ait->name(), "path", strlen(ait->name())) == 0) {
-                    model_path_v.push_back(OS_PATH_JOIN({models_path, ait->value()}));
+                    model_name_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "test", strlen(ait->name())) == 0) {
                     test_name_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "device", strlen(ait->name())) == 0) {
@@ -66,12 +89,12 @@ public:
     void collect_vm_values_for_test(std::string test_name, TestCase test_params) {
         for (int i = 0; i < test_name_v.size(); i++)
             if (test_name_v[i] == test_name)
-                if (model_path_v[i] == test_params.model)
+                if (model_name_v[i] == test_params.model_name)
                     if (device_v[i] == test_params.device) {
-                        ref_vmsize = vmsize_v[i];
-                        ref_vmpeak = vmpeak_v[i];
-                        ref_vmrss = vmrss_v[i];
-                        ref_vmhwm = vmhwm_v[i];
+                        references[VMSIZE] = vmsize_v[i];
+                        references[VMPEAK] = vmpeak_v[i];
+                        references[VMRSS] = vmrss_v[i];
+                        references[VMHWM] = vmhwm_v[i];
                     }
     }
 };

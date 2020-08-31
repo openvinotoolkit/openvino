@@ -53,7 +53,6 @@ void GNAPluginNS::backend::AMIntelDNN::Init(void *ptr_memory,
     num_active_outputs_ = 0;
     num_left_context = 0;
     num_right_context = 0;
-    do_rotate_input = false;
     softmax_type = kSoftmaxNone;
     ptr_sumgroup_sizes = nullptr;
     num_sumgroup_sizes = 0;
@@ -185,6 +184,15 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         ptr_biases  = &comp.op.conv1D.ptr_biases;
         ptr_inputs  = &comp.ptr_inputs;
         ptr_outputs = &comp.ptr_outputs;
+    }
+
+    if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
+        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent is not multiply by 8";
+    }
+    auto filter_stride_size = comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns;
+    auto max_number_of_out_elements = (comp.num_columns_in - comp.op.conv1D.num_filter_coefficients) / filter_stride_size + 1;
+    if (comp.num_columns_out / max_number_of_out_elements != comp.op.conv1D.num_filters) {
+        THROW_GNA_EXCEPTION << "Number of outputs or feature map config is incorrect in Convolutional1DComponent";
     }
 }
 
@@ -460,6 +468,10 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
 #define IS_DIAG(k)\
     (components[k].operation == kDnnDiagonalOp)
 
+#define IS_POW(k)\
+    (components[k].operation == kDnnPiecewiselinearOp &&\
+     components[k].op.pwl.func_id == kActPow)
+
 #define OUTPUTS(idx)\
     components[idx].ptr_outputs, components[idx].num_rows_out*components[idx].num_columns_out * components[idx].num_bytes_per_output
 
@@ -531,7 +543,12 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.affine.ptr_biases<< "</TD></TR>\n";
         }
         if (IS_RELU(k)) {
-            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.negative_slope<< "</TD></TR>\n";
+            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.args.lrelu.negative_slope<< "</TD></TR>\n";
+        }
+        if (IS_POW(k)) {
+            graph << "  <TR><TD> exponent</TD><TD>" << components[k].op.pwl.func_id.args.pow.exponent << "</TD></TR>\n";
+            graph << "  <TR><TD> scale</TD><TD>" << components[k].op.pwl.func_id.args.pow.scale << "</TD></TR>\n";
+            graph << "  <TR><TD> offset</TD><TD>" << components[k].op.pwl.func_id.args.pow.offset << "</TD></TR>\n";
         }
         if (IS_CONV(k)) {
             auto &conv = components[k].op.conv1D;
@@ -1402,9 +1419,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 comp.num_columns_out,
                                 comp.op.affine.num_bytes_per_bias,
                                 comp.op.affine.ptr_biases),
-                        createGna2TensorPwl(
-                                0,
-                                nullptr),  //  Temporal PWL as not null required by Gna2OperationInitRecurrent
+                        nullptr,
                         create_uint32_parameter(1));    // TODO: GNA2: Handle other delays
                 AdvanceOperationIfAllApplied(component, i, gnaOperation);
 #else
@@ -1464,9 +1479,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 comp.op.conv1D.num_filters,
                                 comp.op.conv1D.num_bytes_per_bias,
                                 comp.op.conv1D.ptr_biases),
-                        createGna2TensorPwl(
-                                0,
-                                nullptr),  // Temporal PWL as not null required by Gna2OperationInitConvolution
+                        nullptr,
                         create_shape1D_parameter(
                                 comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns),
                         nullptr);
@@ -1520,10 +1533,12 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     THROW_GNA_EXCEPTION << "Pooling component with no preceeding component";
 #if  GNA_LIB_VER == 2
                 } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
-                    if (gnaOperation->Operands[PwlOpIdx]->Shape.Dimensions[0] != 0) {
+                    auto pwlOperand = gnaOperation->Operands[PwlOpIdx];
+                    if (pwlOperand != nullptr && pwlOperand->Shape.Dimensions[0] != 0) {
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
                         const auto poolMode = reinterpret_cast<Gna2PoolingMode*>(gnaUserAllocator(sizeof(Gna2PoolingMode)));
+                        IE_ASSERT(poolMode != nullptr);
                         *poolMode = (comp.op.maxpool.do_sum_not_max) ? Gna2PoolingModeSum : Gna2PoolingModeMax;
                         const auto poolWindow = create_shape1D_parameter(comp.op.maxpool.num_inputs);
                         const auto poolStride = create_shape1D_parameter(comp.op.maxpool.num_inputs_step);
@@ -1583,6 +1598,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
             case kDnnPiecewiselinearOp:
 #if  GNA_LIB_VER == 2
                 {
+                    IE_ASSERT(gnaOperation->Operands != nullptr);
+                    IE_ASSERT(OutOpIdx < gnaOperation->NumberOfOperands);
                     auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
                     outputTensor.Data = comp.ptr_outputs;
                     outputTensor.Type = Gna2DataTypeFromBytes(comp.num_bytes_per_output);

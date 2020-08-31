@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <ie_core.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include "common_test_utils/common_utils.hpp"
 
 using namespace ::testing;
@@ -229,8 +229,6 @@ protected:
             ASSERT_EQ(preproc[0]->meanValue, 104.006f);
         } else {
             InferenceEngine::NetPass::UnrollRNN_if(net, [] (const RNNCellBase& rnn) -> bool { return true; });
-            net.serialize("UnrollRNN_if.xml");
-            EXPECT_EQ(0, std::remove("UnrollRNN_if.xml"));
             auto lstmcell_layer = dynamic_pointer_cast<ClampLayer>(CommonTestUtils::getLayerByName(net, "LSTMCell:split_clip"));
 
             float ref_coeff = 0.2f;
