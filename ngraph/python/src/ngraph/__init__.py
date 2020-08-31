@@ -23,7 +23,6 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-import ngraph.utils.rt_map
 from ngraph.impl import Node
 from ngraph.helpers import function_from_cnn
 

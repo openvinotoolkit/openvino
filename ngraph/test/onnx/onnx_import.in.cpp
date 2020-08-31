@@ -1653,20 +1653,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus)
                                      FLT_MAX,
                                      -FLT_MAX}};
 
-    std::vector<float>& input = inputs.back();
-    std::vector<float> output;
-    auto softplus_impl = [](float x) -> float {
-        if (x > 0)
-        {
-            return x + std::log(std::exp(-x) + 1);
-        }
-        else
-        {
-            return std::log(std::exp(x) + 1);
-        }
-    };
-
-    std::transform(std::begin(input), std::end(input), std::back_inserter(output), softplus_impl);
+    const auto inf = std::numeric_limits<float>::infinity();
+    std::vector<float> output{0.3132616579532623291,
+                              0.6931471824645996094,
+                              1.313261628150939941,
+                              10.0000457763671875,
+                              inf,
+                              0.0,
+                              inf,
+                              0.0,
+                              0.6931471824645996094,
+                              0.6931471824645996094,
+                              0.6931471824645996094,
+                              inf,
+                              0.0};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
