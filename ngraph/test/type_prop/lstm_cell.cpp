@@ -135,20 +135,6 @@ TEST(type_prop, lstm_cell_invalid_input)
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Parameter hidden_size mistmatched in B input."));
     }
-
-    // Invalid P tensor shape.
-    B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    P = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
-    try
-    {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
-        FAIL() << "LSTMCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size mistmatched in P input."));
-    }
 }
 
 TEST(type_prop, lstm_cell_dynamic_batch_size)
@@ -327,20 +313,6 @@ TEST(type_prop, lstm_cell_invalid_input_rank0)
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("RNNCellBase B input tensor dimension is not correct."));
     }
-
-    // Invalid rank0 for P tensor.
-    B = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
-    P = make_shared<op::Parameter>(element::f32, PartialShape{});
-    try
-    {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
-        FAIL() << "LSTMCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("LSTMCell input tensor P shall have dimension 1D."));
-    }
 }
 
 TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
@@ -443,19 +415,5 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(), std::string("RNNCellBase supports only static rank for input tensors."));
-    }
-
-    // Invalid dynamic rank for P tensor.
-    B = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
-    P = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    try
-    {
-        const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
-        FAIL() << "LSTMCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("LSTMCell input tensor P shall have static rank."));
     }
 }

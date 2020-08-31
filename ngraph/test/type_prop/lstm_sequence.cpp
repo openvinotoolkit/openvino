@@ -436,22 +436,6 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension)
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("RNN Sequence B input tensor dimension is not correct."));
     }
-
-    // Invalid rank0 for P tensor.
-    auto P = make_shared<op::Parameter>(param.et, PartialShape{});
-    try
-    {
-        lstm_sequence = lstm_seq_tensor_initialization(param);
-
-        lstm_sequence->set_argument(7, P);
-        lstm_sequence->validate_and_infer_types();
-        FAIL() << "LSTMSequence node was created with invalid data.";
-    }
-    catch (const CheckFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("LSTMSequence input tensor P shall have dimension 2D."));
-    }
 }
 
 TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
@@ -509,22 +493,5 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("LSTMSequence input tensor initial_cell_state shall have static rank."));
-    }
-
-    // Invalid dynamic rank for P input tensor.
-    auto P = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    try
-    {
-        lstm_sequence = lstm_seq_tensor_initialization(param);
-
-        lstm_sequence->set_argument(7, P);
-        lstm_sequence->validate_and_infer_types();
-
-        FAIL() << "LSTMSequence node was created with invalid data.";
-    }
-    catch (const CheckFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("LSTMSequence input tensor P shall have static rank."));
     }
 }
