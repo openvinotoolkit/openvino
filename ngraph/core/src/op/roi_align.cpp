@@ -196,34 +196,38 @@ namespace ngraph
 } // namespace ngraph
 namespace
 {
-    bool evaluate_roi_align(const HostTensorPtr& input_tensor,
-                            const HostTensorPtr& rois_tensor,
-                            const HostTensorPtr& batch_indices_tensor,
+    bool evaluate_roi_align(const HostTensorVector& args,
+                            const HostTensorPtr& out,
                             const int pooled_width,
                             const int pooled_height,
+                            const int sampling_ratio,
                             const float spatial_scale,
-                            const int pooling_mode)
+                            const op::v3::ROIAlign::PoolingMode pooling_mode)
     {
-        // call for roi_align from reference
+        std::vector<const char*> arg_bufs;
+        std::vector<Shape> arg_shapes;
+        for (auto& input : args)
+        {
+            arg_bufs.push_back(input->get_data_ptr<char>());
+            arg_shapes.push_back(input->get_shape());
+        }
+
+        runtime::reference::roi_align(arg_bufs,
+                                      out->get_data_ptr<char>(),
+                                      arg_shapes,
+                                      out->get_shape(),
+                                      pooled_width,
+                                      pooled_height,
+                                      sampling_ratio,
+                                      spatial_scale,
+                                      pooling_mode);
         return true;
     }
 } // namespace
 
-bool op::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
-    const auto& input = inputs[0];
-    const auto& rois = inputs[1];
-    const auto& batch_indices = inputs[2];
-
-    const auto& output = outputs[0];
-
-    return evaluate_roi_align(input,
-                              rois,
-                              batch_indices,
-                              output,
-                              m_pooled_h,
-                              m_pooled_w,
-                              m_sampling_ratio,
-                              m_spatial_scale,
-                              m_mode);
+    return evaluate_roi_align(
+        inputs, outputs[0], m_pooled_w, m_pooled_h, m_sampling_ratio, m_spatial_scale, m_mode);
 }
