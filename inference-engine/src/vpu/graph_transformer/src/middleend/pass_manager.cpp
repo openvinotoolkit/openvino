@@ -176,11 +176,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order
         // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
         //
-        // Pass should be located before "adjustDataBatch" because "reshapeBeforeConvTiling"
-        // changes geometry of convolution. "adjustDataBatch" modifies stage "origConvOutput"
-        // attribute to the current convolution output at the time of execution of "adjustDataBatch" pass.
-        // "origConvOutput" attribute is used in "hwConvTiling" and
-        // "hwConvTiling" should be able to see the latest version of this attribute.
+        // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
+        // for convolution in order to provide that information to "hwConvTiling" pass.
+        // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
         ADD_PASS(reshapeBeforeConvTiling);
         ADD_DUMP_PASS("reshapeBeforeConvTiling");
 
