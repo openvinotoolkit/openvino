@@ -17,6 +17,7 @@ namespace LayerTestsDefinitions {
 
 using GatherTreeParamsTuple = typename std::tuple<
         std::vector<size_t>,               // Input tensors shape
+        ngraph::helpers::InputLayerType,   // Secondary input type
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 

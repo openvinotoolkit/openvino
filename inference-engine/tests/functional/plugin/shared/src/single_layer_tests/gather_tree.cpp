@@ -17,12 +17,14 @@ namespace LayerTestsDefinitions {
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
+    ngraph::helpers::InputLayerType secondaryInputType;
     std::string targetName;
 
-    std::tie(inputShape, netPrecision, targetName) = obj.param;
+    std::tie(inputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "secondaryInputType=" << secondaryInputType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetName;
     return result.str();
@@ -31,13 +33,35 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
 void GatherTreeLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
+    ngraph::helpers::InputLayerType secondaryInputType;
 
-    std::tie(inputShape, netPrecision, targetDevice) = GetParam();
+    std::tie(inputShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShape , inputShape, {inputShape.at(BATCH_SIZE)}, {}});
 
-    auto operationResult = std::make_shared<ngraph::opset4::GatherTree>(paramsIn[0], paramsIn[1], paramsIn[2], paramsIn[3]);
+    std::shared_ptr<ngraph::Node> inp2;
+    std::shared_ptr<ngraph::Node> inp3;
+    std::shared_ptr<ngraph::Node> inp4;
+
+    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShape });
+    if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
+        auto paramsSecond = ngraph::builder::makeParams(ngPrc, { inputShape, {inputShape.at(BATCH_SIZE)}, {}});
+        paramsIn.insert(paramsIn.end(), paramsSecond.begin(), paramsSecond.end());
+
+        inp2 = paramsIn.at(1);
+        inp3 = paramsIn.at(2);
+        inp4 = paramsIn.at(3);
+    } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
+        auto maxBeamIndex = inputShape.at(BEAM_WIDTH) - 1;
+
+        inp2 = ngraph::builder::makeConstantRandom(ngPrc, inputShape, maxBeamIndex);
+        inp3 = ngraph::builder::makeConstantRandom(ngPrc, {inputShape.at(BATCH_SIZE)}, maxBeamIndex);
+        inp4 = ngraph::builder::makeConstantRandom(ngPrc, {}, maxBeamIndex);
+    } else {
+        throw std::runtime_error("Unsupported inputType");
+    }
+
+    auto operationResult = std::make_shared<ngraph::opset4::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(operationResult)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
