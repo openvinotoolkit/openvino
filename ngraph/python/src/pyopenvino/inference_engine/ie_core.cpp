@@ -17,7 +17,7 @@
 #include <ie_core.hpp>
 
 #include "pyopenvino/inference_engine/ie_core.hpp"
-//#include "../../../pybind11/include/pybind11/pybind11.h"
+#include "../../../pybind11/include/pybind11/pybind11.h"
 
 namespace py = pybind11;
 
@@ -42,5 +42,8 @@ void regclass_IECore(py::module m)
         self.SetConfig(config_map, to_string(kwargs["device_name"]));
     });
 
+    cls.def("load_network", [](InferenceEngine::Core& self, InferenceEngine::CNNNetwork network, std::string device_name) {
+        return self.LoadNetwork(network, device_name);
+    });
 
 }

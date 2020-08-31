@@ -17,9 +17,9 @@
 
 from typing import Any
 
-import _pyngraph
+import ngraph.pyngraph
 
-from _pyngraph import Variant
+from ngraph.pyngraph import Variant
 from ngraph.impl import VariantInt, VariantString
 from ngraph.exceptions import UserInputError
 
@@ -41,12 +41,12 @@ def _convert_to_variant(item: Any) -> Variant:
     return new_type(item)
 
 
-binding_copy = _pyngraph.PyRTMap.__setitem__
+binding_copy = ngraph.pyngraph.PyRTMap.__setitem__
 
 
-def _setitem(self: _pyngraph.PyRTMap, arg0: str, arg1: Any) -> None:
+def _setitem(self: ngraph.pyngraph.PyRTMap, arg0: str, arg1: Any) -> None:
     """Override setting values in dictionary."""
     binding_copy(self, arg0, _convert_to_variant(arg1))
 
 
-_pyngraph.PyRTMap.__setitem__ = _setitem
+ngraph.pyngraph.PyRTMap.__setitem__ = _setitem
