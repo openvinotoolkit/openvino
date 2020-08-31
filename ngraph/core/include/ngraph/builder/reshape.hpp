@@ -86,6 +86,21 @@ namespace ngraph
             NGRAPH_API
             std::shared_ptr<Node> squeeze(const Output<Node>& value,
                                           std::vector<std::size_t> axes = {0});
+
+            /// \brief      Collapse specified axes into single one.
+            ///
+            /// \note       Collapsed axes create a continuous range starting from outermost axis.
+            ///
+            /// \param[in]  value       The value to be reshaped.
+            /// \param[in]  start_axis  The start axis index.
+            /// \param[in]  end_axis    The end axis (inclusive) index.
+            ///
+            /// \return     The node with collapsed specified axes.
+            ///
+            NGRAPH_API
+            std::shared_ptr<Node> collapse(const Output<Node>& value,
+                                           const std::size_t start_axis,
+                                           const std::size_t end_axis);
         }
     } // namespace  builder
 } // namespace  ngraph

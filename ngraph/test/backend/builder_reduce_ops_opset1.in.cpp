@@ -81,3 +81,94 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic_2)
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_5d_to_3d)
+{
+    Shape shape_input{1, 2, 3, 4, 5};
+    Shape shape_r{1, 24, 5};
+
+    const auto elems_in_tensor = shape_size(shape_input);
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 1, shape_input.size() - 2);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(elems_in_tensor, 1);
+    vector<float> b(elems_in_tensor, 1);
+
+    auto test_case = test::TestCase<TestEngine>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_r, b);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_all_dims)
+{
+    Shape shape_input{1, 2, 3, 4, 5, 6};
+    Shape shape_r{720};
+
+    const auto elems_in_tensor = shape_size(shape_input);
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 0, shape_input.size() - 1);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(elems_in_tensor, 1);
+    vector<float> b(elems_in_tensor, 1);
+
+    auto test_case = test::TestCase<TestEngine>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_r, b);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_none)
+{
+    Shape shape_input{1, 2, 3, 4, 5, 6};
+
+    const auto elems_in_tensor = shape_size(shape_input);
+
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
+    const auto builder_collapse = builder::opset1::collapse(A, 2, shape_input.size() - 4);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    vector<float> a(elems_in_tensor, 1);
+    vector<float> b(elems_in_tensor, 1);
+
+    auto test_case = test::TestCase<TestEngine>(f);
+
+    test_case.add_input<float>(shape_input, {a});
+    test_case.add_expected_output<float>(shape_input, b);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_dyn_shape)
+{
+    PartialShape pshape_input{1, 2, 3, 4, 5, Dimension()};
+    PartialShape pshape_output{1, 24, 5, Dimension()};
+
+    const auto A = make_shared<op::Parameter>(element::f32, pshape_input);
+    EXPECT_TRUE(A->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, 2, 3, 4, 5, Dimension::dynamic()}));
+    const auto builder_collapse = builder::opset1::collapse(A, 1, 3);
+    const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(f);
+
+    const size_t NUM_DIMENSIONS_TO_TEST = 5;
+    for (size_t dim = 1; dim < NUM_DIMENSIONS_TO_TEST; dim++)
+    {
+        Shape shape_input{1, 2, 3, 4, 5, dim};
+        Shape shape_output{1, 24, 5, dim};
+        const auto elems_in_tensor = shape_size(shape_input);
+
+        std::vector<float> input_values(elems_in_tensor, 1);
+        std::vector<float> expected_values(elems_in_tensor, 1);
+
+        test_case.add_input<float>(shape_input, {input_values});
+        test_case.add_expected_output<float>(shape_output, expected_values);
+        test_case.run();
+    }
+}
