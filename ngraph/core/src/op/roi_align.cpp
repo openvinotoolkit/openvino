@@ -16,6 +16,9 @@
 
 #include "roi_align.hpp"
 
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/roi_align.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -190,4 +193,37 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+} // namespace ngraph
+namespace
+{
+    bool evaluate_roi_align(const HostTensorPtr& input_tensor,
+                            const HostTensorPtr& rois_tensor,
+                            const HostTensorPtr& batch_indices_tensor,
+                            const int pooled_width,
+                            const int pooled_height,
+                            const float spatial_scale,
+                            const int pooling_mode)
+    {
+        // call for roi_align from reference
+        return true;
+    }
+} // namespace
+
+bool op::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    const auto& input = inputs[0];
+    const auto& rois = inputs[1];
+    const auto& batch_indices = inputs[2];
+
+    const auto& output = outputs[0];
+
+    return evaluate_roi_align(input,
+                              rois,
+                              batch_indices,
+                              output,
+                              m_pooled_h,
+                              m_pooled_w,
+                              m_sampling_ratio,
+                              m_spatial_scale,
+                              m_mode);
 }
