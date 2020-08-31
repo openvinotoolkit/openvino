@@ -16,8 +16,6 @@
 
 import logging as log
 
-import numpy as np
-
 from extensions.middle.fusings import Fusing
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Node, Graph
@@ -55,7 +53,6 @@ class ConcatOptimization(MiddleReplacementPattern):
                 for j in range(i + 1, len(key)):
                     arr = tuple(key[i:j + 1])
                     if arr in mp.keys() and arr != key:
-                        # print("Output of {} can be used as input for {} ({})".format(mp[arr][0], mp[key][0], len(arr)))
                         replacers.append((len(arr), arr))
 
             replacers.sort(reverse=True)
@@ -66,7 +63,6 @@ class ConcatOptimization(MiddleReplacementPattern):
                 we_can = True
                 for x in arr:
                     if used[concat_id][x]:
-                        # print("Sorry but {} input was already removed from {}".format(x, concat_id))
                         we_can = False
                         break
 
@@ -112,7 +108,7 @@ class ConcatOdInputEraser(MiddleReplacementPattern):
                     continue
                 shape = in_port.data.get_shape()
                 assert shape is not None
-                if np.array_equal(shape, [0]):
+                if 0 in shape:
                     in_port.disconnect()
 
             connected_input_ports = [in_port for in_port in concat.in_ports().values() if not in_port.disconnected()]

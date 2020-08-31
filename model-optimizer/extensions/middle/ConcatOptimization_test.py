@@ -51,6 +51,36 @@ class Concat0dInput(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_deletion_2(self):
+        nodes = {
+            **shaped_const_with_data('input_0', [5, 3]),
+            **shaped_const_with_data('input_1', [5, 1]),
+            **shaped_const_with_data('input_2', [5, 0]),
+            **shaped_const_with_data('input_3', [5, 5]),
+            **regular_op_with_shaped_data('concat', [3], {'type': 'Concat', 'axis': 1}),
+            **result(),
+        }
+        edges_before = [
+            *connect('input_0', '0:concat'),
+            *connect('input_1', '1:concat'),
+            *connect('input_2', '2:concat'),
+            *connect('input_3', '3:concat'),
+            *connect('concat', 'output'),
+        ]
+        edges_after = [
+            *connect('input_0', '0:concat'),
+            *connect('input_1', '1:concat'),
+            *connect('input_3', '3:concat'),
+            *connect('concat', 'output'),
+        ]
+
+        graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
+        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
     def test_negative(self):
         nodes = {
             **shaped_const_with_data('input_0', [1]),
