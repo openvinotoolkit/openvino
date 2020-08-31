@@ -96,25 +96,31 @@ class ConcatOptimization(MiddleReplacementPattern):
 
 class ConcatOdInputEraser(MiddleReplacementPattern):
     """
-    Disconnects empty inputs of Concat operations -- as there is nothing to concatenate
+    Disconnects empty inputs of Concat operations -- as there is nothing to concatenate and re-connect inputs
     """
     enabled = True
     force_clean_up = True
 
     def find_and_replace_pattern(self, graph: Graph):
         for concat in graph.get_op_nodes(type='Concat'):
-            port_to_connect = 0
-            for port_idx in range(len(concat.in_ports())):
-                if concat.is_in_port_connected(port_idx) and 0 in concat.in_port(port_idx).data.get_shape():
-                    concat.in_port(port_idx).disconnect()
-                    log.debug('Remove input with port #{} for node {} because it has 0D dimension'
-                              ''.format(port_idx, concat.soft_get('name', concat.id)))
-                else:
-                    if port_to_connect != port_idx:
-                        concat.in_port(port_idx).get_connection().set_destination(concat.in_port(port_to_connect))
-                    port_to_connect += 1
-            assert port_to_connect != 0, 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))
+            for in_port in concat.in_ports().values():
+                if in_port.disconnected():
+                    continue
+                shape = in_port.data.get_shape()
+                assert shape is not None
+                if 0 in shape:
+                    in_port.disconnect()
 
-            # if some edge was removed then we need to update the number of input ports
-            if len(concat.in_ports()) != port_to_connect:
-                concat['in_ports_count'] = port_to_connect
+            connected_input_ports = [in_port for in_port in concat.in_ports().values() if not in_port.disconnected()]
+            assert len(connected_input_ports), 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))
+
+            max_port_id = max([port.idx for port in connected_input_ports])
+            if max_port_id != len(connected_input_ports) + 1:
+                port_idx_to_connect = 0
+                for port_idx in range(max_port_id + 1):
+                    if concat.is_in_port_connected(port_idx):
+                        concat.add_input_port(port_idx_to_connect, skip_if_exist=True)
+                        concat.in_port(port_idx).get_connection().set_destination(concat.in_port(port_idx_to_connect))
+                        port_idx_to_connect += 1
+
+                concat['in_ports_count'] = len(connected_input_ports)
