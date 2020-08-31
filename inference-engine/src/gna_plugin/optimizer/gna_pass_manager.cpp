@@ -601,13 +601,16 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
                 layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
 
-                auto& convolution = static_cast<ConvolutionLayer&>(*next);
+                auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
+                if (!convolution) {
+                    THROW_GNA_EXCEPTION << "There needs to be a convolution between permutations for RemovePermutationsNHWCToNCHWPass!";
+                }
 
-                if (convolution._kernel_y != 1) {
+                if (convolution->_kernel_y != 1) {
                     THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
                 }
                 auto in_channels = next->input()->getDims()[3];
-                convolution._kernel_y = in_channels;
+                convolution->_kernel_y = in_channels;
             }
         }
         auto prev = CNNNetPrevLayer(toRemove);
