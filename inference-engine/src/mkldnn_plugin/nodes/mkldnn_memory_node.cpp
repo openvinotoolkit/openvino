@@ -6,6 +6,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "mkldnn_memory_node.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -88,7 +89,7 @@ static void simple_copy(MKLDNNMemory& dst, const MKLDNNMemory& src) {
 
     IE_ASSERT(srcSizeInByte == dstSizeInByte) << "Memory objects are not compatible. Has different sizes.";
 
-    memcpy(dstPtr, srcPtr, srcSizeInByte);
+    cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
 }
 
 MKLDNNMemoryInputNode::~MKLDNNMemoryInputNode() {
