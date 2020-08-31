@@ -40,7 +40,7 @@ public:
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
     std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override;
 

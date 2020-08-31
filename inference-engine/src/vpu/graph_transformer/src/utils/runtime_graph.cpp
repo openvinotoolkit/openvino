@@ -26,7 +26,7 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo&);
 
 }  // namespace
 
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
+InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
     std::map<size_t, std::shared_ptr<ngraph::Node>> stageMetaIndexToNode;
     std::function<void(size_t)> createNodeFromMeta;
 
@@ -118,7 +118,7 @@ InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo& graphMetaInfo
     return net;
 }
 
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNet(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
+InferenceEngine::CNNNetwork buildRuntimeGraphAsIeNet(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
     auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
     net->setName(graphMetaInfo.graphName);
 
@@ -211,7 +211,7 @@ InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNet(GraphMetaInfo& graphM
         net->setInputInfo(inputInfo);
     }
 
-    return net;
+    return InferenceEngine::CNNNetwork{net};
 }
 
 namespace {

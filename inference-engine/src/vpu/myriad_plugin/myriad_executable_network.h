@@ -109,7 +109,7 @@ public:
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
     void Import(std::istream& strm,
                 std::vector<DevicePtr> &devicePool,

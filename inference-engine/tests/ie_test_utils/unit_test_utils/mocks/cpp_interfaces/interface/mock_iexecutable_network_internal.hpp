@@ -29,7 +29,7 @@ public:
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {};
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
-    MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
+    MOCK_METHOD0(GetExecGraphInfo, CNNNetwork(void));
 
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));
     MOCK_CONST_METHOD2(GetConfig, void(const std::string &name, Parameter &result));

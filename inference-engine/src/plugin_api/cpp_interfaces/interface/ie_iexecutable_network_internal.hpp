@@ -69,9 +69,9 @@ public:
 
     /**
      * @brief Get executable graph information from a device
-     * @param graphPtr network ptr to store executable graph information
+     * @return A network object to store executable graph information
      */
-    virtual void GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr) = 0;
+    virtual CNNNetwork GetExecGraphInfo() = 0;
 
     /**
      * @brief Queries memory states.

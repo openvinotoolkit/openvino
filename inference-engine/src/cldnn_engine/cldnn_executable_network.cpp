@@ -102,11 +102,11 @@ void CLDNNExecNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
-void CLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
         THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
 
-    m_graphs.front()->GetExecGraphInfo(graphPtr);
+    return m_graphs.front()->GetExecGraphInfo();
 }
 
 void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {

@@ -75,9 +75,9 @@ public:
         networkModel << strm.rdbuf();
     }
 
-    void GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr) override {
-        (void)graphPtr;
+    CNNNetwork GetExecGraphInfo() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        return {};
     }
 
     /**

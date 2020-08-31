@@ -63,7 +63,7 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
+        TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
 
     StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {

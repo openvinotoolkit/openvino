@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "ie_input_info.hpp"
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "ie_iexecutable_network.hpp"
 
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
@@ -28,7 +28,7 @@ public:
     MOCK_METHOD1(setNetworkOutputs, void(OutputsDataMap));
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
-    MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
+    MOCK_METHOD0(GetExecGraphInfo, CNNNetwork(void));
     void WrapOstreamExport(std::ostream& networkModel) {
         ExecutableNetworkInternal::Export(networkModel);
     }

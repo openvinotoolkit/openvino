@@ -180,11 +180,11 @@ void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &
     asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
-void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
-    graphPtr = _graphs.begin()->get()->dump();
+    return _graphs.begin()->get()->dump();
 }
 
 void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result) const {
@@ -204,9 +204,7 @@ void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result) co
         THROW_IE_EXCEPTION << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        if (_graphs.begin()->get()->dump() == nullptr)
-            THROW_IE_EXCEPTION << "Invalid graph dump";
-        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->dump()->getName());
+        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->GetName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
