@@ -164,7 +164,7 @@ class Crop(Op):
         node['dim'] = dim
         node.out_node().shape = new_shape
 
-        if node.in_node(0).has_valid('value') and not node.graph.graph['cmd_params'].enable_ssd_gluoncv:
+        if node.in_node(0).has_valid('value') and not getattr(node.graph.graph['cmd_params'], 'enable_ssd_gluoncv', False):
             out_value = np.copy(node.in_node(0).value)
 
             slice_indexes = []
