@@ -36,7 +36,7 @@ InferenceEngine::Core core;
 ```cpp
 auto network = core.ReadNetwork("Model.xml");
 ```
-**Or read the model from ONNX format** (.onnx and .prototxt are supported formats)
+**Or read the model from ONNX format** (.onnx and .prototxt are supported formats). More information about ONNX format support is [here](./ONNX_Supported_Ops.md).
 ```cpp
 auto network = core.ReadNetwork("model.onnx");
 ```
