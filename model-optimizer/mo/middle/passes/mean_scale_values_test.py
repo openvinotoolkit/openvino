@@ -19,7 +19,7 @@ from argparse import Namespace
 
 import numpy as np
 
-from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
+from mo.middle.passes.mean_scale_values import move_mean_values_to_preprocess
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
@@ -78,7 +78,7 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                                  ('add_output', 'op_output')
                                  ])
 
-        move_scaleshift_to_preprocess(graph)
+        move_mean_values_to_preprocess(graph)
         self.assertTrue(graph.graph['mean_values'] is not None)
         self.assertTrue(np.array_equal(graph.graph['mean_values']['placeholder_1'], np.array([1, 2, 3])))
 
@@ -123,7 +123,7 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                                  'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                                  })
 
-        move_scaleshift_to_preprocess(graph)
+        move_mean_values_to_preprocess(graph)
         self.assertTrue(graph.graph.get('mean_values', None) is None)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
@@ -154,7 +154,7 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                                  ('add_output', 'op_output')
                                  ])
 
-        move_scaleshift_to_preprocess(graph)
+        move_mean_values_to_preprocess(graph)
         self.assertTrue(graph.graph.get('mean_values', None) is None)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
@@ -184,7 +184,7 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                                  ('add_output', 'op_output')
                                  ])
 
-        move_scaleshift_to_preprocess(graph)
+        move_mean_values_to_preprocess(graph)
         self.assertTrue(graph.graph.get('mean_values', None) is None)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
@@ -214,7 +214,7 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
                                  ('add_output', 'op_output')
                                  ])
 
-        move_scaleshift_to_preprocess(graph)
+        move_mean_values_to_preprocess(graph)
         self.assertTrue(graph.graph['mean_values'] is not None)
         self.assertTrue(np.array_equal(graph.graph['mean_values']['placeholder_1'], np.array([1, 2, 3])))
 

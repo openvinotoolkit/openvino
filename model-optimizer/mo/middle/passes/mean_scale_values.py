@@ -20,7 +20,7 @@ from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
 
 
-def move_scaleshift_to_preprocess_action(graph, match):
+def move_mean_values_to_preprocess_action(graph, match):
     mean_values = {}
     input_op = match['input_op']
     add_op = match['add']
@@ -57,9 +57,9 @@ def move_scaleshift_to_preprocess_action(graph, match):
             graph.graph['mean_values'] = mean_values
 
 
-def move_scaleshift_to_preprocess(graph: Graph):
+def move_mean_values_to_preprocess(graph: Graph):
     """
-    This function finds scaleshift layer after input layer and if it has weights with ones, it deletes scaleshift layer
+    This function finds mean values layers after input layer and if it has weights with ones, it deletes mean values layers
     and creates graph dict attribute : {'input':np.array(...), 'input2': ... }
     """
     apply_pattern(
@@ -90,5 +90,5 @@ def move_scaleshift_to_preprocess(graph: Graph):
             ('const_add_output', 'add', {'in': 1}),
             ('add', 'add_output'),
         ],
-        action=move_scaleshift_to_preprocess_action
+        action=move_mean_values_to_preprocess_action
     )

@@ -16,7 +16,7 @@
 from extensions.middle.LeakyReluPattern import LeakyReLU
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph
-from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
+from mo.middle.passes.mean_scale_values import move_mean_values_to_preprocess
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
@@ -36,7 +36,7 @@ class Preprocessing(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         argv = graph.graph['cmd_params']
         if argv.move_to_preprocess:
-            move_scaleshift_to_preprocess(graph)
+            move_mean_values_to_preprocess(graph)
 
 
 class CaffeMeanFileProcessing(MiddleReplacementPattern):
