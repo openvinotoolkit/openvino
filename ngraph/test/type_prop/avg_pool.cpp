@@ -187,479 +187,252 @@ TEST(type_prop, avg_pool_2d_deduce)
     EXPECT_EQ(avg_pool->get_pads_end(), (Shape{0, 0}));
 }
 
-// TEST(type_prop, avg_pool_2d_deduce_strided)
-// {
+TEST(type_prop, avg_pool_2d_deduce_strided)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
+    const Shape kernel{10, 20};
+    const auto move_strides = Strides{2, 3};
+    const auto avg_pool = make_shared<op::v1::AvgPool>(
+        param, move_strides, Shape{0, 0}, Shape{0, 0}, kernel, true, op::RoundingType::FLOOR);
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
-//     const Shape kernel{10, 20};
-//     const auto move_strides = Strides{2, 3};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel, move_strides);
+    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
+    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 46, 44}));
 
-//     EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-//     EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 46, 44}));
+    EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3}));
+    EXPECT_EQ(avg_pool->get_kernel(), (Shape{10, 20}));
+    EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{0, 0}));
+    EXPECT_EQ(avg_pool->get_pads_end(), (Shape{0, 0}));
+}
 
-//     EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3}));
-//     EXPECT_EQ(avg_pool->get_kernel(), (Shape{10, 20}));
-//     EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{0, 0}));
-//     EXPECT_EQ(avg_pool->get_pads_end(), (Shape{0, 0}));
-// }
+TEST(type_prop, avg_pool_3d_deduce_strided_small)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
+    const Shape kernel{2, 3, 2};
+    const auto move_strides = Strides{2, 3, 4};
+    const auto avg_pool = make_shared<op::v1::AvgPool>(
+        param, move_strides, Shape{0, 0, 0}, Shape{0, 0, 0}, kernel, true, op::RoundingType::FLOOR);
 
-// TEST(type_prop, avg_pool_3d_deduce_strided_small)
-// {
+    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
+    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 3, 2, 3}));
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
-//     const Shape kernel{2, 3, 2};
-//     const auto move_strides = Strides{2, 3, 4};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel, move_strides);
+    EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3, 4}));
+    EXPECT_EQ(avg_pool->get_kernel(), (Shape{2, 3, 2}));
+    EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{0, 0, 0}));
+    EXPECT_EQ(avg_pool->get_pads_end(), (Shape{0, 0, 0}));
+}
 
-//     EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-//     EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 3, 2, 3}));
+TEST(type_prop, avg_pool_3d_deduce_strided_padded_small)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
+    const Shape kernel{2, 3, 2};
+    const auto move_strides = Strides{2, 3, 4};
+    const Shape pads_begin{5, 6, 4};
+    const Shape pads_end{6, 4, 5};
+    const auto avg_pool = make_shared<op::v1::AvgPool>(
+        param, move_strides, pads_begin, pads_end, kernel, false, op::RoundingType::FLOOR);
 
-//     EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3, 4}));
-//     EXPECT_EQ(avg_pool->get_kernel(), (Shape{2, 3, 2}));
-//     EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{0, 0, 0}));
-//     EXPECT_EQ(avg_pool->get_pads_end(), (Shape{0, 0, 0}));
-// }
+    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
+    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 9, 6, 5}));
 
-// TEST(type_prop, avg_pool_3d_deduce_strided_padded_small)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
-//     const Shape kernel{2, 3, 2};
-//     const auto move_strides = Strides{2, 3, 4};
-//     Shape padding_below{5, 6, 4};
-//     Shape padding_above{6, 4, 5};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(
-//         param, kernel, move_strides, padding_below, padding_above, true);
-
-//     EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-//     EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 9, 6, 5}));
-
-//     EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3, 4}));
-//     EXPECT_EQ(avg_pool->get_kernel(), (Shape{2, 3, 2}));
-//     EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{5, 6, 4}));
-//     EXPECT_EQ(avg_pool->get_pads_end(), (Shape{6, 4, 5}));
-// }
+    EXPECT_EQ(avg_pool->get_strides(), (Strides{2, 3, 4}));
+    EXPECT_EQ(avg_pool->get_kernel(), (Shape{2, 3, 2}));
+    EXPECT_EQ(avg_pool->get_pads_begin(), (Shape{5, 6, 4}));
+    EXPECT_EQ(avg_pool->get_pads_end(), (Shape{6, 4, 5}));
+}
 
 // TEST(type_prop, avg_pool_ceil_mode)
 // {
-
 //     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 10});
 //     const Shape kernel{2};
 //     const auto move_strides = Strides{4};
-//     Shape padding_below{4};
-//     Shape padding_above{5};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(param,
-//                                                  window_shape,
-//                                                  move_strides,
-//                                                  padding_below,
-//                                                  padding_above,
-//                                                  true,
-//                                                  op::PadType::EXPLICIT,
-//                                                  true);
+//     const Shape pads_begin{4};
+//     const Shape pads_end{5};
+//     const auto avg_pool = make_shared<op::v1::AvgPool>(
+//         param, kernel, move_strides, pads_begin, pads_end, false, op::RoundingType::CEIL);
 
 //     // ceil((10 + 9 - 2)/4) + 1
 //     EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 6}));
+//     // TODO: type prop calculates {64, 3, 8}
 // }
 
-// TEST(type_prop, avg_pool_invalid_0d_input)
-// {
+TEST(type_prop, avg_pool_invalid_0d_input)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{});
+    const Shape kernel{};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{});
-//     const Shape kernel{};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_invalid_1d_input)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{2});
+    const Shape kernel{};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid 0D input not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Data batch must have rank of at least 3 (one batch axis, one "
-//                              "input-channel axis, and at least one spatial dimension)");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+TEST(type_prop, avg_pool_invalid_2d_input)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{2, 6});
+    const Shape kernel{};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_invalid_1d_input)
-// {
+TEST(type_prop, avg_pool_invalid_0_batch_size)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{0, 6, 1});
+    const Shape kernel{1};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{2});
-//     const Shape kernel{};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_invalid_0_channels)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 0, 1});
+    const Shape kernel{1};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid 1D input not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Data batch must have rank of at least 3 (one batch axis, one "
-//                              "input-channel axis, and at least one spatial dimension)");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_many)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 3, 3};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_invalid_2d_input)
-// {
+TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_few)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{2, 6});
-//     const Shape kernel{};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_invalid_movement_stride_rank)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 3};
+    const auto move_strides = Strides{2, 3, 8};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid 2D input not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Data batch must have rank of at least 3 (one batch axis, one "
-//                              "input-channel axis, and at least one spatial dimension)");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+TEST(type_prop, avg_pool_invalid_padding_below_rank)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 3};
+    const auto move_strides = Strides{2, 3};
+    const Shape pads_begin{1, 2, 3};
+    const Shape pads_end{1, 2};
+    EXPECT_THROW(
+        make_shared<op::v1::AvgPool>(
+            param, move_strides, pads_begin, pads_end, kernel, true, op::RoundingType::FLOOR),
+        NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_invalid_0_batch_size)
-// {
+TEST(type_prop, avg_pool_invalid_padding_above_rank)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 3};
+    const auto move_strides = Strides{2, 3};
+    const Shape pads_begin{1, 2};
+    const Shape pads_end{1, 2, 3};
+    EXPECT_THROW(
+        make_shared<op::v1::AvgPool>(
+            param, move_strides, pads_begin, pads_end, kernel, true, op::RoundingType::FLOOR),
+        NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{0, 6, 1});
-//     const Shape kernel{1};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_invalid_input_item_size_0)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 0, 10});
+    const Shape kernel{3, 3};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with 0 batch size not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(), "Batch size is zero");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+TEST(type_prop, avg_pool_invalid_window_size_0)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 0};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-// TEST(type_prop, avg_pool_invalid_0_channels)
-// {
+TEST(type_prop, avg_pool_invalid_dilated_too_large)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
+    const Shape kernel{9, 9};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 0, 1});
-//     const Shape kernel{1};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_larger_than_pre_padding_but_fits_in_post_padding)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
+    const Shape kernel{9, 9};
+    Strides window_strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{1, 1};
+    const auto avg_pool = make_shared<op::v1::AvgPool>(
+        param, window_strides, pads_begin, pads_end, kernel, true, op::RoundingType::FLOOR);
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with 0 channels not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(), "Channel count is zero");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    ASSERT_EQ(avg_pool->get_output_element_type(0), element::f32);
+    ASSERT_EQ(avg_pool->get_output_shape(0), (Shape{6, 2, 1, 1}));
+}
 
-// TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_many)
-// {
+TEST(type_prop, avg_pool_invalid_movement_stride_0)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
+    const Shape kernel{3, 3};
+    const auto move_strides = Strides{0, 1};
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
+}
 
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 3, 3};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
+TEST(type_prop, avg_pool_partial_rank_dynamic_ok)
+{
+    const PartialShape arg_shape{PartialShape::dynamic()};
+    const Shape kernel{2, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1, 1};
+    const Shape pads_begin{0, 0, 0, 0};
+    const Shape pads_end{0, 0, 0, 0};
 
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with too many window dimensions not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Ranks for data item shape (data batch has shape {6,2,10,10}, so
-//                              data " "item rank is 2), padding below (CoordinateDiff{0, 0, 0}),
-//                              padding " "above (CoordinateDiff{0, 0, 0}), window shape ({3,3,3}),
-//                              and window " "strides (Strides{1, 1, 1}) do not match");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto ap = make_shared<op::v1::AvgPool>(param,
+                                           window_movement_strides,
+                                           pads_begin,
+                                           pads_end,
+                                           kernel,
+                                           false,
+                                           op::RoundingType::FLOOR);
 
-// TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_few)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with too few window dimensions not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Ranks for data item shape (data batch has shape {6,2,10,10}, so
-//                              data " "item rank is 2), padding below (CoordinateDiff{0}), padding
-//                              above "
-//                              "(CoordinateDiff{0}), window shape ({3}), and window strides "
-//                              "(Strides{1}) do not match");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_movement_stride_rank)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 3};
-//     const auto move_strides = Strides{2, 3, 8};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel, move_strides);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with wrong movement stride rank not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Ranks for data item shape (data batch has shape {6,2,10,10}, so
-//                              data " "item rank is 2), padding below (CoordinateDiff{0, 0}),
-//                              padding above "
-//                              "(CoordinateDiff{0, 0}), window shape ({3,3}), and window strides "
-//                              "(Strides{2, 3, 8}) do not match");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_padding_below_rank)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 3};
-//     const auto move_strides = Strides{2, 3};
-//     Shape padding_below{1, 2, 3};
-//     Shape padding_above{1, 2};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(
-//             param, kernel, move_strides, padding_below, padding_above, false);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with wrong below-padding rank not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Ranks for data item shape (data batch has shape {6,2,10,10}, so
-//                              data " "item rank is 2), padding below (CoordinateDiff{1, 2, 3}),
-//                              padding " "above (CoordinateDiff{1, 2}), window shape ({3,3}), and
-//                              window " "strides (Strides{2, 3}) do not match");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_padding_above_rank)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 3};
-//     const auto move_strides = Strides{2, 3};
-//     Shape padding_below{1, 2};
-//     Shape padding_above{1, 2, 3};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(
-//             param, kernel, move_strides, padding_below, padding_above, false);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with wrong above-padding rank not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Ranks for data item shape (data batch has shape {6,2,10,10}, so
-//                              data " "item rank is 2), padding below (CoordinateDiff{1, 2}),
-//                              padding above "
-//                              "(CoordinateDiff{1, 2, 3}), window shape ({3,3}), and window strides
-//                              "
-//                              "(Strides{2, 3}) do not match");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_input_item_size_0)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 0, 10});
-//     const Shape kernel{3, 3};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with zero-length spatial axis not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(
-//             error.what(),
-//             "Data shape after padding and dilation has dimension less than 1 (dim: 0) at axis
-//             0");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_window_size_0)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 0};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with zero-length window axis not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Window after dilation has dimension less than 1 (dim: 0) at axis
-//                              1");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_invalid_dilated_too_large)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
-//     const Shape kernel{9, 9};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with oversized window not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Window after dilation has dimension (dim: 9) larger than the data "
-//                              "shape after padding (dim: 8) at axis 0");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_larger_than_pre_padding_but_fits_in_post_padding)
-// {
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
-//     const Shape kernel{9, 9};
-//     Strides window_strides{1, 1};
-//     Shape padding_below{0, 0};
-//     Shape padding_above{1, 1};
-//     const auto avg_pool = make_shared<op::v1::AvgPool>(
-//         param, kernel, window_strides, padding_below, padding_above);
-
-//     ASSERT_EQ(avg_pool->get_output_element_type(0), element::f32);
-//     ASSERT_EQ(avg_pool->get_output_shape(0), (Shape{6, 2, 1, 1}));
-// }
-
-// TEST(type_prop, avg_pool_invalid_movement_stride_0)
-// {
-
-//     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
-//     const Shape kernel{3, 3};
-//     const auto move_strides = Strides{0, 1};
-//     try
-//     {
-//         const auto avg_pool = make_shared<op::v1::AvgPool>(param, kernel, move_strides);
-
-//         // Should have thrown, so fail if it didn't
-//         FAIL() << "Invalid input with 0-length movement stride axis not detected";
-//     }
-//     catch (const NodeValidationFailure& error)
-//     {
-//         EXPECT_HAS_SUBSTRING(error.what(),
-//                              "Window strides (Strides{0, 1}) has zero dimension at axis 0");
-//     }
-//     catch (...)
-//     {
-//         FAIL() << "Deduced type check failed for unexpected reason";
-//     }
-// }
-
-// TEST(type_prop, avg_pool_partial_rank_dynamic_ok)
-// {
-//     PartialShape arg_shape{PartialShape::dynamic()};
-//     const Shape kernel{2, 3, 4, 5};
-//     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
-//     bool include_padding_in_average = false;
-
-//     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
-//     auto ap = make_shared<op::v1::AvgPool>(param,
-//                                            window_shape,
-//                                            window_movement_strides,
-//                                            padding_below,
-//                                            padding_above,
-//                                            include_padding_in_average);
-
-//     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-//     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
-// }
+    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+}
 
 // TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch)
 // {
 //     PartialShape arg_shape{PartialShape::dynamic()};
 //     const Shape kernel{2, 3, 4, 5};
 //     Strides window_movement_strides{1, 1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
@@ -669,8 +442,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //         auto ap = make_shared<op::v1::AvgPool>(param,
 //                                                window_shape,
 //                                                window_movement_strides,
-//                                                padding_below,
-//                                                padding_above,
+//                                                pads_begin,
+//                                                pads_end,
 //                                                include_padding_in_average);
 //         FAIL() << "Mismatch of attribute ranks not detected";
 //     }
@@ -695,16 +468,16 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{PartialShape::dynamic(6)};
 //     const Shape kernel{2, 3, 4, 5};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 //     auto ap = make_shared<op::v1::AvgPool>(param,
 //                                            window_shape,
 //                                            window_movement_strides,
-//                                            padding_below,
-//                                            padding_above,
+//                                            pads_begin,
+//                                            pads_end,
 //                                            include_padding_in_average);
 
 //     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
@@ -716,16 +489,16 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
 //     const Shape kernel{2, 3, 4, 5};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 //     auto ap = make_shared<op::v1::AvgPool>(param,
 //                                            window_shape,
 //                                            window_movement_strides,
-//                                            padding_below,
-//                                            padding_above,
+//                                            pads_begin,
+//                                            pads_end,
 //                                            include_padding_in_average);
 
 //     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
@@ -738,8 +511,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
 //     const Shape kernel{2, 3, 4, 5, 6};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
@@ -749,8 +522,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //         auto ap = make_shared<op::v1::AvgPool>(param,
 //                                                window_shape,
 //                                                window_movement_strides,
-//                                                padding_below,
-//                                                padding_above,
+//                                                pads_begin,
+//                                                pads_end,
 //                                                include_padding_in_average);
 //         FAIL() << "Mismatch of attribute ranks not detected";
 //     }
@@ -774,8 +547,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
 //     const Shape kernel{9, 3, 4, 5};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
@@ -785,8 +558,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //         auto ap = make_shared<op::v1::AvgPool>(param,
 //                                                window_shape,
 //                                                window_movement_strides,
-//                                                padding_below,
-//                                                padding_above,
+//                                                pads_begin,
+//                                                pads_end,
 //                                                include_padding_in_average);
 //         FAIL() << "Oversized window not detected";
 //     }
@@ -808,16 +581,16 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
 //     const Shape kernel{9, 3, 4, 5};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 0};
-//     Shape padding_above{1, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 0};
+//     const Shape pads_end{1, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 //     auto ap = make_shared<op::v1::AvgPool>(param,
 //                                            window_shape,
 //                                            window_movement_strides,
-//                                            padding_below,
-//                                            padding_above,
+//                                            pads_begin,
+//                                            pads_end,
 //                                            include_padding_in_average);
 
 //     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
@@ -830,8 +603,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //     PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
 //     const Shape kernel{9, 3, 4, 3};
 //     Strides window_movement_strides{1, 1, 1, 1};
-//     Shape padding_below{0, 0, 0, 4};
-//     Shape padding_above{0, 0, 0, 0};
+//     const Shape pads_begin{0, 0, 0, 4};
+//     const Shape pads_end{0, 0, 0, 0};
 //     bool include_padding_in_average = false;
 
 //     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
@@ -841,8 +614,8 @@ TEST(type_prop, avg_pool_2d_deduce)
 //         auto ap = make_shared<op::v1::AvgPool>(param,
 //                                                window_shape,
 //                                                window_movement_strides,
-//                                                padding_below,
-//                                                padding_above,
+//                                                pads_begin,
+//                                                pads_end,
 //                                                include_padding_in_average);
 //         FAIL() << "Window in padding not detected";
 //     }
