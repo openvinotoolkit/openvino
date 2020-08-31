@@ -177,8 +177,11 @@ namespace ngraph
                     else if (activation == "tanh")
                     {
                         reference::tanh(gate.data(), gate.data(), gate.size());
-                    } else {
-                        throw ngraph_error("Activation function " + activation + " is not supported.");
+                    }
+                    else
+                    {
+                        throw ngraph_error("Activation function " + activation +
+                                           " is not supported.");
                     }
                 };
 

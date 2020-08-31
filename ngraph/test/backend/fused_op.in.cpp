@@ -1664,18 +1664,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     // P
     vector<float> in_P(3 * hidden_size, 0.f);
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.81457126f, 0.61109227f, 0.769522f, 0.52239674f, 0.4324641f, 0.63183f});
     ht_test_case.run();
 
-    auto ct_function = make_shared<Function>(OutputVector{out_C},
+    auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {1.4444952f, 0.9635685f, 1.2875274f, 0.8053419f, 0.7184521f, 0.95803297f});
@@ -1753,8 +1751,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.9218244f, 0.78787273f, 0.8754273f, 0.7361462f, 0.70927656f, 0.83522964f});
@@ -1763,8 +1760,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {1.7094649f, 1.1259761f, 1.444019f, 1.086587f, 0.9762144f, 1.3066899f});
@@ -1853,8 +1849,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.71485436f, 0.71844107f, 0.72704613f, 0.6235602f, 0.68306124f, 0.6978715f});
@@ -1863,8 +1858,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.94656503f, 0.9527454f, 0.9706756f, 0.84206575f, 0.91898793f, 0.9127192f});
@@ -1956,8 +1950,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.96834344f, 0.9695254f, 0.97068775f, 0.9077866f, 0.94161016f, 0.96599925f});
@@ -1966,8 +1959,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.94656503f, 0.9527454f, 0.9706756f, 0.84206575f, 0.91898793f, 0.9127192f});
