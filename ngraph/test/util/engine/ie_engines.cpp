@@ -169,7 +169,6 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     return comparison_result;
 }
 
-
 testing::AssertionResult
     test::IE_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
 {
