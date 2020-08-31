@@ -1107,6 +1107,7 @@ IE_CPU.onnx_upsample8_linear_infer
 IE_CPU.interpolate_down_scales_const_linear
 IE_CPU.onnx_upsample8_import_only
 IE_CPU.onnx_upsample9_scales_const_import_only
+IE_CPU.onnx_empty_initializers_handling
 
 # RNNCell operation has a form that is not supported
 IE_CPU.onnx_model_rnn_defaults_fwd
