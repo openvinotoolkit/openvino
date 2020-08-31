@@ -43,7 +43,7 @@ public:
         defaultConfig.UpdateFromMap(config);
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
+    InferenceEngine::ExecutableNetwork ImportNetwork(
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);

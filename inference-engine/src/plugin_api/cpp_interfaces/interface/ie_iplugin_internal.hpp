@@ -223,13 +223,14 @@ public:
     virtual RemoteContext::Ptr GetDefaultContext() = 0;
 
     /**
+     * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
      * @brief Creates an executable network from an previously exported network
      * @param modelFileName - path to the location of the exported file
      * @param config A string -> string map of parameters
-     * @return A reference to a shared ptr of the returned network interface
+     * @return An Executable network
      */
-    virtual IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                                  const std::map<std::string, std::string>& config) = 0;
+    virtual ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                            const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation

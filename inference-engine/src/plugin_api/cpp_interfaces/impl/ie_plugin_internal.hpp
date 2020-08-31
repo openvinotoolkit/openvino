@@ -66,8 +66,8 @@ public:
         return LoadNetworkImplPrivate(network, config, context);;
     }
 
-    IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                          const std::map<std::string, std::string>& config) override {
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;

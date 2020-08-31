@@ -37,7 +37,7 @@ public:
 
     using ie::InferencePluginInternal::ImportNetwork;
 
-    ie::IExecutableNetwork::Ptr ImportNetwork(
+    ie::ExecutableNetwork ImportNetwork(
             const std::string& modelFileName,
             const std::map<std::string, std::string>& config) override;
 

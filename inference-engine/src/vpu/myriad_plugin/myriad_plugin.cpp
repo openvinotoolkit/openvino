@@ -166,7 +166,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     return make_executable_network(executableNetwork);
 }
 
-IExecutableNetwork::Ptr Engine::ImportNetwork(
+InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);

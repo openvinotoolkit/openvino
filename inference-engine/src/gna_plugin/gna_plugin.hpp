@@ -128,8 +128,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName,
-                                                           const std::map<std::string, std::string> &config) override {
+    InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
+                                                     const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
     InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
@@ -143,7 +143,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(std::istream& networkModel);
+    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * utility to provide input and output blobs externally to be used by InferenceEngine request API clients
