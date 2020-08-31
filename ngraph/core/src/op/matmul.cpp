@@ -69,6 +69,10 @@ void op::MatMul::pre_validate_and_infer_types()
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
         set_output_type(0, result_et, PartialShape::dynamic(max_rank));
     }
+    else
+    {
+        set_output_type(0, result_et, PartialShape::dynamic());
+    }
 }
 
 OutputVector op::MatMul::decompose_op() const

@@ -83,6 +83,10 @@ const std::vector<Precision>& LayerTransformation::getPrecisionsOnWeights() cons
 }
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, const CNNLayer& layer) const {
+    if (!CNNNetworkHelper::isLayoutSupported(layer)) {
+        return false;
+    }
+
     if (!isQuantized(layer)) {
         return false;
     }

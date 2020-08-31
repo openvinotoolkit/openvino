@@ -34,6 +34,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
             "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
+            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)

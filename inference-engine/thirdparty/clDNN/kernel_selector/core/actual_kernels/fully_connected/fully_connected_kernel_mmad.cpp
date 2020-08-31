@@ -25,16 +25,18 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
 
     k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::bf);
@@ -126,7 +128,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     size_t input_y_pitch = input.Y().pitch;
     size_t input_z_pitch = input.Z().pitch;
 
-    if (input.GetLayout() == DataLayout::byxf_af32 || input.GetLayout() == DataLayout::bfyx) {
+    if (input.GetLayout() == DataLayout::bfyx) {
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", 32));
     } else if (input.GetLayout() == DataLayout::b_fs_yx_fsv32 || input.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         input_x_pitch = 32;

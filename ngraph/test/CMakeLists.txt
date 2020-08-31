@@ -69,16 +69,18 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/floor_mod.cpp
     op_eval/hswish.cpp
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
+    op_eval/softplus.cpp
     op_eval/split.cpp
+    op_eval/swish.cpp
     op_eval/strided_slice.cpp
     op_eval/variadic_split.cpp
-    op_eval/swish.cpp
     op_is.cpp
     opset1.cpp
     partial_shape.cpp
@@ -163,6 +165,7 @@ set(SRC
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
     type_prop/slice.cpp
+    type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
