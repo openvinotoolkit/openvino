@@ -235,6 +235,10 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     updateOutput(context, finalDequantization, convolution);
 
     auto onWeights = convolution->get_input_node_shared_ptr(1);
+    if (is_type<opset1::Reshape>(onWeights)) {
+        onWeights = onWeights->get_input_node_shared_ptr(0);
+    }
+
     if (is_type<opset1::Subtract>(onWeights)) {
         auto& rt = onWeights->get_rt_info();
         rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
