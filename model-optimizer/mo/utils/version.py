@@ -21,6 +21,5 @@ def get_version():
     if not os.path.isfile(version_txt):
         return "unknown version"
     with open(version_txt) as f:
-        _ = f.readline()
         version = f.readline().replace('\n', '')
     return version
