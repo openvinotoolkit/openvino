@@ -63,6 +63,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         """
         try:
             import tensorflow.compat.v1 as tf_v1
+            # disable eager execution of TensorFlow 2 environment immediately
+            tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
         from mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
@@ -282,6 +284,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         """
         try:
             import tensorflow.compat.v1 as tf_v1
+            # disable eager execution of TensorFlow 2 environment immediately
+            tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
         from mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, add_node_def_to_subgraph
