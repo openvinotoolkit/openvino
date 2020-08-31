@@ -199,6 +199,8 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
 
     std::vector<char> flat_data(padded_data.begin(), padded_data.end());
+    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
+    std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
 
     for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx) {
         int64_t sq_shape_idx = block_values_size - 1;
@@ -219,14 +221,14 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
                 sq_shape_idx--;
             }
         }
-        std::vector<char> dispersed_data(shape_size(dispersed_shape) * elem_size);
+
         runtime::opt_kernel::reshape(flat_data.data(), dispersed_data.data(), data_shape, plain_axes_order, dispersed_shape,
                                      elem_size);
         Shape post_transpose_shape(axes_order.size());
         for (size_t i = 0; i < axes_order.size(); ++i) {
             post_transpose_shape[i] = dispersed_shape[axes_order[i]];
         }
-        std::vector<char> post_transpose_data(shape_size(post_transpose_shape) * elem_size);
+
         runtime::opt_kernel::reshape(dispersed_data.data(), post_transpose_data.data(), dispersed_shape, axes_order,
                                      post_transpose_shape, elem_size);
         squeezed_shape[0] *= block_values[block_idx];
