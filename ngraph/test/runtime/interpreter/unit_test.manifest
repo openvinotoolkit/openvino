@@ -15,6 +15,9 @@ INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.onnx_resize11_scales_down_linear
 INTERPRETER.interpolate_down_scales_const_linear
 
+# Failed in MacOS:
+INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
+
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
 

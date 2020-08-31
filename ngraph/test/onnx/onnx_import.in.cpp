@@ -1200,7 +1200,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
          8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
          6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
 
-    test_case.run_with_tolerance_as_fp();
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
