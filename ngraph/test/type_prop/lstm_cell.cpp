@@ -266,8 +266,7 @@ TEST(type_prop, lstm_cell_invalid_input_rank0)
     R = make_shared<op::Parameter>(element::f32,
                                    PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape{});
-    auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
-    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size),
                  ngraph::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 }
@@ -326,8 +325,7 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
     R = make_shared<op::Parameter>(element::f32,
                                    PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
-    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size),
                  ngraph::NodeValidationFailure)
         << "LSTMCell node was created with invalid data.";
 }
