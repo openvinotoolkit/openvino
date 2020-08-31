@@ -2229,31 +2229,32 @@ void Program::CreateEltwisePrimitive(cldnn::topology& topology, InferenceEngine:
         THROW_IE_EXCEPTION << "Number of provided coefficients is not equal to number of operands";
     }
 
-    auto eltwiseSpecificTensor = [](const InferenceEngine::SizeVector& dims) {
-        switch (dims.size()) {
-        case 2: return cldnn::tensor(cldnn::spatial(dims[1], dims[0]));
-        case 3: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::spatial(dims[2], dims[1]));
-        case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
-        case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
-        case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-        default: THROW_CLDNN_EXCEPTION("Invalid dimensions size(" << dims.size() << ") for Eltwise layer");
-        }
-    };
-
     auto outDimsN = layer->outData[0]->getTensorDesc().getDims().size();
     for (size_t i = 0; i < inputPrimitives.size(); ++i) {
         auto inputDims = layer->insData[i].lock()->getTensorDesc().getDims();
         auto inputDimsN = inputDims.size();
         if (inputDimsN != outDimsN) {
+            // Add reorder if changing number of dimensions requires changing format
+            auto targetFormat = defaultFormatForDims(outDimsN);
+            if (targetFormat.value != defaultFormatForDims(inputDimsN).value) {
+                auto reorderName = eltwiseLayerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                auto targetDatatype = DataTypeFromPrecision(layer->precision);
+                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+
+                topology.add(reorderPrim);
+                AddInnerPrimitiveToProfiler(reorderName, eltwiseLayerName, layer);
+
+                inputPrimitives[i] = reorderName;
+            }
+
             auto reshapeName = eltwiseLayerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
             // Extend input dimensions by prepending ones
             inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
 
-            auto targetShape = eltwiseSpecificTensor(inputDims);
+            auto targetShape = CldnnTensorFromIEDims(inputDims);
 
             auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
-
             topology.add(reshapePrim);
             AddInnerPrimitiveToProfiler(reshapeName, eltwiseLayerName, layer);
 
