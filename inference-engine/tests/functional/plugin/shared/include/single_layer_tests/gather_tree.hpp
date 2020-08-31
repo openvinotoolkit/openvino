@@ -24,6 +24,7 @@ class GatherTreeLayerTest : public testing::WithParamInterface<GatherTreeParamsT
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;

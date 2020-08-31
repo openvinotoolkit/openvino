@@ -43,6 +43,19 @@ void GatherTreeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
 }
 
+InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    auto& shape = function->get_parameters()[0]->get_output_shape(0);
+    auto& vecDims = info.getTensorDesc().getDims();
+
+    auto maxBeamIndx = shape.at(BEAM_WIDTH) - 1;
+
+    if (vecDims.size() == 1 || vecDims.size() == 0) { //max_seq_len vector || end_token
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);
+    }
+
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
+}
+
 TEST_P(GatherTreeLayerTest, CompareWithRefs) {
     Run();
 };
