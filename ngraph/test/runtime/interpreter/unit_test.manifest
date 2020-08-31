@@ -10,9 +10,6 @@ INTERPRETER.onnx_top_k_opset_10
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution
-
 # Temporarily disabled:
 INTERPRETER.onnx_model_round
 INTERPRETER.interpolate_down_scales_const_linear
