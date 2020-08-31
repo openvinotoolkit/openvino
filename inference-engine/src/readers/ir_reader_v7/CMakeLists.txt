@@ -22,8 +22,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                  IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
                                                   "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
