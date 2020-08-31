@@ -140,6 +140,8 @@ class ShuffleChannelFusion(BackReplacementPattern):
     2. First Reshape splits channel dimension (1 axis) into two dimensions
     3. Transpose permutes only splitted dimensions
     4. Second Reshape pack them back
+
+    Fixes original models reshape-ability (Smart reshape)
     """
     enabled = True
     force_clean_up = True
@@ -208,6 +210,8 @@ class DepthToSpaceFusion(BackReplacementPattern):
     2. First Reshape splits channel dimension (1 axis) into three dimensions [new_depth, block_size, block_size]
     3. Transpose permutes splitted dimensions with spatial ones
     4. Second Reshape pack block size together with spatial dimension
+
+    Fixes original models reshape-ability (Smart reshape)
     """
     enabled = True
     force_clean_up = True
