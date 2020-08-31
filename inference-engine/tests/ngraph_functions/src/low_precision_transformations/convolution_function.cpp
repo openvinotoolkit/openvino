@@ -243,7 +243,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
                 expectedValues.subtractValues.size() == 1ul ?
                 std::vector<float>(inputShape[1], expectedValues.subtractValues[0]) :
                 expectedValues.subtractValues));
-        subtract->set_output_type(0, precision, subtract->get_output_partial_shape(0));
+        NetworkHelper::setOutDataPrecision(subtract, precision);
         parent = subtract;
     }
 

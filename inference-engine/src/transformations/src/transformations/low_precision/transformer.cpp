@@ -297,7 +297,6 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::DepthToSpace>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::Relu>(this);
     make_matcher_type_relaxed<opset1::PRelu>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Interpolate>(this);

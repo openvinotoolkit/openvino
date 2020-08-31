@@ -329,15 +329,26 @@ static std::string pretty_partial_shape(const PartialShape& shape)
 }
 
 template <typename T>
-static std::string pretty_value(const vector<T>& value)
+static std::string pretty_value(const vector<T>& values)
 {
     std::stringstream ss;
     bool first = true;
-    for (const auto& i : value)
+    for (size_t i = 0; i < values.size(); ++i)
     {
+		if (i > 32) {
+			ss << "...";
+			break;
+		}
+
+		const auto& value = values[i];
         if (!first)
             ss << ", ";
-        ss << i;
+        ss << value;
+
+		if (((i + 1) % 8) == 0) {
+			ss << std::endl;
+		}
+
         first = false;
     }
     return ss.str();
@@ -350,9 +361,6 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
-
-    if (ngraph::shape_size(node->get_shape()) > max_elements)
-        return ss.str();
 
     ss << "\nvalue: ";
     const auto constant = as_type_ptr<op::Constant>(node);
@@ -404,8 +412,8 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
         stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtos = true;
+        static const bool nvtot = true;
 
         if (nvtos || nvtot)
             for (const auto& output : node->outputs())
@@ -444,6 +452,14 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
     {
         rc += "\\n" + node->get_name();
     }
+	rc += "\\n" + std::string(node->get_type_name());
+	const auto rt = node->get_rt_info();
+	if (!rt.empty()) {
+		rc += "\\nrt info: ";
+		for (const auto& item : rt) {
+			rc += item.first + " ";
+		}
+	}
     return rc;
 }
 

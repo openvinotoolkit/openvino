@@ -55,6 +55,13 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
+            // TODO: NetworkHelper::cleanRuntimeInfo
+            auto& rt = dequantization.subtract->get_rt_info();
+            auto it = rt.find("DEQUANTIZATION");
+            if (it != rt.end()) {
+                rt.erase(it);
+            }
+
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
             if (optimizedSubtract == nullptr) {
                 optimizedSubtract = dequantization.subtract;
@@ -125,7 +132,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
 
         auto newConvolution = convolution->copy_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) });
-        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
             std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(newConvolution, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, element::f32).get());
@@ -163,7 +170,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     reshapeFromWeights->input_value(1) }));
             }
 
-            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
+            auto newMultiplyAfter = std::make_shared<DequantizationMultiply>(
                 convolution->copy_with_new_inputs({
                     convolution->input_value(0),
                     reshapeFromWeights != nullptr ?

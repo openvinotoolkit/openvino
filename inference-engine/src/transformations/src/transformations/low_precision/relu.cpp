@@ -34,11 +34,7 @@ bool ReluTransformation::transform(TransformationContext& context, ngraph::patte
 
     relu = separateInStandaloneBranch(relu);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, 0);
-    if (dequantization.subtract == nullptr) {
-        moveDequantizationAfter(context, relu, dequantization, true);
-    } else {
-        moveMultiplyAfter(context, relu, dequantization, true);
-    }
+    moveDequantizationAfter(context, relu, dequantization, false, false);
     return true;
 }
 

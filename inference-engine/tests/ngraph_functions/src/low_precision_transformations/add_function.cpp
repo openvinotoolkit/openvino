@@ -8,6 +8,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 
+using namespace ngraph::pass::low_precision;
+
 namespace ngraph {
 namespace builder {
 namespace subgraph {
@@ -35,7 +37,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     }
 
-    const auto dequantizationOp1 = makeDequantization(input1, dequantization1);
+    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantization1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
@@ -48,7 +50,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             precision2, ngraph::Shape(inputShape));
     }
 
-    const auto dequantizationOp2 = makeDequantization(input2, dequantization2);
+    const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(input2) ? input2 : makeDequantization(input2, dequantization2);
 
     const auto add = std::make_shared<ngraph::opset1::Add>(dequantizationOp1, dequantizationOp2);
 
@@ -92,7 +94,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     }
 
-    const auto dequantizationOp1 = makeDequantization(input1, dequantization1);
+    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantization1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
@@ -105,7 +107,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             precision2, ngraph::Shape(inputShape));
     }
 
-    const auto dequantizationOp2 = makeDequantization(input2, dequantization2);
+    const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(input2) ? input2 : makeDequantization(input2, dequantization2);
 
     auto addOriginal = ngraph::opset1::Add(
         ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
@@ -115,6 +117,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
         addOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
+    NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, precision);
 
     const auto dequantizationOpAfter = makeDequantization(add, dequantizationAfter);
 

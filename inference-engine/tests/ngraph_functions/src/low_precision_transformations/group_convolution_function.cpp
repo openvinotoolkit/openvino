@@ -10,6 +10,7 @@
 #include "transformations/low_precision/network_helper.hpp"
 
 using namespace ngraph::opset1;
+using namespace ngraph::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -200,7 +201,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
                 expectedValues.subtractValues.size() == 1ul ?
                 std::vector<float>(inputShape[1], expectedValues.subtractValues[0]) :
                 expectedValues.subtractValues));
-        subtract->set_output_type(0, precision, subtract->get_output_partial_shape(0));
+        NetworkHelper::setOutDataPrecision(subtract, precision);
         parent = subtract;
     }
 

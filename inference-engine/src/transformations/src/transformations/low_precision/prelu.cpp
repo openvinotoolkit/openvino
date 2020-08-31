@@ -30,11 +30,7 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
 
     prelu = separateInStandaloneBranch(prelu);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
-    if (dequantization.subtract == nullptr) {
-        moveDequantizationAfter(context, prelu, dequantization, false);
-    } else {
-        moveMultiplyAfter(context, prelu, dequantization, true);
-    }
+    moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;
 }
 

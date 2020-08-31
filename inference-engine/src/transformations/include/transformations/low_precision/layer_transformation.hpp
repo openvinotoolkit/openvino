@@ -309,13 +309,8 @@ protected:
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision) const;
-
-    std::shared_ptr<ngraph::Node> moveMultiplyAfter(
-        TransformationContext &context,
-        const std::shared_ptr<ngraph::Node>& operation,
-        const FakeQuantizeDequantization& dequantization,
-        const bool removeConvert) const;
+        const bool updatePrecision,
+        const bool moveSubtract = true) const;
 
     void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 

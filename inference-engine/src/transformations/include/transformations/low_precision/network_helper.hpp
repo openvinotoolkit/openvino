@@ -20,6 +20,7 @@
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
+#include "common/ie_lpt_exception.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -127,12 +128,8 @@ public:
     static InsertDequantizationResult moveDequantizationAfter(
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision);
-
-    static InsertDequantizationResult moveMultiplyAfter(
-        const std::shared_ptr<ngraph::Node>& operation,
-        const FakeQuantizeDequantization& dequantization,
-        const bool removeConvert);
+        const bool updatePrecision,
+        const bool moveSubtract);
 
     // TODO: rename: fuseConvertIfPossible
     static void removeConvertIfPossible(
