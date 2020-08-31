@@ -1,0 +1,1 @@
+from openvino.pyopenvino import TensorDesc

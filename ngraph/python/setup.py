@@ -243,7 +243,10 @@ sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
 pyopenvino_sources = [
     "pyopenvino/pyopenvino.cpp",
     "pyopenvino/inference_engine/ie_core.cpp",
+    "pyopenvino/inference_engine/ie_executable_network.cpp",
+    "pyopenvino/inference_engine/ie_infer_request.cpp",
     "pyopenvino/inference_engine/ie_network.cpp",
+    "pyopenvino/inference_engine/tensor_description.cpp",
 ]
 pyopenvino_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in pyopenvino_sources]
 
