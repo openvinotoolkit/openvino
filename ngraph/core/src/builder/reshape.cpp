@@ -215,6 +215,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
     if (value.get_partial_shape().is_static())
     {
         auto shape = value.get_shape();
+        // Multiply all alements of shape from start_axis to end_axis inclusive
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),
                                                 1UL,
