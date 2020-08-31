@@ -16,6 +16,7 @@
 import unittest
 
 from extensions.middle.ConcatOptimization import ConcatOdInputEraser
+from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
 
@@ -40,7 +41,7 @@ class Concat0dInput(unittest.TestCase):
         edges_after = [
             *connect('input_0', '0:concat'),
             *connect('input_1', '1:concat'),
-            *connect('input_3', '3:concat'),
+            *connect('input_3', '2:concat'),
             *connect('concat', 'output'),
         ]
 
@@ -50,13 +51,45 @@ class Concat0dInput(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_deletion_2(self):
         nodes = {
+            **shaped_const_with_data('input_0', [5, 0]),
+            **shaped_const_with_data('input_1', [5, 1]),
+            **shaped_const_with_data('input_2', [5, 3]),
+            **shaped_const_with_data('input_3', [5, 5]),
+            **regular_op_with_shaped_data('concat', [3], {'type': 'Concat', 'axis': 1}),
+            **result(),
+        }
+        edges_before = [
+            *connect('input_0', '0:concat'),
+            *connect('input_1', '1:concat'),
+            *connect('input_2', '2:concat'),
+            *connect('input_3', '3:concat'),
+            *connect('concat', 'output'),
+        ]
+        edges_after = [
+            *connect('input_1', '0:concat'),
+            *connect('input_2', '1:concat'),
+            *connect('input_3', '2:concat'),
+            *connect('concat', 'output'),
+        ]
+
+        graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
+        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
+
+    def test_deletion_3(self):
+        nodes = {
             **shaped_const_with_data('input_0', [5, 3]),
             **shaped_const_with_data('input_1', [5, 1]),
-            **shaped_const_with_data('input_2', [5, 0]),
-            **shaped_const_with_data('input_3', [5, 5]),
+            **shaped_const_with_data('input_2', [5, 5]),
+            **shaped_const_with_data('input_3', [5, 0]),
             **regular_op_with_shaped_data('concat', [3], {'type': 'Concat', 'axis': 1}),
             **result(),
         }
@@ -70,7 +103,7 @@ class Concat0dInput(unittest.TestCase):
         edges_after = [
             *connect('input_0', '0:concat'),
             *connect('input_1', '1:concat'),
-            *connect('input_3', '3:concat'),
+            *connect('input_2', '2:concat'),
             *connect('concat', 'output'),
         ]
 
@@ -80,6 +113,7 @@ class Concat0dInput(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_negative(self):
         nodes = {

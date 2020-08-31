@@ -103,13 +103,18 @@ class ConcatOdInputEraser(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for concat in graph.get_op_nodes(type='Concat'):
-            for in_port in concat.in_ports().values():
-                if in_port.disconnected():
-                    continue
-                shape = in_port.data.get_shape()
-                assert shape is not None
-                if 0 in shape:
-                    in_port.disconnect()
+            port_to_connect = 0
+            for port_idx in range(len(concat.in_ports())):
+                if concat.is_in_port_connected(port_idx) and 0 in concat.in_port(port_idx).data.get_shape():
+                    concat.in_port(port_idx).disconnect()
+                    log.debug('Remove input with port #{} for node {} because it has 0D dimension'
+                              ''.format(port_idx, concat.soft_get('name', concat.id)))
+                else:
+                    if port_to_connect != port_idx:
+                        concat.in_port(port_idx).get_connection().set_destination(concat.in_port(port_to_connect))
+                    port_to_connect += 1
+            assert port_to_connect != 0, 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))
 
-            connected_input_ports = [in_port for in_port in concat.in_ports().values() if not in_port.disconnected()]
-            assert len(connected_input_ports), 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))
+            # if some edge was removed then we need to update the number of input ports
+            if len(concat.in_ports()) != port_to_connect:
+                concat['in_ports_count'] = port_to_connect
