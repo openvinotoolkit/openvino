@@ -74,7 +74,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         transpose(dequantization2.multiply->get_input_node_shared_ptr(1)) :
         dequantization2.multiply->get_input_node_shared_ptr(1);
 
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<opset1::Multiply>(
+    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(
         newMatMul,
         NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(const1, const2)));
     replace_node(matMul, newMultiply);
@@ -104,7 +104,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    if ((!supportAsymmetricQuantization) && (isAsymmetricQuantization(layer, 0) || isAsymmetricQuantization(layer, 1))) {
+    if (!canSubtractBeHandled(layer)) {
         return false;
     }
 

@@ -112,13 +112,34 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node, const size_t parentIndex) const {
-    const auto dequantization = NetworkHelper::getDequantization(node, parentIndex);
-    return isAsymmetricQuantization(node, dequantization);
+bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex) const {
+    return canSubtractBeHandled(op, NetworkHelper::getDequantization(op, parentIndex));
 }
 
-bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<Node>& node, const FakeQuantizeDequantization& dequantization) const {
-    return (!dequantization.empty()) && (dequantization.subtract != nullptr);
+bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
+    if (dequantization.empty() || (dequantization.subtract == nullptr)) {
+        return true;
+    }
+
+    if (!supportAsymmetricQuantization) {
+        return false;
+    }
+
+    if (!updatePrecisions) {
+        return true;
+    }
+
+    const element::Type operationType = dequantization.convert == nullptr ?
+        dequantization.subtract->input(0).get_element_type() :
+        dequantization.convert->input(0).get_element_type();
+
+    if ((operationType != element::i8) && (operationType != element::u8)) {
+        return false;
+    }
+
+    std::shared_ptr<Node> zeroPoint = dequantization.subtract->input_value(1).get_node_shared_ptr();
+    auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
+    return convertedZeroPoint->output(0).get_element_type() == operationType;
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

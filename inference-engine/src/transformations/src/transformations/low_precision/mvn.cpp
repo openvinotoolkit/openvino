@@ -41,7 +41,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    if (!supportAsymmetricQuantization && isAsymmetricQuantization(operation)) {
+    if (!canSubtractBeHandled(operation)) {
         return false;
     }
 
@@ -116,7 +116,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
                 mvn->get_eps()),
         type);
 
-    auto newMultiply = std::make_shared<opset1::Multiply>(newMVN, newScalesConst);
+    auto newMultiply = std::make_shared<DequantizationMultiply>(newMVN, newScalesConst);
     newMVN->set_friendly_name(mvn->get_friendly_name());
 
     replace_node(mvn, newMultiply);

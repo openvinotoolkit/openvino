@@ -234,7 +234,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
 
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
     if (!expectedValues.subtractValues.empty()) {
-        subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
                 precision,

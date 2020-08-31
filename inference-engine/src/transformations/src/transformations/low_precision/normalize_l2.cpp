@@ -40,7 +40,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (!supportAsymmetricQuantization && isAsymmetricQuantization(operation)) {
+    if (!canSubtractBeHandled(operation)) {
         return false;
     }
 
@@ -127,7 +127,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());

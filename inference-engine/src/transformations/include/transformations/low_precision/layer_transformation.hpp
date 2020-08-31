@@ -254,9 +254,9 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
-    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul) const;
+    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex = 0ul) const;
 
-    bool isAsymmetricQuantization(const std::shared_ptr<Node>& node, const FakeQuantizeDequantization& dequantization) const;
+    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
     PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
 

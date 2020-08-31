@@ -38,15 +38,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
-    if (!supportAsymmetricQuantization) {
-        if (isAsymmetricQuantization(convolution, dequantization)) {
-            return false;
-        }
+    if (!canSubtractBeHandled(convolution, dequantization)) {
+        return false;
+    }
 
-        const DataPrecision dataPrecision = getDataPrecisionOnWeights(convolution);
-        if (dataPrecision.hasZeroPoint) {
-            return false;
-        }
+    if ((!supportAsymmetricQuantization) && getDataPrecisionOnWeights(convolution).hasZeroPoint) {
+        return false;
     }
 
     convolution = separateInStandaloneBranch(convolution);
