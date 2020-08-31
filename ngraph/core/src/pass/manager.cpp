@@ -62,61 +62,60 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
             pass->set_callback(m_transformation_callback);
         }
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
+        try
         {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                func->is_dynamic())
-            {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
-                continue;
-            }
-            // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
-        }
-        else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
-        {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                func->is_dynamic())
-            {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
-                continue;
-            }
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
+                // This checks is to skip the graph transformation when the graph pass relies on
+                // static shape but the function state is dynamic.
+                if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                    func->is_dynamic()) {
+                    NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                                 << "function is dynamic. Skipping this transformation";
+                    continue;
+                }
+                // GraphRewrite is a temporary container for MatcherPass to make execution
+                // on on entire ngraph::Function
+                function_changed = GraphRewrite(matcher_pass).run_on_function(func);
+            } else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass)) {
+                // This checks is to skip the graph transformation when the graph pass relies on
+                // static shape but the function state is dynamic.
+                if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                    func->is_dynamic()) {
+                    NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                                 << "function is dynamic. Skipping this transformation";
+                    continue;
+                }
 
-            if (dynamic_pointer_cast<Validate>(pass))
-            {
-                if (function_changed)
-                {
-                    function_pass->run_on_function(func);
-                    function_changed = false;
+                if (dynamic_pointer_cast<Validate>(pass)) {
+                    if (function_changed) {
+                        function_pass->run_on_function(func);
+                        function_changed = false;
+                    }
+                } else {
+                    function_changed = function_pass->run_on_function(func);
+                }
+            } else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass)) {
+                if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
+                    NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                                 << "function is dynamic. Skipping this transformation";
+                    continue;
+                }
+                for (shared_ptr<Node> n : func->get_ops()) {
+                    function_changed |= node_pass->run_on_node(n);
                 }
             }
-            else
-            {
-                function_changed = function_pass->run_on_function(func);
-            }
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
-        else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass))
+        catch(const std::exception& e)
         {
-            if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
-            {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "function is dynamic. Skipping this transformation";
-                continue;
-            }
-            for (shared_ptr<Node> n : func->get_ops())
-            {
-                function_changed |= node_pass->run_on_node(n);
-            }
+            std::cerr << "Exception std::exception thrown while executing transformation: " << pass->get_name() << "\n";
+            std::cerr << "Exception message: " << e.what() << "\n";
         }
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        catch(...)
+        {
+            std::cerr << "Unknown exception thrown while executing transformation: " << pass->get_name() << "\n";
+        }
 
         if (m_visualize)
         {
