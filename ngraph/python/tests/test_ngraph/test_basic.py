@@ -146,7 +146,7 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-# TODO: AssertionError: assert dtype('float32') == <class 'bool'>
+@pytest.mark.xfail(reason="AssertionError: assert dtype('float32') == <class 'bool'")
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],

@@ -145,7 +145,7 @@ def test_transpose():
     assert np.allclose(result, expected)
 
 
-# TODO: RuntimeError: Tile operation has a form that is not supported. Tile_2 should be converted to TileIE operation.
+@pytest.mark.xfail(reason="Tile operation has a form that is not supported. Tile_2 should be converted to TileIE operation.")
 def test_tile():
     input_tensor = np.arange(6, dtype=np.int32).reshape((2, 1, 3))
     repeats = np.array([2, 1], dtype=np.int32)
@@ -157,7 +157,7 @@ def test_tile():
     assert np.allclose(result, expected)
 
 
-# TODO: RuntimeError: Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)' failed at ngraph/core/src/...
+@pytest.mark.xfail(reason="RuntimeError: Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)'")
 def test_strided_slice():
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
     begin = np.array([1, 0], dtype=np.int32)

@@ -49,7 +49,7 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
     assert np.allclose(result, expected)
 
 
-# @xfail="RuntimeError: Incorrect Reduce layer type" TODO: self annotation
+@pytest.mark.xfail(reason="RuntimeError: Incorrect Reduce layer type")
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [

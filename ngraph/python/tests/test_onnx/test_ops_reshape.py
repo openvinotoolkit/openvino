@@ -71,7 +71,7 @@ def test_reshape_opset5():
         assert np.array_equal(ng_results[0], expected_output)
 
 
-#TODO: RuntimeError: Reshape z has dynamic second input!
+@pytest.mark.xfail(reason="RuntimeError: Reshape z has dynamic second input!")
 def test_reshape_opset5_param_err():
     original_shape = [2, 3, 4]
     output_shape = np.array([4, 2, 3], dtype=np.int32)

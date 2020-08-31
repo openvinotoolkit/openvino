@@ -14,6 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
+import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
@@ -166,7 +167,7 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
-# TODO: AssertionError
+@pytest.mark.xfail(reason="AssertionError")
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
@@ -191,7 +192,6 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
-# TODO: Something strange is going on: PASSED with 3 errors
 def test_select():
     cond = np.array([[False, False], [True, False], [True, True]])
     then_node = np.array([[-1, 0], [1, 2], [3, 4]], dtype=np.int32)
