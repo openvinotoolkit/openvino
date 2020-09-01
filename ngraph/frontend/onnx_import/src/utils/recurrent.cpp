@@ -37,7 +37,7 @@ namespace ngraph
             {
                 const auto& ng_inputs = node.get_ng_inputs();
 
-                m_map[OpInput::X] = ng_inputs.at(0);
+                m_map[OpInput::X] = builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
                 m_map[OpInput::W] = ng_inputs.at(1);
                 m_map[OpInput::R] = ng_inputs.at(2);
 
@@ -58,7 +58,7 @@ namespace ngraph
                              "(innermost) dimension.");
 
                 const std::size_t hidden_size = m_map[OpInput::R].get_shape().back();
-                const std::size_t batch_size = m_map[OpInput::X].get_shape().at(1);
+                const std::size_t batch_size = m_map[OpInput::X].get_shape().at(0);
                 const std::size_t num_directions = m_map[OpInput::W].get_shape().front();
 
                 if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
@@ -81,17 +81,17 @@ namespace ngraph
                 else
                 {
                     m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Constant>(
-                        element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(0));
+                        element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(1));
                 }
                 // The initial value of the hidden.
                 if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                 {
-                    m_map[OpInput::INIT_H] = ng_inputs.at(5);
+                    m_map[OpInput::INIT_H] = builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
                 }
                 else
                 {
                     m_map[OpInput::INIT_H] = std::make_shared<default_opset::Constant>(
-                        el_type, Shape{num_directions, batch_size, hidden_size}, 0.f);
+                        el_type, Shape{batch_size, num_directions, hidden_size}, 0.f);
                 }
             }
 
