@@ -29,6 +29,29 @@
 #include <map>
 #include <set>
 
+#define CLDNN_REORDER_INPUTS_VERBOSE 0
+
+// Prints overall statistics of performed selection, such as number of reorders required.
+#define CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS          (CLDNN_REORDER_INPUTS_VERBOSE > 0)
+// Prints special cases and work-arounds matched.
+#define CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH       (CLDNN_REORDER_INPUTS_VERBOSE > 1)
+// Prints full list of preferred formats for each node.
+#define CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED           (CLDNN_REORDER_INPUTS_VERBOSE > 2)
+// Prints full list of selected formats for each node.
+#define CLDNN_REORDER_INPUTS_VERBOSE_FORMATS             (CLDNN_REORDER_INPUTS_VERBOSE > 2)
+
+#if CLDNN_REORDER_INPUTS_VERBOSE
+#include "to_string_utils.h"
+#include <iostream>
+#define CLDNN_REORDER_INPUTS_LOG(x) std::cout << "[clDNN][reorder_inputs] " << x << std::endl
+#endif
+
+#if CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH
+#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) CLDNN_REORDER_INPUTS_LOG(id << " matched for pattern: " << desc)
+#else
+#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) do { } while (false)
+#endif
+
 using namespace cldnn;
 
 // ToDo remove friendship relation from program_impl
@@ -370,8 +393,65 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
 
 void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory& rf) {
     auto fmt_map = get_preferred_formats(p, lo);
+#if CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED
+    {
+        CLDNN_REORDER_INPUTS_LOG("Preferred formats:");
+        for (auto& node_fmt : fmt_map) {
+            if (node_fmt.second != format::any) {
+                CLDNN_REORDER_INPUTS_LOG("  " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second));
+            }
+        }
+    }
+#endif
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
+
+#if CLDNN_REORDER_INPUTS_VERBOSE_FORMATS
+    {
+        CLDNN_REORDER_INPUTS_LOG("Selected formats:");
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0)
+                continue;
+
+            auto fmt = fmt_map.at(node_ptr);
+            CLDNN_REORDER_INPUTS_LOG("  " << node_ptr->id() << " " << fmt_to_str(fmt));
+        }
+    }
+#endif
+#if CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS
+    {
+        reorder_cnt total_reorder_count = std::accumulate(
+            p.get_processing_order().begin(),
+            p.get_processing_order().end(),
+            reorder_cnt{ 0, 0 },
+            [&](reorder_cnt& total, program_node* node) {
+            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                return total;
+            auto count = count_reorders(fmt_map, lo, node);
+            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
+        });
+        // Divide results by two as above function will each reorder from both sides
+        CLDNN_REORDER_INPUTS_LOG("Total number of reorders: " << total_reorder_count.number / 2);
+        CLDNN_REORDER_INPUTS_LOG("Total elements count of all reorders: " << total_reorder_count.total_sizes / 2);
+
+        // Count number of reorders that will be fused
+        size_t nodes_with_fusing = 0;
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0 || fmt_map.at(node_ptr) == format::any)
+                continue;
+            for (auto prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
+                if (!prev_ptr->is_in_data_flow() || fmt_map.at(prev_ptr) == fmt_map.at(node_ptr))
+                    continue;
+                if (lo.can_fuse_reorder(*prev_ptr, *node_ptr, fmt_map.at(prev_ptr), fmt_map.at(node_ptr))) {
+                    nodes_with_fusing += 1;
+                    break;
+                }
+            }
+        }
+        CLDNN_REORDER_INPUTS_LOG("Number of nodes with fused reorders: " << nodes_with_fusing);
+    }
+#endif
+
     insert_reorders(p, fmt_map, rf);
 
     for (auto n : p.get_processing_order()) {
