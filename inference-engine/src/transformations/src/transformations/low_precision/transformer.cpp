@@ -242,7 +242,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
 
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
-        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        // addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         // addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params).
         // addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
         // addCleanup<ConvertTransformation, opset1::Convert>(params);
@@ -402,11 +402,11 @@ bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) co
     }
 
     for (const auto& transform : transformation) {
-        if (transform->isQuantized(layer)) {
-            return true;
+        if (!transform->isQuantized(layer)) {
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 bool LowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept {

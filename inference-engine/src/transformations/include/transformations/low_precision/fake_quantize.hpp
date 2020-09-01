@@ -7,15 +7,15 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
+#include "transformations/low_precision/fuse_fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-
-class TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
+class TRANSFORMATIONS_API FakeQuantizeTransformation : public FuseFakeQuantizeTransformation {
 public:
-    FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {}
+    FakeQuantizeTransformation(const Params& params) : FuseFakeQuantizeTransformation(params) {}
     ~FakeQuantizeTransformation() override {};
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

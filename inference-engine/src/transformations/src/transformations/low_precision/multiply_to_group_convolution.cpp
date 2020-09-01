@@ -142,6 +142,18 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     return true;
 }
 
+bool MultiplyToGroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+    const auto parent0 = layer->get_input_node_shared_ptr(0);
+    const auto parent1 = layer->get_input_node_shared_ptr(1);
+
+    if (!is_type<opset1::Constant>(parent0) ||
+        !is_type<opset1::Constant>(parent1)) {
+        return false;
+    }
+
+    return true;
+}
+
 void MultiplyToGroupConvolutionTransformation::setGroupSize(const size_t groupSize) {
     this->groupSize = groupSize;
 }
