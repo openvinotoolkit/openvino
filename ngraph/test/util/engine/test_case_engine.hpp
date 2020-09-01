@@ -41,6 +41,10 @@ namespace ngraph
             /// Compares computed and expected results, returns AssertionSuccess or AssertionFailure
             virtual testing::AssertionResult compare_results(const size_t tolerance_bits) = 0;
 
+            /// Compares computed and expected results, returns AssertionSuccess or AssertionFailure
+            virtual testing::AssertionResult
+                compare_results_with_tolerance_as_fp(const float tolerance) = 0;
+
             /// Additionally the interface implementing class needs to define
             /// the following 2 methods. They are called from the TestCase class
             /// but they can't be a part of interface since they need to be declared as templates

@@ -39,6 +39,9 @@ namespace ngraph
             testing::AssertionResult compare_results(
                 const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override;
 
+            testing::AssertionResult
+                compare_results_with_tolerance_as_fp(const float tolerance = 1.0e-5f) override;
+
             void reset() override;
 
             template <typename T>

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <vector>
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -83,24 +85,42 @@ namespace ngraph
             private:
                 InterpolateAttrs m_attrs;
             };
-        }
+        } // namespace v0
 
-        namespace v3
+        namespace v4
         {
             class NGRAPH_API Interpolate : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Interpolate", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
+                /// \brief Shape calculation mode
+                ///
+                /// sizes  - output shape for interpolated axes is calculated using input `sizes`
+                /// scales - output shape for interpolated axes is calculated using input `scales`
+                enum class ShapeCalcMode
+                {
+                    sizes,
+                    scales
+                };
+
+                /// \brief Interpolation mode
+                ///
+                /// nearest     - nearest interpolation
+                /// linear      - linear interpolation as in TensorFlow
+                /// linear_onnx - linear interpolation as in ONNX
+                /// cubic       - cubic interpolation
                 enum class InterpolateMode
                 {
                     nearest,
                     linear,
                     linear_onnx,
-                    cubic,
-                    area
+                    cubic
                 };
 
+                /// \brief Mode of the calculation of the source coordinate from resized one
+                ///
+                /// These modes are modes from ONNX runtime.
                 enum class CoordinateTransformMode
                 {
                     half_pixel,
@@ -110,6 +130,7 @@ namespace ngraph
                     align_corners
                 };
 
+                /// \brief Round modes for the nearest interpolation.
                 enum class NearestMode
                 {
                     round_prefer_floor,
@@ -121,12 +142,12 @@ namespace ngraph
 
                 struct InterpolateAttrs
                 {
-                    // specify dimension indices where interpolation is applied, and `axes` is any
-                    // unordered list of indeces of different dimensions of input tensor. Required.
-                    AxisSet axes;
                     // specifies type of interpolation
-                    // one of `nearest`, `linear`, `linear_onnx`, `cubic`, `area`. Required.
+                    // one of `nearest`, `linear`, `linear_onnx`, `cubic` Required.
                     InterpolateMode mode;
+                    // specifies shape calculation mode
+                    // one of `sizes`, `scales` Required
+                    ShapeCalcMode shape_calculation_mode;
                     // specify the number of pixels to add to the beginning of the image being
                     // interpolated. This addition of pixels is done before interpolation
                     // calculation.
@@ -158,8 +179,8 @@ namespace ngraph
                     {
                     }
 
-                    InterpolateAttrs(AxisSet axes,
-                                     InterpolateMode mode,
+                    InterpolateAttrs(InterpolateMode mode,
+                                     ShapeCalcMode shape_calculation_mode,
                                      std::vector<size_t> pads_begin,
                                      std::vector<size_t> pads_end,
                                      CoordinateTransformMode coordinate_transformation_mode =
@@ -167,8 +188,8 @@ namespace ngraph
                                      NearestMode nearest_mode = NearestMode::round_prefer_floor,
                                      bool antialias = false,
                                      double cube_coeff = -0.75)
-                        : axes(axes)
-                        , mode(mode)
+                        : mode(mode)
+                        , shape_calculation_mode(shape_calculation_mode)
                         , pads_begin(pads_begin)
                         , pads_end(pads_end)
                         , coordinate_transformation_mode(coordinate_transformation_mode)
@@ -180,13 +201,28 @@ namespace ngraph
                 };
 
                 Interpolate() = default;
-                /// \brief Constructs a Interpolate operation
+                /// \brief Constructs a Interpolate operation without 'axes' input.
                 ///
-                /// \param image        Input image
+                /// \param image  Input image
                 /// \param output_shape Output shape of spatial axes
-                /// \param attrs        Interpolation attributes
+                /// \param scales Scales of spatial axes, i.e. output_shape / input_shape
+                /// \param attrs  Interpolation attributes
                 Interpolate(const Output<Node>& image,
                             const Output<Node>& output_shape,
+                            const Output<Node>& scales,
+                            const InterpolateAttrs& attrs);
+
+                /// \brief Constructs a Interpolate operation with 'axes' input.
+                ///
+                /// \param image  Input image
+                /// \param output_shape Output shape of spatial axes
+                /// \param scales Scales of spatial axes, i.e. output_shape / input_shape
+                /// \param axes   Interpolation axes
+                /// \param attrs  Interpolation attributes
+                Interpolate(const Output<Node>& image,
+                            const Output<Node>& output_shape,
+                            const Output<Node>& scales,
+                            const Output<Node>& axes,
                             const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -194,15 +230,65 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+            protected:
+                /// \return The interpolation axes.
+                std::vector<int64_t> get_axes() const;
+
             private:
                 InterpolateAttrs m_attrs;
+
+                /// \brief Corrects pads_begin and pads_end attributes.
+                ///
+                /// \details When Interpolate-4 is a result of some transformation, it is possible
+                ///          that pads_begin.size() != pads_end.size() or
+                ///          pads_begin.size() != input_rank. In such case, we should correct
+                ///          pads_begin and pads_end, using padding of pads_begin and pads_end by
+                ///          zeros or using pads_begin[0 : input_rank], pads_end[0 : input_rank].
+                ///
+                ///          Padding of pads_begin is performed when pads_begin.size() < input_rank,
+                ///          and pads_begin[0 : input_rank] is used when
+                ///          pads_begin.size() < input_rank.
+                ///
+                ///          Similarly for pads_end.
+                void correct_pads();
+
+                /// \brief Calculates input shape after padding.
+                ///
+                /// \param input_shape Shape of input data.
+                ///
+                /// \return Padded input shape, i.e. input_shape + pads_begin + pads_end
+                PartialShape get_padded_input_shape(const PartialShape& input_shape) const;
+
+                /// \brief Infers output shape using scales.
+                ///
+                /// \param output_shape[in,out] output shape
+                /// \param axes Interpolation axes
+                /// \param scales Scales for interpolated axes
+                /// \param padded_input_shape input shape after padding
+                void infer_using_scales(PartialShape& output_shape,
+                                        const std::vector<int64_t>& axes,
+                                        const std::vector<float>& scales,
+                                        const PartialShape& padded_input_shape) const;
+
+                /// \brief Infers output shape using sizes.
+                ///
+                /// \param output_shape[in,out] output shape
+                /// \param axes Interpolation axes
+                /// \param sizes sizes for interpolated axes
+                void infer_using_shapes(PartialShape& output_shape,
+                                        const std::vector<int64_t>& axes,
+                                        const std::vector<int64_t>& sizes) const;
             };
-        }
+        } // namespace v4
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::InterpolateAttrs;
         using v0::Interpolate;
-    }
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------
 
@@ -238,74 +324,92 @@ namespace ngraph
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
-    //---------------------------------------- v3 --------------------------------------------------
+    //---------------------------------------- v4 --------------------------------------------------
 
     NGRAPH_API
-    std::ostream& operator<<(std::ostream& s, const op::v3::Interpolate::InterpolateMode& type);
+    std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type);
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v3::Interpolate::InterpolateMode>
-        : public EnumAttributeAdapterBase<op::v3::Interpolate::InterpolateMode>
+    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
+        : public EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>
     {
     public:
-        AttributeAdapter(op::v3::Interpolate::InterpolateMode& value)
-            : EnumAttributeAdapterBase<op::v3::Interpolate::InterpolateMode>(value)
+        AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
+            : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value)
         {
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v3::Interpolate::InterpolateMode>", 3};
+            "AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s,
-                             const op::v3::Interpolate::CoordinateTransformMode& type);
+                             const op::v4::Interpolate::CoordinateTransformMode& type);
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v3::Interpolate::CoordinateTransformMode>
-        : public EnumAttributeAdapterBase<op::v3::Interpolate::CoordinateTransformMode>
+    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>
+        : public EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>
     {
     public:
-        AttributeAdapter(op::v3::Interpolate::CoordinateTransformMode& value)
-            : EnumAttributeAdapterBase<op::v3::Interpolate::CoordinateTransformMode>(value)
+        AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
+            : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value)
         {
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v3::Interpolate::CoordinateTransformMode>", 3};
+            "AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
     NGRAPH_API
-    std::ostream& operator<<(std::ostream& s, const op::v3::Interpolate::NearestMode& type);
+    std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type);
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v3::Interpolate::NearestMode>
-        : public EnumAttributeAdapterBase<op::v3::Interpolate::NearestMode>
+    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::NearestMode>
+        : public EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>
     {
     public:
-        AttributeAdapter(op::v3::Interpolate::NearestMode& value)
-            : EnumAttributeAdapterBase<op::v3::Interpolate::NearestMode>(value)
+        AttributeAdapter(op::v4::Interpolate::NearestMode& value)
+            : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value)
         {
         }
 
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v3::Interpolate::NearestMode>", 3};
+            "AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
+    NGRAPH_API
+    std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>
+        : public EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>
+    {
+    public:
+        AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
+            : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v3::Interpolate::InterpolateAttrs> : public VisitorAdapter
+    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::InterpolateAttrs> : public VisitorAdapter
     {
     public:
-        AttributeAdapter(op::v3::Interpolate::InterpolateAttrs& ref);
+        AttributeAdapter(op::v4::Interpolate::InterpolateAttrs& ref);
 
         virtual bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v3::Interpolate::InterpolateAttrs>", 3};
+            "AttributeAdapter<op::v4::Interpolate::InterpolateAttrs>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     protected:
-        op::v3::Interpolate::InterpolateAttrs& m_ref;
+        op::v4::Interpolate::InterpolateAttrs& m_ref;
     };
-}
+} // namespace ngraph

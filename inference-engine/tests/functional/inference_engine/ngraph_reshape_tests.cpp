@@ -449,7 +449,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     auto inp = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4, 5});
     inp->set_friendly_name("test");
 
-    ngraph::op::InterpolateAttrs attrs;
+    ngraph::op::v0::InterpolateAttrs attrs;
     attrs.pads_begin.push_back(0);
     attrs.pads_end.push_back(0);
     attrs.axes = ngraph::AxisSet{2, 3};
@@ -458,8 +458,8 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     attrs.antialias = false;
 
     std::vector<int64_t> shape = {8, 10};
-    auto out_shape = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
-    auto interp = std::make_shared<ngraph::op::Interpolate>(inp, out_shape, attrs);
+    auto out_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
+    auto interp = std::make_shared<ngraph::op::v0::Interpolate>(inp, out_shape, attrs);
 
     auto output = std::make_shared<ngraph::op::Result>(interp);
     auto ngraph_function = std::make_shared<ngraph::Function>(ngraph::ResultVector{output},
