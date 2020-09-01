@@ -22,8 +22,48 @@ ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<
 ngraph::ParameterVector
 makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
 
-std::shared_ptr<ngraph::Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
-                                           const std::vector<float> &data, bool random = false);
+template<typename T>
+std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
+                                   const std::vector<T> &data, bool random = false) {
+    std::shared_ptr<ngraph::Node> weightsNode;
+
+#define makeNode(TYPE) \
+        case TYPE: \
+            weightsNode = std::make_shared<ngraph::opset1::Constant>( \
+                    type, shape, \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape)) : \
+                             NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
+            break;
+    switch (type) {
+        case ngraph::element::Type_t::bf16:
+            weightsNode = std::make_shared<ngraph::opset1::Constant>(
+                    type, shape,
+                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape)) :
+                    NGraphFunctions::Utils::castVector<T, ngraph::bfloat16>(data));
+            break;
+        case ngraph::element::Type_t::f16:
+            weightsNode = std::make_shared<ngraph::opset1::Constant>(
+                    type, shape,
+                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape)) :
+                    NGraphFunctions::Utils::castVector<T, ngraph::float16>(data));
+            break;
+        makeNode(ngraph::element::Type_t::f32);
+        makeNode(ngraph::element::Type_t::f64);
+        makeNode(ngraph::element::Type_t::i8);
+        makeNode(ngraph::element::Type_t::i16);
+        makeNode(ngraph::element::Type_t::i32);
+        makeNode(ngraph::element::Type_t::i64);
+        makeNode(ngraph::element::Type_t::u8);
+        makeNode(ngraph::element::Type_t::u16);
+        makeNode(ngraph::element::Type_t::u32);
+        makeNode(ngraph::element::Type_t::u64);
+        makeNode(ngraph::element::Type_t::boolean);
+#undef makeNode
+        default:
+            throw std::runtime_error("Unhandled precision");
+    }
+    return weightsNode;
+}
 
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
@@ -89,6 +129,18 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
                                                           const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeCTCLoss(
+        const ngraph::Output<Node>& logitsNode,
+        std::vector<int>& logitsLength,
+        std::vector<std::vector<int>>& labels,
+        std::vector<int>& labelsLength,
+        int blankIndex,
+        const element::Type& fType,
+        const element::Type& iType,
+        const bool preprocessCollapseRepeated,
+        const bool ctcMergeRepeated,
+        const bool unique);
 
 std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node> &in,
                                                                const element::Type &type,

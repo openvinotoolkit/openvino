@@ -51,6 +51,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/convert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp

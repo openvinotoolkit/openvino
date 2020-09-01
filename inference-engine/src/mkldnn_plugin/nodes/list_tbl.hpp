@@ -10,6 +10,7 @@
 MKLDNN_EXTENSION_NODE(EmbeddingBagOffsetsSumImpl, EmbeddingBagOffsetsSum);
 MKLDNN_EXTENSION_NODE(EmbeddingBagPackedSumImpl, EmbeddingBagPackedSum);
 MKLDNN_EXTENSION_NODE(EmbeddingSegmentsSumImpl, EmbeddingSegmentsSum);
+MKLDNN_EXTENSION_NODE(CTCLossImpl, CTCLoss);
 MKLDNN_EXTENSION_NODE(PriorBoxImpl, PriorBox);
 MKLDNN_EXTENSION_NODE(MathImpl, Abs);
 MKLDNN_EXTENSION_NODE(MathImpl, Acos);

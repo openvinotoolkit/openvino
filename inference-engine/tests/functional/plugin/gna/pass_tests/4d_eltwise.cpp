@@ -63,7 +63,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
-            auto constant1 = ngraph::builder::makeConstant(ngPrc, { 1, 1, 1, 12 }, {}, true);
+            auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, { 1, 1, 1, 12 }, {}, true);
             auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
 
             std::vector<size_t> outFormShapes2 = { 1, 72 };
