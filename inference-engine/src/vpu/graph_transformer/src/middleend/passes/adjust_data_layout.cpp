@@ -359,9 +359,16 @@ Data PassImpl::addConvertedData(
         const Model& model,
         const Data& orig,
         const StridesRequirement& reqs) {
-    auto data = model->duplicateData(
-        orig,
-        "@adjust-strides");
+    auto data = orig;
+
+    if (orig->usage() == DataUsage::Const) {
+        auto newData = model->addNewData(orig->name(), orig->desc());
+        newData->attrs().copyFrom(orig->attrs());
+        data = newData;
+    } else {
+        data = model->duplicateData(orig, "@adjust-strides");
+    }
+
     data->resetRequiredStrides();
     data->updateRequiredStrides(reqs);
 
