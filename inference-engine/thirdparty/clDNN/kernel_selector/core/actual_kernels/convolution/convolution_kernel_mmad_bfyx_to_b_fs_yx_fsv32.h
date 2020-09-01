@@ -37,8 +37,12 @@ protected:
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
         if (p.output.GetDType() == Datatype::F16 || p.output.GetDType() == Datatype::F32 ||
-            p.output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
-            return WeightsLayout::os_is_yx_osv32_isv4;
+            p.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || p.output.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+            if (p.output.Dimentions() == 5) {
+                return WeightsLayout::os_is_zyx_osv32_isv4;
+            } else {
+                return WeightsLayout::os_is_yx_osv32_isv4;
+            }
         } else {
             return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
         }

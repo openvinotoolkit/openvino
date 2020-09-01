@@ -168,6 +168,7 @@ struct format {
         os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
+        os_is_zyx_osv32_isv4,                         ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv32p,                        ///< format for weights for binary convolutions
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
@@ -262,6 +263,7 @@ struct format {
                 { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
                 { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
                 { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
+                { os_is_zyx_osv32_isv4,                        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 32}, {1, 4}}}},
                 { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "bfxy",   "bfxy?",      {}}},
                 { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
                 { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{1, 16}, {0, 16}}}},
