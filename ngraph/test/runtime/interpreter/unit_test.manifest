@@ -120,6 +120,3 @@ onnx_model_gru_fwd_activations
 # Peepholes, input_forget are not supported
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
-
-# incorrect weights format (iofc)
-lstm_cell_zero_bias_peepholes

@@ -26,15 +26,15 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::RNNCell::type_info;
+constexpr NodeTypeInfo op::v0::RNNCell::type_info;
 
-op::RNNCell::RNNCell()
+op::v0::RNNCell::RNNCell()
 {
     m_activations = {"tanh"};
     m_activation_f = get_activation_function(0);
 }
 
-op::RNNCell::RNNCell(const Output<Node>& X,
+op::v0::RNNCell::RNNCell(const Output<Node>& X,
                      const Output<Node>& initial_hidden_state,
                      const Output<Node>& W,
                      const Output<Node>& R,
@@ -55,7 +55,7 @@ op::RNNCell::RNNCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::RNNCell::RNNCell(const Output<Node>& X,
+op::v0::RNNCell::RNNCell(const Output<Node>& X,
                      const Output<Node>& initial_hidden_state,
                      const Output<Node>& W,
                      const Output<Node>& R,
@@ -76,24 +76,16 @@ op::RNNCell::RNNCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool op::RNNCell::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::RNNCell::visit_attributes(AttributeVisitor& visitor)
 {
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::RNNCell::validate_and_infer_types()
+void op::v0::RNNCell::validate_and_infer_types()
 {
-    std::vector<ngraph::PartialShape> input_param{};
-
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;
-
-    // Copy all inputs for further validation
-    for (size_t i = 0; i < get_input_size(); i++)
-    {
-        input_param.push_back(get_input_partial_shape(i));
-    }
 
     // Get input partial shape for all inputs
     const auto& x_pshape = get_input_partial_shape(0);
@@ -102,7 +94,7 @@ void op::RNNCell::validate_and_infer_types()
     const auto& r_pshape = get_input_partial_shape(3);
     const auto& b_pshape = get_input_partial_shape(4);
 
-    validate_input_rank_dimension(input_param);
+    validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(
@@ -169,26 +161,23 @@ void op::RNNCell::validate_and_infer_types()
     }
 
     // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(2);
-    set_input_is_relevant_to_shape(3);
-    set_input_is_relevant_to_shape(4);
+    for (size_t i = 0; i <=4; ++i)
+        set_input_is_relevant_to_shape(i);
 
     // Set output size, type and shape
     set_output_size(1);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-Output<Node> op::RNNCell::get_default_bias_input() const
+Output<Node> op::v0::RNNCell::get_default_bias_input() const
 {
     return Output<Node>{
-        op::Constant::create(get_input_element_type(0),
+        op::v0::Constant::create(get_input_element_type(0),
                              Shape{s_gates_count * get_hidden_size()},
                              vector<float>(s_gates_count * get_hidden_size(), 0.f))};
 }
 
-shared_ptr<Node> op::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     if (new_args.size() == 4)

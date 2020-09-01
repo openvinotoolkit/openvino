@@ -170,6 +170,5 @@ namespace ngraph
                 static constexpr std::size_t s_gates_count{4};
             };
         }
-        using v0::LSTMCell;
     } // namespace op
 } // namespace ngraph

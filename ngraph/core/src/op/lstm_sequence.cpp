@@ -344,13 +344,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     }
 
     // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(2);
-    set_input_is_relevant_to_shape(3);
-    set_input_is_relevant_to_shape(4);
-    set_input_is_relevant_to_shape(5);
-    set_input_is_relevant_to_shape(6);
+    for (size_t i = 0; i <= 6; ++i)
+        set_input_is_relevant_to_shape(i);
 
     // Set output size, type and shape
     set_output_size(3);

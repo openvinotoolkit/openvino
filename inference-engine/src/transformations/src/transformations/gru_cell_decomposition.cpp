@@ -87,8 +87,8 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
 
         // Ht = (1 - zt) (.) ht + zt (.) Ht-1
         auto one = opset4::Constant::create(z_t->get_element_type(),
-                                        z_t->get_shape(),
-                                        std::vector<float>(shape_size(z_t->get_shape()), 1.f));
+                                            z_t->get_shape(),
+                                            std::vector<float>(shape_size(z_t->get_shape()), 1.f));
         auto sub = std::make_shared<opset4::Subtract>(one, z_t);
         auto mul_1 = std::make_shared<opset4::Multiply>(sub, h_t);
         auto mul_2 = std::make_shared<opset4::Multiply>(z_t, H_t);

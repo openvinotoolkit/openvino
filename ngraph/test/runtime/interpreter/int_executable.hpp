@@ -697,7 +697,7 @@ protected:
         }
         case OP_TYPEID::GRUCell_v3:
         {
-            const op::GRUCell* gru_cell = static_cast<const op::GRUCell*>(&node);
+            const op::v3::GRUCell* gru_cell = static_cast<const op::v3::GRUCell*>(&node);
             runtime::reference::gru_cell(args[0]->get_data_ptr<T>(),
                                          args[0]->get_shape(),
                                          args[1]->get_data_ptr<T>(),
@@ -717,7 +717,7 @@ protected:
         }
         case OP_TYPEID::LSTMCell_v0:
         {
-            const op::LSTMCell* lstm_cell = static_cast<const op::LSTMCell*>(&node);
+            const op::v0::LSTMCell* lstm_cell = static_cast<const op::v0::LSTMCell*>(&node);
             runtime::reference::lstm_cell(args[0]->get_data_ptr<T>(),
                                           args[0]->get_shape(),
                                           args[1]->get_data_ptr<T>(),
@@ -740,7 +740,7 @@ protected:
         }
         case OP_TYPEID::RNNCell_v0:
         {
-            const op::RNNCell* rnn_cell = static_cast<const op::RNNCell*>(&node);
+            const op::v0::RNNCell* rnn_cell = static_cast<const op::v0::RNNCell*>(&node);
             runtime::reference::rnn_cell(args[0]->get_data_ptr<T>(),
                                          args[0]->get_shape(),
                                          args[1]->get_data_ptr<T>(),

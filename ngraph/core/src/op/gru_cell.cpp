@@ -109,17 +109,9 @@ bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::GRUCell::validate_and_infer_types()
 {
-    std::vector<ngraph::PartialShape> input_param{};
-
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;
-
-    // Copy all inputs for further validation
-    for (size_t i = 0; i < get_input_size(); i++)
-    {
-        input_param.push_back(get_input_partial_shape(i));
-    }
 
     // Get input partial shape for all inputs
     const auto& x_pshape = get_input_partial_shape(0);
@@ -128,7 +120,7 @@ void op::v3::GRUCell::validate_and_infer_types()
     const auto& r_pshape = get_input_partial_shape(3);
     const auto& b_pshape = get_input_partial_shape(4);
 
-    validate_input_rank_dimension(input_param);
+    validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(

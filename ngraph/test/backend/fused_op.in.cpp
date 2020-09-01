@@ -33,7 +33,9 @@
 #include "gtest/gtest.h"
 #include "ngraph/check.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/rnn_cell_base.hpp"
 #include "op/group_conv.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
@@ -1629,7 +1631,13 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
+            H_t,
+            C_t,
+            op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
+            op::util::convert_lstm_node_format(R, op::util::LSTMWeightsFormat::IOFC),
+            op::util::convert_lstm_node_format(B, op::util::LSTMWeightsFormat::IOFC),
+            hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
@@ -1697,7 +1705,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
@@ -1786,7 +1794,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X,
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                      H_t,
                                                      C_t,
                                                      W,
@@ -1887,7 +1895,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X,
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                      H_t,
                                                      C_t,
                                                      W,
@@ -2152,7 +2160,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_no_bias)
     const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2203,7 +2211,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_bias_clip)
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X,
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X,
                                                    H_t,
                                                    W,
                                                    R,
@@ -2265,7 +2273,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_activation_function)
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X,
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X,
                                                    H_t,
                                                    W,
                                                    R,
@@ -2331,7 +2339,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_bias_clip)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                    H_t,
                                                    W,
                                                    R,
@@ -2404,7 +2412,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_linear_before_reset)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                    H_t,
                                                    W,
                                                    R,
@@ -2476,7 +2484,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_activation_function)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                    H_t,
                                                    W,
                                                    R,

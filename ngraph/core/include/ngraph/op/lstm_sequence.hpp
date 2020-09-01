@@ -119,7 +119,6 @@ namespace ngraph
                 direction m_direction;
             };
         }
-        using v0::LSTMSequence;
     } // namespace op
 
 } // namespace ngraph
