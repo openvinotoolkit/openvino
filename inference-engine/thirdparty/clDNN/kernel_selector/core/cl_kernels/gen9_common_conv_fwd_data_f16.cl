@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2019 Intel Corporation
+* Copyright 2019-2020 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -576,6 +576,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     const int oc = get_group_id(0);
 #endif
 #endif
+    const int local_id = get_local_id(0);
     const int sp = get_group_id(1);
     int mb = get_group_id(2) * MB_BLOCK * 2;
 
@@ -594,7 +595,6 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     const int ow = ohw % OW;
 
 #if WITH_BIAS
-    const int local_id = get_local_id(0);
     half8 C00 = bias[oc * OC_BLOCK + local_id + g * OC];
     half8 C01 = C00, C02 = C00, C03 = C00;
 #if USE_32OC_UNROLL
@@ -767,21 +767,37 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 #endif
 
-#if HAS_FUSED_OPS
-    { FUSED_OPS_VEC0; C00 = FUSED_OPS_RESULT_VEC0; }
-    { FUSED_OPS_VEC1; C01 = FUSED_OPS_RESULT_VEC1; }
-#endif
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
 
-    intel_sub_group_block_write_us8(
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; C00[i] = FUSED_OPS_RESULT_SCALAR0; }
+            { FUSED_OPS_SCALAR1; C00[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED) {
+                dst_write0[i * OC_BLOCK + local_id] = C00[i];
+                dst_write0[8 * OC_BLOCK + i * OC_BLOCK + local_id] = C01[i];
+            }
+        }
+    } else
+#endif // OUTPUT_LEFTOVERS
+    {
+#if HAS_FUSED_OPS
+        { FUSED_OPS_VEC0; C00 = FUSED_OPS_RESULT_VEC0; }
+        { FUSED_OPS_VEC1; C01 = FUSED_OPS_RESULT_VEC1; }
+#endif
+        intel_sub_group_block_write_us8(
             (__global ushort *)dst_write0, as_ushort8(C00));
-    intel_sub_group_block_write_us8(
+        intel_sub_group_block_write_us8(
             (__global ushort *)&dst_write0[8 * OC_BLOCK], as_ushort8(C01));
 #if USE_32OC_UNROLL
-    intel_sub_group_block_write_us8(
+        intel_sub_group_block_write_us8(
             (__global ushort *)&dst_write1[0], as_ushort8(C10));
-    intel_sub_group_block_write_us8(
+        intel_sub_group_block_write_us8(
             (__global ushort *)&dst_write1[8 * OC_BLOCK], as_ushort8(C11));
 #endif
+    }
 
 #if WITH_SUM == 1
     half8 blockS02 = as_half8(
@@ -823,27 +839,45 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 #endif
 
-#if HAS_FUSED_OPS
-    { FUSED_OPS_VEC2; C02 = FUSED_OPS_RESULT_VEC2; }
-    { FUSED_OPS_VEC3; C03 = FUSED_OPS_RESULT_VEC3; }
-#endif
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
 
-    intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE],
-            as_ushort8(C02));
-    intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
-                    + 8 * OC_BLOCK],
-            as_ushort8(C03));
-#if USE_32OC_UNROLL
-    intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE],
-            as_ushort8(C12));
-    intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE
-                    + 8 * OC_BLOCK],
-            as_ushort8(C13));
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; C02[i] = FUSED_OPS_RESULT_SCALAR0; }
+            { FUSED_OPS_SCALAR1; C03[i] = FUSED_OPS_RESULT_SCALAR1; }
 #endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED) {
+                dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
+                        + i * OC_BLOCK + local_id] = C02[i];
+                dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE + 8 * OC_BLOCK
+                        + i * OC_BLOCK + local_id] = C03[i];
+            }
+        }
+    } else
+#endif // OUTPUT_LEFTOVERS
+    {
+#if HAS_FUSED_OPS
+        { FUSED_OPS_VEC2; C02 = FUSED_OPS_RESULT_VEC2; }
+        { FUSED_OPS_VEC3; C03 = FUSED_OPS_RESULT_VEC3; }
+#endif
+        intel_sub_group_block_write_us8(
+                (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE],
+                as_ushort8(C02));
+        intel_sub_group_block_write_us8(
+                (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
+                        + 8 * OC_BLOCK],
+                as_ushort8(C03));
+#if USE_32OC_UNROLL
+        intel_sub_group_block_write_us8(
+                (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE],
+                as_ushort8(C12));
+        intel_sub_group_block_write_us8(
+                (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE
+                        + 8 * OC_BLOCK],
+                as_ushort8(C13));
+#endif
+    }
 #endif
 
 #if VER_8OW16C == 1 && (IC % 16 == 0 || (IC == 8 && G != 1))
@@ -1229,9 +1263,18 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             if (local_id < 8)
                 dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
 #else
-            intel_sub_group_block_write_us(
-                    (__global ushort *)(&dst_write0[i * OC_BLOCK]),
-                    as_ushort(blockC00[i]));
+
+#if OUTPUT_LEFTOVERS
+            if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+                if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                    dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+            } else
+#endif
+            {
+                intel_sub_group_block_write_us(
+                        (__global ushort *)(&dst_write0[i * OC_BLOCK]),
+                        as_ushort(blockC00[i]));
+            }
 #endif
         }
     } else {
@@ -1249,9 +1292,18 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             if (local_id < 8)
                 dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
 #else
-            intel_sub_group_block_write_us(
-                    (__global ushort *)(&dst_write0[i * OC_BLOCK]),
-                    as_ushort(blockC00[i]));
+
+#if OUTPUT_LEFTOVERS
+            if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+                if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                    dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+            } else
+#endif
+            {
+                intel_sub_group_block_write_us(
+                        (__global ushort *)(&dst_write0[i * OC_BLOCK]),
+                        as_ushort(blockC00[i]));
+            }
 #endif //  OC == 8 && G != 1
         }
 #else
@@ -1266,12 +1318,26 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
     }
 #else
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+        }
+    } else
+#endif
+    {
 #if HAS_FUSED_OPS
     { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
 #endif
 
-    intel_sub_group_block_write_us8(
-            (__global ushort *)(&dst_write0[0]), as_ushort8(blockC00));
+        intel_sub_group_block_write_us8(
+                (__global ushort *)(&dst_write0[0]), as_ushort8(blockC00));
+    }
 #endif //  OC == 8 && G != 1
 #if OW_BLOCK == 16
 
@@ -1285,6 +1351,20 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
     }
 #else
+
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR1; blockC01[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
+        }
+    } else
+#endif
+    {
 #if HAS_FUSED_OPS
     { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
@@ -1292,6 +1372,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     intel_sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[8 * OC_BLOCK]),
             as_ushort8(blockC01));
+    }
 #endif //  OC == 8 && G != 1
 #endif
 #endif
