@@ -69,13 +69,9 @@ void GRUCellTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
-    auto W = ngraph::builder::makeConstant(ngPrc, inputShapes[2], {}, true);
-    auto R = ngraph::builder::makeConstant(ngPrc, inputShapes[3], {}, true);
-    auto B = ngraph::builder::makeConstant(ngPrc, inputShapes[4], {}, true);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto gru_cell = std::make_shared<ngraph::opset4::GRUCell>(paramOuts[0], paramOuts[1],
-            W, R, B, hidden_size, activations, activations_alpha, activations_beta, clip, linear_before_reset);
+    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    auto gru_cell = ngraph::builder::makeGRUCell(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+            WRB, hidden_size, activations, activations_alpha, activations_beta, clip, linear_before_reset);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
     function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
 }

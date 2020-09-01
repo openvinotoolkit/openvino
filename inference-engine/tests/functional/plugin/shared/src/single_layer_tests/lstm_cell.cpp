@@ -67,11 +67,9 @@ void LSTMCellTest::SetUp() {
     };
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
-    auto W = ngraph::builder::makeConstant(ngPrc, inputShapes[3], {}, true);
-    auto R = ngraph::builder::makeConstant(ngPrc, inputShapes[4], {}, true);
-    auto B = ngraph::builder::makeConstant(ngPrc, inputShapes[5], {}, true);
-    auto lstm_cell = std::make_shared<ngraph::opset4::LSTMCell>(params[0], params[1], params[2],
-            W, R, B, hidden_size, activations, activations_alpha, activations_beta, clip);
+    std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
+    auto lstm_cell = ngraph::builder::makeLSTMCell(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+            WRB, hidden_size, activations, activations_alpha, activations_beta, clip);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
                                  std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");

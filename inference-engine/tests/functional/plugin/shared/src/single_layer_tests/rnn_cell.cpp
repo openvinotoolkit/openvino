@@ -63,13 +63,9 @@ void RNNCellTest::SetUp() {
                                                     {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
-    auto W = ngraph::builder::makeConstant(ngPrc, inputShapes[2], {}, true);
-    auto R = ngraph::builder::makeConstant(ngPrc, inputShapes[3], {}, true);
-    auto B = ngraph::builder::makeConstant(ngPrc, inputShapes[4], {}, true);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto rnn_cell = std::make_shared<ngraph::opset4::RNNCell>(paramOuts[0], paramOuts[1], W, R, B, hidden_size,
-            activations, activations_alpha, activations_beta, clip);
+    std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
+    auto rnn_cell = ngraph::builder::makeRNNCell(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+            WRB, hidden_size, activations, activations_alpha, activations_beta, clip);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
     function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
 }
