@@ -94,15 +94,18 @@ class ConcatOptimization(MiddleReplacementPattern):
                     p_id += 1
 
 
-class ConcatOdInputEraser(MiddleReplacementPattern):
+class ConcatOdInputEraserAndPortsReconnect(MiddleReplacementPattern):
     """
-    Disconnects empty inputs of Concat operations -- as there is nothing to concatenate and re-connect inputs
+    The transformation performs two actions with Concat operations:
+    1. Disconnects empty inputs (input tensor has at least one input dimension equal to 0)
+    2. Renumber Concat inputs to be 0, 1, 2,...
     """
     enabled = True
     force_clean_up = True
 
     def find_and_replace_pattern(self, graph: Graph):
         for concat in graph.get_op_nodes(type='Concat'):
+            num_connected_ports = len([port for port in concat.in_ports().values() if not port.disconnected()])
             for in_port in concat.in_ports().values():
                 if in_port.disconnected():
                     continue
@@ -112,10 +115,13 @@ class ConcatOdInputEraser(MiddleReplacementPattern):
                     in_port.disconnect()
 
             connected_input_ports = [in_port for in_port in concat.in_ports().values() if not in_port.disconnected()]
-            assert len(connected_input_ports), 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))
+            assert len(connected_input_ports), 'Concat "{}" have no inputs after removing inputs with 0 dimensions' \
+                                               ''.format(concat.soft_get('name', concat.id))
 
             max_port_id = max([port.idx for port in connected_input_ports])
-            if max_port_id != len(connected_input_ports) + 1:
+            # if we renumbered input ports or removed some of them we need to re-connect the inputs
+            if [port.idx for port in connected_input_ports] != list(range(len(connected_input_ports))) or \
+                    num_connected_ports != len(connected_input_ports):
                 port_idx_to_connect = 0
                 for port_idx in range(max_port_id + 1):
                     if concat.is_in_port_connected(port_idx):

@@ -15,13 +15,13 @@
 """
 import unittest
 
-from extensions.middle.ConcatOptimization import ConcatOdInputEraser
+from extensions.middle.ConcatOptimization import ConcatOdInputEraserAndPortsReconnect
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
 
 
-class Concat0dInput(unittest.TestCase):
+class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
     def test_deletion(self):
         nodes = {
             **shaped_const_with_data('input_0', [1]),
@@ -46,7 +46,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -77,7 +77,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -108,7 +108,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -136,7 +136,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -165,7 +165,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -190,7 +190,7 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)
-        ConcatOdInputEraser().find_and_replace_pattern(graph)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
         graph_ref = build_graph(nodes, edges, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -214,4 +214,4 @@ class Concat0dInput(unittest.TestCase):
         ]
 
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)
-        self.assertRaises(AssertionError, ConcatOdInputEraser().find_and_replace_pattern, graph)
+        self.assertRaises(AssertionError, ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern, graph)
