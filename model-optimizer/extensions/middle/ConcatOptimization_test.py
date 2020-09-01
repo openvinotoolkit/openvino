@@ -16,6 +16,7 @@
 import unittest
 
 from extensions.middle.ConcatOptimization import ConcatOdInputEraserAndPortsReconnect
+from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
 
@@ -165,6 +166,30 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_deletion_trailing_unconnected_ports(self):
+        nodes = {
+            **shaped_const_with_data('input_0', [5, 3]),
+            **regular_op_with_shaped_data('concat', [5, 3], {'type': 'Concat', 'axis': 1}),
+            **result(),
+        }
+        edges_before = [
+            *connect('input_0', '0:concat'),
+            *connect('concat', 'output'),
+        ]
+        edges_after = [
+            *connect('input_0', '0:concat'),
+            *connect('concat', 'output'),
+        ]
+
+        graph = build_graph(nodes, edges_before, nodes_with_edges_only=True)
+        Node(graph, 'concat').add_input_port(1)
+        ConcatOdInputEraserAndPortsReconnect().find_and_replace_pattern(graph)
+        graph_ref = build_graph(nodes, edges_after, nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.assertTrue(1 not in Node(graph, 'concat').in_ports())
 
     def test_negative(self):
         nodes = {
