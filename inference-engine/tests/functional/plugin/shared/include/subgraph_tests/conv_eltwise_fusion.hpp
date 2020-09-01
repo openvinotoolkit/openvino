@@ -14,19 +14,22 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         ngraph::NodeTypeInfo,       // Convolution type
+        std::tuple<
+            ngraph::NodeTypeInfo,   // Eltwise type
+            int64_t                 // Expected number of ops
+        >,
         ngraph::Shape,              // Input shape
         ngraph::Shape,              // Weights shape
         ngraph::Shape,              // Const shape
-        int64_t,                    // Number of ops in final function
         ngraph::element::Type,      // Network precision
         std::string                 // Device name
-        > ConvMultiplyParams;
+        > ConvEltwiseFusionParams;
 
-class ConvMultiply
-        : public testing::WithParamInterface<ConvMultiplyParams>,
+class ConvEltwiseFusion
+        : public testing::WithParamInterface<ConvEltwiseFusionParams>,
           public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ConvMultiplyParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj);
 
 protected:
     void SetUp() override;
