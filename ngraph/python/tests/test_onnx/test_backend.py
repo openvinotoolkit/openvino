@@ -92,7 +92,7 @@ OnnxBackendPyTorchOperatorModelTest = None
 OnnxBackendPyTorchConvertedModelTest = None
 globals().update(backend_test.enable_report().test_cases)
 
-tests_xfail_new = [
+tests_expected_to_fail = [
     (xfail_issue_34314,
         "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
         "OnnxBackendNodeModelTest.test_simple_rnn_defaults_cpu",
@@ -339,6 +339,6 @@ tests_xfail_new = [
         "OnnxBackendNodeModelTest.test_logsoftmax_default_axis_cpu")
 ]
 
-for test_group in tests_xfail_new:
+for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
         expect_fail("{}".format(test_case), test_group[0])
