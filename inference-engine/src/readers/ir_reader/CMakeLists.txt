@@ -20,8 +20,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                  IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                   IR_READER_V10)
 
 target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine" # for CNNNetworkNgraphImpl
