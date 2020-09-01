@@ -332,7 +332,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     while (num_columns_out < out_batch * out_channels * out_height * out_width) {
         num_input_padding = original_input_padding + additional_padding;
-        num_feature_map_rows = original_num_feature_map_rows + ((num_input_padding + num_feature_map_columns) - 1) / num_feature_map_columns;
+        num_feature_map_rows = original_num_feature_map_rows + (num_input_padding) / num_feature_map_columns;
         num_columns_in = num_inputs + num_input_padding;
         num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
         dnn->new_num_conv_columns = num_columns_out;
@@ -1511,6 +1511,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     if (dnn->new_num_conv_columns) {
         num_rows = dnn->new_num_conv_columns;
+        if (inputs->getDims().size() == 4) num_rows /= FROM_IR_DIM(inputs, 3);
         dnn->new_num_conv_columns = 0;
     }
 
