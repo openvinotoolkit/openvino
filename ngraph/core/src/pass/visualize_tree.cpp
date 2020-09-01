@@ -181,146 +181,11 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
 
-struct OperationDescription
-{
-    // All non dynamic dimesions are all set to 1
-    typedef PartialShape DynamicMask;
 
-    std::string name;
-    int64_t version;
-    std::vector<DynamicMask> inputs;
-    std::vector<DynamicMask> outputs;
-
-    explicit OperationDescription (std::shared_ptr<Node> node)
-    {
-        name = node->get_type_info().name;
-        version = node->get_type_info().version;
-        create_mask(node->inputs(), inputs);
-        create_mask(node->outputs(), outputs);
-    }
-
-    template <typename T>
-    void create_mask(const std::vector<T>& ports, std::vector<DynamicMask>& dest)
-    {
-        dest.clear();
-        for(const auto& port: ports)
-        {
-            PartialShape shape = port.get_partial_shape();
-            if(!shape.rank().is_dynamic())
-            {
-                size_t rank = shape.rank().get_length();
-                for(size_t i = 0; i < rank; ++i)
-                {
-                    if(!shape[i].is_dynamic())
-                    {
-                        shape[i] = 1; // set all not dynamic dimensions to 1
-                    }
-                }
-            }
-            dest.push_back(shape);
-        }
-    }
-
-    static bool less (const std::vector<OperationDescription::DynamicMask>& x1, const std::vector<OperationDescription::DynamicMask>& x2)
-    {
-        if(x1.size() < x2.size())
-            return true;
-
-        if(x2.size() < x1.size())
-            return false;
-
-        for(size_t i = 0; i < x1.size(); ++i)
-        {
-            if(x1[i].is_dynamic() && !x2[i].is_dynamic())
-                return true;
-
-            if(!x1[i].is_dynamic() && x2[i].is_dynamic())
-                return false;
-            // if they both are dynamic or static, then they are equal
-        }
-
-        return false;
-    }
-
-    bool is_dynamic () const
-    {
-        auto has_dynamic = [](const PartialShape& shape) {return shape.is_dynamic();};
-        return inputs.end() != std::find_if(inputs.begin(), inputs.end(), has_dynamic) ||
-                outputs.end() != std::find_if(outputs.begin(), outputs.end(), has_dynamic);
-    }
-};
-
-bool operator< (const OperationDescription& x1, const OperationDescription& x2)
-{
-    if(x1.name < x2.name)
-        return true;
-
-    if(x2.name < x1.name)
-        return false;
-
-    if(x1.version < x2.version)
-        return true;
-
-    if(x2.version < x1.version)
-        return false;
-
-    if(OperationDescription::less(x1.inputs, x2.inputs))
-        return true;
-    else if(OperationDescription::less(x2.inputs, x1.inputs))
-        return false;
-
-    if(OperationDescription::less(x1.outputs, x2.outputs))
-        return true;
-    else if(OperationDescription::less(x2.outputs, x1.outputs))
-        return false;
-
-    return false;
-}
-
-void print_partial_shape (std::ostream& out, const PartialShape& shape)
-{
-    if(shape.rank().is_dynamic())
-        out << '?';
-    else
-    {
-        out << '{';
-        size_t rank = shape.rank().get_length();
-        for(size_t i = 0; i < rank; ++i)
-        {
-            if(i > 0)
-                out << ", ";
-            if(shape[i].is_static())
-                out << 'S';
-            else
-                out << shape[i];
-        }
-        out << '}';
-    }
-}
-
-std::ostream& operator<< (std::ostream& out, const std::vector<PartialShape>& shapes)
-{
-    out << "(";
-    for(size_t i = 0; i < shapes.size(); ++i)
-    {
-        if(i > 0)
-            out << ", ";
-        print_partial_shape(out, shapes[i]);
-    }
-    out << ")";
-    return out;
-}
-
-std::ostream& operator<< (std::ostream& out, const OperationDescription& x)
-{
-    out << x.name << "-" << x.version << x.inputs << " --> " << x.outputs;
-    return out;
-}
 
 bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     unordered_map<Node*, HeightMap> height_maps;
-    std::set<OperationDescription> operations;
 
     for (auto& node : f->get_ops())
     {
@@ -331,18 +196,6 @@ bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
         else
         {
             height_maps[node.get()] = HeightMap();
-        }
-
-        OperationDescription od(node);
-        if(od.is_dynamic())
-            operations.insert(od);
-    }
-
-    {
-        std::ofstream list(m_name + ".dynops.txt");
-        for(const auto& x: operations)
-        {
-            list << x << std::endl;
         }
     }
 
