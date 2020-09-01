@@ -48,7 +48,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 67000} });
-        auto const_mult2 = ngraph::builder::makeConstant(ngPrc, {1, 67000}, {-1.0f});
+        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {1, 67000}, {-1.0f});
 
         auto sum = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
         function = std::make_shared<ngraph::Function>(sum, params, "RemovePermutationPass");
