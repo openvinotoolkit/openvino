@@ -31,22 +31,23 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API Squeeze : public ngraph::op::util::FusedOp
+            class NGRAPH_API Squeeze : public ngraph::op::Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Squeeze", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Squeeze() = default;
+                Squeeze(const Output<Node>& data);
                 Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual OutputVector decompose_op() const override;
-                virtual void pre_validate_and_infer_types() override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
             };
         }
         using v0::Squeeze;

@@ -33,40 +33,37 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 constexpr NodeTypeInfo op::Squeeze::type_info;
 
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)
-    : FusedOp({data, axes})
+    : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Squeeze::pre_validate_and_infer_types()
+op::Squeeze::Squeeze(const Output<Node>& data)
+    : Op({data})
 {
+    constructor_validate_and_infer_types();
+}
+
+void op::Squeeze::validate_and_infer_types()
+{
+    set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+
     auto data = input_value(0);
-    auto axes_node = input_value(1).get_node_shared_ptr();
-
-    bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
-    bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
-
-    auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
-    bool axes_is_empty_constant =
-        (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
-
-    if (data_has_dynamic_rank || !axes_constant ||
-        (data_has_dynamic_shape && axes_is_empty_constant))
-    {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-        return;
-    }
-
     auto data_partial_shape = data.get_partial_shape();
+    bool data_has_dynamic_shape = data_partial_shape.is_dynamic();
+    bool data_has_dynamic_rank = data_partial_shape.rank().is_dynamic();
+
+    bool auto_squeezing = get_input_size() == 1;
+    if (data_has_dynamic_rank || (auto_squeezing && data_has_dynamic_shape))
+        return;
+
+    if (!auto_squeezing && !is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+            return;
+
     uint64_t data_rank = data_partial_shape.rank().get_length();
-
-    // Get value of axes from Constant
-    auto axes =
-        normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
-
     // Prepare set of unique axes marked to be removed from input data.
     vector<uint64_t> axes_to_squeeze(data_rank);
-    if (axes_is_empty_constant)
+    if (auto_squeezing)
     {
         auto data_shape = data.get_shape();
         // Default behaviour is to remove all single dimension axes.
@@ -84,7 +81,11 @@ void op::Squeeze::pre_validate_and_infer_types()
     }
     else
     {
-        set<size_t, greater<size_t>> unique_axes(begin(axes), end(axes));
+        const auto axes_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+        const auto raw_axes = axes_constant->cast_vector<int64_t>();
+        auto normalized_axes = normalize_axes(this->description(), raw_axes, data_rank);
+        set<size_t, greater<size_t>> unique_axes(begin(normalized_axes), end(normalized_axes));
+
         for (uint64_t axis : unique_axes)
         {
             if (!data_has_dynamic_shape)
@@ -115,26 +116,14 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-OutputVector op::Squeeze::decompose_op() const
-{
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto output_data_shape = get_output_shape(0);
-    AxisVector input_order{get_default_order(data_shape.size())};
-    return {make_shared<op::Reshape>(data, input_order, output_data_shape)};
-}
-
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    if (new_args.size() != 2)
-    {
+    if (new_args.size() == 2)
+        return make_shared<op::v0::Squeeze>(new_args.at(0), new_args.at(1));
+    else if (new_args.size() == 1)
+        return make_shared<op::v0::Squeeze>(new_args.at(0));
+    else
         throw ngraph_error("Incorrect number of new arguments");
-    }
-    return make_shared<Squeeze>(new_args.at(0), new_args.at(1));
 }
 
 namespace
