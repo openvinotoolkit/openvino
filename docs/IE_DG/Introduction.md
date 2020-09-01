@@ -117,7 +117,7 @@ Please refer to the [Overview of nGraph Flow](nGraph_Flow.md) describing the det
 
 Inference Engine is a runtime that delivers a unified API to integrate the inference with application logic:
 
-* Takes as input the model. The model presented in the specific form of [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md)
+* Takes a model as an input. The model can be presented in [the native ONNX format](./ONNX_Supported_Ops.md) or in the specific form of [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md)
 produced by Model Optimizer.
 * Optimizes inference execution for target hardware.
 * Delivers inference solution with reduced footprint on embedded inference platforms.
