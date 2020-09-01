@@ -36,7 +36,7 @@ public:
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result) const override;
 

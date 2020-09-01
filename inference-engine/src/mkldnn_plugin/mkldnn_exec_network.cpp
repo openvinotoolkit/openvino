@@ -187,13 +187,13 @@ InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
     return _graphs.begin()->get()->dump();
 }
 
-void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result) const {
+Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
     Config engConfig = _graphs.begin()->get()->getProperty();
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        result = option->second;
+    auto it = engConfig._config.find(name);
+    if (it != engConfig._config.end()) {
+        return it->second;
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }

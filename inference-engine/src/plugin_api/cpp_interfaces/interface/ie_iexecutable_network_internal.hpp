@@ -89,15 +89,15 @@ public:
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
-     * @param name - config key, can be found in ie_plugin_config.hpp
-     * @param result - value of config corresponding to config key
+     * @param name A config key, can be found in ie_plugin_config.hpp
+     * @return A value of config corresponding to config key
      */
-    virtual void GetConfig(const std::string& name, Parameter& result) const = 0;
+    virtual Parameter GetConfig(const std::string& name) const = 0;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware
-     * @param name  - metric name to request
-     * @param result - metric value corresponding to metric key
+     * @param name  A metric name to request
+     * @param result A metric value corresponding to metric key
      */
     virtual void GetMetric(const std::string& name, Parameter& result) const = 0;
 

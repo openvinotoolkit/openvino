@@ -281,10 +281,10 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
     }
 }
 
-void MultiDeviceExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
-    auto res = _config.find(name);
-    if (res != _config.end()) {
-        result =  res->second;
+InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::string &name) const {
+    auto it = _config.find(name);
+    if (it != _config.end()) {
+        return it->second;
     } else {
         THROW_IE_EXCEPTION << NOT_FOUND_str << name <<" not found in the ExecutableNetwork config";
     }

@@ -109,8 +109,8 @@ void TemplatePlugin::ExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& a
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result) const {
-    result = _cfg.Get(name);
+Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name) const {
+    return _cfg.Get(name);
 }
 // ! [executable_network:get_config]
 

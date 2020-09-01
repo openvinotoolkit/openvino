@@ -32,7 +32,7 @@ public:
     MOCK_METHOD0(GetExecGraphInfo, CNNNetwork(void));
 
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));
-    MOCK_CONST_METHOD2(GetConfig, void(const std::string &name, Parameter &result));
+    MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string &name));
     MOCK_CONST_METHOD2(GetMetric, void(const std::string &name, Parameter &result));
     MOCK_CONST_METHOD0(GetContext, RemoteContext::Ptr());
 };

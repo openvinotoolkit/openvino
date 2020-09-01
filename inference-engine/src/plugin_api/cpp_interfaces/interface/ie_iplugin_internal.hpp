@@ -246,7 +246,7 @@ public:
      * @brief Creates an executable network from an previously exported network using plugin implementation
      *        and removes Inference Engine magic and plugin name
      * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param config A string -> string map of parameters
      * @return An Executable network
@@ -271,7 +271,7 @@ public:
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
-     * @param      res      The result of query operator containing supported layers map
+     * @return     The result of query operator containing supported layers map
      */
     virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
 };

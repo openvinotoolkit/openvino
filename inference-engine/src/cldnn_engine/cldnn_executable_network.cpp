@@ -109,10 +109,10 @@ InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
     return m_graphs.front()->GetExecGraphInfo();
 }
 
-void CLDNNExecNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
-    auto option = m_config.key_config_map.find(name);
-    if (option != m_config.key_config_map.end()) {
-        result = option->second;
+InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) const {
+    auto it = m_config.key_config_map.find(name);
+    if (it != m_config.key_config_map.end()) {
+        return it->second;
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }

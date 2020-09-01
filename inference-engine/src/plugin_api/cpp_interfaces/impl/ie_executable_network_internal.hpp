@@ -102,11 +102,15 @@ public:
                            << config.begin()->first;
     }
 
-    void GetConfig(const std::string& /* name */, Parameter& /* result */) const override {
+    Parameter GetConfig(const std::string& name) const override {
+        (void)name;
         THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
+        return {};
     }
 
-    void GetMetric(const std::string& /* name */, Parameter& /* result */) const override {
+    void GetMetric(const std::string& name, Parameter& result) const override {
+        (void)name;
+        (void)result;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

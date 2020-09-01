@@ -95,7 +95,7 @@ public:
     }
 
     StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetConfig(name, result));
+        TO_STATUS(result = _impl->GetConfig(name));
     }
 
     StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {

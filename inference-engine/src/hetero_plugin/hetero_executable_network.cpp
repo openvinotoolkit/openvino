@@ -936,7 +936,8 @@ void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncReques
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
-void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result) const {
+InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string &name) const {
+    InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK") {
         auto it = _config.find(name);
         if (it != _config.end()) {
@@ -956,14 +957,15 @@ void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine
             auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             for (auto && configKey : param.as<std::vector<std::string>>()) {
                 if (configKey == name) {
-                    result = execNetwork.GetConfig(configKey);
-                    return;
+                    return execNetwork.GetConfig(configKey);
                 }
             }
         }
 
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
+
+    return result;
 }
 
 using Metrics = std::map<std::string, Parameter>;
