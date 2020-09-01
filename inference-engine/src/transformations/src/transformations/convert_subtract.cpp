@@ -19,8 +19,13 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         if (!sub) {
             return false;
         }
-
+        if (sub->output(0).get_target_inputs().empty()) {
+            return false;
+        }
         std::shared_ptr<Node> child = sub->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        if (child->output(0).get_target_inputs().empty()) {
+            return false;
+        }
         std::shared_ptr<Node> childchild = child->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
         if (is_type<opset1::Convolution>(child) ||
             is_type<opset1::GroupConvolution>(child) ||
