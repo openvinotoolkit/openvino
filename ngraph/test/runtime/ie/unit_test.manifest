@@ -79,6 +79,7 @@ bool_const_op
 onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
+builder_opset1_collapse_none
 
 # nGraph function's output number 0 was not found in the CNNNetwork built from it.
 onnx_model_split_equal_parts_2d
@@ -1078,6 +1079,9 @@ IE_CPU.atanh
 IE_CPU.asinh
 IE_CPU.acosh
 
+# Unsupported collapse op with dynamic shape
+IE_CPU.builder_opset1_collapse_dyn_shape
+
 # Interpolate-1 in linear mode
 # 2.666666507720947266 is not close to 3 at index 1
 IE_CPU.interpolate_down_scales_const_linear
@@ -1433,6 +1437,9 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+
+# Unsupported collapse op with dynamic shape
+IE_GPU.builder_opset1_collapse_dyn_shape
 
 IE_GPU.onnx_model_fake_quantize_const_inputs_infer
 IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
