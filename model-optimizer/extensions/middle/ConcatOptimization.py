@@ -116,10 +116,11 @@ class ConcatOdInputEraserAndPortsReconnect(MiddleReplacementPattern):
             assert len(connected_ports), 'Concat "{}" have no inputs after removing inputs with 0 dimensions' \
                                          ''.format(concat.soft_get('name', concat.id))
 
+            max_port_index = max([port.idx for port in concat.in_ports().values()])
             # re-connect input ports sequentially and remove all not used
             if [port.idx for port in connected_ports] != list(range(len(connected_ports))):
                 port_idx_to_connect = 0
-                for port_idx in range(connected_ports[-1].idx + 1):
+                for port_idx in range(max_port_index + 1):
                     if concat.is_in_port_connected(port_idx):
                         concat.add_input_port(port_idx_to_connect, skip_if_exist=True)
                         concat.in_port(port_idx).get_connection().set_destination(concat.in_port(port_idx_to_connect))
