@@ -78,6 +78,7 @@ using tuning_mode = kernel_selector::TuningMode;
 using sample_type = kernel_selector::ResampleType;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
+using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
 using cum_sum_axis = kernel_selector::CumSumAxis;
 using depth_to_space_mode = kernel_selector::DepthToSpaceMode;

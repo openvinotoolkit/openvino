@@ -93,15 +93,20 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
-    if (is_type<opset3::Squeeze>(input.get_node()) ||
-        is_type<opset3::Unsqueeze>(input.get_node()) || is_type<opset3::Reshape>(input.get_node())) {
+    auto input_node = input.get_node_shared_ptr();
+    if (as_type_ptr<opset3::Squeeze>(input_node) ||
+        as_type_ptr<opset3::Unsqueeze>(input_node) ||
+        as_type_ptr<opset3::Reshape>(input_node)) {
         auto shape = node->get_output_shape(0);
         std::vector<int64_t> vi;
         vi.assign(shape.begin(), shape.end());
         auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
         auto new_reshape =
             make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
-        return replace_node_update_name(node, new_reshape);
+        new_reshape->set_friendly_name(node->get_friendly_name());
+        copy_runtime_info({input_node, node}, new_reshape);
+        replace_node(node, new_reshape);
+        return true;
     }
 
     return false;
