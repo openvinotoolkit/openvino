@@ -35,7 +35,7 @@ std::vector<std::string> FusedNames::getVectorNames() const {
 }
 
 void FusedNames::fuseWith(const FusedNames &names) {
-    for (auto name : names.fused_names) {
+    for (const auto & name : names.fused_names) {
         fused_names.insert(name);
     }
 }
