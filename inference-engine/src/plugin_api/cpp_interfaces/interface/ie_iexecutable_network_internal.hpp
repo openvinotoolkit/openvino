@@ -75,6 +75,7 @@ public:
     virtual CNNNetwork GetExecGraphInfo() = 0;
 
     /**
+     * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
      * @brief Queries memory states.
      * @return Returns memory states
      */
