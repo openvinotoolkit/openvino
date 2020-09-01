@@ -51,6 +51,7 @@ class Squeeze(Op):
         assert input_shape is not None, 'Squeeze node `{}` input shape is unknown'.format(name)
         output_shape = input_shape.copy()
 
+        axes = []
         if node.is_in_port_connected(1):
             raw_axes = node.in_port(1).data.get_value()
             assert raw_axes is not None, 'Squeeze node `{}` 2nd input (axes) value is dynamic. It is not supported'
@@ -58,7 +59,8 @@ class Squeeze(Op):
             assert np.all(input_shape[axes] == 1), \
                 'Squeezing non-one dimension is forbidden. Squeeze node `{}` with input_shape={} and axes={}' \
                 ''.format(name, input_shape, raw_axes)
-        else:
+        if not len(axes):
+            # for both cases: no 2nd input and empty second input
             axes = [i for i, value in enumerate(input_shape) if value == 1]
 
         output_shape = np.delete(output_shape, axes)

@@ -33,10 +33,11 @@ class MxNetSqueezeNormalizer(MiddleReplacementPattern):
 
             del node['keep_at_least_1d']
             node.infer(node)
-            if np.array(node.out_port(0).data.get_shape(), []):
+            if np.array_equal(node.out_port(0).data.get_shape(), []):
                 if node.is_in_port_connected(1):
                     # keep one axes non squeezed
                     pass
                 else:
                     # insert unsqueeze after the node keeping the name
+                    # should be conditional -- as it may change during the inference
                     pass
