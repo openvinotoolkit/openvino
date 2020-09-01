@@ -16,7 +16,6 @@
 import unittest
 
 from extensions.middle.ConcatOptimization import ConcatOdInputEraserAndPortsReconnect
-from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, shaped_const_with_data, connect
 
@@ -51,7 +50,6 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_deletion_2(self):
         nodes = {
@@ -82,7 +80,6 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_deletion_3(self):
         nodes = {
@@ -113,7 +110,6 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_deletion_unconnected_port_and_0d(self):
         nodes = {
@@ -141,7 +137,6 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 2)
 
     def test_deletion_unconnected_ports(self):
         nodes = {
@@ -170,7 +165,6 @@ class ConcatOdInputEraserAndPortsReconnectTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(Node(graph, 'concat')['in_ports_count'] == 3)
 
     def test_negative(self):
         nodes = {
