@@ -1371,8 +1371,14 @@ template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Squeeze>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::Squeeze>(inputs[0], inputs[1]);
+    if (inputs.size() == 2) {
+        return std::make_shared<ngraph::op::Squeeze>(inputs[0], inputs[1]);
+    } else if (inputs.size() == 1) {
+        return std::make_shared<ngraph::op::Squeeze>(inputs[0]);
+    } else {
+        THROW_IE_EXCEPTION << "Squeeze layer " << layerParsePrms.name << " with id: " << layerParsePrms.layerId
+                           << " has incorrect number of inputs! Expected: 1 or 2, actual: " << inputs.size();
+    }
 }
 
 // Unsqueeze layer

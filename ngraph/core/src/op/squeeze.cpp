@@ -58,7 +58,7 @@ void op::Squeeze::validate_and_infer_types()
         return;
 
     if (!auto_squeezing && !is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
-            return;
+        return;
 
     uint64_t data_rank = data_partial_shape.rank().get_length();
     // Prepare set of unique axes marked to be removed from input data.
@@ -81,7 +81,8 @@ void op::Squeeze::validate_and_infer_types()
     }
     else
     {
-        const auto axes_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+        const auto axes_constant =
+            as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
         const auto raw_axes = axes_constant->cast_vector<int64_t>();
         auto normalized_axes = normalize_axes(this->description(), raw_axes, data_rank);
         set<size_t, greater<size_t>> unique_axes(begin(normalized_axes), end(normalized_axes));
