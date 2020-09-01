@@ -34,6 +34,7 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetSupportedKey() co
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
 
     k.EnableInputWeightsType(WeightsType::INT8);
 

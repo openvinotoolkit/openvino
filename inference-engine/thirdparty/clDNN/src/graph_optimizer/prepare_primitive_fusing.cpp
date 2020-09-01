@@ -44,6 +44,7 @@
 #include "depth_to_space_inst.h"
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
+#include "scatter_update_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
 #include "space_to_batch_inst.h"
@@ -200,7 +201,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
-                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<shuffle_channels>() &&
+                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
                  !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
@@ -400,6 +401,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather>();
 
+            should_fuse |= input_data.is_type<scatter_update>();
+
             should_fuse |= input_data.is_type<depth_to_space>();
 
             should_fuse |= input_data.is_type<space_to_depth>();
@@ -450,6 +453,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<lrn>();
 
             should_fuse |= input_data.is_type<gather>();
+
+            should_fuse |= input_data.is_type<scatter_update>();
 
             should_fuse |= input_data.is_type<depth_to_space>();
 
@@ -530,6 +535,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                             input_data.get_output_layout().data_type == out_layout.data_type);
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<permute>() && quantize_node.get_scale_shift_opt();
 
@@ -760,11 +767,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     for (auto& dep : eltw_node->get_dependencies()) {
         format fmt = dep->get_output_layout().format;
         data_types dep_dt = dep->get_output_layout().data_type;
-        if ((fmt != format::fs_bs_yx_bsv4_fsv32 || dep_dt != data_types::i8) &&
-            (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
+        if ((fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
             (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::u8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::i8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::f32) && (fmt != format::bfyx || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16) &&
             (fmt != format::bfyx || dep_dt != data_types::f16 || !if_already_depth_to_space_fused))

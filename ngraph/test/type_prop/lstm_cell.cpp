@@ -74,7 +74,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor W must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in W input."));
     }
 
     // Invalid R tensor shape.
@@ -87,7 +88,9 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor R must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size not matched for R, "
+                                         "initial_hidden_state and initial_cell_state inputs."));
     }
 
     // Invalid H_t tensor shape.
@@ -101,7 +104,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Input tensor initial_hidden_state must have shape"));
+                             std::string("Parameter batch_size not matched for X, "
+                                         "initial_hidden_state or initial_cell_state inputs."));
     }
 
     // Invalid C_t tensor shape.
@@ -115,7 +119,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Input tensor initial_cell_state must have shape"));
+                             std::string("Parameter batch_size not matched for X, "
+                                         "initial_hidden_state or initial_cell_state inputs."));
     }
 
     // Invalid B tensor shape.
@@ -129,7 +134,8 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor B must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in B input."));
     }
 
     // Invalid P tensor shape.
@@ -142,6 +148,216 @@ TEST(type_prop, lstm_cell_invalid_input)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor P must have shape"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size mistmatched in P input."));
     }
+}
+
+TEST(type_prop, lstm_cell_dynamic_batch_size)
+{
+    const auto batch_size = Dimension::dynamic();
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
+}
+
+TEST(type_prop, lstm_cell_dynamic_hidden_size)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const auto hidden_size = Dimension::dynamic();
+    const size_t gates_count = 4;
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{hidden_size * gates_count, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{hidden_size * gates_count, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, 3);
+
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
+}
+
+TEST(type_prop, lstm_cell_dynamic_inputs)
+{
+    const auto batch_size = Dimension::dynamic();
+    const auto input_size = Dimension::dynamic();
+    const auto hidden_size = Dimension::dynamic();
+    const size_t gates_count = 4;
+
+    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{hidden_size * gates_count, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32,
+                                              PartialShape{hidden_size * gates_count, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    const auto lstm_cell = make_shared<op::LSTMCell>(X, H_t, C_t, W, R, 3);
+
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_partial_shape(1), (PartialShape{batch_size, hidden_size}));
+    EXPECT_EQ(lstm_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(lstm_cell->get_output_element_type(1), element::f32);
+}
+
+TEST(type_prop, lstm_cell_invalid_input_rank0)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    auto W = make_shared<op::Parameter>(element::f32,
+                                        PartialShape{gates_count * hidden_size, input_size});
+    auto R = make_shared<op::Parameter>(element::f32,
+                                        PartialShape{gates_count * hidden_size, hidden_size});
+    auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    auto C_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    // Invalid rank0 for W tensor.
+    W = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for X tensor.
+    W = make_shared<op::Parameter>(element::f32,
+                                   PartialShape{gates_count * hidden_size, input_size});
+    X = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for H_t tensor.
+    X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for C_t tensor.
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    C_t = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for R tensor.
+    C_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for B tensor.
+    R = make_shared<op::Parameter>(element::f32,
+                                   PartialShape{gates_count * hidden_size, hidden_size});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{});
+    auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid rank0 for P tensor.
+    B = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
+    P = make_shared<op::Parameter>(element::f32, PartialShape{});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+}
+
+TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
+{
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    auto W = make_shared<op::Parameter>(element::f32,
+                                        PartialShape{gates_count * hidden_size, input_size});
+    auto R = make_shared<op::Parameter>(element::f32,
+                                        PartialShape{gates_count * hidden_size, hidden_size});
+    auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    auto C_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+
+    // Invalid dynamic rank for W tensor.
+    W = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for X tensor.
+    W = make_shared<op::Parameter>(element::f32,
+                                   PartialShape{gates_count * hidden_size, input_size});
+    X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for H_t tensor.
+    X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for C_t tensor.
+    H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    C_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for R tensor.
+    C_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for B tensor.
+    R = make_shared<op::Parameter>(element::f32,
+                                   PartialShape{gates_count * hidden_size, hidden_size});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto P = make_shared<op::Parameter>(element::f32, PartialShape{3 * hidden_size});
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
+
+    // Invalid dynamic rank for P tensor.
+    B = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
+    P = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    ASSERT_THROW(make_shared<op::LSTMCell>(X, H_t, C_t, W, R, B, P, hidden_size),
+                 ngraph::NodeValidationFailure)
+        << "LSTMCell node was created with invalid data.";
 }
