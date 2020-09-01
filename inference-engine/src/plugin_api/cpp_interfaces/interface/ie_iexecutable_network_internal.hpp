@@ -56,6 +56,7 @@ public:
     virtual void CreateInferRequest(IInferRequest::Ptr& req) = 0;
 
     /**
+     * @deprecated Use IExecutableNetworkInternal::Export(std::ostream& networkModel)
      * @brief Export the current created executable network so it can be used later in the Import() main API
      * @param modelFileName - path to the location of the exported file
      */
