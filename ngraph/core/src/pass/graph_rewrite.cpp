@@ -163,13 +163,15 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         catch(const std::exception& e)
         {
             std::cerr << "Exception std::exception thrown while executing MatcherPass: " << m_pass->get_name() << "\n";
-            std::cerr << "    when matching node " << node->description() << "\n";
+            std::cerr << "    when matching node " << node_validation_failure_loc_string(node.get()) << "\n";
             std::cerr << "Exception message: " << e.what() << "\n";
+            throw;
         }
         catch(...)
         {
             std::cerr << "Exception std::exception thrown while executing MatcherPass: " << m_pass->get_name() << "\n";
-            std::cerr << "    when matching node " << node->description() << "\n";
+            std::cerr << "    when matching node " << node_validation_failure_loc_string(node.get()) << "\n";
+            throw;
         }
     };
 
