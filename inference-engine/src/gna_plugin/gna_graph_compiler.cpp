@@ -408,7 +408,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
             //  Kaldi features are opposite orientation
             dnn->do_rotate_input = true;
             dnn->num_rotate_rows = num_feature_map_columns;
-            dnn->num_rotate_columns = num_feature_map_rows;
+            dnn->num_rotate_columns = original_num_feature_map_rows;
         } else {
             dnn->do_rotate_input = false;
         }
