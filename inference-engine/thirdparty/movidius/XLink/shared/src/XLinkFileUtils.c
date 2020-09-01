@@ -33,10 +33,12 @@ static int convertCharToWide(const char* const str, wchar_t** dest)
 
 static int convertWideToChar(const wchar_t* const str, char* dest, int destSize)
 {
-    const int srcLen = (int)wcslen(str) + 1;
-    if (!WideCharToMultiByte(CP_UTF8, 0, str, srcLen, dest, destSize, NULL, NULL))
+    wchar_t buffer[256];
+    int length = GetShortPathNameW(str, NULL, 0);
+    length = GetShortPathNameW(str, buffer, length);
+    auto res = WideCharToMultiByte(CP_UTF8, 0, buffer, length, dest, destSize, NULL, NULL);
+    if (!res)
         return 0;
-
     return 1;
 }
 #endif
@@ -108,15 +110,17 @@ int utf8_getenv_s(size_t bufferSize, char* buffer, const char* varName)
         return 0;
     }
 
-    size_t returnValue = 0;
-    int res = _wgetenv_s(&returnValue, wbuffer, bufferSize, wvarName);
+    auto ret = GetEnvironmentVariableW(wvarName, wbuffer, bufferSize);
     free(wvarName);
-    if (returnValue == 0) // returnValue == 0 means "variable not found"
-        res = 1;
 
-    if (res == 0) {
-        if (!convertWideToChar(wbuffer, buffer, (int)bufferSize))
+    int res = 0;
+    if (ret) {
+        // ConvertWideToChar return false due to GetShortPathNameW, which works only for already existant files...
+        if (!convertWideToChar(wbuffer, buffer, (int)bufferSize)) {
+            // Print warning that ENV variable is FOUND but it is not possible to convert it to char*
+            printf("[WARNING]EVN Variable set, but file doesnt exist..."); // testing
             res = 1;
+        }
     }
     free(wbuffer);
     return res == 0;
