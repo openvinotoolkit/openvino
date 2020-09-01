@@ -45,17 +45,17 @@ void GatherTreeLayerTest::SetUp() {
 
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShape });
     if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
-        auto paramsSecond = ngraph::builder::makeParams(ngPrc, { inputShape, {inputShape.at(BATCH_SIZE)}, {}});
+        auto paramsSecond = ngraph::builder::makeParams(ngPrc, { inputShape, {inputShape.at(1)}, {}});
         paramsIn.insert(paramsIn.end(), paramsSecond.begin(), paramsSecond.end());
 
         inp2 = paramsIn.at(1);
         inp3 = paramsIn.at(2);
         inp4 = paramsIn.at(3);
     } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
-        auto maxBeamIndex = inputShape.at(BEAM_WIDTH) - 1;
+        auto maxBeamIndex = inputShape.at(2) - 1;
 
         inp2 = ngraph::builder::makeConstantRandom(ngPrc, inputShape, maxBeamIndex);
-        inp3 = ngraph::builder::makeConstantRandom(ngPrc, {inputShape.at(BATCH_SIZE)}, maxBeamIndex);
+        inp3 = ngraph::builder::makeConstantRandom(ngPrc, {inputShape.at(1)}, maxBeamIndex);
         inp4 = ngraph::builder::makeConstantRandom(ngPrc, {}, maxBeamIndex);
     } else {
         throw std::runtime_error("Unsupported inputType");
@@ -71,7 +71,7 @@ InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEng
     auto& shape = function->get_parameters()[0]->get_output_shape(0);
     auto& vecDims = info.getTensorDesc().getDims();
 
-    auto maxBeamIndx = shape.at(BEAM_WIDTH) - 1;
+    auto maxBeamIndx = shape.at(2) - 1;
 
     if (vecDims.size() == 1 || vecDims.size() == 0) { //max_seq_len vector || end_token
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);

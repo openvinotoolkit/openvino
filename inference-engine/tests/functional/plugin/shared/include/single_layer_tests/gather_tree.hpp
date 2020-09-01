@@ -29,13 +29,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    enum InputAxis {
-        MAX_TIME,
-        BATCH_SIZE,
-        BEAM_WIDTH
-    };
 };
 
 } // namespace LayerTestsDefinitions
