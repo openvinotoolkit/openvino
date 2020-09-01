@@ -19,7 +19,6 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35926
 
 
 def test_reverse_sequence():
