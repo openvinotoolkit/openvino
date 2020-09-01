@@ -121,50 +121,25 @@ namespace ngraph
                     GRUAttributes attributes{node};
 
                     auto gru_sequence = std::make_shared<default_opset::GRUSequence>(
-                                input_map.at(recurrent::OpInput::X),
-                                input_map.at(recurrent::OpInput::INIT_H),
-                                input_map.at(recurrent::OpInput::SEQ_LENGTHS),
-                                input_map.at(recurrent::OpInput::W),
-                                input_map.at(recurrent::OpInput::R),
-                                input_map.at(recurrent::OpInput::B),
-                                attributes.m_hidden_size,
-                                attributes.m_direction,
-                                attributes.m_activations,
-                                attributes.m_activations_alpha,
-                                attributes.m_activations_beta,
-                                attributes.m_clip_threshold,
-                                attributes.m_linear_before_reset);
+                        input_map.at(recurrent::OpInput::X),
+                        input_map.at(recurrent::OpInput::INIT_H),
+                        input_map.at(recurrent::OpInput::SEQ_LENGTHS),
+                        input_map.at(recurrent::OpInput::W),
+                        input_map.at(recurrent::OpInput::R),
+                        input_map.at(recurrent::OpInput::B),
+                        attributes.m_hidden_size,
+                        attributes.m_direction,
+                        attributes.m_activations,
+                        attributes.m_activations_alpha,
+                        attributes.m_activations_beta,
+                        attributes.m_clip_threshold,
+                        attributes.m_linear_before_reset);
 
                     const auto Y = gru_sequence->output(0);
                     const auto Y_h = gru_sequence->output(1);
 
-                    // return {Y, Y_h};
-
                     return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
-                            builder::opset1::reorder_axes(Y_h, {1, 0, 2})};           
-
-                    // recurrent::RecurrentSequence sequence_op(input_map, attributes.m_direction);
-                    // auto results =
-                    //     sequence_op.run_sequence([&attributes](const recurrent::OpInputMap& args,
-                    //                                            const Output<ngraph::Node>& in_Xt,
-                    //                                            const Output<ngraph::Node> H_t) {
-
-                    //         const GRUInputMap& gru_args = dynamic_cast<const GRUInputMap&>(args);
-
-                    //         return std::make_shared<default_opset::GRUCell>(
-                    //             in_Xt,
-                    //             H_t,
-                    //             gru_args.at(recurrent::OpInput::W),
-                    //             gru_args.at(recurrent::OpInput::R),
-                    //             gru_args.at(recurrent::OpInput::B),
-                    //             attributes.m_hidden_size,
-                    //             attributes.m_activations,
-                    //             attributes.m_activations_alpha,
-                    //             attributes.m_activations_beta,
-                    //             attributes.m_clip_threshold,
-                    //             attributes.m_linear_before_reset);
-                    //     });
-                    // return results;
+                            builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
                 }
 
             } // namespace set_1

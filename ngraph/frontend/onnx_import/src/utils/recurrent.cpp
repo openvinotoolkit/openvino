@@ -86,7 +86,8 @@ namespace ngraph
                 // The initial value of the hidden.
                 if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
                 {
-                    m_map[OpInput::INIT_H] = builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
+                    m_map[OpInput::INIT_H] =
+                        builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
                 }
                 else
                 {
