@@ -81,8 +81,8 @@ protected:
         auto weigthSize = static_cast<long>(inputShapes[3]);
         std::vector<int64_t> outShape = {2 * heightSize, 2 * weigthSize};
 
-        auto interpolShape = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, outShape);
-        ngraph::op::InterpolateAttrs attrs;
+        auto interpolShape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, outShape);
+        ngraph::op::v0::InterpolateAttrs attrs;
         attrs.pads_begin.push_back(0);
         attrs.pads_end.push_back(0);
         attrs.axes = ngraph::AxisSet{2, 3};
