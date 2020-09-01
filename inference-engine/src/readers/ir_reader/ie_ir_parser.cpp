@@ -429,7 +429,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
         std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
         std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
-        std::make_shared<LayerCreator<ngraph::op::Interpolate>>("Interpolate"),
+        std::make_shared<LayerCreator<ngraph::op::v0::Interpolate>>("Interpolate"),
         std::make_shared<LayerCreator<ngraph::op::Log>>("Log"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::Less>>("Less"),
@@ -1386,7 +1386,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Unsqueeze>::cr
 
 // Interpolate layer
 template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Interpolate>::createLayer(
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Interpolate>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
@@ -1396,7 +1396,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Interpolate>::
     if (dn.empty())
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
-    ngraph::op::InterpolateAttrs attrs;
+    ngraph::op::v0::InterpolateAttrs attrs;
     for (auto& axis : getParameters<int64_t>(dn, "axes")) {
         attrs.axes.insert(axis);
     }
@@ -1415,7 +1415,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Interpolate>::
         attrs.pads_end.push_back(pad);
     }
 
-    return std::make_shared<ngraph::op::Interpolate>(inputs[0], inputs[1], attrs);
+    return std::make_shared<ngraph::op::v0::Interpolate>(inputs[0], inputs[1], attrs);
 }
 
 // Abs layer

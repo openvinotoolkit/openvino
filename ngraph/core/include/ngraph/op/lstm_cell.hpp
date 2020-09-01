@@ -214,6 +214,7 @@ namespace ngraph
                          float clip = 0.f,
                          bool input_forget = false);
 
+                virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual void pre_validate_and_infer_types() override;
                 virtual OutputVector decompose_op() const override;
