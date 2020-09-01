@@ -14,37 +14,28 @@
 // limitations under the License.
 //*****************************************************************************
 
-// Disabled in CMakeList
-// Update to higher opset required
+#pragma once
 
-#include <memory>
+#include <vector>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/scatter_nd.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace op
     {
-        namespace op
+        namespace util
         {
-            namespace set_1
-            {
-                OutputVector scatter_nd(const Node& node)
-                {
-                    OutputVector ng_inputs{node.get_ng_inputs()};
-                    auto data = ng_inputs.at(0);
-                    auto indices = ng_inputs.at(1);
-                    auto updates = ng_inputs.at(2);
-
-                    return {
-                        std::make_shared<default_opset::ScatterNDUpdate>(data, indices, updates)};
-                }
-
-            } // namespace set_1
-
-        } // namespace op
-
-    } // namespace onnx_import
-
+            ///
+            /// \brief      Validates static rank and dimension for provided input parameters.
+            ///             Additionally input_size dimension is checked for X and W inputs.
+            ///             Applies to LSTM, GRU and RNN Sequences.
+            ///
+            ///
+            /// \param[in]  input        Vector with RNNSequence-like op inputs in following order:
+            ///                          X, initial_hidden_state, sequence_lengths, W, R and B.
+            ///
+            void validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
+        } // namespace util
+    }     // namespace op
 } // namespace ngraph
