@@ -1446,7 +1446,7 @@ TEST(attributes, interpolate_op)
     auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
 
-    op::InterpolateAttrs interp_atrs;
+    op::v0::InterpolateAttrs interp_atrs;
     interp_atrs.axes = AxisSet{1, 2};
     interp_atrs.mode = "cubic";
     interp_atrs.align_corners = true;

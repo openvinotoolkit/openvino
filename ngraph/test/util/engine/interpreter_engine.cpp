@@ -15,6 +15,9 @@
 //*****************************************************************************
 
 #include "interpreter_engine.hpp"
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 
 using namespace ngraph;
 
@@ -30,6 +33,44 @@ namespace
         const auto result = read_vector<T>(results);
 
         return ngraph::test::all_close_f(expected, result, tolerance_bits);
+    }
+
+    testing::AssertionResult
+        compare_with_fp_tolerance(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+                                  const std::shared_ptr<ngraph::runtime::Tensor>& results,
+                                  const float tolerance)
+    {
+        auto comparison_result = testing::AssertionSuccess();
+
+        const auto expected = expected_results->get_vector<float>();
+        const auto result = read_vector<float>(results);
+
+        Shape out_shape = expected_results->get_shape();
+
+        size_t num_of_elems = shape_size(out_shape);
+        std::stringstream msg;
+
+        msg << std::setprecision(std::numeric_limits<long double>::digits10 + 1);
+
+        bool rc = true;
+
+        for (std::size_t j = 0; j < num_of_elems; ++j)
+        {
+            float diff = std::abs(result[j] - expected[j]);
+            if (diff > tolerance)
+            {
+                msg << expected[j] << " is not close to " << result[j] << " at index " << j << "\n";
+                rc = false;
+            }
+        }
+
+        if (!rc)
+        {
+            comparison_result = testing::AssertionFailure();
+        }
+
+        comparison_result << msg.str();
+        return comparison_result;
     }
 
     template <typename T>
@@ -105,6 +146,49 @@ void test::INTERPRETER_Engine::infer()
                  "Expected number of outputs is different from the function's number "
                  "of results.");
     m_executable->call_with_validate(m_result_tensors, m_input_tensors);
+}
+
+testing::AssertionResult
+    test::INTERPRETER_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
+{
+    auto comparison_result = testing::AssertionSuccess();
+
+    for (size_t i = 0; i < m_expected_outputs.size(); ++i)
+    {
+        const auto& result_tensor = m_result_tensors.at(i);
+        const auto& expected_result_constant = m_expected_outputs.at(i);
+        const auto& element_type = result_tensor->get_element_type();
+
+        const auto& expected_shape = expected_result_constant->get_shape();
+        const auto& result_shape = result_tensor->get_shape();
+
+        if (expected_shape != result_shape)
+        {
+            comparison_result = testing::AssertionFailure();
+            comparison_result << "Computed data shape does not match the expected shape for output "
+                              << i << std::endl;
+            break;
+        }
+
+        switch (element_type)
+        {
+        case element::Type_t::f32:
+            comparison_result =
+                compare_with_fp_tolerance(expected_result_constant, result_tensor, tolerance);
+            break;
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in "
+                                   "'compare_results_with_tolerance_as_fp' method";
+        }
+
+        if (comparison_result == testing::AssertionFailure())
+        {
+            break;
+        }
+    }
+
+    return comparison_result;
 }
 
 testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t tolerance_bits)
