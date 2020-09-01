@@ -204,18 +204,22 @@ namespace
                             const float spatial_scale,
                             const op::v3::ROIAlign::PoolingMode pooling_mode)
     {
+        // TODO: figure this out, should this really be char*?
         std::vector<const char*> arg_bufs;
         std::vector<Shape> arg_shapes;
+        std::vector<size_t> arg_elem_sizes;
         for (auto& input : args)
         {
             arg_bufs.push_back(input->get_data_ptr<char>());
             arg_shapes.push_back(input->get_shape());
+            arg_elem_sizes.push_back(input->get_element_type().size());
         }
 
         runtime::reference::roi_align(arg_bufs,
                                       out->get_data_ptr<char>(),
                                       arg_shapes,
                                       out->get_shape(),
+                                      arg_elem_sizes,
                                       pooled_width,
                                       pooled_height,
                                       sampling_ratio,
@@ -228,6 +232,27 @@ namespace
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+    NODE_VALIDATION_CHECK(
+        this, inputs.size() >= 3, "Not enough input arguments for ROI align operator.");
+
     return evaluate_roi_align(
         inputs, outputs[0], m_pooled_w, m_pooled_h, m_sampling_ratio, m_spatial_scale, m_mode);
 }
+
+/*
+Inputs:
+1: 4D input tensor of shape [N, C, H, W] with feature maps of type T. Required.
+2: 2D input tensor of shape [NUM_ROIS, 4] describing box consisting of 4 element tuples:
+    [x_1, y_1, x_2, y_2] in relative coordinates of type T. The box height and width are
+    calculated the following way: roi_width = max(spatial_scale * (x_2 - x_1), 1.0),
+    roi_height = max(spatial_scale * (y_2 - y_1), 1.0), so the malformed boxes are
+    expressed as a box of size 1 x 1. Required.
+3: 1D input tensor of shape [NUM_ROIS] with batch indices of type IND_T. Required.
+
+Outputs:
+1: 4D output tensor of shape [NUM_ROIS, C, pooled_h, pooled_w] with feature maps of type T.
+
+Types:
+T: any supported floating point type.
+IND_T: any supported integer type.
+*/

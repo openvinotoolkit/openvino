@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/roi_align.hpp" // for ROIAlign:PoolingMode
-
 namespace ngraph
 {
     namespace runtime
@@ -28,6 +28,7 @@ namespace ngraph
                            char* out,
                            const std::vector<Shape> arg_shapes,
                            const Shape& out_shape,
+                           const std::vector<size_t> arg_elem_sizes,
                            const int pooled_width,
                            const int pooled_height,
                            const int sampling_ratio,
