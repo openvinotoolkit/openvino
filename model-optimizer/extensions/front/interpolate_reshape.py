@@ -16,6 +16,7 @@
 import numpy as np
 
 from extensions.ops.gather import Gather
+from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -138,9 +139,7 @@ class InterpolateWithConcat(FrontReplacementPattern):
     def make_interpolate_reshape_able(self, interpolate: Node, concat: Node):
         assert interpolate.soft_get('type') == 'Interpolate'
         assert concat.soft_get('type') == 'Concat'
-
-        interp_axes = interpolate.soft_get('axes', None)
-        interp_axes = interp_axes if interp_axes is None else int64_array(interp_axes)
+        interp_axes = Interpolate.get_axes(interpolate)
         concat_axis = self.get_concat_axis(concat)
 
         if concat_axis is None or interp_axes is None \
@@ -160,13 +159,16 @@ class InterpolateWithConcat(FrontReplacementPattern):
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
         gather = create_op_with_const_inputs(graph, Gather,
-                                             {1: np.array(interpolate.axes, dtype=np.int32), 2: int64_array(0)},
+                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, input_node=shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate'):
+            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
+                continue
+            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
                 continue
 
             # Interpolate could be connected to Concat through identity operations, skipping them
