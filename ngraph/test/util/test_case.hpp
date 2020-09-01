@@ -182,6 +182,23 @@ namespace ngraph
                 EXPECT_TRUE(res);
             }
 
+            void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f)
+            {
+                m_engine.infer();
+                const auto res = m_engine.compare_results_with_tolerance_as_fp(tolerance);
+
+                if (res != testing::AssertionSuccess())
+                {
+                    std::cout << res.message() << std::endl;
+                }
+
+                m_input_index = 0;
+                m_output_index = 0;
+                m_engine.reset();
+
+                EXPECT_TRUE(res);
+            }
+
         private:
             Engine m_engine;
             std::shared_ptr<Function> m_function;

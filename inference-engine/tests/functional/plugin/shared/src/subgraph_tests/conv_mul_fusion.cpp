@@ -43,8 +43,8 @@ void ConvMultiply::SetUp() {
 
         ngraph::Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant(precision, weights_shape, {}, true);
-        auto mul_const = ngraph::builder::makeConstant(precision, const_shape, {}, true);
+        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
+        auto mul_const = ngraph::builder::makeConstant<float>(precision, const_shape, {}, true);
         std::shared_ptr<ngraph::Node> conv;
         if (conv_type == ngraph::opset4::Convolution::type_info) {
             conv = std::make_shared<ngraph::opset4::Convolution>(param, weights, strides, pad_begin, pad_end, strides);

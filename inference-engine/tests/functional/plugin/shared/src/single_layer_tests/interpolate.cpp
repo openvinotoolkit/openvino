@@ -25,18 +25,16 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
     std::tie(interpolateParams, netPrecision, inputShapes, targetShapes, targetDevice) = obj.param;
-    std::set<size_t> axes;
     std::vector<size_t> padBegin, padEnd;
     bool antialias;
-    ngraph::op::v3::Interpolate::InterpolateMode mode;
-    ngraph::op::v3::Interpolate::CoordinateTransformMode coordinateTransformMode;
-    ngraph::op::v3::Interpolate::NearestMode nearestMode;
+    ngraph::op::v4::Interpolate::InterpolateMode mode;
+    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
+    ngraph::op::v4::Interpolate::NearestMode nearestMode;
     double cubeCoef;
-    std:tie(axes, mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
+    std:tie(mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
-    result << "Axe=" << CommonTestUtils::set2str(axes)<< "_";
     result << "InterpolateMode=" << mode << "_";
     result << "CoordinateTransformMode=" << coordinateTransformMode << "_";
     result << "NearestMode=" << nearestMode << "_";
@@ -55,28 +53,35 @@ void InterpolateLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
 
     std::tie(interpolateParams, netPrecision, inputShape, targetShape, targetDevice) = this->GetParam();
-    std::set<size_t> axes;
     std::vector<size_t> padBegin, padEnd;
     bool antialias;
-    ngraph::op::v3::Interpolate::InterpolateMode mode;
-    ngraph::op::v3::Interpolate::CoordinateTransformMode coordinateTransformMode;
-    ngraph::op::v3::Interpolate::NearestMode nearestMode;
-    double cubeCoef;
-    std:tie(axes, mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
+    ngraph::op::v4::Interpolate::InterpolateMode mode;
+    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
+    ngraph::op::v4::Interpolate::NearestMode nearestMode;
 
-    if (targetShape.size() != axes.size()) {
-        THROW_IE_EXCEPTION << "Target shape size: " << targetShape.size() << " is not equal Axes shapes: " <<  axes.size();
-    }
+    using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
+    ShapeCalcMode shape_calc_node = ShapeCalcMode::sizes;
+    double cubeCoef;
+    std:tie(mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-    auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, targetShape);
+    auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+
+    std::vector<float> scales(targetShape.size(), 1.0f);
+    auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
+
+    auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
+
     auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
 
-    ngraph::op::v3::Interpolate::InterpolateAttrs interpolateAttributes{
-            axes, mode, padBegin, padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
-    auto interpolate = std::make_shared<ngraph::op::v3::Interpolate>(params[0], secondaryInput, interpolateAttributes);
+    ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shape_calc_node, padBegin,
+        padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
+    auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
+                                                                     secondaryInput,
+                                                                     scalesInput,
+                                                                     interpolateAttributes);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
