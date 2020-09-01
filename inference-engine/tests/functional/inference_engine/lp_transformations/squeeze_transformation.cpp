@@ -37,32 +37,39 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 class SqueezeTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
-    SqueezeFunction::LayerDescription multiplyActual;
-    SqueezeFunction::LayerDescription multiplyExpected;
-    SqueezeFunction::LayerDescription subtractActual;
-    SqueezeFunction::LayerDescription subtractExpected;
-    std::vector<float> squeezeArgs;
-    ngraph::Shape inputShape;
-    ngraph::element::Type precision;
-};
+    class Actual {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
+    };
 
+    class Expected {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ngraph::element::Type precisionAfterOperation;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    };
+
+    ngraph::Shape inputShape;
+    std::vector<float> axes;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    Actual actual;
+    Expected expected;
+};
 
 class SqueezeTransformation : public LayerTransformation, public testing::WithParamInterface<SqueezeTransformationTestValues> {
 public:
     void SetUp() override {
         const SqueezeTransformationTestValues testValues = GetParam();
-        const ngraph::element::Type precision = testValues.precision;
+        
+
 
         actualFunction = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
-            precision,
             testValues.inputShape,
-            testValues.squeezeArgs,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.multiplyActual,
-                testValues.subtractActual
-            });
+            testValues.axes,
+            testValues.actual.precisionBeforeDequantization,
+            testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::SqueezeTransformation, ngraph::opset1::Squeeze>(testValues.params);
@@ -70,14 +77,12 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SqueezeFunction::getReference(
-            precision,
             testValues.inputShape,
-            testValues.squeezeArgs,
-            {
-                testValues.params.updatePrecisions ? testValues.params.precisionsOnActivations[0] : precision,
-                testValues.multiplyExpected,
-                testValues.subtractExpected
-            });
+            testValues.axes,
+            testValues.expected.precisionBeforeDequantization,
+            testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
+            testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SqueezeTransformationTestValues> obj) {
@@ -85,13 +90,11 @@ public:
 
         std::ostringstream result;
         result <<
-            testValues.multiplyActual.shape << "_" <<
-            testValues.multiplyExpected.shape << "_" <<
-            testValues.subtractActual.shape << "_" <<
-            testValues.subtractExpected.shape << "_" <<
             testValues.inputShape << "_" <<
-            testValues.precision << "_" <<
-            testValues.squeezeArgs;
+            testValues.axes << "_" <<
+            testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.actual.dequantization << "_" <<
+            testValues.expected.dequantizationBefore;
 
         return result.str();
     }
@@ -104,59 +107,122 @@ TEST_P(SqueezeTransformation, CompareFunctions) {
 }
 
 const std::vector<SqueezeTransformationTestValues> testValues = {
-    /*
-    params;
-    multiplyActual(@values, @shape);
-    multiplyExpected(@values, @shape);
-    subtractActual(@values, @shape);
-    subtractExpected(@values, @shape);
-    squeezeArgs;
-    inputShape;
-    precision;
-    */
-
     {
-        LayerTransformation::createParamsU8I8(),
-        { { 0.2f }, { 1, 1000, 1, 1 } },
-        { { 0.2f }, { 1, 1000 } },
-        { { 128 }, { 1, 1000, 1, 1 } },
-        { { 128 }, { 1, 1000 } },
-        { 2.0, 3.0 },
-        { 1, 1000, 1, 1 },
-        ngraph::element::f32
-    },
+        ngraph::Shape{ 1, 1, 16, 16 }, // Input shape
+        { 1.0f }, // Squeeze axes
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
 
-    // TODO: per tensor & per-channel quantization is supported only
-    // {
-    //    LayerTransformation::createParamsU8I8(),
-    //    { { 0.5f }, { 1 } },
-    //    { { 0.5f }, { 1 } },
-    //    { { 32 }, { 1000, 1, 1, 1 } },
-    //    { { 32 }, { 1000, 1 } },
-    //    { 2.0, 3.0 },
-    //    { 1000, 1, 1, 1 },
-    //    ngraph::element::f32
-    // },
-    {
-        LayerTransformation::createParamsI8I8(),
-        { { 0.1f }, { 1 } },
-        { { 0.1f }, { 1 } },
-        { { 256 }, { 1 } },
-        { { 256 }, { 1 } },
-        { 1.0, 3.0 },
-        { 1, 1, 1000, 1 },
-        ngraph::element::f32
+        /* Actual */
+        {
+            ngraph::element::u8, // Precision before dequantization
+            /* Dequantization */
+            {
+                {ngraph::element::f32}, // Convert
+                {-0.32f}, // Subtract
+                {0.45f} // Multiply
+            }
+        },
+        /* Expected */
+        {
+            ngraph::element::u8, // Precision before dequantization
+            /* Dequantization before */
+            {},
+            ngraph::element::u8, // Precision after dequantization
+            /* Dequantization after */
+            {
+                {ngraph::element::f32}, // Convert
+                {-0.32f}, // Subtract
+                {0.45f} // Multiply
+            }
+        }
     },
-    // {
-    //    LayerTransformation::createParamsI8I8(),
-    //    { { 0.2f }, { 1, 1000, 1, 1 } },
-    //    { },
-    //    { { 128 }, { 1, 1000, 1, 1 } },
-    //    { },
-    //    { },
-    //    { 1, 1000, 1, 1 },
-    //    ngraph::element::f32
-    // }
+    {
+        ngraph::Shape{ 1, 1, 1, 1000 }, // Input shape
+        {1.0f }, // Squeeze axes
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+
+        /* Actual */
+        {
+            ngraph::element::i8, // Precision before dequantization
+            /* Dequantization */
+            {
+                {ngraph::element::f32}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        },
+        /* Expected */
+        {
+            ngraph::element::i8, // Precision before dequantization
+            /* Dequantization before */
+            {},
+            ngraph::element::i8, // Precision after dequantization
+            /* Dequantization after */
+            {
+                {ngraph::element::f32}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        }
+    },
+    {
+        ngraph::Shape{ 1, 1, 1000 }, // Input shape
+        { 1.0f }, // Squeeze axes
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
+
+        /* Actual */
+        {
+            ngraph::element::f32, // Precision before dequantization
+            /* Dequantization */
+            {
+                {}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        },
+        /* Expected */
+        {
+            ngraph::element::f32, // Precision before dequantization
+            /* Dequantization before */
+            {},
+            ngraph::element::f32, // Precision after dequantization
+            /* Dequantization after */
+            {
+                {}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        }
+    },
+    {
+        ngraph::Shape{ 1, 1, 1000, 1000 }, // Input shape
+        { 0.0f}, // Squeeze axes
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+
+        /* Actual */
+        {
+            ngraph::element::f32, // Precision before dequantization
+            /* Dequantization */
+            {
+                {}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        },
+        /* Expected */
+        {
+            ngraph::element::f32, // Precision before dequantization
+            /* Dequantization before */
+            {},
+            ngraph::element::f32, // Precision after dequantization
+            /* Dequantization after */
+            {
+                {}, // Convert
+                {0.5f}, // Subtract
+                {2.0f} // Multiply
+            }
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(
