@@ -84,7 +84,7 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     HeaderLatest::ModelHeader header;
     header.version.major = 0u;
     header.version.minor = 0u;
-    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader) + sizeof(HeaderLatest::ModelHeader) + sizeof(HeaderLatest::ModelHeader);
+    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize) + sizeof(HeaderLatest::ModelHeader::Version);
     if (stream_len > size_of_headers_header) {
         readNBytes(&header, size_of_headers_header, is);
     } else {
@@ -112,11 +112,11 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     readBits(header, is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2";
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2 and is: " << header.version.minor;
             }
             break;
         default:
-            THROW_GNA_EXCEPTION << "Imported file unsupported. Import for files with major version equals to 1 is not implemented";
+            THROW_GNA_EXCEPTION << "Imported file unsupported. Import for files with major version equal to: " << header.version.major << " is not implemented";
     }
 
     /*
