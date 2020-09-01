@@ -1025,7 +1025,9 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
             auto batchSize = exportOutputDims[0];
             auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
-                : exportOutputDims[exportOutputDims.size() - 1] * exportOutputDims[exportOutputDims.size() - 2] * exportOutputDims[exportOutputDims.size() - 3];
+                : exportOutputDims[exportOutputDims.size() - 1]
+                  * exportOutputDims[exportOutputDims.size() - 2]
+                  * exportOutputDims[exportOutputDims.size() - 3];
 
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],

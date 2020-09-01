@@ -111,11 +111,13 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 1, 168, 2} });
-        auto permute1 = std::make_shared<ngraph::opset1::Transpose>(params[0], ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
+        auto permute1 = std::make_shared<ngraph::opset1::Transpose>(params[0],
+                             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
         auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, { 1, 8 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, 12);
 
-        auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv1, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
+        auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv1,
+                             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(permute2) };
 
