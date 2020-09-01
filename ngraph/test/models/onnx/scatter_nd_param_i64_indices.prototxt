@@ -22,7 +22,7 @@ graph {
       }
     }
   }
-   input {
+  input {
     name: "i"
     type {
       tensor_type {
@@ -38,7 +38,7 @@ graph {
       }
     }
   }
-    input {
+  input {
     name: "u"
     type {
       tensor_type {
