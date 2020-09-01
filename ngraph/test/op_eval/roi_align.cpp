@@ -36,7 +36,6 @@ TEST(op_eval, roi_align_avg_pool)
     const int H = 5;
     const int W = 5;
     const int num_rois = 5;
-    const int num_batch_indices = 5;
     const int pooled_height = 3;
     const int pooled_width = 4;
     const auto data_shape = Shape{N, C, H, W};
@@ -44,7 +43,7 @@ TEST(op_eval, roi_align_avg_pool)
 
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
-    const auto batch_indices = make_shared<op::Parameter>(element::f32, Shape{num_batch_indices});
+    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
 
     auto roi_align = make_shared<op::v3::ROIAlign>(
         data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f / 16.0f, "avg");
@@ -58,17 +57,20 @@ TEST(op_eval, roi_align_avg_pool)
                                 52., 53., 54., 55., 56., 57., 58., 59., 60., 61., 62., 63., 64.,
                                 65., 66., 67., 68., 69., 70., 71., 72., 73., 74.};
 
-    std::vector<float> rois_vec{7.,   5.,  7.,  5., -15., -15., -15., -15., -10., 21.,
-                                -10., 21., 13., 8., 13.,  8.,   -14., 19.,  -14., 19.};
+    std::vector<float> rois_vec{7.,   5.,  7.,   5., 
+                              -15., -15.,-15., -15., 
+                              -10.,  21.,-10.,  21., 
+                               13.,   8., 13.,   8., 
+                              -14.,  19.,-14.,  19.};
 
-    std::vector<int> batch_indices_vec{0, 0, 0, 0, 0};
+    std::vector<int64_t> batch_indices_vec{0, 0, 0, 0, 0};
 
     auto result = make_shared<HostTensor>();
 
     ASSERT_TRUE(f->evaluate({result},
                             {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
                              make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
-                             make_host_tensor<element::Type_t::i32>(Shape{num_batch_indices})}));
+                             make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
 
     std::vector<float> expected_vec{
         2.95833f, 3.20833f, 3.45833f, 3.70833f, 4.625f,   4.875f,   5.125f,   5.375f,   6.29167f,

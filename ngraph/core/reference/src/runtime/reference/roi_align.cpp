@@ -22,29 +22,6 @@ namespace ngraph
     {
         namespace reference
         {
-            void roi_align(const std::vector<const char*>& args,
-                           char* out,
-                           const std::vector<Shape> arg_shapes,
-                           const Shape& out_shape,
-                           const std::vector<size_t> arg_elem_sizes,
-                           const int pooled_width,
-                           const int pooled_height,
-                           const int sampling_ratio,
-                           const float spatial_scale,
-                           const ngraph::op::v3::ROIAlign::PoolingMode pooling_mode)
-            {
-                CoordinateTransform featuremaps_transform(arg_shapes[0]);
-                CoordinateTransform rois_transform(arg_shapes[1]);
-                CoordinateTransform batch_indices_transform(
-                    arg_shapes[2]); // TODO: maybe this can be removed since batch_indices has
-                                    // trivial shape
-                CoordinateTransform output_transform(out_shape);
-
-                // TODO: cast X (input 1) to floating point type with the best precision (?)
-                // TODO: do roi align
-
-                return;
-            }
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph

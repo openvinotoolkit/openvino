@@ -62,6 +62,7 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types()
 {
+    // TODO: add check for the same input type for inputs 0 and 1
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
@@ -202,29 +203,122 @@ namespace
                             const int pooled_height,
                             const int sampling_ratio,
                             const float spatial_scale,
-                            const op::v3::ROIAlign::PoolingMode pooling_mode)
+                            const op::v3::ROIAlign::PoolingMode& pooling_mode)
     {
-        // TODO: figure this out, should this really be char*?
-        std::vector<const char*> arg_bufs;
-        std::vector<Shape> arg_shapes;
-        std::vector<size_t> arg_elem_sizes;
-        for (auto& input : args)
+        // TODO: when cast_vector is ready replace this switch with appropriate call
+        // TODO: when implementation is ready think about wraping all parameters in some struct
+        auto feature_maps = args[0];
+        auto rois = args[1];
+        auto batch_indices = args[2];
+
+        std::vector<int64_t> batch_indices_vec_scaled_up;
+
+        switch (batch_indices->get_element_type())
         {
-            arg_bufs.push_back(input->get_data_ptr<char>());
-            arg_shapes.push_back(input->get_shape());
-            arg_elem_sizes.push_back(input->get_element_type().size());
+        case element::Type_t::i8:
+        {
+            auto p = batch_indices->get_data_ptr<element::Type_t::i8>();
+            batch_indices_vec_scaled_up =
+                std::vector<int64_t>(p, p + batch_indices->get_element_count());
+            break;
+        }
+        case element::Type_t::i16:
+        {
+            auto p = batch_indices->get_data_ptr<element::Type_t::i16>();
+            batch_indices_vec_scaled_up =
+                std::vector<int64_t>(p, p + batch_indices->get_element_count());
+            break;
+        }
+        case element::Type_t::i32:
+        {
+            auto p = batch_indices->get_data_ptr<element::Type_t::i32>();
+            batch_indices_vec_scaled_up =
+                std::vector<int64_t>(p, p + batch_indices->get_element_count());
+            break;
+        }
+        case element::Type_t::i64:
+        {
+            auto p = batch_indices->get_data_ptr<element::Type_t::i64>();
+            batch_indices_vec_scaled_up =
+                std::vector<int64_t>(p, p + batch_indices->get_element_count());
+            break;
+        }
+        default: NGRAPH_UNREACHABLE("unsupported element type");
         }
 
-        runtime::reference::roi_align(arg_bufs,
-                                      out->get_data_ptr<char>(),
-                                      arg_shapes,
-                                      out->get_shape(),
-                                      arg_elem_sizes,
-                                      pooled_width,
-                                      pooled_height,
-                                      sampling_ratio,
-                                      spatial_scale,
-                                      pooling_mode);
+        switch (feature_maps->get_element_type())
+        {
+        case element::Type_t::bf16:
+        {
+            runtime::reference::roi_align<bfloat16>(feature_maps->get_data_ptr<bfloat16>(),
+                                                    rois->get_data_ptr<bfloat16>(),
+                                                    batch_indices->get_data_ptr<int64_t>(),
+                                                    out->get_data_ptr<bfloat16>(),
+                                                    feature_maps->get_shape(),
+                                                    rois->get_shape(),
+                                                    batch_indices->get_shape(),
+                                                    out->get_shape(),
+                                                    pooled_width,
+                                                    pooled_height,
+                                                    sampling_ratio,
+                                                    spatial_scale,
+                                                    pooling_mode);
+            break;
+        }
+        case element::Type_t::f16:
+        {
+            runtime::reference::roi_align<float16>(feature_maps->get_data_ptr<float16>(),
+                                                   rois->get_data_ptr<float16>(),
+                                                   batch_indices->get_data_ptr<int64_t>(),
+                                                   out->get_data_ptr<float16>(),
+                                                   feature_maps->get_shape(),
+                                                   rois->get_shape(),
+                                                   batch_indices->get_shape(),
+                                                   out->get_shape(),
+                                                   pooled_width,
+                                                   pooled_height,
+                                                   sampling_ratio,
+                                                   spatial_scale,
+                                                   pooling_mode);
+            break;
+        }
+        case element::Type_t::f32:
+        {
+            runtime::reference::roi_align<float>(feature_maps->get_data_ptr<float>(),
+                                                 rois->get_data_ptr<float>(),
+                                                 batch_indices->get_data_ptr<int64_t>(),
+                                                 out->get_data_ptr<float>(),
+                                                 feature_maps->get_shape(),
+                                                 rois->get_shape(),
+                                                 batch_indices->get_shape(),
+                                                 out->get_shape(),
+                                                 pooled_width,
+                                                 pooled_height,
+                                                 sampling_ratio,
+                                                 spatial_scale,
+                                                 pooling_mode);
+            break;
+        }
+        case element::Type_t::f64:
+        {
+            runtime::reference::roi_align<double>(feature_maps->get_data_ptr<double>(),
+                                                  rois->get_data_ptr<double>(),
+                                                  batch_indices->get_data_ptr<int64_t>(),
+                                                  out->get_data_ptr<double>(),
+                                                  feature_maps->get_shape(),
+                                                  rois->get_shape(),
+                                                  batch_indices->get_shape(),
+                                                  out->get_shape(),
+                                                  pooled_width,
+                                                  pooled_height,
+                                                  sampling_ratio,
+                                                  spatial_scale,
+                                                  pooling_mode);
+            break;
+        }
+        default: NGRAPH_UNREACHABLE("unsupported input type for roi_align");
+        }
+
         return true;
     }
 } // namespace
@@ -238,21 +332,3 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
     return evaluate_roi_align(
         inputs, outputs[0], m_pooled_w, m_pooled_h, m_sampling_ratio, m_spatial_scale, m_mode);
 }
-
-/*
-Inputs:
-1: 4D input tensor of shape [N, C, H, W] with feature maps of type T. Required.
-2: 2D input tensor of shape [NUM_ROIS, 4] describing box consisting of 4 element tuples:
-    [x_1, y_1, x_2, y_2] in relative coordinates of type T. The box height and width are
-    calculated the following way: roi_width = max(spatial_scale * (x_2 - x_1), 1.0),
-    roi_height = max(spatial_scale * (y_2 - y_1), 1.0), so the malformed boxes are
-    expressed as a box of size 1 x 1. Required.
-3: 1D input tensor of shape [NUM_ROIS] with batch indices of type IND_T. Required.
-
-Outputs:
-1: 4D output tensor of shape [NUM_ROIS, C, pooled_h, pooled_w] with feature maps of type T.
-
-Types:
-T: any supported floating point type.
-IND_T: any supported integer type.
-*/
