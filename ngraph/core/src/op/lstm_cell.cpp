@@ -227,6 +227,146 @@ void op::LSTMCell::pre_validate_and_infer_types()
                           ".");
 }
 
+void op::LSTMCell::validate_and_infer_types()
+{
+    std::vector<ngraph::PartialShape> input_param{};
+
+    auto merged_batch_size = Dimension::dynamic();
+    auto merged_hidden_size = Dimension::dynamic();
+    auto result_et = element::dynamic;
+
+    // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input) information
+    // for further validation
+    for (size_t i = 0; i < get_input_size() - 1; i++)
+    {
+        // exclude initial_cell_state input
+        if (i != 2)
+        {
+            input_param.push_back(get_input_partial_shape(i));
+        }
+    }
+
+    // Get input partial shape for all inputs
+    const auto& x_pshape = get_input_partial_shape(0);
+    const auto& ht_pshape = get_input_partial_shape(1);
+    const auto& ct_pshape = get_input_partial_shape(2);
+    const auto& w_pshape = get_input_partial_shape(3);
+    const auto& r_pshape = get_input_partial_shape(4);
+    const auto& b_pshape = get_input_partial_shape(5);
+    const auto& p_pshape = get_input_partial_shape(6);
+
+    validate_input_rank_dimension(input_param);
+
+    // Validate rank and dimension for initial_cell_state input
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().is_static()),
+                          "LSTMCell input tensor initial_cell_state shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().get_length() == 2),
+                          "LSTMCell input tensor initial_cell_state shall have dimension 2D.");
+
+    // Validate rank and dimension for P input
+    NODE_VALIDATION_CHECK(
+        this, (p_pshape.rank().is_static()), "LSTMCell input tensor P shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (p_pshape.rank().get_length() == 1),
+                          "LSTMCell input tensor P shall have dimension 1D.");
+
+    // Validate input element types and save result for output type
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(5)),
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not match.");
+
+    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+    NODE_VALIDATION_CHECK(
+        this,
+        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
+        "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
+        "inputs.");
+
+    // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
+    NODE_VALIDATION_CHECK(
+        this,
+        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
+            Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
+            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+        "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
+        "inputs.");
+
+    // Validate hidden_size value for W, R and P inputs
+    if (merged_hidden_size.is_static())
+    {
+        if (w_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                w_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                "Parameter hidden_size mistmatched in W input. Current value is: ",
+                w_pshape[0].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * s_gates_count,
+                ".");
+        }
+
+        if (r_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                r_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
+                r_pshape[0].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * s_gates_count,
+                ".");
+        }
+
+        if (b_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                b_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
+                b_pshape[0].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * s_gates_count,
+                ".");
+        }
+
+        if (p_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                p_pshape[0].compatible(merged_hidden_size * s_peepholes_count),
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
+                p_pshape[0].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * s_peepholes_count,
+                ".");
+        }
+    }
+
+    // Mark inputs which are relevant to output parameters
+    set_input_is_relevant_to_shape(0);
+    set_input_is_relevant_to_shape(1);
+    set_input_is_relevant_to_shape(2);
+    set_input_is_relevant_to_shape(4);
+
+    // Set output size, type and shape
+    set_output_size(2);
+    set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
+    set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
+}
+
 OutputVector op::LSTMCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
