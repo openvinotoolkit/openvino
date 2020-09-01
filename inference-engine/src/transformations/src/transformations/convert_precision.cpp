@@ -179,7 +179,9 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
     for (auto &node : f->get_ordered_ops()) {
         if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
-            if (convert->input(0).get_element_type() == convert->get_convert_element_type()) {
+            // WA for topK, dont remove fake convert
+            if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
+                convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
                 replace_output_update_name(convert->output(0), convert->input_value(0));
             }
         }
