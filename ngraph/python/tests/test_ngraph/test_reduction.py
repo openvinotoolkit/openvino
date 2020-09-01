@@ -22,22 +22,21 @@ from tests.test_ngraph.util import run_op_node
 from tests import xfail_issue_34323
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_max, np.max, [0, 1, 2, 3]),
-        (ng.reduce_min, np.min, [0, 1, 2, 3]),
-        (ng.reduce_sum, np.sum, [0, 1, 2, 3]),
-        (ng.reduce_prod, np.prod, [0, 1, 2, 3]),
-        (ng.reduce_max, np.max, [0]),
-        (ng.reduce_min, np.min, [0]),
-        (ng.reduce_sum, np.sum, [0]),
-        (ng.reduce_prod, np.prod, [0]),
-        (ng.reduce_max, np.max, [0, 2]),
-        (ng.reduce_min, np.min, [0, 2]),
-        (ng.reduce_sum, np.sum, [0, 2]),
-        (ng.reduce_prod, np.prod, [0, 2]),
+        (ng.reduce_max, np.max, np.array([0, 1, 2, 3])),
+        (ng.reduce_min, np.min, np.array([0, 1, 2, 3])),
+        (ng.reduce_sum, np.sum, np.array([0, 1, 2, 3])),
+        (ng.reduce_prod, np.prod, np.array([0, 1, 2, 3])),
+        (ng.reduce_max, np.max, np.array([0])),
+        (ng.reduce_min, np.min, np.array([0])),
+        (ng.reduce_sum, np.sum, np.array([0])),
+        (ng.reduce_prod, np.prod, np.array([0])),
+        (ng.reduce_max, np.max, np.array([0, 2])),
+        (ng.reduce_min, np.min, np.array([0, 2])),
+        (ng.reduce_sum, np.sum, np.array([0, 2])),
+        (ng.reduce_prod, np.prod, np.array([0, 2])),
     ],
 )
 def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
@@ -46,20 +45,20 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
+@pytest.mark.xfail(reason="RuntimeError: Incorrect Reduce layer type")
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_logical_and, np.logical_and.reduce, [0]),
-        (ng.reduce_logical_or, np.logical_or.reduce, [0]),
-        (ng.reduce_logical_and, np.logical_and.reduce, [0, 2]),
-        (ng.reduce_logical_or, np.logical_or.reduce, [0, 2]),
-        (ng.reduce_logical_and, np.logical_and.reduce, [0, 1, 2, 3]),
-        (ng.reduce_logical_or, np.logical_or.reduce, [0, 1, 2, 3]),
+        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0])),
+        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0])),
+        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 2])),
+        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 2])),
+        (ng.reduce_logical_and, np.logical_and.reduce, np.array([0, 1, 2, 3])),
+        (ng.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
     ],
 )
 def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
@@ -68,7 +67,7 @@ def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.bool)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
@@ -84,13 +83,12 @@ def test_topk():
     assert list(node.get_output_shape(1)) == [6, 3, 10, 24]
 
 
-@xfail_issue_34323
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [
-        (ng.reduce_mean, np.mean, [0, 1, 2, 3]),
-        (ng.reduce_mean, np.mean, [0]),
-        (ng.reduce_mean, np.mean, [0, 2]),
+        (ng.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
+        (ng.reduce_mean, np.mean, np.array([0])),
+        (ng.reduce_mean, np.mean, np.array([0, 2])),
     ],
 )
 def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
@@ -99,7 +97,7 @@ def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data, reduction_axes], ng_api_helper)
+    result = run_op_node([input_data], ng_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
