@@ -69,10 +69,8 @@ function(build_ngraph)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-        ngraph_set(NGRAPH_IE_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
-        ngraph_set(NGRAPH_IE_ENABLE FALSE)
     endif()
 
     if(NOT ANDROID)
