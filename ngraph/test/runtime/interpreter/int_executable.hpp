@@ -1262,15 +1262,16 @@ protected:
         }
         case OP_TYPEID::GatherTree_v1:
         {
-            reference::gather_tree<T>(args[0]->get_data_ptr<const T>(),
-                                        args[1]->get_data_ptr<const T>(),
-                                        args[2]->get_data_ptr<const T>(),
-                                        args[3]->get_data_ptr<const T>(),
-                                        out[0]->get_data_ptr<T>(),
-                                        node.get_input_shape(0),
-                                        node.get_input_shape(1),
-                                        node.get_input_shape(2),
-                                        node.get_input_shape(3));
+            reference::gather_tree(args[0]->get_data_ptr<const char>(),
+                                   args[1]->get_data_ptr<const char>(),
+                                   args[2]->get_data_ptr<const char>(),
+                                   args[3]->get_data_ptr<const char>(),
+                                   out[0]->get_data_ptr<char>(),
+                                   node.get_input_shape(0),
+                                   node.get_input_shape(1),
+                                   node.get_input_shape(2),
+                                   node.get_input_shape(3),
+                                   args[1]->get_element_type());
             break;
         }
 
