@@ -84,7 +84,8 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     HeaderLatest::ModelHeader header;
     header.version.major = 0u;
     header.version.minor = 0u;
-    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize) + sizeof(HeaderLatest::ModelHeader::Version);
+    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize)
+                                + sizeof(HeaderLatest::ModelHeader::Version);
     if (stream_len > size_of_headers_header) {
         readNBytes(&header, size_of_headers_header, is);
     } else {
