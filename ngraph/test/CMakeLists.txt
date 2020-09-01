@@ -214,15 +214,13 @@ endforeach()
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
-if (NGRAPH_IE_ENABLE)
-    if (ENABLE_MKL_DNN)
-        message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
-        set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    endif()
-     if (ENABLE_CLDNN)
-        message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
-        set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    endif()
+if (ENABLE_MKL_DNN)
+    message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
+    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+endif()
+if (ENABLE_CLDNN)
+    message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
+    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -428,33 +426,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 
-if (NGRAPH_IE_ENABLE)
-    target_link_libraries(unit-test PRIVATE ie_backend)
-endif()
+target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
-endif()
-
-if (NOT NGRAPH_IE_ENABLE)
-    # If all the runtime libraries are installed into one location, that will make life easier.
-    if (MSVC)
-        add_custom_target(unit-test-check
-            COMMAND set "PATH=${EXTERNAL_PROJECTS_ROOT}/src/ngraph/Release;${EXTERNAL_PROJECTS_ROOT}/mkldnn/lib/;${EXTERNAL_PROJECTS_ROOT}/mkl/src/ext_mkl/lib/;${EXTERNAL_PROJECTS_ROOT}/ext_tbb-prefix/src/ext_tbb/tbb2019_20181203oss/bin/intel64/vc14;%PATH%"
-            COMMAND ${PROJECT_BINARY_DIR}/test/unit-test \${ARGS}
-            DEPENDS unit-test
-        )
-    else()
-        add_custom_target(unit-test-check
-            COMMAND ${PROJECT_BINARY_DIR}/test/unit-test --cpath ${EXTERNAL_PROJECTS_ROOT}/src/ngraph/ \${ARGS}
-            DEPENDS unit-test
-        )
-    endif()
-
-    add_custom_target(check
-        DEPENDS
-        style-check
-        unit-test-check
-    )
 endif()

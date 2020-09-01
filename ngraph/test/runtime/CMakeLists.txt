@@ -66,7 +66,4 @@ target_compile_definitions(ngraph_backend PRIVATE BACKEND_DLL_EXPORTS)
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(interpreter)
-
-if (NGRAPH_IE_ENABLE)
-    add_subdirectory(ie)
-endif()
+add_subdirectory(ie)
