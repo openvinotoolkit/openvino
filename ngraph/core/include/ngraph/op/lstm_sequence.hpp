@@ -134,6 +134,7 @@ namespace ngraph
                 {
                 }
 
+                virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual OutputVector decompose_op() const override;
 
