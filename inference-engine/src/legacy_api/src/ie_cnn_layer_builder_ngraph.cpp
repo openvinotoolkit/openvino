@@ -1707,6 +1707,131 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Interp>::createLayer(const std::shared_p
 }
 
 template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::v0::Interpolate>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    THROW_IE_EXCEPTION << "Interpolate operation should be converted to Interp";
+}
+
+template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::v4::Interpolate>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "Interpolate",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v4::Interpolate>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    auto attrs = castedLayer->get_attrs();
+
+    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+
+    switch (attrs.mode) {
+        case ::ngraph::op::v4::Interpolate::InterpolateMode::nearest: {
+            res->params["mode"] = "nearest";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::InterpolateMode::linear: {
+            res->params["mode"] = "linear";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx: {
+            res->params["mode"] = "linear_onnx";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::InterpolateMode::cubic: {
+            res->params["mode"] = "cubic";
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported mode for Interpolate op";
+            break;
+    }
+
+    switch (attrs.shape_calculation_mode) {
+        case ::ngraph::op::v4::Interpolate::ShapeCalcMode::sizes: {
+            res->params["shape_calculation_mode"] = "sizes";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::ShapeCalcMode::scales: {
+            res->params["shape_calculation_mode"] = "scales";
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported shape_calculation_mode for Interpolate op";
+            break;
+    }
+
+    switch (attrs.coordinate_transformation_mode) {
+        case ::ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel: {
+            res->params["coordinate_transformation_mode"] = "half_pixel";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel: {
+            res->params["coordinate_transformation_mode"] = "pytorch_half_pixel";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric: {
+            res->params["coordinate_transformation_mode"] = "asymmetric";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn: {
+            res->params["coordinate_transformation_mode"] = "tf_half_pixel_for_nn";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners: {
+            res->params["coordinate_transformation_mode"] = "align_corners";
+            break;
+        }
+        default:
+            res->params["coordinate_transformation_mode"] = "half_pixel";
+            break;
+    }
+
+    switch (attrs.nearest_mode) {
+        case ::ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor: {
+            res->params["nearest_mode"] = "round_prefer_floor";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil: {
+            res->params["nearest_mode"] = "round_prefer_ceil";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::NearestMode::floor: {
+            res->params["nearest_mode"] = "floor";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::NearestMode::ceil: {
+            res->params["nearest_mode"] = "ceil";
+            break;
+        }
+        case ::ngraph::op::v4::Interpolate::NearestMode::simple: {
+            res->params["nearest_mode"] = "simple";
+            break;
+        }
+        default:
+            res->params["nearest_mode"] = "round_prefer_floor";
+            break;
+    }
+
+    res->params["antialias"] = attrs.antialias ? "True" : "False";
+
+    std::string value;
+    for (const auto& val : attrs.pads_begin) {
+        if (!value.empty()) value += ",";
+        value += asString(val);
+    }
+    res->params["pads_begin"] = value;
+
+    value.clear();
+    for (const auto& val : attrs.pads_end) {
+        if (!value.empty()) value += ",";
+        value += asString(val);
+    }
+    res->params["pads_end"] = value;
+
+    res->params["cube_coeff"] = asString(attrs.cube_coeff);
+
+    return res;
+}
+
+template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "FullyConnected",
                           details::convertPrecision(layer->get_output_element_type(0))};

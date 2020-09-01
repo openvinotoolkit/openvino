@@ -81,7 +81,6 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
             std::make_shared<ngraph::opset4::GRUCell>(),
             // std::make_shared<ngraph::opset4::GRUSequence>(), todo: enable after GRUSequence support
             std::make_shared<ngraph::opset4::HardSigmoid>(),
-            std::make_shared<ngraph::opset4::Interpolate>(),
             std::make_shared<ngraph::opset4::LRN>(),
             std::make_shared<ngraph::opset4::LSTMCell>(),
             // std::make_shared<ngraph::opset4::LSTMSequence>(), todo: enable after LSTMSequence support

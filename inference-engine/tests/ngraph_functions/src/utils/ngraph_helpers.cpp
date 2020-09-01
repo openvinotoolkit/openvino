@@ -627,21 +627,18 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::InterpolateMode::area:
-            os << "area";
-            break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::cubic:
+        case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
             os << "cubic";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::linear:
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear:
             os << "linear";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::linear_onnx:
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
             os << "linear_onnx";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::nearest:
+        case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
             os << "nearest";
             break;
         default:
@@ -650,21 +647,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::Interpo
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::align_corners:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
             os << "align_corners";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::asymmetric:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
             os << "asymmetric";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
             os << "half_pixel";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
             os << "pytorch_half_pixel";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
             os << "tf_half_pixel_for_nn";
             break;
         default:
@@ -673,21 +670,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::Coordin
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::NearestMode::ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::ceil:
             os << "ceil";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
             os << "round_prefer_ceil";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::floor:
+        case ngraph::op::v4::Interpolate::NearestMode::floor:
             os << "floor";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_floor:
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
             os << "round_prefer_floor";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::simple:
+        case ngraph::op::v4::Interpolate::NearestMode::simple:
             os << "simple";
             break;
         default:
