@@ -19,35 +19,38 @@
 #include <locale>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/clamp.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node, LSTMWeightsFormat from_format,
-                                               LSTMWeightsFormat to_format)
+std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
+                                                                 LSTMWeightsFormat from_format,
+                                                                 LSTMWeightsFormat to_format)
 {
     static const std::map<op::util::LSTMWeightsFormat, std::vector<size_t>> gate_order_map{
-            {op::util::LSTMWeightsFormat::FICO, {0, 1, 2, 3}},
-            {op::util::LSTMWeightsFormat::ICOF, {1, 2, 3, 0}},
-            {op::util::LSTMWeightsFormat::IFOC, {1, 0, 3, 2}},
-            {op::util::LSTMWeightsFormat::IOFC, {1, 3, 0, 2}},
-            {op::util::LSTMWeightsFormat::IFCO, {1, 0, 2, 3}},
+        {op::util::LSTMWeightsFormat::FICO, {0, 1, 2, 3}},
+        {op::util::LSTMWeightsFormat::ICOF, {1, 2, 3, 0}},
+        {op::util::LSTMWeightsFormat::IFOC, {1, 0, 3, 2}},
+        {op::util::LSTMWeightsFormat::IOFC, {1, 3, 0, 2}},
+        {op::util::LSTMWeightsFormat::IFCO, {1, 0, 2, 3}},
     };
     const auto& from = gate_order_map.at(from_format);
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
 
     auto axis_const = std::make_shared<opset4::Constant>(element::i64, Shape{}, 0);
-    OutputVector splitted_node = std::make_shared<opset4::Split>(node, axis_const, num_gates)->outputs();
+    OutputVector splitted_node =
+        std::make_shared<opset4::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
-    for (size_t i = 0; i < num_gates; ++i) {
+    for (size_t i = 0; i < num_gates; ++i)
+    {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
     return std::make_shared<opset4::Concat>(nodes_in_new_format, 0);

@@ -35,14 +35,14 @@ op::v0::RNNCell::RNNCell()
 }
 
 op::v0::RNNCell::RNNCell(const Output<Node>& X,
-                     const Output<Node>& initial_hidden_state,
-                     const Output<Node>& W,
-                     const Output<Node>& R,
-                     size_t hidden_size,
-                     const vector<string>& activations,
-                     const vector<float>& activations_alpha,
-                     const vector<float>& activations_beta,
-                     float clip)
+                         const Output<Node>& initial_hidden_state,
+                         const Output<Node>& W,
+                         const Output<Node>& R,
+                         size_t hidden_size,
+                         const vector<string>& activations,
+                         const vector<float>& activations_alpha,
+                         const vector<float>& activations_beta,
+                         float clip)
     : RNNCellBase({X, initial_hidden_state, W, R},
                   hidden_size,
                   clip,
@@ -56,15 +56,15 @@ op::v0::RNNCell::RNNCell(const Output<Node>& X,
 }
 
 op::v0::RNNCell::RNNCell(const Output<Node>& X,
-                     const Output<Node>& initial_hidden_state,
-                     const Output<Node>& W,
-                     const Output<Node>& R,
-                     const Output<Node>& B,
-                     size_t hidden_size,
-                     const vector<string>& activations,
-                     const vector<float>& activations_alpha,
-                     const vector<float>& activations_beta,
-                     float clip)
+                         const Output<Node>& initial_hidden_state,
+                         const Output<Node>& W,
+                         const Output<Node>& R,
+                         const Output<Node>& B,
+                         size_t hidden_size,
+                         const vector<string>& activations,
+                         const vector<float>& activations_alpha,
+                         const vector<float>& activations_beta,
+                         float clip)
     : RNNCellBase({X, initial_hidden_state, W, R, B},
                   hidden_size,
                   clip,
@@ -161,7 +161,7 @@ void op::v0::RNNCell::validate_and_infer_types()
     }
 
     // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <=4; ++i)
+    for (size_t i = 0; i <= 4; ++i)
         set_input_is_relevant_to_shape(i);
 
     // Set output size, type and shape
@@ -173,8 +173,8 @@ Output<Node> op::v0::RNNCell::get_default_bias_input() const
 {
     return Output<Node>{
         op::v0::Constant::create(get_input_element_type(0),
-                             Shape{s_gates_count * get_hidden_size()},
-                             vector<float>(s_gates_count * get_hidden_size(), 0.f))};
+                                 Shape{s_gates_count * get_hidden_size()},
+                                 vector<float>(s_gates_count * get_hidden_size(), 0.f))};
 }
 
 shared_ptr<Node> op::v0::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const

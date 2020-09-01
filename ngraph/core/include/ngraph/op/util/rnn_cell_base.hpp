@@ -50,10 +50,13 @@ namespace ngraph
             ///
             /// \param[in]  to_format  Weights format to convert to.
             ///
-            /// \return     Node representing reshaped tensor according to `to_format` weights format.
+            /// \return     Node representing reshaped tensor according to `to_format` weights
+            /// format.
             ///
-            std::shared_ptr<Node> NGRAPH_API convert_lstm_node_format(const Output<Node>& node,
-                    LSTMWeightsFormat from_format, LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO);
+            std::shared_ptr<Node> NGRAPH_API
+                convert_lstm_node_format(const Output<Node>& node,
+                                         LSTMWeightsFormat from_format,
+                                         LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO);
 
             /// \brief      Base class for all recurrent network cells.
             ///
