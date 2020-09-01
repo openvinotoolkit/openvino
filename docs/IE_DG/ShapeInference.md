@@ -7,7 +7,7 @@ Inference Engine takes three kinds of model description as an input, which are a
 3. [nGraph::Function](../IE_DG/nGraph_Flow.md) through constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps `ngraph::Function` object with the model description internally.
-It should have fully defined (static) input shapes to be successfully loaded to the Inference Engine plugins.
+It should have fully defined input shapes to be successfully loaded to the Inference Engine plugins.
 Call `CNNNetwork::reshape` method providing new input shapes before loading to the Inference Engine plugin to resolve undefined input dimensions of a model.
 
 Run the following code right after `InferenceEngine::CNNNetwork` creation to explicitly check for model input names and shapes:
@@ -17,7 +17,7 @@ const auto parameters = network.getFunction()->get_parameters();
 for (const auto & parameter : parameters) {
     std::cout << "name: " << parameter->get_friendly_name() << " shape: " << parameter->get_partial_shape() << std::endl;
     if (parameter->get_partial_shape().is_dynamic())
-        std::cout << "ATTENTION: input shape is not fully defined, please use CNNNetwork::reshape method to fully define it!" << std::endl;
+        std::cout << "ATTENTION: input shape is not fully defined, please use CNNNetwork::reshape method to resolve it!" << std::endl;
 }
 ```
 
@@ -38,7 +38,7 @@ OpenVINO™ provides the following methods for runtime model reshaping:
     >NOTE:
     >* Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which allows correct shape propagation during reshaping.
     >* Older versions of IRs are not guaranteed to reshape successfully. Please re-generate them with the Model Optimizer of the latest version of OpenVINO™.
-    >* It is required to reshape the network before loading to the plugin for ONNX models with dynamic input shape that were imported with the help of ONNX importer
+    >* It is required to reshape the network before loading to the plugin for ONNX models with not fully defined input shape that were imported with the help of ONNX importer
 
 2.  Setting a new batch dimension value with the `InferenceEngine::CNNNetwork::setBatchSize` method
     
@@ -54,12 +54,14 @@ OpenVINO™ provides the following methods for runtime model reshaping:
     If there is a need to set new batch size for the model, please use `CNNNetwork::reshape` method instead.
 
 Please do not use runtime reshaping methods together, especially do not call `CNNNetwork::reshape` method after `InferenceEngine::CNNNetwork::setBatchSize` usage.
+`InferenceEngine::CNNNetwork::setBatchSize` method causes irreversible conversion of internal model representation to the legacy model representation.
+It does not use `nGraph` for shape inference which lead to reduced reshape opportunities and may affect performance of the model.
 
 There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../IE_DG/nGraphTutorial.md).
 
-Practically, some models are not ready to be resized. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
+Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
 
-## Troubleshooting Resize Errors
+## Troubleshooting Reshape Errors
 
 Operation semantics may impose restrictions on input shapes of the operation. 
 Shape collision during shape propagation may be a sign that a new shape does not satisfy the restrictions. 
@@ -69,7 +71,7 @@ Examples of such operations:
 - <a href="_docs_MO_DG_prepare_model_convert_model_IR_V10_opset1.html#Reshape">`Reshape` operation</a> with a hard-coded output shape value
 - <a href="_docs_MO_DG_prepare_model_convert_model_IR_V10_opset1.html#MatMul">`MatMul` operation</a> with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
 
-Model structure and logic should not change significantly after resizing.
+Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
 Having the input of the shape [N, C, H, W], Global Pooling returns the output of the shape [N, C, 1, 1].
 Model architects usually express Global Pooling with the help of the `Pooling` operation with the fixed kernel size [H, W].
@@ -77,7 +79,7 @@ During spatial reshape, having the input of the shape [N, C, H1, W1], Pooling wi
 It breaks the classification model structure.
 For example, [publicly available Inception family models from TensorFlow*](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
 
-- Resizing the model input shape may significantly affect its accuracy.
+- Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
 For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#tf_od_custom_input_shape">Tensorflow Object Detection API models resizing techniques</a>.
