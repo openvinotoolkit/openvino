@@ -134,8 +134,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("mode", m_attrs.mode);
     visitor.on_attribute("shape_calculation_mode", m_attrs.shape_calculation_mode);
-    visitor.on_attribute("coordinate_transformation_mode",
-                         m_attrs.coordinate_transformation_mode);
+    visitor.on_attribute("coordinate_transformation_mode", m_attrs.coordinate_transformation_mode);
     visitor.on_attribute("nearest_mode", m_attrs.nearest_mode);
     visitor.on_attribute("antialias", m_attrs.antialias);
     visitor.on_attribute("pads_begin", m_attrs.pads_begin);
