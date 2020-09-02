@@ -14,11 +14,12 @@ namespace {
 
 #define MUL(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::opset4::Multiply::type_info, X)
 #define ADD(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::opset4::Add::type_info, X)
+#define IN std::vector<std::tuple<ngraph::NodeTypeInfo, int64_t>>
 
     INSTANTIATE_TEST_CASE_P(Convolution_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 8, 64}),
                                     ::testing::Values(ngraph::Shape{64, 8, 1}),
                                     ::testing::Values(ngraph::Shape{64, 1}),
@@ -29,7 +30,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolution_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 5}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 2}),
                                     ::testing::Values(ngraph::Shape{20, 1}),
@@ -40,7 +41,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 64}),
                                     ::testing::Values(ngraph::Shape{12, 20, 1}),
                                     ::testing::Values(ngraph::Shape{20, 1}),
@@ -51,7 +52,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolutionBackpropData_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 64}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 1}),
                                     ::testing::Values(ngraph::Shape{1, 20, 1}),
@@ -70,7 +71,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(Convolution_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 3, 64, 64}),
                                     ::testing::Values(ngraph::Shape{20, 3, 1, 1}),
                                     ::testing::ValuesIn(const_shapes_2d),
@@ -81,7 +82,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolution_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 1, 2}),
                                     ::testing::ValuesIn(const_shapes_2d),
@@ -92,7 +93,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{12, 20, 1, 1}),
                                     ::testing::ValuesIn(const_shapes_2d),
@@ -103,7 +104,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolutionBackpropData_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(4), ADD(5)}),
+                                    ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 64, 64}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 1, 1}),
                                     ::testing::ValuesIn(const_shapes_2d),
@@ -119,7 +120,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(Convolution_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
-                                    ::testing::ValuesIn({MUL(6), ADD(6)}),
+                                    ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
                                     ::testing::Values(ngraph::Shape{1, 3, 3, 3}),
                                     ::testing::Values(ngraph::Shape{3, 3, 1, 1}),
                                     ::testing::ValuesIn(neg_const_shapes_2d),
@@ -130,7 +131,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolution_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
-                                    ::testing::ValuesIn({MUL(6), ADD(6)}),
+                                    ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 3, 3}),
                                     ::testing::Values(ngraph::Shape{4, 5, 3, 1, 1}),
                                     ::testing::ValuesIn(neg_const_shapes_2d),
@@ -141,7 +142,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(6), ADD(6)}),
+                                    ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 3, 3}),
                                     ::testing::Values(ngraph::Shape{12, 3, 1, 1}),
                                     ::testing::ValuesIn(neg_const_shapes_2d),
@@ -152,7 +153,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(GroupConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
-                                    ::testing::ValuesIn({MUL(6), ADD(6)}),
+                                    ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
                                     ::testing::Values(ngraph::Shape{1, 12, 3, 3}),
                                     ::testing::Values(ngraph::Shape{4, 3, 5, 1, 1}),
                                     ::testing::ValuesIn(neg_const_shapes_2d),
