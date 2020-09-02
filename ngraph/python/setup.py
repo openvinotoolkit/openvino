@@ -331,8 +331,13 @@ class BuildExt(build_ext):
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
             if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
                 # pybind11 is much more verbose without -DNDEBUG
-                self.compiler.compiler_so.remove("-DNDEBUG")
-                self.compiler.compiler_so.remove("-O2")
+                if sys.platform == "win32":
+                    self.compiler.compiler_so.remove("/DNDEBUG")
+                    self.compiler.compiler_so.remove("/O2")
+                else:
+                    self.compiler.compiler_so.remove("-DNDEBUG")
+                    self.compiler.compiler_so.remove("-O2")
+
         except (AttributeError, ValueError):
             pass
 
