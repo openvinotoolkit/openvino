@@ -19,9 +19,9 @@
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
  *  
- * Executable Graph Info is represented in ICNNNetwork format with general CNNLayer nodes inside
+ * Executable Graph Info is represented in CNNNetwork format with general ExecutionNode nodes inside
  * including connections between the nodes. Each node describes an executable hardware-specific
- * primitive and stores its parameters within CNNLayer::params map.
+ * primitive and stores its parameters within ExecutionNode::get_rt_info map.
  * There is a list of general keys for the parameters map.
  */
 namespace ExecGraphInfoSerialization {
