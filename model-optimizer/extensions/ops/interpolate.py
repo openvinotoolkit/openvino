@@ -148,7 +148,7 @@ class Interpolate(Op):
             scales = node.in_port(2).data.get_value()
             assert scales is not None
             for i, axis in enumerate(axes):
-                output_shape[axis] = math.floor(scales[i] * output_shape[axis])
+                output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
 
         node.out_port(0).data.set_shape(output_shape)
 
@@ -172,4 +172,4 @@ def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
     if scales_value is None or len(scales_value) != len(dst_shape):
         corrected_scales = np.zeros(len(dst_shape))
         for i, axis in enumerate(list(axes)):
-            corrected_scales[i] =math.floor((dst_shape[i] / src_shape[axis]) + 10e-5)
+            corrected_scales[i] = math.floor((dst_shape[i] / src_shape[axis]) + 1.0e-5)
