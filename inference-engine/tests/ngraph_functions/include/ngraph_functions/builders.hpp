@@ -65,12 +65,6 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
     return weightsNode;
 }
 
-std::shared_ptr<Node> makeConstantRandom(const element::Type &type, const std::vector<size_t> &shape,
-                                         uint32_t range = 10, uint32_t start_from = 1);
-
-std::shared_ptr<Node> makeConstantFromData(const element::Type &type, const std::vector<size_t> &shape,
-                                           const std::vector<float> &data);
-
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
 
