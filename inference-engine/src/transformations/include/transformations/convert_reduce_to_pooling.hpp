@@ -29,6 +29,12 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 }  // namespace pass
 }  // namespace ngraph
 
+class ConvertReduceBase : public ngraph::pass::MatcherPass {
+public:
+    template <class T>
+    ngraph::matcher_pass_callback convert_reduce_to_pooling();
+};
+
 class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
 public:
     ConvertReduceToPooling() {
@@ -38,10 +44,7 @@ public:
     }
 };
 
-template <class T>
-ngraph::matcher_pass_callback convert_reduce_to_pooling();
-
-class ngraph::pass::ConvertReduceMeanToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMeanToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMean>(), "ConvertReduceMean");
@@ -49,7 +52,7 @@ public:
     }
 };
 
-class ngraph::pass::ConvertReduceMaxToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMaxToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMax>(), "ConvertReduceMax");
@@ -57,7 +60,7 @@ public:
     }
 };
 
-class ngraph::pass::ConvertReduceSumToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     ConvertReduceSumToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceSum>(), "ConvertReduceSum");
@@ -66,10 +69,11 @@ public:
 };
 
 template <class T>
-ngraph::matcher_pass_callback convert_reduce_to_pooling() {
-    return [](ngraph::pattern::Matcher& m) {
+ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
+    return [&](ngraph::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
-        if (!reduce) {
+
+        if (!reduce || m_transformation_callback(reduce)) {
             return false;
         }
 
