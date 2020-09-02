@@ -902,24 +902,38 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
 }
 
 #define GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_osv_isv4)(                            \
-        o, i, y, x,                                              \
+    FUNC_CALL(get_os_is_zyx_osv_isv4)(                           \
+        o, i, 0, y, x,                                           \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
-        CAT(prefix, _SIZE_X), 16)
+        CAT(prefix, _SIZE_X),                                    \
+        CAT(prefix, _SIZE_Y),                                    \
+        16)
 
 #define GET_FILTER_OS_IS_YX_OSV32_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_osv_isv4)(                            \
-        o, i, y, x,                                              \
+    FUNC_CALL(get_os_is_zyx_osv_isv4)(                           \
+        o, i, 0, y, x,                                           \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
-        CAT(prefix, _SIZE_X), 32)
+        CAT(prefix, _SIZE_X),                                    \
+        CAT(prefix, _SIZE_Y),                                    \
+        32)
 
-inline uint FUNC(get_os_is_yx_osv_isv4)(uint o, uint i, uint y, uint x,
-                                        uint i_size,
-                                        uint o_size,
-                                        uint x_size,
-                                        uint otd)
+#define GET_FILTER_OS_IS_ZYX_OSV32_ISV4_INDEX(prefix, o, i, z, y, x) \
+    FUNC_CALL(get_os_is_zyx_osv_isv4)(                               \
+        o, i, z, y, x,                                               \
+        CAT(prefix, _IFM_PITCH),                                     \
+        CAT(prefix, _OFM_PITCH),                                     \
+        CAT(prefix, _SIZE_X),                                        \
+        CAT(prefix, _SIZE_Y),                                        \
+        32)
+
+inline uint FUNC(get_os_is_zyx_osv_isv4)(uint o, uint i, uint z, uint y, uint x,
+                                         uint i_size,
+                                         uint o_size,
+                                         uint x_size,
+                                         uint y_size,
+                                         uint otd)
 {
     uint out_depth_tile = o / otd;
     uint od             = o - out_depth_tile * otd;
@@ -930,6 +944,7 @@ inline uint FUNC(get_os_is_yx_osv_isv4)(uint o, uint i, uint y, uint x,
 
     uint idx = out_depth_tile * (o_size / tile) * otd * tile
                + id_tile               * i_size * otd * tile
+               + z            * y_size * x_size * otd * tile
                + y                     * x_size * otd * tile
                + x                              * otd * tile
                + od                                   * tile

@@ -58,16 +58,16 @@ void Basic_LSTM_S::SetUp() {
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
     auto reshape1_shape = reshape1->output(0).get_shape();
-    auto H_init = ngraph::builder::makeConstant(ngPrc, { batch_size, hidden_size }, {}, true);
-    auto C_init = ngraph::builder::makeConstant(ngPrc, { batch_size, hidden_size }, {}, true);
+    auto H_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
+    auto C_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
 
     auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hidden_size });
     auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hidden_size });
 
     //Body
     auto X = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
-    auto weightsNode = ngraph::builder::makeConstant(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
-    auto reccurrenceWeightsNode = ngraph::builder::makeConstant(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
+    auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
+    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
 
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
     outFormShapes1 = { batch_size, reshape1_shape[2] };
@@ -138,11 +138,11 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
     ngraph::Output<ngraph::Node> H[iterations + 1];
     ngraph::Output<ngraph::Node> C[iterations + 1];
     std::shared_ptr<ngraph::opset1::LSTMCell> lstm[iterations];
-    H[0] = ngraph::builder::makeConstant(ngPrc, { batch_size, hidden_size }, {}, true);
-    C[0] = ngraph::builder::makeConstant(ngPrc, { batch_size, hidden_size }, {}, true);
+    H[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
+    C[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
     auto reshape1_shape = reshape1->output(0).get_shape();
-    auto weightsNode = ngraph::builder::makeConstant(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
-    auto reccurrenceWeightsNode = ngraph::builder::makeConstant(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
+    auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, reshape1_shape[2] }, {}, true);
+    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hidden_size, hidden_size }, {}, true);
 
     outFormShapes1 = { batch_size, reshape1_shape[2] };
     auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);

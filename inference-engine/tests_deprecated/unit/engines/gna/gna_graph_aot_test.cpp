@@ -41,7 +41,7 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
         .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_imported_verify_structure) {
+TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
 // Disabled because of random fails: Issue-23611
 #if GNA_LIB_VER == 1
     GTEST_SKIP();

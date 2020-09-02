@@ -14,16 +14,57 @@
 
 #include "include/include_all.cl"
 
-KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) {
-    const uint out_idx = get_global_id(0);
+inline uint FUNC(calc_linear_offset)(uint b, uint f, uint w, uint z, uint y, uint x)
+{
+    uint index = b * OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W * OUTPUT_FEATURE_NUM +
+                 f * OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W +
+                 w * OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z +
+                 z * OUTPUT_SIZE_X * OUTPUT_SIZE_Y +
+                 y * OUTPUT_SIZE_X +
+                 x;
 
-    if (out_idx >= COMPUTATIONAL_OPERATIONS_NUMBER) return;
+    return index;
+}
+
+KERNEL(reduce_ref)(
+    const __global INPUT0_TYPE* data,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
+{
+    const uint xy   = (uint)get_global_id(0);
+    const uint wz   = (uint)get_global_id(1);
+    const uint bf   = (uint)get_global_id(2);
+    const uint x    = xy % OUTPUT_SIZE_X;
+    const uint y    = xy / OUTPUT_SIZE_X;
+
+    const uint b    = bf / OUTPUT_FEATURE_NUM;
+    const uint f    = bf % OUTPUT_FEATURE_NUM;
+#if INPUT0_DIMS == 4
+    const uint w    = 0;
+    const uint z    = 0;
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    const uint z    = wz % OUTPUT_SIZE_Z;
+    const uint w    = 0;
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
+#elif INPUT0_DIMS == 6
+    const uint z    = wz % OUTPUT_SIZE_Z;
+    const uint w    = wz / OUTPUT_SIZE_Z;
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, w, z, y, x);
+#endif
+
+    const uint linear_idx = FUNC_CALL(calc_linear_offset)(b, f, w, z, y, x);
+    if (linear_idx >= COMPUTATIONAL_OPERATIONS_NUMBER)
+        return;
 
 #ifdef REDUCE_BATCH
     const uint batch_out = 0;
     const uint batch_max_val = INPUT0_BATCH_NUM;
 #else
-    const uint batch_out = BATCH_NUM_IDX_COMP(out_idx);
+    const uint batch_out = BATCH_NUM_IDX_COMP(linear_idx);
     const uint batch_max_val = batch_out + 1;
 #endif
 
@@ -31,16 +72,16 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
     const uint feature_out = 0;
     const uint feature_max_val = INPUT0_FEATURE_NUM;
 #else
-    const uint feature_out = FEATURE_NUM_IDX_COMP(out_idx);
+    const uint feature_out = FEATURE_NUM_IDX_COMP(linear_idx);
     const uint feature_max_val = feature_out + 1;
 #endif
 
-#if INPUT0_LAYOUT_BFWZYX
+#if INPUT0_DIMS == 6
 #ifdef REDUCE_W
     const uint w_out = 0;
     const uint w_max_val = INPUT0_SIZE_W;
 #else
-    const uint w_out = SIZE_W_IDX_COMP(out_idx);
+    const uint w_out = SIZE_W_IDX_COMP(linear_idx);
     const uint w_max_val = w_out + 1;
 #endif
 #else
@@ -48,12 +89,12 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
     const uint w_max_val = 1;
 #endif
 
-#if INPUT0_LAYOUT_BFWZYX || INPUT0_LAYOUT_BFZYX
+#if INPUT0_DIMS == 6 || INPUT0_DIMS == 5
 #ifdef REDUCE_Z
     const uint z_out = 0;
     const uint z_max_val = INPUT0_SIZE_Z;
 #else
-    const uint z_out = SIZE_Z_IDX_COMP(out_idx);
+    const uint z_out = SIZE_Z_IDX_COMP(linear_idx);
     const uint z_max_val = z_out + 1;
 #endif
 #else
@@ -65,7 +106,7 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
     const uint y_out = 0;
     const uint y_max_val = INPUT0_SIZE_Y;
 #else
-    const uint y_out = SIZE_Y_IDX_COMP(out_idx);
+    const uint y_out = SIZE_Y_IDX_COMP(linear_idx);
     const uint y_max_val = y_out + 1;
 #endif
 
@@ -73,23 +114,24 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
     const uint x_out = 0;
     const uint x_max_val = INPUT0_SIZE_X;
 #else
-    const uint x_out = SIZE_X_IDX_COMP(out_idx);
+    const uint x_out = SIZE_X_IDX_COMP(linear_idx);
     const uint x_max_val = x_out + 1;
 #endif
-    OUTPUT_TYPE acc = OUTPUT_VAL_ZERO;
+    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
     uint counter = 0;
-    for (uint b = batch_out; b < batch_max_val; ++b) {
-        for (uint f = feature_out; f < feature_max_val; ++f) {
-            for (uint w = w_out; w < w_max_val; ++w) {
-                for (uint z = z_out; z < z_max_val; ++z) {
-                    for (uint y = y_out; y < y_max_val; ++y) {
-                        for (uint x = x_out; x < x_max_val; ++x) {
-#ifdef INPUT0_LAYOUT_BFWZYX
-                            const uint input_idx = GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
-#elif INPUT0_LAYOUT_BFZYX
-                            const uint input_idx = GET_DATA_INDEX_5D(INPUT0, b, f, z, y, x);
+    for (uint bi = batch_out; bi < batch_max_val; ++bi) {
+        for (uint fi = feature_out; fi < feature_max_val; ++fi) {
+            for (uint wi = w_out; wi < w_max_val; ++wi) {
+                for (uint zi = z_out; zi < z_max_val; ++zi) {
+                    for (uint yi = y_out; yi < y_max_val; ++yi) {
+                        for (uint xi = x_out; xi < x_max_val; ++xi) {
+#if INPUT0_DIMS == 6
+                            const uint input_idx = INPUT0_GET_INDEX(bi, fi, wi, zi, yi, xi);
+#elif INPUT0_DIMS == 5
+                            const uint input_idx = INPUT0_GET_INDEX(bi, fi, zi, yi, xi);
 #else
-                            const uint input_idx = GET_DATA_INDEX(INPUT0, b, f, y, x);
+                            const uint input_idx = INPUT0_GET_INDEX(bi, fi, yi, xi);
+
 #endif
 #ifdef REDUCE_SUM_MODE
                             acc += data[input_idx];
@@ -123,13 +165,21 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
 #elif REDUCE_SUM_SQUARE_MODE
                             acc += data[input_idx] * data[input_idx];
 #elif REDUCE_L1_MODE
+                        #if !INPUT0_IS_FP
+                            acc += TO_ACCUMULATOR_TYPE(fabs(TO_FINAL_ACCUMULATOR_TYPE(data[input_idx])));
+                        #else
                             acc += fabs(data[input_idx]);
+                        #endif
 #elif REDUCE_L2_MODE
                             acc += data[input_idx] * data[input_idx];
 #elif REDUCE_LOG_SUM_MODE
                             acc += data[input_idx];
 #elif REDUCE_LOG_SUM_EXP_MODE
+                        #if !INPUT0_IS_FP
+                            acc += TO_ACCUMULATOR_TYPE(exp(TO_FINAL_ACCUMULATOR_TYPE(data[input_idx])));
+                        #else
                             acc += exp(data[input_idx]);
+                        #endif
 #endif
                             counter++;
                         }
@@ -138,15 +188,25 @@ KERNEL(reduce_vec)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* outpu
             }
         }
     }
+
+    FINAL_ACCUMULATOR_TYPE final_acc = TO_FINAL_ACCUMULATOR_TYPE(acc);
 #if REDUCE_MEAN_MODE
-    if (counter != 0) acc /= counter;
+    if (counter != 0) final_acc /= counter;
 #endif
 #if REDUCE_L2_MODE
-    acc = sqrt(acc);
+    final_acc = sqrt(final_acc);
 #endif
 #if REDUCE_LOG_SUM_MODE || REDUCE_LOG_SUM_EXP_MODE
-    acc = log(acc);
+    final_acc = log(final_acc);
 #endif
 
-    output[out_idx] = acc;
+    OUTPUT_TYPE final_result;
+    ACTIVATION_TYPE reduce_result = TO_ACTIVATION_TYPE(final_acc);
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    final_result = FUSED_OPS_RESULT;
+#else
+    final_result = TO_OUTPUT_TYPE(ACTIVATION(reduce_result, ACTIVATION_PARAMS));
+#endif
+    output[out_idx] = final_result;
 }

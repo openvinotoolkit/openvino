@@ -14,11 +14,11 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
+import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35926, xfail_issue_34323
 
 
 def test_reverse_sequence():
@@ -166,14 +166,14 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35926
+@pytest.mark.xfail(reason="AssertionError")
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
 
-    input_param = ng.parameter(input_data.shape, name="input", dtype=np.int64)
-    model = ng.pad(input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int64))
+    input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
+    model = ng.pad(input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int32))
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param)
@@ -191,12 +191,11 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34323
 def test_select():
-    cond = [[False, False], [True, False], [True, True]]
-    then_node = [[-1, 0], [1, 2], [3, 4]]
-    else_node = [[11, 10], [9, 8], [7, 6]]
-    excepted = [[11, 10], [1, 8], [3, 4]]
+    cond = np.array([[False, False], [True, False], [True, True]])
+    then_node = np.array([[-1, 0], [1, 2], [3, 4]], dtype=np.int32)
+    else_node = np.array([[11, 10], [9, 8], [7, 6]], dtype=np.int32)
+    excepted = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.int32)
 
     result = run_op_node([cond, then_node, else_node], ng.select)
     assert np.allclose(result, excepted)
