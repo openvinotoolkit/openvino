@@ -102,7 +102,7 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
     return result;
 }
 
-bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputShapes& shapes,
+bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
                        const size_t batch_size, const InferenceEngine::InputsDataMap& input_info) {
     bool updated = false;
     for (auto& item : input_info) {
@@ -116,7 +116,8 @@ bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputShapes& shapes,
         } else if (layout == InferenceEngine::Layout::CN) {
             batch_index = 1;
         }
-        if ((batch_index != -1) && (shapes.at(item.first).at(batch_index) != batch_size)) {
+        auto batch_dimension = shapes.at(item.first)[batch_index];
+        if ((batch_index != -1) && (batch_dimension.is_dynamic() || batch_dimension.get_length() != int64_t(batch_size))) {
             shapes[item.first][batch_index] = batch_size;
             updated = true;
         }
@@ -124,7 +125,7 @@ bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputShapes& shapes,
     return updated;
 }
 
-bool updateShapes(InferenceEngine::ICNNNetwork::InputShapes& shapes,
+bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
                   const std::string shapes_string, const InferenceEngine::InputsDataMap& input_info) {
     bool updated = false;
     std::string search_string = shapes_string;
@@ -135,9 +136,13 @@ bool updateShapes(InferenceEngine::ICNNNetwork::InputShapes& shapes,
             break;
         auto input_name = search_string.substr(0, start_pos);
         auto input_shape = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
-        std::vector<size_t> parsed_shape;
+        std::vector<ngraph::Dimension> parsed_shape;
         for (auto& dim : split(input_shape, ',')) {
-            parsed_shape.push_back(std::stoi(dim));
+            if (dim == "?" || dim == "-1")
+                parsed_shape.push_back(ngraph::Dimension());
+            // TODO: parse intervals as [min-max]; requires to change syntax for shape enclosure from [] to {} (or something else)
+            else
+                parsed_shape.push_back(std::stoi(dim));
         }
         if (!input_name.empty()) {
             shapes[input_name] = parsed_shape;
@@ -159,16 +164,11 @@ bool updateShapes(InferenceEngine::ICNNNetwork::InputShapes& shapes,
     return updated;
 }
 
-std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes) {
+std::string getShapesString(const InferenceEngine::ICNNNetwork::InputPartialShapes& shapes) {
     std::stringstream ss;
     for (auto& shape : shapes) {
         if (!ss.str().empty()) ss << ", ";
-        ss << "\'" << shape.first << "': [";
-        for (size_t i = 0; i < shape.second.size(); i++) {
-            if (i > 0) ss << ", ";
-            ss << shape.second.at(i);
-        }
-        ss << "]";
+        ss << "\'" << shape.first << "': " << shape.second;
     }
     return ss.str();
 }

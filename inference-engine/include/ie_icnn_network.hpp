@@ -13,6 +13,8 @@
 #include <memory>
 #include <string>
 
+#include <ngraph/partial_shape.hpp>
+
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
@@ -146,6 +148,8 @@ public:
      */
     using InputShapes = std::map<std::string, SizeVector>;
 
+    using InputPartialShapes = std::map<std::string, ngraph::PartialShape>;
+
     /**
      * @brief Run shape inference with new input shapes for the network
      *
@@ -154,6 +158,12 @@ public:
      * @return Status code of the operation
      */
     virtual StatusCode reshape(const InputShapes& inputShapes, ResponseDesc* resp) noexcept {
+        (void)inputShapes;
+        (void)resp;
+        return NOT_IMPLEMENTED;
+    };
+
+    virtual StatusCode reshape(const InputPartialShapes& inputShapes, ResponseDesc* resp) noexcept {
         (void)inputShapes;
         (void)resp;
         return NOT_IMPLEMENTED;

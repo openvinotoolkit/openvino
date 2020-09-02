@@ -327,7 +327,7 @@ int main(int argc, char *argv[]) {
             next_step();
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
-            InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
+            InferenceEngine::ICNNNetwork::InputPartialShapes shapes = cnnNetwork.getInputPartialShapes();
             bool reshape = false;
             if (!FLAGS_shape.empty()) {
                 reshape |= updateShapes(shapes, FLAGS_shape, inputInfo);

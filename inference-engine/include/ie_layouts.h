@@ -11,6 +11,8 @@
 
 #include <algorithm>
 
+#include <ngraph/partial_shape.hpp>
+
 #include "ie_api.h"
 #include "ie_common.h"
 #include "ie_precision.hpp"
@@ -203,6 +205,9 @@ public:
     SizeVector& getDims() {
         return dims;
     }
+    const ngraph::PartialShape& getPartialShape() const {
+        return partialShape;
+    }
     /**
      * @brief Returns the constant vector of dimensions
      *
@@ -316,6 +321,10 @@ private:
      * Detailed information about layout construction
      */
     BlockingDesc blockingDesc;
+    /**
+     * Partial shape defined for tensors with unknown dimensions
+     */
+    ngraph::PartialShape partialShape;
 };
 
 /**

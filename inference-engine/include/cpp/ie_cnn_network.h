@@ -199,11 +199,23 @@ public:
         CALL_STATUS_FNC(addOutput, layerName, outputIndex);
     }
 
-    /**
-     * @brief Helper method to get collect all input shapes with names of corresponding Data objects
-     *
-     * @return Map of pairs: input name and its dimension.
-     */
+    virtual ICNNNetwork::InputPartialShapes getInputPartialShapes() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+        ICNNNetwork::InputPartialShapes shapes;
+        InputsDataMap inputs;
+        actual->getInputsInfo(inputs);
+        for (const auto& pair : inputs) {
+            auto info = pair.second;
+            if (info) {
+                auto data = info->getInputData();
+                if (data) {
+                    shapes[data->getName()] = data->getTensorDesc().getPartialShape();
+                }
+            }
+        }
+        return shapes;
+    }
+
     virtual ICNNNetwork::InputShapes getInputShapes() const {
         if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         ICNNNetwork::InputShapes shapes;
@@ -227,6 +239,10 @@ public:
      * @param inputShapes - map of pairs: name of corresponding data and its dimension.
      */
     virtual void reshape(const ICNNNetwork::InputShapes& inputShapes) {
+        CALL_STATUS_FNC(reshape, inputShapes);
+    }
+
+    virtual void reshape(const ICNNNetwork::InputPartialShapes& inputShapes) {
         CALL_STATUS_FNC(reshape, inputShapes);
     }
 
