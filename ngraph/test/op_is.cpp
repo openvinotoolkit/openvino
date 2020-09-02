@@ -472,7 +472,7 @@ namespace
 
     void op_is_LSTMCell()
     {
-        op::v0::LSTMCell node;
+        op::v1::LSTMCell node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
