@@ -18,8 +18,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/squeeze_function.hpp"
 
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace testing;
 using namespace ngraph::pass;
 
@@ -100,9 +98,8 @@ public:
 };
 
 TEST_P(SqueezeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -129,16 +126,17 @@ const std::vector<SqueezeTransformationTestValues> testValues = {
         ngraph::element::f32
     },
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        { { 0.5f }, { 1 } },
-        { { 0.5f }, { 1 } },
-        { { 32 }, { 1000, 1, 1, 1 } },
-        { { 32 }, { 1000, 1 } },
-        { 2.0, 3.0 },
-        { 1000, 1, 1, 1 },
-        ngraph::element::f32
-    },
+    // TODO: per tensor & per-channel quantization is supported only
+    // {
+    //    LayerTransformation::createParamsU8I8(),
+    //    { { 0.5f }, { 1 } },
+    //    { { 0.5f }, { 1 } },
+    //    { { 32 }, { 1000, 1, 1, 1 } },
+    //    { { 32 }, { 1000, 1 } },
+    //    { 2.0, 3.0 },
+    //    { 1000, 1, 1, 1 },
+    //    ngraph::element::f32
+    // },
     {
         LayerTransformation::createParamsI8I8(),
         { { 0.1f }, { 1 } },

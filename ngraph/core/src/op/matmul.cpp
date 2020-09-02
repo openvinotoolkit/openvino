@@ -96,15 +96,23 @@ void op::MatMul::pre_validate_and_infer_types()
     const Rank& A_rank = get_input_partial_shape(0).rank();
     const Rank& B_rank = get_input_partial_shape(1).rank();
 
+#ifdef LPT_SUPPORT
     if (A_rank.is_static() && B_rank.is_static())
     {
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-#ifdef LPT_SUPPORT
         set_output_type(0, element::f32, PartialShape::dynamic(max_rank));
-#else
-        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
-#endif
     }
+#else
+    if (A_rank.is_static() && B_rank.is_static())
+    {
+        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
+        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
+    }
+    else
+    {
+        set_output_type(0, result_et, PartialShape::dynamic());
+    }
+#endif
 }
 
 OutputVector op::MatMul::decompose_op() const

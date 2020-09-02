@@ -106,16 +106,80 @@ const std::vector<MVNTransformationTestValues> testValues = {
         ngraph::Shape{ 1, 4, 16, 16 },
         {1, 2, 3},
         true,
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.45f}}
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {-0.32f}, {}},
+            {{ngraph::element::f32}, {-0.32f}, {0.45f}},
+            ngraph::element::f32,
+            { }
+        }
+    },
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            { },
             ngraph::element::f32,
             {{}, {}, {1.f}}
+        }
+    },
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {127.f}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {127.f}, {}},
+            ngraph::element::f32,
+            {{}, {}, {1.f}}
+        }
+    },
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {12.5f}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {12.5f}, {0.45f}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        {1, 2, 3},
+        true,
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {127.f}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {127.f}, {0.45f}},
+            ngraph::element::f32,
+            {}
         }
     },
 
@@ -204,7 +268,7 @@ const std::vector<MVNTransformationTestValues> testValues = {
 
 TEST_P(MVNTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

@@ -133,7 +133,7 @@ public:
 
 TEST_P(ConcatWithIntermediateTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -255,7 +255,7 @@ const std::vector<ngraph::Shape> shapes = {
 // LPT to nGraph migration: temporary disabling unexpected not reproduced fails on CI:
 // https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18_i386/478/
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

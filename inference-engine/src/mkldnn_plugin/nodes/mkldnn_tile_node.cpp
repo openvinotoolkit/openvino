@@ -7,6 +7,7 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -126,7 +127,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
-            memcpy(dst_ptr, src_ptr, m_inner_dim* sizeof(float));
+            cpu_memcpy(dst_ptr, src_ptr, m_inner_dim* sizeof(float));
             dst_ptr += m_inner_dim;
         }
         src_ptr += m_inner_dim;

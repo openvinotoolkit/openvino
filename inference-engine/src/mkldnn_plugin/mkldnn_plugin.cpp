@@ -27,6 +27,7 @@
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/low_precision/group_convolution.hpp>
+#include <transformations/low_precision/multiply_to_group_convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_precision.hpp>
@@ -84,8 +85,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
@@ -126,11 +129,13 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
             LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
+            false);  // supportAsymmetricQuantization
         LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
             .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}))
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
+            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
@@ -320,9 +325,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
 
         // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
@@ -357,6 +360,24 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
+
+        for (auto&& node : function->get_ops()) {
+            if (!contains(unsupported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
         for (auto&& layerName : supported) {
             if (!contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());

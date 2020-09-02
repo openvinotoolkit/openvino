@@ -3,11 +3,14 @@
 //
 
 #include "ngraph_functions/low_precision_transformations/multiply_function.hpp"
-#include "transformations/low_precision/network_helper.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
+#include "transformations/low_precision/network_helper.hpp"
+
+using namespace ngraph::pass::low_precision;
 
 namespace ngraph {
 namespace builder {
@@ -25,11 +28,11 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent1 = input1;
 
-    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<ngraph::opset1::Convert>(parent1, precision);
+    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<DequantizationConvert>(parent1, precision);
     parent1 = convert1;
 
     if (!actualValues.subtractValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared< ngraph::opset1::Subtract >(
+        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared<DequantizationSubtract >(
             parent1,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ actualValues.subtractValues1.size() }), actualValues.subtractValues1));
@@ -37,7 +40,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     }
 
     if (!actualValues.mutliplyValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared< ngraph::opset1::Multiply >(
+        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<DequantizationMultiply >(
             parent1,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ actualValues.mutliplyValues1.size() }), actualValues.mutliplyValues1));
@@ -56,11 +59,11 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
             ngraph::Shape(inputShape));
         parent2 = input2;
 
-        const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<ngraph::opset1::Convert>(parent2, precision);
+        const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<DequantizationConvert>(parent2, precision);
         parent2 = convert2;
 
         if (!actualValues.subtractValues2.empty()) {
-            const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared< ngraph::opset1::Subtract >(
+            const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared<DequantizationSubtract >(
                 parent2,
                 std::make_shared<ngraph::opset1::Constant>(
                     precision, Shape({ actualValues.subtractValues2.size() }), actualValues.subtractValues2));
@@ -68,7 +71,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         }
 
         if (!actualValues.mutliplyValues2.empty()) {
-            const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared< ngraph::opset1::Multiply >(
+            const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<DequantizationMultiply >(
                 parent2,
                 std::make_shared<ngraph::opset1::Constant>(
                     precision, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2));
@@ -98,12 +101,12 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
 
     std::shared_ptr<ngraph::Node> parent1 = input1;
     //if (!(expectedValues.subtractValues1.empty() && expectedValues.mutliplyValues1.empty())) {
-    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<ngraph::opset1::Convert>(parent1, precision);
+    const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<DequantizationConvert>(parent1, precision);
     parent1 = convert1;
     //}
 
     if (!expectedValues.subtractValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared<ngraph::opset1::Subtract>(
+        const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared<DequantizationSubtract>(
             parent1,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ expectedValues.subtractValues1.size() }), expectedValues.subtractValues1));
@@ -111,7 +114,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
     }
 
     if (!expectedValues.mutliplyValues1.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ngraph::opset1::Multiply>(
+        const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<DequantizationMultiply>(
             parent1,
             std::make_shared<ngraph::opset1::Constant>(
                 precision, Shape({ expectedValues.mutliplyValues1.size() }), expectedValues.mutliplyValues1));
@@ -131,12 +134,12 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
         parent2 = input2;
 
         if (!(expectedValues.subtractValues2.empty() && expectedValues.mutliplyValues2.empty())) {
-            const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<ngraph::opset1::Convert>(parent2, precision);
+            const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<DequantizationConvert>(parent2, precision);
             parent2 = convert2;
         }
 
         if (!expectedValues.subtractValues2.empty()) {
-            const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared<ngraph::opset1::Subtract>(
+            const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared<DequantizationSubtract>(
                 parent2,
                 std::make_shared<ngraph::opset1::Constant>(
                     precision, Shape({ expectedValues.subtractValues2.size() }), expectedValues.subtractValues2));
@@ -144,7 +147,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
         }
 
         if (!expectedValues.mutliplyValues2.empty()) {
-            const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<ngraph::opset1::Multiply>(
+            const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<DequantizationMultiply>(
                 parent2,
                 std::make_shared<ngraph::opset1::Constant>(
                     precision, Shape({ expectedValues.mutliplyValues2.size() }), expectedValues.mutliplyValues2));

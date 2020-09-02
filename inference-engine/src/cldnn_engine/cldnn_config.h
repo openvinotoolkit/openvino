@@ -53,7 +53,7 @@ struct Config {
     bool memory_pool_on;
     bool enableDynamicBatch;
     bool enableInt8;
-    LptVersion lptVersion = LptVersion::cnnNetwork;
+    LptVersion lptVersion = LptVersion::nGraph;
     bool nv12_two_inputs;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;

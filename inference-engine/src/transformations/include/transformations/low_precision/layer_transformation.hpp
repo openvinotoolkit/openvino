@@ -71,11 +71,15 @@ public:
         }
     }
 
-    static float getMaxValue(const element::Type precision) {
+    static float getMaxValue(const element::Type precision, const size_t levels) {
+        if ((levels != 255ul) && (levels != 256ul)) {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected levels " << levels;
+        }
+
         if (precision == element::i8) {
             return static_cast<float>(std::numeric_limits<signed char>::max());
         } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::max());
+            return static_cast<float>(std::numeric_limits<unsigned char>::max()) - (256 - levels);
         } else if (precision == element::f16) {
             return 1.0e15f;
         } else if (precision == element::f32) {
@@ -161,7 +165,7 @@ public:
                 const bool updatePrecisions = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = true,
+                bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
                 updatePrecisions(updatePrecisions),
@@ -250,6 +254,10 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
+    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex = 0ul) const;
+
+    bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
+
     PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
 
     // return true if operation can be quantized and false otherwise
@@ -264,8 +272,7 @@ public:
     DataPrecision getDataPrecision(
             std::shared_ptr<Node> layer,
             const QuantizationDetails& quantizationDetails,
-            const bool onWeights,
-            const bool supportAsymmetricQuantization) const;
+            const bool onWeights) const;
 
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 
@@ -302,13 +309,8 @@ protected:
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision) const;
-
-    std::shared_ptr<ngraph::Node> moveMultiplyAfter(
-        TransformationContext &context,
-        const std::shared_ptr<ngraph::Node>& operation,
-        const FakeQuantizeDequantization& dequantization,
-        const bool removeConvert) const;
+        const bool updatePrecision,
+        const bool moveSubtract = true) const;
 
     void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
@@ -316,6 +318,11 @@ protected:
         TransformationContext &context,
         std::shared_ptr<ngraph::Node> lastNode,
         std::shared_ptr<ngraph::Node> originalNode) const;
+
+    void updateOutput(
+        TransformationContext& context,
+        std::shared_ptr<ngraph::Node> lastNode,
+        std::string originalName) const;
 
     void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
 

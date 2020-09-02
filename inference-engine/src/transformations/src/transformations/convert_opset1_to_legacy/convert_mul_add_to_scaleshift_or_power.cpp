@@ -140,8 +140,11 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             return false;
         }
 
+        bool is_dequantization =
+            (add_node->get_rt_info().count("DEQUANTIZATION") != 0 || mul_node->get_rt_info().count("DEQUANTIZATION") != 0);
+
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
@@ -149,11 +152,23 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
-            if (res1 == CONVERSION_RESULT::POWER) {
+            if (is_dequantization) {
+                const Shape data_shape = data_node.get_shape();
+                Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
+                broadcasted_shape[1] = data_shape[1];
+
+                weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
+                new_ops.push_back(weights_in);
+
+                biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
+                new_ops.push_back(biases_in);
+            }
+
+            if (res1 == CONVERSION_RESULT::POWER && !is_dequantization) {
                 weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
                 new_ops.push_back(weights_in);
             }
-            if (res2 == CONVERSION_RESULT::POWER) {
+            if (res2 == CONVERSION_RESULT::POWER && !is_dequantization) {
                 biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
                 new_ops.push_back(biases_in);
             }

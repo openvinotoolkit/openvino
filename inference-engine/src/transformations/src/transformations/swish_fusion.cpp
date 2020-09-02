@@ -9,21 +9,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
-bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
-    if (!constant) {
-        return false;
-    }
-    if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
-        auto data = constant->cast_vector<float>();
-        if (data.size() != 1 || data[0] != 1.0) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
+#include "transformations/utils/utils.hpp"
 
 bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
     // check that the constant for beta contains only one distinct element
@@ -124,7 +110,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!check_constant_value(constant)) {
+        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
@@ -161,7 +147,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!check_constant_value(constant)) {
+        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 

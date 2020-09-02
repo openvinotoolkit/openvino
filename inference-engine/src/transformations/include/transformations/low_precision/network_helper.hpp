@@ -20,6 +20,7 @@
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
+#include "common/ie_lpt_exception.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -127,12 +128,8 @@ public:
     static InsertDequantizationResult moveDequantizationAfter(
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision);
-
-    static InsertDequantizationResult moveMultiplyAfter(
-        const std::shared_ptr<ngraph::Node>& operation,
-        const FakeQuantizeDequantization& dequantization,
-        const bool removeConvert);
+        const bool updatePrecision,
+        const bool moveSubtract);
 
     // TODO: rename: fuseConvertIfPossible
     static void removeConvertIfPossible(
@@ -151,9 +148,12 @@ public:
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues = true);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues);
 
 private:
+    static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
+
     // 1  - on weights
     // 0  - weightable layer was not found
     // -1 - on activations

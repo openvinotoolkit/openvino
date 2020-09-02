@@ -10,6 +10,7 @@
 MKLDNN_EXTENSION_NODE(EmbeddingBagOffsetsSumImpl, EmbeddingBagOffsetsSum);
 MKLDNN_EXTENSION_NODE(EmbeddingBagPackedSumImpl, EmbeddingBagPackedSum);
 MKLDNN_EXTENSION_NODE(EmbeddingSegmentsSumImpl, EmbeddingSegmentsSum);
+MKLDNN_EXTENSION_NODE(CTCLossImpl, CTCLoss);
 MKLDNN_EXTENSION_NODE(PriorBoxImpl, PriorBox);
 MKLDNN_EXTENSION_NODE(MathImpl, Abs);
 MKLDNN_EXTENSION_NODE(MathImpl, Acos);
@@ -31,7 +32,7 @@ MKLDNN_EXTENSION_NODE(MathImpl, Selu);
 MKLDNN_EXTENSION_NODE(MathImpl, Sign);
 MKLDNN_EXTENSION_NODE(MathImpl, Sin);
 MKLDNN_EXTENSION_NODE(MathImpl, Sinh);
-MKLDNN_EXTENSION_NODE(MathImpl, Softplus);
+MKLDNN_EXTENSION_NODE(MathImpl, SoftPlus);
 MKLDNN_EXTENSION_NODE(MathImpl, Softsign);
 MKLDNN_EXTENSION_NODE(MathImpl, Tan);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronTopKROIsImpl, ExperimentalDetectronTopKROIs);

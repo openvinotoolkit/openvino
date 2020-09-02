@@ -40,6 +40,10 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
+    if (!canSubtractBeHandled(operation)) {
+        return false;
+    }
+
     const std::shared_ptr<Node> multiply = operation->get_input_node_shared_ptr(0);
     auto scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
@@ -123,7 +127,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());

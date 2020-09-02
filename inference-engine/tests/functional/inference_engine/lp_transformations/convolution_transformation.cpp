@@ -56,11 +56,17 @@ public:
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
-            precision,
-            shape,
-            params.updatePrecisions,
-            testParams.expected);
+        referenceFunction = testParams.expected.activationPrecision == ngraph::element::f32 ?
+            ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+                precision,
+                shape,
+                params.updatePrecisions,
+                testParams.actual) :
+            ngraph::builder::subgraph::ConvolutionFunction::getReference(
+                precision,
+                shape,
+                params.updatePrecisions,
+                testParams.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -80,7 +86,7 @@ public:
 
 TEST_P(ConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -102,7 +108,7 @@ const std::vector<bool> updatePrecisions = {
 const std::vector<ConvolutionTransformationTestParams> testParams = {
     // with zero point
     {
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
             ngraph::element::u8,
@@ -121,9 +127,51 @@ const std::vector<ConvolutionTransformationTestParams> testParams = {
             { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
+    // with zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { 128 },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::f32,
+            { 128 },
+            ngraph::element::f32,
+            { },
+            { },
+            { }
+        }
+    },
     // without zero point
     {
         LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::i8,
+            { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
+            { },
+            { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
+    // without zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         // ActualValues
         {
             ngraph::element::u8,

@@ -86,9 +86,8 @@ protected:
 };
 
 TEST_P(ReluTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -112,6 +111,36 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
+    // U8: no subtract
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+        }
+    },
+    // U8: no subtract
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, -0.2f, 0.3f}}},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
     // I8: no subtract
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
@@ -127,7 +156,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
-    // U8: with positive subtract value
+    // U8: with subtract value
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
@@ -142,10 +171,10 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{}, {}, {0.1f}}
         }
     },
-    // I8: with positive subtract value
+    // I8: with subtract value
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsI8I8(),
+        LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(true),
         {
             ngraph::element::i8,
             {{ngraph::element::f32}, { 127 }, {0.1f}}
@@ -157,19 +186,19 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{}, {}, {0.1f}}
         }
     },
-    // U8: with negative subtract value: Convert is still here
+    // I8: with subtract value
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsI8I8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { -128 }, {0.1f}}
+            ngraph::element::i8,
+            {{ngraph::element::f32}, { 127 }, {0.1f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {-128}, ngraph::element::f32 }, {}},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, { 127 }, {0.1f}},
             ngraph::element::f32,
-            {{}, {}, {0.1f}}
+            {{}, {}, {}}
         }
     },
     // U8: empty

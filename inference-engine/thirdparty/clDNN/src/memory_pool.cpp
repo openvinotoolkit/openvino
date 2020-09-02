@@ -254,8 +254,7 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.size.feature[0] % 32 == 0)) &&
                 // TODO: check if this condition always correct
-                ((layout.format == format::byxf_af32 && layout.size.feature[0] == rec_list._memory->get_layout().size.feature[0]) ||
-                 (layout.format != format::byxf_af32 && layout.size.feature[0] <= rec_list._memory->get_layout().size.feature[0])) &&
+                layout.size.feature[0] <= rec_list._memory->get_layout().size.feature[0] &&
                 layout.size.batch[0] <= rec_list._memory->get_layout().size.batch[0] &&
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&

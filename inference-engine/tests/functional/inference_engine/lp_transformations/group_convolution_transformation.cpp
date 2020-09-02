@@ -59,13 +59,21 @@ public:
         transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::GroupConvolutionFunction::getReference(
-            precision,
-            testValues.inputShape,
-            testValues.outputShape,
-            testValues.group,
-            params.updatePrecisions,
-            testValues.expected);
+        referenceFunction = testValues.expected.activationPrecision == ngraph::element::f32 ?
+            ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
+                precision,
+                testValues.inputShape,
+                testValues.outputShape,
+                testValues.group,
+                params.updatePrecisions,
+                testValues.actual) :
+            ngraph::builder::subgraph::GroupConvolutionFunction::getReference(
+                precision,
+                testValues.inputShape,
+                testValues.outputShape,
+                testValues.group,
+                params.updatePrecisions,
+                testValues.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -101,7 +109,7 @@ const std::vector<bool> updatePrecisions = { true, false };
 const std::vector<GroupConvolutionTransformationTestParams> testParams = {
     // group convolution, tensor quantization, with zero point
     {
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         { 1, 6, 224, 224 },
         { 1, 24, 218, 218 },
         3ul,
@@ -121,6 +129,30 @@ const std::vector<GroupConvolutionTransformationTestParams> testParams = {
             { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
             { },
             std::vector<float>(24, 0.0002f)  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
+    // group convolution, tensor quantization, with zero point
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { 128 },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { },
+            { },
+            { }
         }
     },
     // group convolution, per-channel quantization, without zero point

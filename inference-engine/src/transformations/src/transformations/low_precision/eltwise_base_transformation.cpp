@@ -36,7 +36,15 @@ bool isBranchWithTargetType(const std::shared_ptr<opset1::FakeQuantize>& fakeQua
         return false;
     }
 
-    return is_type<opset1::Convolution>(parent) || is_type<opset1::GroupConvolution>(parent) || is_type<opset1::MatMul>(parent);
+    bool isTargetType =
+        is_type<opset1::Convolution>(parent) ||
+        (is_type<opset1::Add>(parent) && is_type<opset1::Convolution>(parent->get_input_node_shared_ptr(0))) ||
+        is_type<opset1::GroupConvolution>(parent) ||
+        (is_type<opset1::Add>(parent) && is_type<opset1::GroupConvolution>(parent->get_input_node_shared_ptr(0))) ||
+        is_type<opset1::MatMul>(parent) ||
+        (is_type<opset1::Add>(parent) && is_type<opset1::MatMul>(parent->get_input_node_shared_ptr(0)));
+
+    return isTargetType;
 }
 
 bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {

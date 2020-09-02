@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2019 Intel Corporation
+* Copyright 2019-2020 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -249,17 +249,35 @@ const float sum_scale = 1;
     DO_ELTWISE(blockC01, 8, eltwise_alpha, eltwise_beta);
 #endif
 
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
+            { FUSED_OPS_SCALAR1; blockC01[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED) {
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+                dst_write0[8 * OC_BLOCK + i * OC_BLOCK + local_id] = blockC01[i];
+            }
+        }
+    } else
+
+#endif // OUTPUT_LEFTOVERS
+    {
+
 #if HAS_FUSED_OPS
     { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
     { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
-
-    intel_sub_group_block_write8(
-            (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
-    intel_sub_group_block_write8(
-            (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
-            as_uint8(blockC01));
-#endif
+     intel_sub_group_block_write8(
+             (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
+     intel_sub_group_block_write8(
+             (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
+             as_uint8(blockC01));
+    }
+#endif // ver_16mb16c
 
 #ifdef VER_8OW16C
 #if IC == 3
@@ -507,7 +525,7 @@ const float sum_scale = 1;
     }
 #endif
 
-#else
+#else // IC == 3
     const int sp = get_group_id(1);
     const int local_id = get_local_id(0);
 #if GROUPED
@@ -874,9 +892,18 @@ const float sum_scale = 1;
             if (local_id < 8)
                 dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
 #else
-            intel_sub_group_block_write(
-                    (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
-                    as_uint(blockC00[i]));
+
+#if OUTPUT_LEFTOVERS
+            if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+                if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                    dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+            } else
+#endif
+            {
+                intel_sub_group_block_write(
+                        (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
+                        as_uint(blockC00[i]));
+            }
 #endif
         }
     } else {
@@ -893,9 +920,18 @@ const float sum_scale = 1;
             if (local_id < 8)
                 dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
 #else
-            intel_sub_group_block_write(
-                    (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
-                    as_uint(blockC00[i]));
+
+#if OUTPUT_LEFTOVERS
+            if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+                if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                    dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+            } else
+#endif
+            {
+                intel_sub_group_block_write(
+                        (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
+                        as_uint(blockC00[i]));
+            }
 #endif //  OC == 8 && G != 1
         }
 #else
@@ -910,12 +946,28 @@ const float sum_scale = 1;
             dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
     }
 #else
+
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+        }
+    } else
+#endif
+    {
+
 #if HAS_FUSED_OPS
     { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
 #endif
-
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
+
+    }
 #endif //  OC == 8 && G != 1
 #if OW_BLOCK == 16
 
@@ -929,13 +981,29 @@ const float sum_scale = 1;
             dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
     }
 #else
+#if OUTPUT_LEFTOVERS
+    if ((oc+1)*OC_BLOCK >= OC_NOTALLIGNED) {
+        for (int i = 0; i < 8; i++) {
+
 #if HAS_FUSED_OPS
-    { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
+            { FUSED_OPS_SCALAR1; blockC01[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+            if (oc * OC_BLOCK + local_id < OC_NOTALLIGNED)
+                dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
+        }
+    } else
+#endif
+    {
+
+#if HAS_FUSED_OPS
+        { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
 
-    intel_sub_group_block_write8(
-            (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
-            as_uint8(blockC01));
+        intel_sub_group_block_write8(
+                (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
+                as_uint8(blockC01));
+
+    }
 #endif //  OC == 8 && G != 1
 #endif
 #endif
@@ -943,7 +1011,7 @@ const float sum_scale = 1;
     }
 #endif
 
-#endif
+#endif // IC == 3
 #endif
     return;
 }

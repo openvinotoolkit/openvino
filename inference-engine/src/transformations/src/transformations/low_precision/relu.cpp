@@ -34,11 +34,7 @@ bool ReluTransformation::transform(TransformationContext& context, ngraph::patte
 
     relu = separateInStandaloneBranch(relu);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, 0);
-    if (dequantization.subtract == nullptr) {
-        moveDequantizationAfter(context, relu, dequantization, true);
-    } else {
-        moveMultiplyAfter(context, relu, dequantization, true);
-    }
+    moveDequantizationAfter(context, relu, dequantization, false, false);
     return true;
 }
 
@@ -47,8 +43,16 @@ bool ReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const no
 }
 
 bool ReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (!LayerTransformation::canBeTransformed(context, op)) {
+        return false;
+    }
+
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
     if (dequantization.empty()) {
+        return false;
+    }
+
+    if (!canSubtractBeHandled(op, dequantization)) {
         return false;
     }
 

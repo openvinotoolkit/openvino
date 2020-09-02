@@ -54,6 +54,7 @@
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "transformations/low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "transformations/low_precision/multiply_to_group_convolution.hpp"
 #include "transformations/low_precision/subtract_multiply_to_multiply_add.hpp"
 
 namespace ngraph {
@@ -63,10 +64,12 @@ namespace low_precision {
 LowPrecisionTransformations::LowPrecisionTransformations(
     const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
     const std::map<std::string, LayerTransformationPtr>& transformations,
-    const std::map<std::string, std::vector<LayerTransformationPtr>>& cleanupTransformations) :
+    const std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>>& cleanupTransformations,
+    const std::vector<StandaloneCleanup>& standaloneCleanupTransformations) :
     branchSpecificTransformations(branchSpecificTransformations),
     transformations(transformations),
-    cleanupTransformations(cleanupTransformations) {}
+    cleanupTransformations(cleanupTransformations),
+    standaloneCleanupTransformations(standaloneCleanupTransformations) {}
 
 void LowPrecisionTransformations::setUpdatePrecisions(const bool updatePrecisions) {
     for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
@@ -119,35 +122,46 @@ LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransform
     return *this;
 }
 
-LayerTransformationPtr LowPrecisionTransformations::find(const std::string& transformationKey) const {
+std::vector<LayerTransformationPtr> LowPrecisionTransformations::find(const std::string& transformationKey) const {
     auto it = branchSpecificTransformations.find(transformationKey);
+    std::vector<LayerTransformationPtr> res;
     if (it != branchSpecificTransformations.end()) {
-        return it->second;
+        res.emplace_back(it->second);
     }
 
     it = transformations.find(transformationKey);
     if (it != transformations.end()) {
-        return it->second;
+        res.emplace_back(it->second);
     }
 
-    auto it1 = cleanupTransformations.find(transformationKey);
+    const auto it1 = cleanupTransformations.find(transformationKey);
     if (it1 != cleanupTransformations.end()) {
-        return it1->second[0];
+        for (const auto& transformation : it1->second) {
+            res.emplace_back(transformation.second);
+        }
     }
 
-    return nullptr;
+    for (const auto& transformation : standaloneCleanupTransformations) {
+        if (transformation.typeName == transformationKey) {
+            res.emplace_back(transformation.transformation);
+        }
+    }
+
+    return res;
 }
 
 void LowPrecisionTransformations::setParamsManager(IParamsManager* paramsManager) noexcept {
     setParamsManager(paramsManager, branchSpecificTransformations);
     setParamsManager(paramsManager, transformations);
     setParamsManager(paramsManager, cleanupTransformations);
+    setParamsManager(paramsManager, standaloneCleanupTransformations);
 }
 
 void LowPrecisionTransformations::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
     setLayerTransformationsManager(layerTransformationsManager, branchSpecificTransformations);
     setLayerTransformationsManager(layerTransformationsManager, transformations);
     setLayerTransformationsManager(layerTransformationsManager, cleanupTransformations);
+    setLayerTransformationsManager(layerTransformationsManager, standaloneCleanupTransformations);
 }
 
 void LowPrecisionTransformations::setParamsManager(
@@ -160,11 +174,19 @@ void LowPrecisionTransformations::setParamsManager(
 
 void LowPrecisionTransformations::setParamsManager(
     IParamsManager* paramsManager,
-    std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept {
+    std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>>& transformations) noexcept {
     for (auto it : transformations) {
         for (auto transform : it.second) {
-            transform->setParamsManager(paramsManager);
+            transform.second->setParamsManager(paramsManager);
         }
+    }
+}
+
+void LowPrecisionTransformations::setParamsManager(
+    IParamsManager* paramsManager,
+    std::vector<StandaloneCleanup>& transformations) noexcept {
+    for (auto it : transformations) {
+        it.transformation->setParamsManager(paramsManager);
     }
 }
 
@@ -178,11 +200,19 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 
 void LowPrecisionTransformations::setLayerTransformationsManager(
     ILayerTransformationsManager* layerTransformationsManager,
-    std::map<std::string, std::vector<LayerTransformationPtr>>& transformations) noexcept {
+    std::map < std::string, std::vector < std::pair<std::string,  LayerTransformationPtr >> > & transformations) noexcept {
     for (auto it : transformations) {
         for (auto transform : it.second) {
-            transform->setLayerTransformationsManager(layerTransformationsManager);
+            transform.second->setLayerTransformationsManager(layerTransformationsManager);
         }
+    }
+}
+
+void LowPrecisionTransformations::setLayerTransformationsManager(
+    ILayerTransformationsManager* layerTransformationsManager,
+    std::vector<StandaloneCleanup>& transformations) noexcept {
+    for (auto it : transformations) {
+        it.transformation->setLayerTransformationsManager(layerTransformationsManager);
     }
 }
 
@@ -213,16 +243,18 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
 
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
-        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        // addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         // addCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params).
         // addCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
         // addCleanup<ConvertTransformation, opset1::Convert>(params);
 
         // addStandaloneCleanup<FuseConvertTransformation>(params).
         // addStandaloneCleanup<FuseFakeQuantizeTransformation>(params).
-        addStandaloneCleanup<FuseMultiplyToFakeQuantizeTransformation>(params).
-        addStandaloneCleanup<FuseSubtractToFakeQuantizeTransformation>(params).
-        addStandaloneCleanup<SubtractMultiplyToMultiplyAddTransformation>(params);
+
+        addStandaloneCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
+        addStandaloneCleanup<FuseMultiplyToFakeQuantizeTransformation, opset1::Multiply>(params).
+        addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, opset1::Multiply>(params).
+        addStandaloneCleanup<SubtractMultiplyToMultiplyAddTransformation, opset1::Multiply>(params);
 
     return transformer;
 }
@@ -266,7 +298,6 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::DepthToSpace>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::Relu>(this);
     make_matcher_type_relaxed<opset1::PRelu>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Interpolate>(this);
@@ -299,7 +330,7 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 
     {
         // Step #1: FakeQuantize layer transformation execution
-        LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>();
+        LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>()[0];
         if (fqTransformation == nullptr) {
             THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize transformation was not found";
         }
@@ -324,40 +355,74 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 
     {
         // Step #4: standalone cleanup transformations execution
-        for (const auto it : transformations.standaloneCleanupTransformations) {
+
+        for (auto it : transformations.standaloneCleanupTransformations) {
             GraphRewrite pass;
-            it.second->registerMatcherIn(pass, context);
+            it.transformation->registerMatcherIn(pass, context);
             pass.run_on_function(network);
         }
     }
 }
 
+std::vector<element::Type> LowPrecisionTransformer::precisionIntersection(
+    const std::vector<element::Type>& v1,
+    const std::vector<element::Type>& v2) const noexcept {
+    std::vector<element::Type> v3;
+
+    auto v1Copy = v1;
+    auto v2Copy = v2;
+
+    std::sort(v1Copy.begin(), v1Copy.end());
+    std::sort(v2Copy.begin(), v2Copy.end());
+
+    std::set_intersection(v1Copy.begin(), v1Copy.end(),
+        v2Copy.begin(), v2Copy.end(),
+        std::back_inserter(v3));
+    return v3;
+}
+
 std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(op);
-    const LayerTransformationPtr transformation = transformations.find(operantionType);
-    if (transformation == nullptr) {
+    const std::vector<LayerTransformationPtr> transformation = transformations.find(operantionType);
+    if (transformation.empty()) {
         return std::vector<element::Type>();
     }
-    return transformation->getPrecisionsOnActivations();
+    std::vector<element::Type> precisions = transformation[0]->getPrecisionsOnActivations();
+
+    for (const auto& transform : transformation) {
+        precisions = precisionIntersection(precisions, transform->getPrecisionsOnActivations());
+    }
+    return precisions;
 }
 
 bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
-    const LayerTransformationPtr transformation = transformations.find(operantionType);
-    if (transformation == nullptr) {
+    const std::vector<LayerTransformationPtr> transformation = transformations.find(operantionType);
+    if (transformation.empty()) {
         return false;
     }
-    return transformation->isQuantized(layer);
+
+    for (const auto& transform : transformation) {
+        if (!transform->isQuantized(layer)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool LowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
-
-    const LayerTransformationPtr transformation = transformations.find(operantionType);
-    if (transformation == nullptr) {
+    const std::vector<LayerTransformationPtr> transformation = transformations.find(operantionType);
+    if (transformation.empty()) {
         return false;
     }
-    return transformation->isPrecisionPreserved(layer);
+
+    for (const auto& transform : transformation) {
+        if (!transform->isPrecisionPreserved(layer)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void LowPrecisionTransformer::registerAllMatchers(
@@ -370,12 +435,12 @@ void LowPrecisionTransformer::registerAllMatchers(
 }
 
 void LowPrecisionTransformer::registerAllMatchers(
-    std::map<std::string, std::vector<LayerTransformationPtr>> transformations,
+    std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>> transformations,
     GraphRewrite& pass,
     TransformationContext& context) {
     for (auto it : transformations) {
         for (auto transform : it.second) {
-            transform->registerMatcherIn(pass, context);
+            transform.second->registerMatcherIn(pass, context);
         }
     }
 }

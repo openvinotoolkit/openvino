@@ -43,11 +43,32 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo& info1, const ngraph::Discre
     return info1Name == info1Name;
 }
 
+bool compare_rt_keys(const std::shared_ptr<ngraph::Node>& node1, const std::shared_ptr<ngraph::Node>& node2) {
+    const auto& first_node_rt_info = node1->get_rt_info();
+    const auto& second_node_rt_info = node2->get_rt_info();
+
+    for (auto first_it = first_node_rt_info.begin(); first_it != first_node_rt_info.end(); ++first_it) {
+        bool was_found = false;
+        for (auto secont_it = second_node_rt_info.begin(); secont_it != second_node_rt_info.end(); ++secont_it) {
+            if (first_it->first == secont_it->first) {
+                was_found = true;
+                break;
+            }
+        }
+        if (!was_found) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues,
-    const bool compareNames) {
+    const bool compareNames,
+    const bool compareRuntimeKeys) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -134,6 +155,11 @@ std::pair<bool, std::string> compare_functions(
                 err_log << "Different ports detected" << std::endl
                         << node1->get_friendly_name() << " Input(" << i << ") connected to parent port " << idx1 << " and "
                         << node2->get_friendly_name() << " Input(" << i << ") connected to parent port " << idx2 << std::endl;
+            }
+
+            if (compareRuntimeKeys && !compare_rt_keys(node1, node2)) {
+                err_log << "Different runtime info detected" << std::endl
+                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << " not equal runttime info." << std::endl;;
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});

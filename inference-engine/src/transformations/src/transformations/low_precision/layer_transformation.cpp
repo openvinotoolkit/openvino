@@ -77,7 +77,69 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         }
     }
 
+    const auto dequantization = NetworkHelper::getDequantization(layer);
+    if (!dequantization.empty()) {
+        auto perChannelQuantization = [](const Shape dataShape, Shape constShape) {
+            if ((dataShape.size() - constShape.size()) == 1ul) {
+                constShape.insert(constShape.begin(), 1ul);
+            }
+
+            if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
+                return false;
+            }
+
+            for (size_t i = 2; i < constShape.size(); ++i) {
+                if (constShape[i] != 1ul) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
+            dequantization.subtract->output(0).get_shape(),
+            dequantization.subtract->input(1).get_shape()))) {
+            return false;
+        }
+
+        if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
+            dequantization.multiply->output(0).get_shape(),
+            dequantization.multiply->input(1).get_shape()))) {
+            return false;
+        }
+    }
+
     return true;
+}
+
+bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex) const {
+    return canSubtractBeHandled(op, NetworkHelper::getDequantization(op, parentIndex));
+}
+
+bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
+    if (dequantization.empty() || (dequantization.subtract == nullptr)) {
+        return true;
+    }
+
+    if (!supportAsymmetricQuantization) {
+        return false;
+    }
+
+    if (!updatePrecisions) {
+        return true;
+    }
+
+    const element::Type operationType = dequantization.convert == nullptr ?
+        dequantization.subtract->input(0).get_element_type() :
+        dequantization.convert->input(0).get_element_type();
+
+    if ((operationType != element::i8) && (operationType != element::u8)) {
+        return false;
+    }
+
+    std::shared_ptr<Node> zeroPoint = dequantization.subtract->input_value(1).get_node_shared_ptr();
+    auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
+    return convertedZeroPoint->output(0).get_element_type() == operationType;
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -193,8 +255,7 @@ bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcep
 DataPrecision LayerTransformation::getDataPrecision(
         std::shared_ptr<Node> layer,
         const QuantizationDetails& quantizationDetails,
-        const bool onWeights,
-        const bool supportAsymmetricQuantization) const {
+        const bool onWeights) const {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
@@ -216,7 +277,7 @@ DataPrecision LayerTransformation::getDataPrecision(
                 const DataPrecision dataPrecision(
                         resultPrecision,
                         DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                        DataPrecision::getMaxValue(resultPrecision),
+                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
                         foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -232,7 +293,7 @@ DataPrecision LayerTransformation::getDataPrecision(
                                         DataPrecision(
                                                 *precisions.begin(),
                                                 DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
-                                                DataPrecision::getMaxValue(*precisions.begin()),
+                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
                                                 true);
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(dataPrecision);
@@ -326,18 +387,9 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     TransformationContext &context,
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
-    const bool updatePrecision) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision);
-    updateOutput(context, result.lastDequantization, result.newOperation);
-    return result.newOperation;
-}
-
-std::shared_ptr<ngraph::Node> LayerTransformation::moveMultiplyAfter(
-    TransformationContext &context,
-    const std::shared_ptr<ngraph::Node>& operation,
-    const FakeQuantizeDequantization& dequantization,
-    const bool removeConvert) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveMultiplyAfter(operation, dequantization, removeConvert);
+    const bool updatePrecision,
+    const bool moveSubtract) const {
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
@@ -368,6 +420,21 @@ void LayerTransformation::updateOutput(
         if (outputNode.get() == lastNode.get()) {
             const std::string originalName = originalNode->get_friendly_name();
             originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+            lastNode->set_friendly_name(originalName);
+            break;
+        }
+    }
+}
+
+void LayerTransformation::updateOutput(
+    TransformationContext& context,
+    std::shared_ptr<ngraph::Node> lastNode,
+    std::string originalName) const {
+    const size_t outputSize = context.function->get_output_size();
+    for (size_t i = 0; i < outputSize; ++i) {
+        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
+        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+        if (outputNode.get() == lastNode.get()) {
             lastNode->set_friendly_name(originalName);
             break;
         }

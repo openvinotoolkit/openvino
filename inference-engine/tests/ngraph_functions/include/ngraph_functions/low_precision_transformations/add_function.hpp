@@ -66,7 +66,8 @@ public:
         const ngraph::element::Type& precision2,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
         const int constInput,
-        const std::vector<float>& constValues);
+        const std::vector<float>& constValues,
+        std::string additionalLayer);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
@@ -79,7 +80,8 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int constInput,
-        const std::vector<float>& constValues);
+        const std::vector<float>& constValues,
+        std::string additionalLayer);
 };
 
 }  // namespace subgraph

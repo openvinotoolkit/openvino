@@ -202,3 +202,53 @@ shared_ptr<Node> builder::opset1::squeeze(const Output<Node>& value, vector<size
     }
     return builder::opset1::reshape(value, output_shape);
 }
+
+shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
+                                           const size_t start_axis,
+                                           const size_t end_axis)
+{
+    if (start_axis == end_axis)
+    {
+        return value.get_node_shared_ptr();
+    }
+
+    if (value.get_partial_shape().is_static())
+    {
+        auto shape = value.get_shape();
+        // Multiply all alements of shape from start_axis to end_axis inclusive
+        size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
+                                                next(begin(shape), end_axis + 1),
+                                                1UL,
+                                                multiplies<size_t>());
+        Shape output_shape{};
+        output_shape.insert(begin(output_shape), begin(shape), next(begin(shape), start_axis));
+        output_shape.insert(end(output_shape), collapsed_axis_size);
+        output_shape.insert(end(output_shape), next(begin(shape), end_axis + 1), end(shape));
+        return builder::opset1::reshape(value, output_shape);
+    }
+
+    const auto shape = make_shared<ngraph::opset1::ShapeOf>(value);
+    const auto rank = make_shared<ngraph::opset1::ShapeOf>(shape);
+
+    // Split lengths used in VariadicSplit
+    const auto start_axis_node = ngraph::opset1::Constant::create(element::i64, {1}, {start_axis});
+    const auto end_axis_node = ngraph::opset1::Constant::create(element::i64, {1}, {end_axis + 1});
+    const auto collapsed_axis =
+        make_shared<ngraph::opset1::Subtract>(end_axis_node, start_axis_node);
+    const auto post_axis = make_shared<ngraph::opset1::Subtract>(rank, end_axis_node);
+
+    const auto split_lengths = make_shared<ngraph::opset1::Concat>(
+        OutputVector{start_axis_node, collapsed_axis, post_axis}, 0);
+    const auto split_axis = ngraph::opset1::Constant::create(element::i64, {}, {0});
+    const auto split_node =
+        make_shared<ngraph::opset1::VariadicSplit>(shape, split_axis, split_lengths);
+
+    const auto reduced_axis = ngraph::opset1::Constant::create(element::i64, {1}, {0});
+    const auto collapsed_axis_size =
+        make_shared<ngraph::opset1::ReduceProd>(split_node->output(1), reduced_axis, true);
+
+    const auto collapsed_shape = make_shared<ngraph::opset1::Concat>(
+        OutputVector{split_node->output(0), collapsed_axis_size, split_node->output(2)}, 0);
+
+    return make_shared<ngraph::opset1::Reshape>(value, collapsed_shape, false);
+}

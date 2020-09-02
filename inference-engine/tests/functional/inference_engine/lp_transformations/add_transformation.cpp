@@ -52,6 +52,7 @@ public:
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
+    std::string additionalLayer;
 };
 
 template <typename T>
@@ -82,7 +83,8 @@ public:
             testValues.actual.precision2,
             testValues.actual.dequantization2,
             testValues.constInput,
-            testValues.actual.constValues);
+            testValues.actual.constValues,
+            testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
@@ -100,7 +102,8 @@ public:
             testValues.expected.dequantization2,
             testValues.expected.dequantizationAfter,
             testValues.constInput,
-            testValues.expected.constValues);
+            testValues.expected.constValues,
+            testValues.additionalLayer);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationTestValues> obj) {
@@ -116,7 +119,8 @@ public:
             testValues.actual.precision2 << "_" <<
             testValues.actual.dequantization2 << "_" <<
             testValues.constInput << "_" <<
-            testValues.actual.constValues;
+            testValues.actual.constValues << "_" <<
+            testValues.additionalLayer;
         return result.str();
     }
 };
@@ -150,6 +154,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -172,6 +177,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -194,6 +200,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -216,6 +223,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -238,6 +246,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
 
     // I8 + broadcast
@@ -263,6 +272,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -285,6 +295,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -307,6 +318,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -329,6 +341,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
     {
         ngraph::element::f32,
@@ -351,6 +364,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             {}
         },
+        ""
     },
 
     // constant input
@@ -375,28 +389,79 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {5.f} },
             { 2.f, 1.f, 0.4f, 0.8f, 0.6f, 2.4f, 1.6f, 2.8f }
         },
+        ""
     },
+    // TODO: uncomment test
+    // {
+    //    ngraph::element::f32,
+    //    ngraph::Shape{1, 2, 2, 2},
+    //    false,
+    //    0,
+    //    LayerTransformation::createParamsU8I8(),
+    //    {
+    //        ngraph::element::i8,
+    //        { {},  {}, {}},
+    //        ngraph::element::i8,
+    //        { {ngraph::element::f32},  {}, { 5.f } },
+    //        { 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }
+    //    },
+    //    {
+    //        ngraph::element::i8,
+    //        { {ngraph::element::f32},  { }, { }},
+    //        ngraph::element::i8,
+    //        { {},  {}, {} },
+    //        { {},  {}, {5.f} },
+    //        { 2.f, 1.f, 0.4f, 0.8f, 0.6f, 2.4f, 1.6f, 2.8f }
+    //    },
+    // },
+
+    // convolution before FQ (choose that branch)
     {
         ngraph::element::f32,
-        ngraph::Shape{1, 2, 2, 2},
+        ngraph::Shape{1, 4, 16, 16},
         false,
-        0,
+        -1,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::i8,
-            { {},  {}, {}},
-            ngraph::element::i8,
-            { {ngraph::element::f32},  {}, { 5.f } },
-            { 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }},
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 3.f }, { 5.f } },
+            {}
         },
         {
-            ngraph::element::i8,
-            { {},  { }, { }},
-            ngraph::element::i8,
-            { {ngraph::element::f32},  {}, {} },
-            { {},  {}, {5.f} },
-            { 2.f, 1.f, 0.4f, 0.8f, 0.6f, 2.4f, 1.6f, 2.8f }
+            ngraph::element::u8,
+            { {},  {}, {} },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 17.f }, { 0.5f }},
+            { {},  {}, {10.f} },
+            {}
         },
+        "convolution"
+    },
+    // group convolution before FQ (choose that branch)
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }},
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 3.f }, { 5.f } },
+            {}
+        },
+        {
+            ngraph::element::u8,
+            { {},  {}, {} },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 17.f }, { 0.5f }},
+            { {},  {}, {10.f} },
+            {}
+        },
+        "group_convolution"
     },
 };
 

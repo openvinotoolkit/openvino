@@ -13,6 +13,7 @@
 #include <cassert>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
+#include "transformations/low_precision/common/dequantization_op.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -31,6 +32,19 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
     multiply = separateInStandaloneBranch(multiply);
     auto newMultiply = multiply;
+
+    auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
+        auto fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        if (fakeQuantizeOnWeights != nullptr) {
+            auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
+            if (is_type<opset1::Constant>(result)) {
+                replace_node(fakeQuantizeOnWeights, result);
+            }
+        }
+    };
+
+    fold_fake_quantizes(multiply, 0ul);
+    fold_fake_quantizes(multiply, 1ul);
 
     const int fullPathIndex = getNotEmpty(multiply);
 
@@ -78,7 +92,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         std::vector<Output<Node>> inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
+        inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :

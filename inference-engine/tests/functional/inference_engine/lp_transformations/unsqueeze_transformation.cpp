@@ -24,7 +24,6 @@ using namespace ngraph::pass;
 
 using ngraph::builder::subgraph::UnsqueezeFunction;
 
-
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
     os << "{ ";
     for (size_t i = 0; i < values.size(); ++i) {
@@ -98,9 +97,8 @@ public:
 };
 
 TEST_P(UnsqueezeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
 
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -119,25 +117,26 @@ const std::vector<UnsqueezeTransformationTestValues> testValues = {
 
     {
         LayerTransformation::createParamsU8I8(),
-        { { 0.2f }, { 2, 3 } },
-        { { 0.2f }, { 1, 2, 3, 1 } },
-        { { 128 }, { 2, 3 } },
-        { { 128 }, { 1, 2, 3, 1 } },
+        { { 0.2f }, { 1, 3 } },
+        { { 0.2f }, { 1, 1, 3, 1 } },
+        { { 128 }, { 1, 3 } },
+        { { 128 }, { 1, 1, 3, 1 } },
         { 0.0, 3.0 },
-        { 2, 3 },
+        { 1, 3 },
         ngraph::element::f32
     },
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        { { 0.5f }, { 1 } },
-        { { 0.5f }, { 1 } },
-        { { 32 }, { 3, 32, 32, 32 } },
-        { { 32 }, { 3, 1, 32, 32, 32 } },
-        { 1.0 },
-        { 3, 32, 32, 32 },
-        ngraph::element::f32
-    },
+    // {
+    //    LayerTransformation::createParamsU8I8(),
+    //    { { 0.5f }, { 1 } },
+    //    { { 0.5f }, { 1 } },
+    //    { { 32 }, { 3, 32, 32, 32 } },
+    //    { { 32 }, { 3, 1, 32, 32, 32 } },
+    //    { 1.0 },
+    //    { 3, 32, 32, 32 },
+    //    ngraph::element::f32
+    // },
+
     // {
     //    LayerTransformation::createParamsI8I8(),
     //    { { 0.1f }, { 1 } },
