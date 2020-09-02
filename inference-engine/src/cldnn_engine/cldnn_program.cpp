@@ -4367,7 +4367,24 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
             static_cast<int32_t>(reduce->keep_dims));
 
     topology.add(reducePrim);
-    AddPrimitiveToProfiler(reduceLayerName, layer);
+
+    auto reorderLayerName = reduceLayerName + "_reorder";
+    cldnn::format out_format = cldnn::format::any;
+    auto out_dt = DataTypeFromPrecision(reduce->outData[0]->getTensorDesc().getPrecision());
+    if (!reduce->keep_dims && reduceDimNumber > 4) {
+        if (reduceDimNumber - rawAxes.size() == 6)
+            out_format = cldnn::format::bfwzyx;
+        else if (reduceDimNumber - rawAxes.size() == 5)
+            out_format = cldnn::format::bfzyx;
+        else if (reduceDimNumber - rawAxes.size() <= 4)
+            out_format = cldnn::format::bfyx;
+
+        auto reorder_prim = cldnn::reorder(reorderLayerName, reduceLayerName, out_format, out_dt);
+        topology.add(reorder_prim);
+        AddPrimitiveToProfiler(reduceLayerName, layer, reorderLayerName);
+    } else {
+        AddPrimitiveToProfiler(reduceLayerName, layer);
+    }
 }
 
 void Program::CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {

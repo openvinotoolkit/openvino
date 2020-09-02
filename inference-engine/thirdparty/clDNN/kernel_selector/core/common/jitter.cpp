@@ -1777,6 +1777,7 @@ std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
+    std::replace(input_var.begin(), input_var.end(), '.', '_');
     return input_var + "_out";
 }
 
