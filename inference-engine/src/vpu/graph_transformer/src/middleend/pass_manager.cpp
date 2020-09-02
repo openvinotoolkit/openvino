@@ -344,8 +344,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(markFastStages);
     ADD_DUMP_PASS("markFastStages");
 
-    ADD_PASS(annotateMemoryTypes);
-    ADD_DUMP_PASS("annotateMemoryTypes");
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

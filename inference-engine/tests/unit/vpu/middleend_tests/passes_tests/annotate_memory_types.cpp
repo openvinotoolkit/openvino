@@ -24,6 +24,8 @@ class AnnotateMemoryTypes : public GraphTransformerTest, public testing::WithPar
 protected:
     void SetUp() override {
         ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
+        config.enableMemoryTypesAnnotation = true;
+
         ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
         ASSERT_NO_FATAL_FAILURE(InitPipeline());
 
