@@ -99,7 +99,7 @@ public:
     }
 
     StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetMetric(name, result));
+        TO_STATUS(result = _impl->GetMetric(name));
     }
 
     StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {

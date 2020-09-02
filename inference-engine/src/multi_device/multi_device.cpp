@@ -290,7 +290,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
     }
 }
 
-void MultiDeviceExecutableNetwork::GetMetric(const std::string &name, Parameter &result) const {
+InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         unsigned int res = 0u;
         for (auto n : _networksPerDevice) {
@@ -303,14 +303,14 @@ void MultiDeviceExecutableNetwork::GetMetric(const std::string &name, Parameter 
                         << "Failed to query the metric for the " << n.first << " with error:" << iie.what();
            }
         }
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
     } else if (name == METRIC_KEY(NETWORK_NAME)) {
         auto it = _networksPerDevice.begin();
         IE_ASSERT(it != _networksPerDevice.end());
-        result = IE_SET_METRIC(NETWORK_NAME, it->second.GetMetric(
+        IE_SET_METRIC_RETURN(NETWORK_NAME, it->second.GetMetric(
             METRIC_KEY(NETWORK_NAME)).as<std::string>());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        result = IE_SET_METRIC(SUPPORTED_METRICS, {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(NETWORK_NAME),
@@ -318,7 +318,7 @@ void MultiDeviceExecutableNetwork::GetMetric(const std::string &name, Parameter 
         });
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
         THROW_IE_EXCEPTION << "Unsupported Network metric: " << name;
     }

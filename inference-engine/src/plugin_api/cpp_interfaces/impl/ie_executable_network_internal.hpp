@@ -108,9 +108,8 @@ public:
         return {};
     }
 
-    void GetMetric(const std::string& name, Parameter& result) const override {
+    Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        (void)result;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

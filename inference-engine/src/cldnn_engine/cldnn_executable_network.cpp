@@ -118,28 +118,30 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
     }
 }
 
-void CLDNNExecNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result) const {
+InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
-        result = IE_SET_METRIC(NETWORK_NAME, m_graphs[0]->getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto && value : m_config.key_config_map)
             configKeys.push_back(value.first);
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         unsigned int nr = m_config.throughput_streams * 2u;
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
+
+    return {};
 }
 
 RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {

@@ -97,9 +97,9 @@ public:
     /**
      * @brief Gets general runtime metric for dedicated hardware
      * @param name  A metric name to request
-     * @param result A metric value corresponding to metric key
+     * @return A metric value corresponding to metric key
      */
-    virtual void GetMetric(const std::string& name, Parameter& result) const = 0;
+    virtual Parameter GetMetric(const std::string& name) const = 0;
 
     /**
      * @brief Gets the remote context.

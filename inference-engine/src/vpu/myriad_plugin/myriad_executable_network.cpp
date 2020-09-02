@@ -168,20 +168,22 @@ ExecutableNetwork::ExecutableNetwork(
     Import(blobFile, devicePool, config);
 }
 
-void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result) const {
+InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        result = IE_SET_METRIC(NETWORK_NAME, _graphDesc._name);
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _graphDesc._name);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        result = IE_SET_METRIC(SUPPORTED_METRICS, _supportedMetrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _supportedMetrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, std::vector<std::string>());
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>());
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u * _actualNumExecutors));
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u * _actualNumExecutors));
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
-        result = IE_SET_METRIC(DEVICE_THERMAL, _executor->GetThermal(_device));
+        IE_SET_METRIC_RETURN(DEVICE_THERMAL, _executor->GetThermal(_device));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    return {};
 }
 
 InferenceEngine::CNNNetwork ExecutableNetwork::GetExecGraphInfo() {

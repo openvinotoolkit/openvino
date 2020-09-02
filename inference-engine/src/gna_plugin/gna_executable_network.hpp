@@ -109,9 +109,8 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         return plg->GetConfig(name, {});
     }
 
-    void GetMetric(const std::string& name,
-                   InferenceEngine::Parameter& result) const override {
-        result = plg->GetMetric(name, {});
+    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        return plg->GetMetric(name, {});
     }
 };
 

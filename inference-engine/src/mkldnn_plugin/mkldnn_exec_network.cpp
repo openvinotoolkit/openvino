@@ -199,35 +199,37 @@ Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     }
 }
 
-void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result) const {
+InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->GetName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _graphs.begin()->get()->GetName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto && key : _graphs.begin()->get()->getProperty()._config) {
             configKeys.push_back(key.first);
         }
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = _graphs.begin()->get()->getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
             streams ? streams : 1));
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
+
+    return {};
 }
 
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const {
