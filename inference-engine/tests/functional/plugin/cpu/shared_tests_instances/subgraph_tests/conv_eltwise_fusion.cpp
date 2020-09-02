@@ -94,8 +94,8 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
-                                    ::testing::Values(ngraph::Shape{1, 12, 64, 64}),
-                                    ::testing::Values(ngraph::Shape{12, 20, 1, 1}),
+                                    ::testing::Values(ngraph::Shape{1, 3, 64, 64}),
+                                    ::testing::Values(ngraph::Shape{3, 20, 3, 3}),
                                     ::testing::ValuesIn(const_shapes_2d),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
