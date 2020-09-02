@@ -338,7 +338,7 @@ std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>&
                                                      double epsilon);
 
 std::shared_ptr<ngraph::Node> makeLSTMCell(const OutputVector& in,
-                                           const std::vector<Shape>& WRB,
+                                           const std::vector<ngraph::Shape>& WRB,
                                            std::size_t hidden_size,
                                            const std::vector<std::string>& activations =
                                            std::vector<std::string>{"sigmoid", "tanh", "tanh"},
@@ -347,7 +347,7 @@ std::shared_ptr<ngraph::Node> makeLSTMCell(const OutputVector& in,
                                            float clip = 0.f);
 
 std::shared_ptr<ngraph::Node> makeGRUCell(const OutputVector& in,
-                                          const std::vector<Shape>& WRB,
+                                          const std::vector<ngraph::Shape>& WRB,
                                           std::size_t hidden_size,
                                           const std::vector<std::string>& activations =
                                           std::vector<std::string>{"sigmoid", "tanh"},
@@ -357,7 +357,7 @@ std::shared_ptr<ngraph::Node> makeGRUCell(const OutputVector& in,
                                           bool linear_before_reset = false);
 
 std::shared_ptr<ngraph::Node> makeRNNCell(const OutputVector& in,
-                                          const std::vector<Shape>& WRB,
+                                          const std::vector<ngraph::Shape>& WRB,
                                           std::size_t hidden_size,
                                           const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},
                                           const std::vector<float>& activations_alpha = {},
