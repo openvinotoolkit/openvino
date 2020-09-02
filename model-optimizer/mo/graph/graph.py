@@ -110,7 +110,7 @@ class Node:
             self.in_port(idx).disconnect()
         del self._in_ports[idx]
         # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
-        self.in_ports_count = len(self._in_ports)
+        self['in_ports_count'] = len(self._in_ports)
 
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
