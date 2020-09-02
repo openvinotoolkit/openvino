@@ -26,7 +26,6 @@
 #include <ngraph/runtime/reference/split.hpp>
 #include <ngraph/runtime/reference/subtract.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
-#include <ngraph/runtime/reference/transpose.hpp>
 
 namespace ngraph
 {

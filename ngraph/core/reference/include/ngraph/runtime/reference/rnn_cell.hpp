@@ -23,7 +23,6 @@
 #include <ngraph/runtime/reference/relu.hpp>
 #include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
-#include <ngraph/runtime/reference/transpose.hpp>
 
 namespace ngraph
 {
