@@ -50,7 +50,9 @@ void op::v1::Transpose::validate_and_infer_types()
 
     const auto& arg_shape = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
-                          input_order_shape.compatible(PartialShape{arg_shape.rank()}),
+                          input_order_shape.compatible(PartialShape{arg_shape.rank()}) ||
+                              (input_order_shape.is_static() && input_order_shape.rank() == 1 &&
+                               input_order_shape[0] == 0),
                           "Input order must have shape [n], where n is the rank of arg.");
 
     set_input_is_relevant_to_shape(1);
@@ -58,6 +60,11 @@ void op::v1::Transpose::validate_and_infer_types()
     if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
     {
         auto permutation = input_const->get_axis_vector_val();
+        if (permutation.empty())
+        {
+            for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
+                permutation.emplace_back(arg_shape.rank().get_length() - i);
+        }
         NODE_VALIDATION_CHECK(this,
                               is_valid_permutation(permutation, arg_shape.rank()),
                               "Permutation ",
