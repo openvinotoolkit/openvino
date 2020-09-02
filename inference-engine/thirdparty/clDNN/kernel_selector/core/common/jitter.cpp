@@ -1360,6 +1360,26 @@ JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount) {
     return jit;
 }
 
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount) {
+    JitConstants jit{
+        MakeJitConstant("CONST_LOOP_CALL(macro, idx)", "macro(idx)"),
+        MakeJitConstant("CONST_LOOP_1(macro)", "CONST_LOOP_CALL(macro, 0)")
+    };
+
+    for (uint32_t i = 2; i <= loopCount; ++i) {
+        jit.AddConstant(
+            MakeJitConstant("CONST_LOOP_" + toCodeString(i) + "(macro)",
+                            "CONST_LOOP_" + toCodeString(i - 1) + "(macro); CONST_LOOP_CALL(macro," + toCodeString(i - 1) + ")")
+        );
+    }
+
+    jit.AddConstant(
+        MakeJitConstant("CONST_LOOP(count, macro)", "CAT(CONST_LOOP_, count)(macro)")
+    );
+
+    return jit;
+}
+
 bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) const {
     if (conf.loop_axes.empty())
         return true;
