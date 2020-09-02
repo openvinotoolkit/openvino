@@ -63,6 +63,15 @@ struct OperationDescription
         create_mask(node->outputs(), outputs);
     }
 
+    OperationDescription (
+            const std::string _name,
+            int64_t _version,
+            std::vector<DynamicMask> _inputs,
+            std::vector<DynamicMask> _outputs)
+            : name(_name), version(_version), inputs(_inputs), outputs(_outputs)
+    {
+    }
+
     template <typename T>
     void create_mask(const std::vector<T>& ports, std::vector<DynamicMask>& dest)
     {
@@ -95,12 +104,33 @@ struct OperationDescription
 
         for(size_t i = 0; i < x1.size(); ++i)
         {
-            if(x1[i].is_dynamic() && !x2[i].is_dynamic())
+            const auto& shape1 = x1[i];
+            const auto& shape2 = x2[i];
+
+            if(shape1.rank().is_dynamic() && shape2.rank().is_static())
                 return true;
 
-            if(!x1[i].is_dynamic() && x2[i].is_dynamic())
+            if(shape1.rank().is_static() && shape2.rank().is_dynamic())
                 return false;
-            // if they both are dynamic or static, then they are equal
+
+            if(shape1.rank().is_static() && shape2.rank().is_static())
+            {
+                if(shape1.rank().get_length() < shape2.rank().get_length())
+                    return true;
+
+                if(shape2.rank().get_length() < shape1.rank().get_length())
+                    return false;
+
+                for(size_t j = 0; j < shape1.rank().get_length(); ++j)
+                {
+                    if (shape1[j].is_dynamic() && !shape2[j].is_dynamic())
+                        return true;
+
+                    if (!shape1[j].is_dynamic() && shape2[j].is_dynamic())
+                        return false;
+                    // if they both are dynamic or static, then they are equal
+                }
+            }
         }
 
         return false;
@@ -277,10 +307,18 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
 
             if (m_statistics)
             {
+                //auto x1 = OperationDescription("name", 0, {PartialShape{Dimension(), 1}}, {});
+                //auto x2 = OperationDescription("name", 0, {PartialShape{Dimension(), Dimension()}}, {});
+                //bool b1 = x1 < x2;
+                //bool b2 = x2 < x1;
+
+
+                //std::ofstream allops(base_filename + ".all.dynops.txt");
                 std::set<OperationDescription> operations;
                 for (auto& node : func->get_ops())
                 {
                     OperationDescription od(node);
+                    //allops << od << '\n';
                     if(od.is_dynamic())
                         operations.insert(od);
                 }
