@@ -49,6 +49,7 @@
 #include "onnx_import/op/cum_sum.hpp"
 #include "onnx_import/op/depth_to_space.hpp"
 #include "onnx_import/op/dequantize_linear.hpp"
+#include "onnx_import/op/detection_output.hpp"
 #include "onnx_import/op/div.hpp"
 #include "onnx_import/op/dropout.hpp"
 #include "onnx_import/op/elu.hpp"
@@ -93,12 +94,14 @@
 #include "onnx_import/op/neg.hpp"
 #include "onnx_import/op/non_max_suppression.hpp"
 #include "onnx_import/op/non_zero.hpp"
+#include "onnx_import/op/normalize.hpp"
 #include "onnx_import/op/not.hpp"
 #include "onnx_import/op/onehot.hpp"
 #include "onnx_import/op/or.hpp"
 #include "onnx_import/op/pad.hpp"
 #include "onnx_import/op/pow.hpp"
 #include "onnx_import/op/prelu.hpp"
+#include "onnx_import/op/prior_box.hpp"
 #include "onnx_import/op/qlinear_matmul.hpp"
 // #include "onnx_import/op/quant_conv.hpp"
 #include "onnx_import/op/quantize_linear.hpp"
@@ -248,6 +251,9 @@ namespace ngraph
 
 #define REGISTER_OPERATOR(name_, ver_, fn_)                                                        \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+
+#define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_)                                   \
+    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
         OperatorsBridge::OperatorsBridge()
         {
@@ -399,11 +405,16 @@ namespace ngraph
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
-            // TODO Change the domain
-            m_map[""]["FakeQuantize"].emplace(1, op::set_1::fake_quantize);
+            // custom OPs
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
         }
 
 #undef REGISTER_OPERATOR
+#undef REGISTER_OPERATOR_WITH_DOMAIN
     } // namespace onnx_import
 
 } // namespace ngraph
