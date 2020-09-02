@@ -22,6 +22,7 @@
 #include "ngraph/builder/split.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
@@ -160,7 +161,7 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     int32_t time_step{1};
     for (const auto& in_x : in_seqs)
     {
-        shared_ptr<Node> lstm_cell = make_shared<opset1::LSTMCell>(in_x,
+        shared_ptr<Node> lstm_cell = make_shared<opset4::LSTMCell>(in_x,
                                                                    H_t,
                                                                    C_t,
                                                                    W,

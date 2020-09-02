@@ -20,6 +20,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 #include "util/visitor.hpp"
 
@@ -1063,7 +1064,7 @@ TEST(attributes, lrn_op)
 
 TEST(attributes, lstm_cell_op)
 {
-    FactoryRegistry<Node>::get().register_factory<opset1::LSTMCell>();
+    FactoryRegistry<Node>::get().register_factory<opset4::LSTMCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{12, 3});
@@ -1076,7 +1077,7 @@ TEST(attributes, lstm_cell_op)
     auto activations_alpha = std::vector<float>{1.0, 1.5};
     auto activations_beta = std::vector<float>{2.0, 1.0};
     const float clip = 0.5f;
-    const auto lstm_cell = make_shared<opset1::LSTMCell>(X,
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                          initial_hidden_state,
                                                          initial_cell_state,
                                                          W,
@@ -1087,7 +1088,7 @@ TEST(attributes, lstm_cell_op)
                                                          activations_beta,
                                                          clip);
     NodeBuilder builder(lstm_cell);
-    auto g_lstm_cell = as_type_ptr<opset1::LSTMCell>(builder.create());
+    auto g_lstm_cell = as_type_ptr<opset4::LSTMCell>(builder.create());
 
     EXPECT_EQ(g_lstm_cell->get_hidden_size(), lstm_cell->get_hidden_size());
     EXPECT_EQ(g_lstm_cell->get_activations(), lstm_cell->get_activations());

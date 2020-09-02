@@ -9,22 +9,33 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/op/util/rnn_cell_base.hpp>
 
 #include <ngraph_ops/lstm_cell_ie.hpp>
 #include <ngraph_ops/gru_cell_ie.hpp>
 #include <ngraph_ops/rnn_cell_ie.hpp>
 
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
-    auto lstm_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell>();
-
+    auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
+        return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
+    };
+    auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset1::LSTMCell> (m.get_match_root());
-        if (!lstm_cell) {
-            return false;
+        bool is_lstm = false;
+        {
+            auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset1::LSTMCell>(m.get_match_root());
+            is_lstm |= lstm_cell != nullptr;
+            auto lstm_cell_4 = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
+            is_lstm |= lstm_cell_4 != nullptr;
         }
 
+        if (!is_lstm) {
+            return false;
+        }
+        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
         auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(3).get_node_shared_ptr());
         if (!W) {
             return false;
@@ -53,7 +64,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_cell_ngraph, "ConvertLSTMCellToLSTMCellIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, "ConvertLSTMCellToLSTMCellIE");
     this->register_matcher(m, callback);
 }
 
