@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset4_to_opset3/convert_sequences_to_sequences_ie.hpp"
+#include "transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
 
 #include <memory>
 
@@ -61,17 +61,11 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(1), unsqueeze_axis);
         auto unsqueeze_3 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(2), unsqueeze_axis);
-        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2, unsqueeze_3};
 
-        for (int out_id = 0; out_id < lstm_sequence->outputs().size(); ++out_id) {
-            for (const auto& target_input : lstm_sequence->output(out_id).get_target_inputs()) {
-                target_input.replace_source_output(unsqueezes[out_id]);
-            }
-        }
         lstm_sequence_ie->set_friendly_name(lstm_sequence->get_friendly_name());
         ngraph::copy_runtime_info(lstm_sequence, {concat, lstm_sequence_ie, in_1, in_2, in_3, in_4, unsqueeze_1,
                                                   unsqueeze_2, unsqueeze_3});
-        ngraph::replace_node(m.get_match_root(), lstm_sequence_ie);
+        ngraph::replace_node(lstm_sequence, {unsqueeze_1, unsqueeze_2, unsqueeze_3});
         return true;
     };
 
@@ -129,14 +123,9 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(1), unsqueeze_axis);
-        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2};
 
-        for (int out_id = 0; out_id < gru_sequence->outputs().size(); ++out_id) {
-            for (const auto& target_input : gru_sequence->output(out_id).get_target_inputs()) {
-                target_input.replace_source_output(unsqueezes[out_id]);
-            }
-        }
         gru_sequence_ie->set_friendly_name(gru_sequence->get_friendly_name());
+        ngraph::replace_node(gru_sequence, {unsqueeze_1, unsqueeze_2});
         ngraph::copy_runtime_info(gru_sequence, {concat, gru_sequence_ie, unsqueeze_1, unsqueeze_2, in_1, in_3, in_4});
         return true;
     };
@@ -176,8 +165,7 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         auto rnn_sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(
                 rnn_sequence->input(0).get_source_output(),  // X
                 in_1,  // initial_hidden_state
-//                rnn_sequence->input(2).get_source_output(),  // sequence_lengths
-                in_3,                          // WR
+                in_3,  // WR
                 in_4,  // B
                 rnn_sequence->get_hidden_size(),
                 rnn_sequence->get_direction(),
@@ -189,17 +177,11 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(1), unsqueeze_axis);
-        NodeVector unsqueezes = {unsqueeze_1, unsqueeze_2};
 
-        for (int out_id = 0; out_id < rnn_sequence->outputs().size(); ++out_id) {
-            for (const auto& target_input : rnn_sequence->output(out_id).get_target_inputs()) {
-                target_input.replace_source_output(unsqueezes[out_id]);
-            }
-        }
         rnn_sequence_ie->set_friendly_name(rnn_sequence->get_friendly_name());
         ngraph::copy_runtime_info(rnn_sequence, {concat, rnn_sequence_ie, in_1, in_3, in_4, unsqueeze_1,
                                                  unsqueeze_2});
-        ngraph::replace_node(m.get_match_root(), rnn_sequence_ie);
+        ngraph::replace_node(rnn_sequence, {unsqueeze_1, unsqueeze_2});
         return true;
     };
 

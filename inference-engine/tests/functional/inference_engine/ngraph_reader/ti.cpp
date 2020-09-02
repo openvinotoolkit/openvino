@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, DISABLED_ReadTensorIteratorNetwork) {
+TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork) {
     std::string model_v10 = R"V0G0N(
     <net name="Transpose" version="10">
         <layers>
@@ -457,7 +457,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTensorIteratorNetwork) {
     });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadTensorIteratorNetwork_resnet) {
+TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet) {
     std::string model_v10 = R"V0G0N(
     <net name="Resnet" version="10">
         <layers>
@@ -948,7 +948,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTensorIteratorNetwork_resnet) {
     });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadTensorIteratorNetwork_negative_stride) {
+TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride) {
     std::string model_v10 = R"V0G0N(
     <net name="Transpose" version="10">
         <layers>

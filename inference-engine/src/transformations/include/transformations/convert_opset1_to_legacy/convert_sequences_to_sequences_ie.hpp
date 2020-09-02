@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API ConvertRNNSequenceMatcher;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Converts opset4::(GRU/RNN/LSTM)Sequence to legacy (GRU/RNN/LSTM)SequenceIE.
+ * @brief Converts opset4::LSTMSequence to legacy LSTMSequenceIE.
  * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
@@ -34,10 +34,24 @@ public:
     ConvertLSTMSequenceMatcher();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Converts opset4::GRUSequence to legacy GRUSequenceIE.
+ * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
+ * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
+ */
+
 class ngraph::pass::ConvertGRUSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
     ConvertGRUSequenceMatcher();
 };
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Converts opset4::RNNSequence to legacy RNNSequenceIE.
+ * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
+ * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
+ */
 
 class ngraph::pass::ConvertRNNSequenceMatcher : public ngraph::pass::MatcherPass {
 public:
