@@ -32,9 +32,8 @@ namespace ngraph
             class NGRAPH_API RNNSequence : public Op, public util::RNNCellBase
             {
             public:
-                static constexpr NodeTypeInfo type_info{"RNNSequence", 4};
+                NGRAPH_RTTI_DECLARATION;
 
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 RNNSequence();
 
                 RNNSequence(

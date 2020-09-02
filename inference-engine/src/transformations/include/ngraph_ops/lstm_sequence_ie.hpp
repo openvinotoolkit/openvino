@@ -17,9 +17,7 @@ namespace ngraph {
 namespace op {
 class TRANSFORMATIONS_API LSTMSequenceIE : public Op, public ngraph::op::util::RNNCellBase {
 public:
-    static constexpr NodeTypeInfo type_info{"LSTMSequenceIE", 1};
-
-    const NodeTypeInfo &get_type_info() const override { return type_info; }
+    NGRAPH_RTTI_DECLARATION;
 
     LSTMSequenceIE() = delete;
 

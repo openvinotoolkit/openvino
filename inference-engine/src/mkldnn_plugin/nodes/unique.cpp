@@ -14,7 +14,6 @@
 #include <limits>
 #include <utility>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {

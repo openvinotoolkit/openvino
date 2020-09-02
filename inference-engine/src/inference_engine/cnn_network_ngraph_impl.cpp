@@ -92,7 +92,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
     for (const auto& dim : dims) {
         if (!dim)
-            THROW_IE_EXCEPTION << outName << " has zero dimension that is not allowable";
+            THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
@@ -260,6 +260,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
     auto dataName = ngraph::op::util::create_ie_output_name(output);
     DataPtr data;
+    if (_data.count(dataName))
+        data = _data[dataName];
     createDataForResult(output, dataName, data);
     _data[dataName] = data;
     _outputData[dataName] = data;

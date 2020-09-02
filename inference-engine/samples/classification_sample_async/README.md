@@ -52,6 +52,8 @@ Running the application with the empty list of options yields the usage message 
 To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. To download the pre-trained models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
 ```sh

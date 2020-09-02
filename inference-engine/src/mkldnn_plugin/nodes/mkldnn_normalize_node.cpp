@@ -12,7 +12,7 @@
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
 #include "bf16transformer.h"
-
+#include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
 
 using namespace mkldnn;
@@ -1317,7 +1317,7 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
     // post ops for tails: post-ops params is padding.
     std::vector<float> weights_padding(CB * blk_size);
     if (!channel_shared) {
-        memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
+        cpu_memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
     }
 
     for (size_t b = 0lu; b < B; b++) {

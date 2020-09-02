@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::RNNSequenceIE::type_info;
+NGRAPH_RTTI_DEFINITION(op::RNNSequenceIE, "RNNSequenceIE", 4);
 
 op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X,
                                  const Output<Node>& H_t,

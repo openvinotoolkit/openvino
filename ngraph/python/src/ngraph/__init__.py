@@ -23,7 +23,6 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-import ngraph.utils.rt_map
 from ngraph.impl import Node
 from ngraph.helpers import function_from_cnn
 
@@ -149,6 +148,7 @@ from ngraph.opset4 import sign
 from ngraph.opset4 import sin
 from ngraph.opset4 import sinh
 from ngraph.opset4 import softmax
+from ngraph.opset4 import softplus
 from ngraph.opset4 import space_to_batch
 from ngraph.opset4 import space_to_depth
 from ngraph.opset4 import split

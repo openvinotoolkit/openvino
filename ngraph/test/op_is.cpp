@@ -427,7 +427,7 @@ namespace
 
     void op_is_Interpolate()
     {
-        op::Interpolate node;
+        op::v0::Interpolate node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -603,15 +603,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_TRUE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Pad()
-    {
-        op::Pad node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
     void op_is_Parameter()

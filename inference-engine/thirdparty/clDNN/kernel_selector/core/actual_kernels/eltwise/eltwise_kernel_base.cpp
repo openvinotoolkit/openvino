@@ -552,7 +552,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2}, params.engineInfo);
 
     const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
-    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
         params.output.Feature().v % 16 == 0 && kd.gws1 % 16 == 0) {
         kd.lws0 = 1;
         for (auto lws : optimal_lws_values) {

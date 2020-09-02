@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset4_to_opset3/convert_sequences_to_sequences_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
 
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset4.hpp>

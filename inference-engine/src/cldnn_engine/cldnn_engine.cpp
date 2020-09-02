@@ -27,13 +27,11 @@
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/tensor_iterator_transformations/convert_tensor_iterator_to_sequence.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset4_to_opset3/convert_opset4_to_opset3.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
@@ -96,7 +94,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ExtractImagePatches>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
@@ -105,10 +104,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-        manager.register_pass<ngraph::pass::ConvertOpSet4ToOpSet3>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -296,10 +291,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_parameter(node) &&
-                !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
         auto clonedNetwork = CloneAndTransformNetwork(network);
         std::unordered_set<std::string> supported;
@@ -424,6 +416,23 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
             if (is_supported) {
                 supported.emplace(cnl->get_friendly_name());
+            }
+        }
+
+        for (auto&& node : function->get_ops()) {
+            if (contains(supported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
             }
         }
 

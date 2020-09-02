@@ -847,7 +847,7 @@ static RNNSequenceLayer::Direction direction_from(string direction_name) {
                ? RNNSequenceLayer::FWD
                : direction_name == "Backward"
                      ? RNNSequenceLayer::BWD
-                     : direction_name == "Bidirectional" ? RNNSequenceLayer::BDR : RNNSequenceLayer::FWD;
+                     : direction_name == "Bidirecttional" ? RNNSequenceLayer::BDR : RNNSequenceLayer::FWD;
 }
 
 RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL): LayerValidator(_type) {

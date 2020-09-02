@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::GRUSequence::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::GRUSequence, "GRUSequence", 4);
 
 op::v4::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD)

@@ -17,9 +17,10 @@ namespace ngraph {
 namespace op {
 class TRANSFORMATIONS_API RNNSequenceIE : public Op, public ngraph::op::util::RNNCellBase {
 public:
+    NGRAPH_RTTI_DECLARATION;
+
     RNNSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
-                  //const Output <Node> &sequence_lengths,
                   const Output <Node> &WR,
                   const Output <Node> &B,
                   size_t hidden_size,
@@ -28,10 +29,6 @@ public:
                   const std::vector<float> &activations_alpha,
                   const std::vector<float> &activations_beta,
                   float clip);
-
-    static constexpr NodeTypeInfo type_info{"RNNSequenceIE", 4};
-
-    const NodeTypeInfo &get_type_info() const override { return type_info; }
 
     RNNSequenceIE() = delete;
 

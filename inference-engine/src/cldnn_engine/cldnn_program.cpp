@@ -88,9 +88,8 @@
 #include <exec_graph_info.hpp>
 
 #include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/eltwise.hpp"
-#include "low_precision_transformations/concat_multi_channels.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
+#include "low_precision_transformations/gemm.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -241,7 +240,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
 
         auto transforms = LowPrecisionTransformer::getAllTransformations(params)
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
+                .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 
         auto it = details::CNNNetworkIterator(&network);
         auto end = details::CNNNetworkIterator();
@@ -268,19 +267,23 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         transformer.transform(network);
     }
 
-    NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
-        if (rnn.clip != 0.0f)
+    NetPass::CombineRNNSeq(network);
+    for (int i = 0; i < 2; i++) {
+        NetPass::UnrollTI(network);
+        NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {
+            if (rnn.clip != 0.0f)
+                return true;
+            if (rnn.type == "GRUCell" ||
+                rnn.type == "GRUSequence" ||
+                rnn.type == "RNNCell" ||
+                rnn.type == "RNNSequence")
+                return true;
+            if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
+                rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
+                return false;
             return true;
-        if (rnn.type == "GRUCell" ||
-            rnn.type == "GRUSequence" ||
-            rnn.type == "RNNCell" ||
-            rnn.type == "RNNSequence")
-            return true;
-        if (!(rnn.type == "LSTMCell" || rnn.type == "LSTMSequence") ||
-            rnn.activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"})
-            return false;
-        return true;
-    });
+        });
+    }
 
     if (m_config.max_dynamic_batch > 1) {
         // check topology for applicability
@@ -768,9 +771,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
             }
         }
     } else {
-        for (size_t i = 0; i < bufSize; i++) {
-            buf[i] = data[i];
-        }
+        std::memcpy(&buf[0], &data[0], bufSize);
     }
     topology.add(cldnn::data(primID, mem));
     blobMemCache[data] = primID;

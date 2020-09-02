@@ -21,9 +21,11 @@
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
+#define INPUT0_SIZE_B_WITH_PADDING (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM)
 
 #define OUTPUT_SIZE_X_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X)
 #define OUTPUT_SIZE_Y_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y)
+#define OUTPUT_SIZE_B_WITH_PADDING (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM)
 
 // In some cases input padding may be bigger than needed, those variables describe the offset into padding.
 #define INPUT0_PADDING_OFFSET_SIZE_X (INPUT0_PAD_BEFORE_SIZE_X - PADDING_SIZE_X)
@@ -72,11 +74,17 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
         out[out_i] = UNIT_VAL_ZERO;
     }
 
+    // Calculate offset to first input data element
+    const uint in_pitch_x = FSV;
+    const uint in_pitch_y = in_pitch_x * INPUT0_SIZE_X_WITH_PADDING;
+    const uint in_pitch_b = in_pitch_y * INPUT0_SIZE_Y_WITH_PADDING;
+    const uint in_pitch_fs = in_pitch_b * INPUT0_SIZE_B_WITH_PADDING;
+
     uint input_offset = 0;
-    input_offset += (oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X) * FSV;
-    input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING * FSV;
-    input_offset += b * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV;
-    input_offset += fs * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV * INPUT0_BATCH_NUM;
+    input_offset += (oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X) * in_pitch_x;
+    input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * in_pitch_y;
+    input_offset += (b + INPUT0_PAD_BEFORE_BATCH_NUM) * in_pitch_b;
+    input_offset += (fs + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * in_pitch_fs;
 
     uint weight_offset = 0;
 
@@ -105,7 +113,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
         // ====================================================================
 
         // Move temporary input offset to next row
-        tmp_input_offset += DILATION_SIZE_Y * INPUT0_SIZE_X_WITH_PADDING * FSV;
+        tmp_input_offset += DILATION_SIZE_Y * in_pitch_y;
 
         uint tmp_weight_offset = weight_offset;
 
@@ -174,13 +182,19 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 
     // ========================================================================
     // Store results:
+    // Calculate offset to first output element
+    const uint out_pitch_x = FSV;
+    const uint out_pitch_y = out_pitch_x * OUTPUT_SIZE_X_WITH_PADDING;
+    const uint out_pitch_b = out_pitch_y * OUTPUT_SIZE_Y_WITH_PADDING;
+    const uint out_pitch_fs = out_pitch_b * OUTPUT_SIZE_B_WITH_PADDING;
+
     const uint pad_before_fs = (OUTPUT_PAD_BEFORE_FEATURE_NUM / FSV);
 
     uint output_offset = 0;
-    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * FSV;
-    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * FSV * OUTPUT_SIZE_X_WITH_PADDING;
-    output_offset += b  * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING;
-    output_offset += (pad_before_fs + fs) * FSV * OUTPUT_SIZE_X_WITH_PADDING * OUTPUT_SIZE_Y_WITH_PADDING * OUTPUT_BATCH_NUM;
+    output_offset += (oc + OUTPUT_PAD_BEFORE_SIZE_X) * out_pitch_x;
+    output_offset += (or + OUTPUT_PAD_BEFORE_SIZE_Y) * out_pitch_y;
+    output_offset += (b + OUTPUT_PAD_BEFORE_BATCH_NUM)  * out_pitch_b;
+    output_offset += (pad_before_fs + fs) * out_pitch_fs;
 
     const bool full_f = OUTPUT_FEATURE_NUM % FSV == 0 || fs * FSV + FSV <= OUTPUT_FEATURE_NUM;
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH == 0 || oc + OUTPUT_BLOCK_WIDTH <= OUTPUT_SIZE_X;
@@ -227,6 +241,8 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING
+#undef INPUT0_SIZE_B_WITH_PADDING
 
 #undef OUTPUT_SIZE_X_WITH_PADDING
 #undef OUTPUT_SIZE_Y_WITH_PADDING
+#undef OUTPUT_SIZE_B_WITH_PADDING
