@@ -12,5 +12,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 33375
         // Disabled due to rare sporadic failures.
         ".*TransformationTests\\.ConstFoldingPriorBoxClustered.*",
+        // TODO: task 32568, enable after supporting constants outputs in plugins
+        ".*TransformationTests\\.ConstFoldingPriorBox.*",
     };
 }

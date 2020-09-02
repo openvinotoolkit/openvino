@@ -15,6 +15,7 @@
 #include "ie_metric_helpers.hpp"
 #include <legacy/ie_util_internal.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_plugin_config.hpp>
 #include "multi_device.hpp"
@@ -385,20 +386,25 @@ DeviceMap<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const 
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
-        auto device_name = d.substr(0, openingBracket);
+        auto deviceName = d.substr(0, openingBracket);
 
         int numRequests = -1;
         if (closingBracket != std::string::npos && openingBracket < closingBracket) {
             numRequests = std::stol(d.substr(openingBracket + 1, closingBracket - 1));
 
             if (numRequests <= 0) {
-                THROW_IE_EXCEPTION << "Priority value for '" << device_name << "' must be > 0, while " << numRequests
+                THROW_IE_EXCEPTION << "Priority value for '" << deviceName << "' must be > 0, while " << numRequests
                     << "is passed";
             }
         }
 
         // create meta device
-        metaDevices[device_name] = { getDeviceConfig(device_name), numRequests };
+        metaDevices[deviceName] = { getDeviceConfig(deviceName), numRequests };
+        std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        if (std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))
+            != std::end(supportedConfigKeys)) {
+            metaDevices[deviceName].config.emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
+        }
     }
 
     return metaDevices;
@@ -443,7 +449,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         std::string name = { "MULTI" };
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
+        std::vector<std::string> configKeys = {
+            MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+            CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)};
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
         THROW_IE_EXCEPTION << "Unsupported metric key " << name;
@@ -541,8 +549,12 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
 
         if (network.getFunction()) {
             if (!allSupportsNgraph) {
-                auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
-                queryNetwork(*cnnNetworkImpl);
+                if (contains(fullConfig, CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))) {
+                    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+                } else {
+                    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+                    queryNetwork(*cnnNetworkImpl);
+                }
             } else {
                 queryNetwork(network);
             }

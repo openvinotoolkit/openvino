@@ -21,8 +21,8 @@ import numpy as np
 from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node
-from ngraph.utils.types import NumericData
+from ngraph.impl import Function, Node, PartialShape
+from ngraph.utils.types import NumericData, get_shape
 import tests
 
 log = logging.getLogger(__name__)
@@ -76,15 +76,11 @@ class Computation(object):
     """nGraph callable computation object."""
 
     def __init__(self, runtime: Runtime, ng_function: Function) -> None:
-        ie = runtime.backend
         self.runtime = runtime
         self.function = ng_function
         self.parameters = ng_function.get_parameters()
         self.results = ng_function.get_results()
-
-        capsule = Function.to_capsule(ng_function)
-        cnn_network = IENetwork(capsule)
-        self.executable_network = ie.load_network(cnn_network, self.runtime.backend_name)
+        self.network_cache = {}
 
     def __repr__(self) -> str:
         params_string = ", ".join([param.name for param in self.parameters])
@@ -93,6 +89,19 @@ class Computation(object):
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
         input_values = [np.array(input_value) for input_value in input_values]
+        input_shapes = [get_shape(input_value) for input_value in input_values]
+
+        if self.network_cache.get(str(input_shapes)) is None:
+            capsule = Function.to_capsule(self.function)
+            cnn_network = IENetwork(capsule)
+            if self.function.is_dynamic():
+                param_names = [param.friendly_name for param in self.parameters]
+                cnn_network.reshape(dict(zip(param_names, input_shapes)))
+            self.network_cache[str(input_shapes)] = cnn_network
+        else:
+            cnn_network = self.network_cache[str(input_shapes)]
+
+        executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
         # Input validation
         if len(input_values) != len(self.parameters):
@@ -100,14 +109,16 @@ class Computation(object):
                 "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
             )
         for parameter, input in zip(self.parameters, input_values):
-            parameter_shape = parameter.get_output_shape(0)
-            if len(input.shape) > 0 and list(parameter_shape) != list(input.shape):
+            parameter_shape = parameter.get_output_partial_shape(0)
+            input_shape = PartialShape(input.shape)
+            if len(input.shape) > 0 and not parameter_shape.compatible(input_shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
-                    list(input.shape),
-                    list(parameter_shape),
+                    input_shape,
+                    parameter_shape,
                 )
 
-        request = self.executable_network.requests[0]
+        request = executable_network.requests[0]
+
         request.infer(dict(zip(request._inputs_list, input_values)))
         return [blob.buffer for blob in request.output_blobs.values()]

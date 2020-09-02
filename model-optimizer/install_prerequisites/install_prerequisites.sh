@@ -72,7 +72,7 @@ if [[ $DISTRO == "centos" ]]; then
     fi
 elif [[ $DISTRO == "ubuntu" ]]; then
     sudo -E apt update
-    sudo -E apt -y install python3-pip python3-venv libgfortran3
+    sudo -E apt -y install python3-pip python3-venv libgfortran5
     python_binary=python3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     python_binary=python3

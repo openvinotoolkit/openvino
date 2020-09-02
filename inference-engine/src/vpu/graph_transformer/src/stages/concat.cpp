@@ -275,8 +275,10 @@ void FrontEnd::parseConcat(
 
     auto output = outputs[0];
 
-    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     VPU_THROW_UNLESS(layer != nullptr,
+                     "parseConcat expects valid CNNLayerPtr, got nullptr");
+    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    VPU_THROW_UNLESS(concat != nullptr,
                      "{} layer with name {} must be able to convert to ie::ConcatLayer",
                      layer->type, layer->name);
 

@@ -73,7 +73,7 @@ void ConcatTransformation::SetUp() {
         ngraph::element::i64,
         ngraph::Shape{ 2 },
         std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
-    ngraph::op::InterpolateAttrs interpolateAttrs;
+    ngraph::op::v0::InterpolateAttrs interpolateAttrs;
     interpolateAttrs.align_corners = false;
     interpolateAttrs.antialias = false;
     interpolateAttrs.axes = ngraph::AxisSet{2, 3};
