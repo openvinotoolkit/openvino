@@ -319,10 +319,6 @@ void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::ICNNNetwork& ne
 template<typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
-using Time = std::chrono::high_resolution_clock;
-
-using Dur = std::chrono::duration<float, std::milli>;
-
 void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& network_) {
     auto function = network_.getFunction();
     auto clonedFunction = ngraph::clone_function(*function);
