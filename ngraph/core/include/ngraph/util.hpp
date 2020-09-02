@@ -397,7 +397,8 @@ std::vector<T> read_vector(std::shared_ptr<ngraph::runtime::Tensor> tv)
 template <typename T>
 std::vector<T> host_tensor_2_vector(ngraph::HostTensorPtr tensor)
 {
-    NGRAPH_CHECK(tensor != nullptr, "Invalid Tensor received, can't read the data from a null pointer.");
+    NGRAPH_CHECK(tensor != nullptr,
+                 "Invalid Tensor received, can't read the data from a null pointer.");
 
     switch (tensor->get_element_type())
     {
