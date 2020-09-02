@@ -103,7 +103,7 @@ ngraph::graph_rewrite_callback get_callback() {
             weights_const_shape[0] = weights_shape[0];
 
             auto const_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{const_shape.size()}, weights_const_shape), true);
+                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{weights_const_shape.size()}, weights_const_shape), true);
             new_weights = std::make_shared<ngraph::opset1::Multiply> (m_conv->input_value(1), const_reshape);
             if (m_conv->inputs().size() == 2) {
                 new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights});
