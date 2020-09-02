@@ -119,10 +119,13 @@ class InterpolateWithConcat(FrontReplacementPattern):
         or through identity operation sequence. Returns the list of Concat sources that satisfy the condition.
         """
         assert concat.soft_get('type') == 'Concat'
-        sources = []
+        sources, ports_to_omit = [], []
+        if concat.has_valid('N'):
+            # TODO: should be removed after Concat operation normalization
+            ports_to_omit.append(concat.N)
 
         for in_port in concat.in_ports().values():
-            if in_port.disconnected():
+            if in_port.disconnected() or in_port.idx in ports_to_omit:
                 continue
             next_node = in_port.get_source().node
             while next_node.soft_get('type') != 'Interpolate' and next_node.has_and_set('identity'):
@@ -165,6 +168,10 @@ class InterpolateWithConcat(FrontReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
+        import os
+        os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
+        graph.dump_graph_for_graphviz(save_to_svg=True)
+
         for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
