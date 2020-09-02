@@ -89,7 +89,6 @@ namespace ngraph
         virtual void on_adapter(const std::string& name, ValueAccessor<uint16_t>& adapter);
         virtual void on_adapter(const std::string& name, ValueAccessor<uint32_t>& adapter);
         virtual void on_adapter(const std::string& name, ValueAccessor<uint64_t>& adapter);
-        virtual void on_adapter(const std::string& name, ValueAccessor<size_t>& adapter);
         virtual void on_adapter(const std::string& name, ValueAccessor<float>& adapter);
         virtual void on_adapter(const std::string& name, ValueAccessor<double>& adapter);
         virtual void on_adapter(const std::string& name,
@@ -108,8 +107,6 @@ namespace ngraph
                                 ValueAccessor<std::vector<uint32_t>>& adapter);
         virtual void on_adapter(const std::string& name,
                                 ValueAccessor<std::vector<uint64_t>>& adapter);
-        virtual void on_adapter(const std::string& name,
-                                ValueAccessor<std::vector<size_t>>& adapter);
         virtual void on_adapter(const std::string& name,
                                 ValueAccessor<std::vector<float>>& adapter);
         virtual void on_adapter(const std::string& name,

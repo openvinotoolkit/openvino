@@ -105,11 +105,6 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<uint64_t>& a
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
-void AttributeVisitor::on_adapter(const string& name, ValueAccessor<size_t>& adapter)
-{
-    on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
-}
-
 void AttributeVisitor::on_adapter(const string& name, ValueAccessor<float>& adapter)
 {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
@@ -156,11 +151,6 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<
 }
 
 void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<uint64_t>>& adapter)
-{
-    on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
-}
-
-void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<size_t>>& adapter)
 {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
