@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::RNNSequence::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::RNNSequence, "RNNSequence", 4);
 
 op::v4::RNNSequence::RNNSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD)

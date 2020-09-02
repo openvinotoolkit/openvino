@@ -32,9 +32,7 @@ namespace ngraph
             class NGRAPH_API GRUSequence : public Op, public util::RNNCellBase
             {
             public:
-                static constexpr NodeTypeInfo type_info{"GRUSequence", 4};
-
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 GRUSequence();
 
                 GRUSequence(const Output<Node>& X,

@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::GRUSequenceIE::type_info;
+NGRAPH_RTTI_DEFINITION(op::GRUSequenceIE, "GRUSequenceIE", 4);
 
 op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
                                  const Output<Node>& H_t,

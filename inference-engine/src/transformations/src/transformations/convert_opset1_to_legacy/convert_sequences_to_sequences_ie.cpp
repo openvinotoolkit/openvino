@@ -47,8 +47,7 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
                 lstm_sequence->input(0).get_source_output(),  // X
                 in_1,  // initial_hidden_state
                 in_2,  // initial_cell_state
-                //lstm_sequence->input(3).get_source_output(),  // sequence_lengths
-                in_3,                           // WR
+                in_3,  // WR
                 in_4,  // B
                 lstm_sequence->get_hidden_size(),
                 lstm_sequence->get_direction(),
@@ -109,7 +108,6 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
                 gru_sequence->input(0).get_source_output(), // X
                 in_1,  // initial_hidden_state
-                //gru_sequence->input(2).get_source_output(),  // sequence_lengths
                 in_3,  // WR
                 in_4,  // B
                 gru_sequence->get_hidden_size(),
