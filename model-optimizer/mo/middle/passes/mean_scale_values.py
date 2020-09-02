@@ -22,21 +22,32 @@ from mo.middle.pattern_match import apply_pattern
 
 def move_mean_values_to_preprocess_action(graph, match):
     mean_values = {}
-    input_op = match['input_op']
-    add_op = match['add']
-    mul_op = match['mul']
-
-    if match['const_mul_output'].has('value'):
+    if 'const_mul_output' in match and match['const_mul_output'].has('value'):
         weights = match['const_mul_output'].value
         if any([x != 1 for x in weights]):
             return
 
     # # Keep biases (mean values) for current input as graph attr and remove mean values layers
     # # Input->data->Mul->Add->scsh_data    =>    Input->scsh_data
-    add_op.out_port(0).get_connection().set_source(input_op.out_port(0))
-    mul_op.in_port(0).disconnect()
+    # # Input->data->Mul->scsh_data    =>    Input->scsh_data
+    # # Input->data->Add->scsh_data    =>    Input->scsh_data
+    input_op = match['input_op']
 
-    if match['const_add_output'].has('value'):
+    if 'add' in match:
+        add_outputs = list(match['add'].out_ports().values())
+        assert len(add_outputs) > 0
+        match['add'].out_port(0).get_connection().set_source(input_op.out_port(0))
+        if 'mul' in match:
+            graph.remove_node(match['mul'].id)
+        else:
+            graph.remove_node( match['add'].id)
+    elif 'mul' in match:
+        mul_outputs = list(match['mul'].out_ports().values())
+        assert len(mul_outputs) > 0
+        match['mul'].out_port(0).get_connection().set_source(input_op.out_port(0))
+        graph.remove_node(match['mul'].id)
+
+    if 'const_add_output' in match and match['const_add_output'].has('value'):
         biases = match['const_add_output'].value
 
         if graph.graph['cmd_params'].reverse_input_channels:
@@ -92,3 +103,47 @@ def move_mean_values_to_preprocess(graph: Graph):
         ],
         action=move_mean_values_to_preprocess_action
     )
+
+    apply_pattern(
+        graph,
+        nodes=[
+            ('input_op', dict(kind='op', op='Parameter')),
+            ('input_output', dict(kind='data')),
+
+            ('const_mul', dict(kind='op', op='Const')),
+            ('const_mul_output', dict(kind='data')),
+            ('mul', dict(kind='op', op='Mul')),
+            ('mul_output', dict(kind='data')),
+        ],
+        edges=[
+            ('input_op', 'input_output'),
+            ('input_output', 'mul', {'in': 0}),
+            ('const_mul', 'const_mul_output'),
+            ('const_mul_output', 'mul', {'in': 1}),
+            ('mul', 'mul_output'),
+        ],
+        action=move_mean_values_to_preprocess_action
+    )
+
+    apply_pattern(
+        graph,
+        nodes=[
+            ('input_op', dict(kind='op', op='Parameter')),
+            ('input_output', dict(kind='data')),
+
+            ('const_add', dict(kind='op', op='Const')),
+            ('const_add_output', dict(kind='data')),
+            ('add', dict(kind='op', op='Add')),
+            ('add_output', dict(kind='data')),
+        ],
+        edges=[
+            ('input_op', 'input_output'),
+            ('input_output', 'add', {'in': 0}),
+            ('const_add', 'const_add_output'),
+            ('const_add_output', 'add', {'in': 1}),
+            ('add', 'add_output'),
+        ],
+        action=move_mean_values_to_preprocess_action
+    )
+
+

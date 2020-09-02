@@ -220,3 +220,57 @@ class TestMeanValues_To_Preprocess(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
         self.assertTrue(flag, resp)
+
+
+    def test_move_mean_values_to_preprocess_6(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'mul'),
+                             ('mul', 'mul_output'),
+                             ('const_mul', 'const_mul_output'),
+                             ('const_mul_output', 'mul'),
+                             ('mul_output', 'op_output'),
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+                             'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
+                             })
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'op_output'),
+                                 ])
+
+        move_mean_values_to_preprocess(graph)
+        self.assertTrue(graph.graph.get('mean_values', None) is None)
+        # self.assertTrue(np.array_equal(graph.graph['mean_values']['placeholder_1'], np.array([1, 2, 3])))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
+        self.assertTrue(flag, resp)
+
+
+    def test_move_mean_values_to_preprocess_7(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'add'),
+                             ('add', 'add_output'),
+                             ('const_add', 'const_add_output'),
+                             ('const_add_output', 'add'),
+                             ('add_output', 'op_output'),
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+                             'const_add_output': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
+                             })
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'add_output'),
+                                 ('add_output', 'op_output')
+                                 ])
+
+        move_mean_values_to_preprocess(graph)
+        self.assertTrue(graph.graph['mean_values'] is not None)
+        self.assertTrue(np.array_equal(graph.graph['mean_values']['placeholder_1'], np.array([1, 2, 3])))
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
+        self.assertTrue(flag, resp)
