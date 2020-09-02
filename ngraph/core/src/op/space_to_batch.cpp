@@ -141,8 +141,8 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
 }
 
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    auto data = inputs[0];
-    auto out = outputs[0];
+    const auto &data = inputs[0];
+    const auto &out = outputs[0];
     const auto &out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 

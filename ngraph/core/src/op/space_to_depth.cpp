@@ -20,7 +20,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/shape.hpp"
-#include "space_to_depth.hpp"
+#include "ngraph/op/space_to_depth.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -150,6 +150,25 @@ shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new
         throw ngraph_error("Incorrect number of new arguments");
     }
     return make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
+}
+
+bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    const auto &data = inputs[0];
+    const auto &out = outputs[0];
+    const auto &out_shape = out->get_shape();
+    size_t elem_size = data->get_element_type().size();
+
+    if (data->get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    auto data_shape = data->get_shape();
+    const size_t n_dim = data_shape.at(0);
+    const size_t c_dim = data_shape.at(1);
+    const size_t spatial_dim_index = 2;
+    const size_t spatial_dims = data_shape.size() - spatial_dim_index;
+
+    return true;
+
 }
 
 namespace ngraph

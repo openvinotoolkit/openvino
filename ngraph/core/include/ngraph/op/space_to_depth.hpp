@@ -18,6 +18,7 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -69,6 +70,8 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
             protected:
                 std::size_t m_blocksize;
