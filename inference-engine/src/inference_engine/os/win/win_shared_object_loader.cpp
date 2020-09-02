@@ -72,12 +72,12 @@ class SharedObjectLoader::Impl {
         std::basic_string<CHAR> lpBuffer(path);
         DWORD nBufferLength;
 
-        nBufferLength = GetDllDirectoryW(0, nullptr);
+        nBufferLength = GetDllDirectoryA(0, nullptr);
         std::vector<CHAR> lpBuffer(nBufferLength);
-        GetDllDirectoryW(nBufferLength, &lpBuffer.front());
+        GetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
         auto dirname = GetDirname(path);
-        SetDllDirectoryW(dirname.c_str());
+        SetDllDirectoryA(dirname.c_str());
 
         return &lpBuffer.front();
     }
