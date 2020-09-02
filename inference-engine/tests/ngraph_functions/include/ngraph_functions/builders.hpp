@@ -24,27 +24,28 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
-                                   const std::vector<T> &data, bool random = false) {
+                                   const std::vector<T> &data, bool random = false,
+                                   uint32_t upTo = 10, uint32_t startFrom = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
         case TYPE: \
             weightsNode = std::make_shared<ngraph::opset1::Constant>( \
                     type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape)) : \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom) : \
                              NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
             break;
     switch (type) {
         case ngraph::element::Type_t::bf16:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(
                     type, shape,
-                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape)) :
+                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
                     NGraphFunctions::Utils::castVector<T, ngraph::bfloat16>(data));
             break;
         case ngraph::element::Type_t::f16:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(
                     type, shape,
-                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape)) :
+                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
                     NGraphFunctions::Utils::castVector<T, ngraph::float16>(data));
             break;
         makeNode(ngraph::element::Type_t::f32);
