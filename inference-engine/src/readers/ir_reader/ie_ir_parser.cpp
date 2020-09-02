@@ -429,7 +429,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
         std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
         std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
-        std::make_shared<LayerCreator<ngraph::op::v0::Interpolate>>("Interpolate"),
         std::make_shared<LayerCreator<ngraph::op::Log>>("Log"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::Less>>("Less"),
