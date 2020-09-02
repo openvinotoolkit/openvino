@@ -13,6 +13,7 @@ namespace vpu {
 
 namespace {
 
+// Current NMS implementation doesn't allow calculation of `> boxesTreshold` boxes using one SHAVE
 constexpr int boxesThreshold = 3650;
 
 class StaticShapeNMS final : public StageNode {
@@ -37,7 +38,6 @@ private:
         const auto& inDesc = input(0)->desc();
         const auto& maxBoxesNum = inDesc.dim(Dim::H);
 
-        // Current NMS implementation doesn't allow calculation of `> boxesTreshold` boxes using one SHAVE
         if (maxBoxesNum > boxesThreshold) {
             return StageSHAVEsRequirements::NeedMax;
         } else {
