@@ -130,8 +130,10 @@ Framework-agnostic parameters:
   --generate_deprecated_IR_V7
                         Force to generate old deprecated IR V7 with layers
                         from old IR specification.
-  --static_shape        Enables `ShapeOf` operation with all children folding to `Constant`.
-                        This option makes model not reshapable in Inference Engine
+  --static_shape        Enables IR generation for fixed input shape (folding
+                        `ShapeOf` operations and shape-calculating sub-graphs
+                        to `Constant`). Changing model input shape using
+                        Inference Engine API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.
