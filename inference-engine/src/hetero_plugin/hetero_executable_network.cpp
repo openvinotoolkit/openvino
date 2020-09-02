@@ -436,6 +436,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
                         (*itLabel) += label;
                         break;
                     }
+                    colorIndex++;
                 }
             }}.run_on_function(ngraph::clone_function(*function));
     }
