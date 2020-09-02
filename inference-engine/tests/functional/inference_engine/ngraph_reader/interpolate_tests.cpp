@@ -347,11 +347,11 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
 )V0G0N";
     compareIRs(model, modelV5, 40, [](Blob::Ptr& weights) {
                 auto *sizes = weights->buffer().as<int64_t *>();
-                data[0] = 50;
-                data[1] = 60;
+                sizes[0] = 50;
+                sizes[1] = 60;
                 auto *scales = reinterpret_cast<float *>(sizes + 2);
-                scales[0] = 50.0 / 48.0;
-                scales[1] = 60.0 / 80.0;
+                scales[0] = 50.0f / 48.0f;
+                scales[1] = 60.0f / 80.0f;
                 auto *axes = reinterpret_cast<int64_t *>(scales + 2);
                 axes[0] = 2;
                 axes[1] = 3;
