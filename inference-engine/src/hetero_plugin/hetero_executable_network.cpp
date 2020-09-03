@@ -651,28 +651,9 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             auto itClonedInput = clonedInputs.find(externalInput.first);
             if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
                 itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
+                itClonedInput->second->setPrecision(externalInput.second->getPrecision());
             }
         }
-
-        for (auto&& parameter : subFunctions[id]->get_parameters()) {
-            auto itClonedInput = clonedInputs.find(parameter->get_friendly_name());
-            if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
-                itClonedInput->second->setPrecision(details::convertPrecision(parameter->get_output_element_type(0)));
-            }
-        }
-
-        auto clonedOutputs = networks[id]._clonedNetwork.getOutputsInfo();
-        for (auto&& result : subFunctions[id]->get_results()) {
-            auto sourceOutput = result->input(0).get_source_output();
-            auto sourceNode = sourceOutput.get_node();
-            auto itClonedOutput = clonedOutputs.find((sourceNode->outputs().size() == 1)
-                                                        ? sourceNode->get_friendly_name()
-                                                        : sourceNode->get_friendly_name() + std::to_string(sourceOutput.get_index()));
-            if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
-                itClonedOutput->second->setPrecision(details::convertPrecision(result->get_input_element_type(0)));
-            }
-        }
-
         isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
                                             std::end(subgraph._parameters),
                                             [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
