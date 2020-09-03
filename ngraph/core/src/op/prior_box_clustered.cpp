@@ -96,26 +96,13 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs", m_attrs);
-    return true;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::PriorBoxClusteredAttrs>::type_info;
-
-AttributeAdapter<op::PriorBoxClusteredAttrs>::AttributeAdapter(op::PriorBoxClusteredAttrs& ref)
-    : m_ref(ref)
-{
-}
-
-bool AttributeAdapter<op::PriorBoxClusteredAttrs>::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("widths", m_ref.widths);
-    visitor.on_attribute("heights", m_ref.heights);
-    visitor.on_attribute("clip", m_ref.clip);
-    visitor.on_attribute("step_widths", m_ref.step_widths);
-    visitor.on_attribute("step_heights", m_ref.step_heights);
-    visitor.on_attribute("offset", m_ref.offset);
-    visitor.on_attribute("variances", m_ref.variances);
+    visitor.on_attribute("widths", m_attrs.widths);
+    visitor.on_attribute("heights", m_attrs.heights);
+    visitor.on_attribute("clip", m_attrs.clip);
+    visitor.on_attribute("step_widths", m_attrs.step_widths);
+    visitor.on_attribute("step_heights", m_attrs.step_heights);
+    visitor.on_attribute("offset", m_attrs.offset);
+    visitor.on_attribute("variances", m_attrs.variances);
     return true;
 }
 
