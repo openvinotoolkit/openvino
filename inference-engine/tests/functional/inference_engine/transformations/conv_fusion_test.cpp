@@ -48,6 +48,7 @@ public:
             f_ref = get_initial_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
         } else {
             f_ref = get_reference_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
+            ngraph::pass::ConstantFolding().run_on_function(f_ref);
         }
     }
 
@@ -111,6 +112,7 @@ private:
 TEST_P(ConvFusionTests, CompareFunctions) {
     ngraph::pass::InitNodeInfo().run_on_function(f);
     ngraph::pass::ConvFusion().run_on_function(f);
+    ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
     // ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
