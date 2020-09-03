@@ -290,6 +290,12 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         bool disable_type_conversion = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
+
+// Generates macro CONST_LOOP(count, macro), where:
+// count - should expand to integer with number of loop iterations;
+// macro - is macro name that will be expanded at each iteration with current iteration number as single argument.
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount);
+
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
 inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
