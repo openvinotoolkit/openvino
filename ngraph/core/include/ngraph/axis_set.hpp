@@ -60,6 +60,7 @@ namespace ngraph
         void set(const std::vector<int64_t>& value) override;
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisSet>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        operator AxisSet&() { return m_ref; }
     protected:
         AxisSet& m_ref;
         std::vector<int64_t> m_buffer;

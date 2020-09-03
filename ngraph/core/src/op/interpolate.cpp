@@ -38,10 +38,10 @@ op::v0::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("axes", m_attrs.axes);
-    visitor.on_attribute("mode", m_attrs.mode);
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("antialias", m_attrs.antialias);
+    visitor.on_attribute("axes", m_attrs.axes);
+    visitor.on_attribute("mode", m_attrs.mode);
     visitor.on_attribute("pads_begin", m_attrs.pads_begin);
     visitor.on_attribute("pads_end", m_attrs.pads_end);
     return true;

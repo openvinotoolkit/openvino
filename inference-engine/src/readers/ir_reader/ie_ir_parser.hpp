@@ -217,6 +217,21 @@ private:
                 std::vector<size_t> shape;
                 if (!getParameters<size_t>(node.child("data"), name, shape)) return;
                 static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
+#ifdef __APPLE__
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
+                std::vector<size_t> result;
+                if (!getParameters<size_t>(node.child("data"), name, result)) return;
+                static_cast<std::vector<size_t>&>(*a) = result;
+#else
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
+                std::vector<size_t> result;
+                if (!getParameters<size_t>(node.child("data"), name, result)) return;
+                a->set(result);
+#endif
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::AxisSet>>(&adapter)) {
+                std::vector<size_t> axes;
+                if (!getParameters<size_t>(node.child("data"), name, axes)) return;
+                static_cast<ngraph::AxisSet&>(*a) = ngraph::AxisSet(axes);
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
