@@ -29,11 +29,21 @@
 using namespace ngraph;
 using namespace std;
 
+constexpr NodeTypeInfo op::v1::LSTMSequence::type_info;
 constexpr NodeTypeInfo op::v0::LSTMSequence::type_info;
+
 bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+    visitor.on_attribute("hidden_size", m_hidden_size);
+    visitor.on_attribute("activations", m_activations);
+    visitor.on_attribute("activations_alpha", m_activations_alpha);
+    visitor.on_attribute("activations_beta", m_activations_beta);
+    visitor.on_attribute("clip", m_clip_threshold);
     visitor.on_attribute("direction", m_direction);
-    return op::util::RNNCellBase::visit_attributes(visitor);
+
+    visitor.on_attribute("input_forget", m_input_forget);
+    visitor.on_attribute("weights_format", m_weights_format);
+    return true;
 }
 OutputVector op::v0::LSTMSequence::decompose_op() const
 {
@@ -49,11 +59,11 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 
         // Stack together respective outputs from both forward and reverse passess.
         shared_ptr<Node> Y{
-            make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
+                make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
         shared_ptr<Node> Y_h{
-            make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
+                make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
         shared_ptr<Node> Y_c{
-            make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
+                make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
         results = OutputVector{Y, Y_h, Y_c};
     }
     return results;
@@ -62,7 +72,26 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    if (new_args.size() == 7)
+    if (new_args.size() == 8)
+    {
+        return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
+                                                 new_args.at(1), // initial_hidden_state
+                                                 new_args.at(2), // initial_cell_state
+                                                 new_args.at(3), // sequence_lengths
+                                                 new_args.at(4), // W
+                                                 new_args.at(5), // R
+                                                 new_args.at(6), // B
+                                                 new_args.at(7), // P
+                                                 m_hidden_size,
+                                                 m_direction,
+                                                 m_weights_format,
+                                                 m_activations_alpha,
+                                                 m_activations_beta,
+                                                 m_activations,
+                                                 m_clip_threshold,
+                                                 m_input_forget);
+    }
+    else if (new_args.size() == 7)
     {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
                                                  new_args.at(1), // initial_hidden_state
@@ -73,10 +102,12 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  new_args.at(6), // B
                                                  m_hidden_size,
                                                  m_direction,
+                                                 m_weights_format,
                                                  m_activations_alpha,
                                                  m_activations_beta,
                                                  m_activations,
-                                                 m_clip);
+                                                 m_clip_threshold,
+                                                 m_input_forget);
     }
     else
     {
@@ -101,14 +132,14 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
     // Create predicate nodes. The condition is whether current time step value
     // is greater than sequence length for respective batch inputs.
     shared_ptr<Node> curr_time_step_node = opset1::Constant::create(
-        element::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
+            element::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
 
     Output<Node> batch_seq_length = builder::opset1::legacy_broadcast_for_binary_operation(
-        curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);
+            curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
     shared_ptr<Node> mask_condition =
-        make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
+            make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
 
     // Select values depnding on mask_condition.
     // Select(<condition>, <true_value>, <false_value>)
@@ -125,6 +156,7 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     // W - The weight tensor. [num_directions, 4*hidden_size, input_size]
     // R - The recurrence weight tensor. [num_directions, 4*hidden_size, hidden_size]
     // B - The bias tensor for input gate. [num_directions, 8*hidden_size]
+    // P - The weight tensor for peepholes. [num_directions, 3*hidde_size]
     // ------ ACRONYMS ------
     // i - input gate
     // o - output gate
@@ -144,6 +176,7 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     shared_ptr<Node> W = prepare_input(input_value(4), is_reverse);
     shared_ptr<Node> R = prepare_input(input_value(5), is_reverse);
     shared_ptr<Node> B = prepare_input(input_value(6), is_reverse);
+    shared_ptr<Node> P = prepare_input(input_value(7), is_reverse);
 
     if (is_reverse)
     {
@@ -161,17 +194,20 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
     int32_t time_step{1};
     for (const auto& in_x : in_seqs)
     {
-        shared_ptr<Node> lstm_cell = make_shared<opset4::LSTMCell>(in_x,
+        shared_ptr<Node> lstm_cell = make_shared<opset1::LSTMCell>(in_x,
                                                                    H_t,
                                                                    C_t,
                                                                    W,
                                                                    R,
                                                                    B,
+                                                                   P,
                                                                    m_hidden_size,
+                                                                   m_weights_format,
                                                                    m_activations,
                                                                    m_activations_alpha,
                                                                    m_activations_beta,
-                                                                   m_clip);
+                                                                   m_clip_threshold,
+                                                                   m_input_forget);
 
         Output<Node> H = lstm_cell->output(0);
         Output<Node> C = lstm_cell->output(1);
@@ -226,6 +262,195 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 }
 
 void op::v0::LSTMSequence::validate_and_infer_types()
+{
+    std::vector<ngraph::PartialShape> input_param{};
+
+    auto lstm_seq_gates_count = 4;
+    auto lstm_seq_peepholes_count = 3;
+    auto merged_batch_size = Dimension::dynamic();
+    auto merged_hidden_size = Dimension::dynamic();
+    auto merged_num_directions = Dimension::dynamic();
+    auto result_et = element::dynamic;
+
+    // Copy all inputs without peephole and initial_cell_state information for further validation
+    for (size_t i = 0; i < get_input_size() - 1; i++)
+    {
+        // exclude initial_cell_state from the loop
+        if (i != 2)
+        {
+            input_param.push_back(get_input_partial_shape(i));
+        }
+    }
+
+    // Get input partial shape for all inputs
+    const auto& x_pshape = get_input_partial_shape(0);
+    const auto& ht_pshape = get_input_partial_shape(1);
+    const auto& ct_pshape = get_input_partial_shape(2);
+    const auto& sl_pshape = get_input_partial_shape(3);
+    const auto& w_pshape = get_input_partial_shape(4);
+    const auto& r_pshape = get_input_partial_shape(5);
+    const auto& b_pshape = get_input_partial_shape(6);
+    const auto& p_pshape = get_input_partial_shape(7);
+
+    ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+
+    // Validate rank and dimension for initial_cell_state input
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().is_static()),
+                          "LSTMSequence input tensor initial_cell_state shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (ct_pshape.rank().get_length() == 3),
+                          "LSTMSequence input tensor initial_cell_state shall have dimension 3D.");
+
+    // Validate rank and dimension for P input
+    NODE_VALIDATION_CHECK(
+            this, (p_pshape.rank().is_static()), "LSTMSequence input tensor P shall have static rank.");
+
+    NODE_VALIDATION_CHECK(this,
+                          (p_pshape.rank().get_length() == 2),
+                          "LSTMSequence input tensor P shall have dimension 2D.");
+
+    // Validate input types and save result for output type
+    NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(6)),
+            "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+            "match.");
+
+    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+    NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
+            Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
+            "Parameter batch_size not matched in LSTMSequence.");
+
+    // Merge hidden_size dimension across all inputs to evaluate output dimension
+    NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
+            Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[2]) &&
+            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
+            "Parameter hidden_size not matched LSTMSequence.");
+
+    // Merge num_directions dimension across all inputs to evaluate output dimension
+    NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, ct_pshape[1]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
+            "Parameter num_directions not matched in LSTMSequence.");
+
+    // Validate hidden_size value for W, R, B and P inputs
+    if (merged_hidden_size.is_static())
+    {
+        if (w_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                    this,
+                    w_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                    "Parameter hidden_size mistmatched in P input. Current value is: ",
+                    w_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * lstm_seq_gates_count,
+                    ".");
+        }
+
+        if (r_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                    this,
+                    r_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                    "Parameter hidden_size mistmatched in R input. Current value is: ",
+                    r_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * lstm_seq_gates_count,
+                    ".");
+        }
+
+        if (b_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                    this,
+                    b_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                    "Parameter hidden_size mistmatched in B input. Current value is: ",
+                    b_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * lstm_seq_gates_count,
+                    ".");
+        }
+
+        if (p_pshape[0].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                    this,
+                    p_pshape[1].compatible(merged_hidden_size * lstm_seq_peepholes_count),
+                    "Parameter hidden_size mistmatched in P input. Current value is: ",
+                    p_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * lstm_seq_peepholes_count,
+                    ".");
+        }
+    }
+
+    // Mark inputs which are relevant to output parameters
+    set_input_is_relevant_to_shape(0);
+    set_input_is_relevant_to_shape(1);
+    set_input_is_relevant_to_shape(2);
+    set_input_is_relevant_to_shape(3);
+    set_input_is_relevant_to_shape(4);
+    set_input_is_relevant_to_shape(5);
+    set_input_is_relevant_to_shape(6);
+
+    // Set output size, type and shape
+    set_output_size(3);
+    set_output_type(
+            0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
+    set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+    set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+}
+
+bool ngraph::op::v1::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("direction", m_direction);
+    return op::util::RNNCellBase::visit_attributes(visitor);
+}
+
+shared_ptr<Node> op::v1::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    if (new_args.size() == 7)
+    {
+        return make_shared<op::v1::LSTMSequence>(new_args.at(0), // X
+                                                 new_args.at(1), // initial_hidden_state
+                                                 new_args.at(2), // initial_cell_state
+                                                 new_args.at(3), // sequence_lengths
+                                                 new_args.at(4), // W
+                                                 new_args.at(5), // R
+                                                 new_args.at(6), // B
+                                                 m_hidden_size,
+                                                 m_direction,
+                                                 m_activations_alpha,
+                                                 m_activations_beta,
+                                                 m_activations,
+                                                 m_clip);
+    }
+    else
+    {
+        throw ngraph_error("Incorrect number of new arguments");
+    }
+}
+
+void op::v1::LSTMSequence::validate_and_infer_types()
 {
     std::vector<ngraph::PartialShape> input_param{};
 

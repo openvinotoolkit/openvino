@@ -267,7 +267,7 @@ def test_lstm_cell_operator_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 0.5
 
-    node_param = ng.lstm_cell(
+    node_param = ng_opset1.lstm_cell(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -285,6 +285,7 @@ def test_lstm_cell_operator_opset1(dtype):
     assert node_param.get_output_size() == 2
     assert list(node_param.get_output_shape(0)) == expected_shape
     assert list(node_param.get_output_shape(1)) == expected_shape
+
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_lstm_sequence_operator_bidirectional(dtype):
@@ -311,7 +312,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng.lstm_sequence(
+    node = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -331,7 +332,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -377,7 +378,7 @@ def test_lstm_sequence_operator_reverse(dtype):
 
     direction = "REVERSE"
 
-    node_default = ng.lstm_sequence(
+    node_default = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -397,7 +398,7 @@ def test_lstm_sequence_operator_reverse(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -443,7 +444,7 @@ def test_lstm_sequence_operator_forward(dtype):
 
     direction = "forward"
 
-    node_default = ng.lstm_sequence(
+    node_default = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -463,7 +464,7 @@ def test_lstm_sequence_operator_forward(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng.lstm_sequence(
+    node = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
