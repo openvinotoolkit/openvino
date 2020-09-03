@@ -8,7 +8,7 @@
 #include <utility>
 #include <cmath>
 
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "gna_plugin_log.hpp"
 #include "quantized_layer_params.hpp"
 #include "quantization.h"
@@ -77,7 +77,7 @@ struct QuantI16 : public QuantDescTmpl<PRECISION_TYPE(I16, I32, I16, I32, MIXED)
         _Np = InferenceEngine::Precision::MIXED;
     }
 };
-struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), intel_compound_bias_t, P_TYPE(MIXED)> {
+struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna_compound_bias_t, P_TYPE(MIXED)> {
     QuantI8() {
         _Np = InferenceEngine::Precision::MIXED;
     }
@@ -102,7 +102,7 @@ inline bool shouldAlwaysAllocate() {
 }
 
 template <>
-inline bool shouldAlwaysAllocate<intel_compound_bias_t>() {
+inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
     return true;
 }
 

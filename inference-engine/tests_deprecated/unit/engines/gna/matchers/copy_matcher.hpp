@@ -3,14 +3,17 @@
 //
 
 #pragma once
+
 #include "nnet_base_matcher.hpp"
-class CopyLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+#include "backend/gna_types.h"
+
+class CopyLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;
     const int matchQuantity;
     mutable int actualNumberOfCopyLayers;
  public:
     CopyLayerMatcher(bool matchInserted, int matchQuantity) : matchInserted(matchInserted), matchQuantity(matchQuantity) {}
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         actualNumberOfCopyLayers = 0;
@@ -40,7 +43,7 @@ class CopyLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_typ
     }
 };
 
-inline ::testing::Matcher<const intel_nnet_type_t*> HasCopyLayer(bool matchInserted = false, int matchQuantity = -1) {
+inline ::testing::Matcher<const gna_nnet_type_t*> HasCopyLayer(bool matchInserted = false, int matchQuantity = -1) {
     std::unique_ptr<NNetComponentMatcher> c (new NNetComponentMatcher());
     c->add(new CopyLayerMatcher(matchInserted, matchQuantity));
     return ::testing::MakeMatcher(c.release());
