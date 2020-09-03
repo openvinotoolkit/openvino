@@ -83,18 +83,22 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     @classmethod
     def _execute_npz_data(
         cls, model_dir: str, prepared_model: BackendRep, result_rtol: float, result_atol: float,
-    ) -> None:
+    ) -> int:
+        executed_tests = 0
         for test_data_npz in glob.glob(os.path.join(model_dir, "test_data_*.npz")):
             test_data = np.load(test_data_npz, encoding="bytes")
             inputs = list(test_data["inputs"])
             outputs = list(prepared_model.run(inputs))
             ref_outputs = test_data["outputs"]
             cls.assert_similar_outputs(ref_outputs, outputs, result_rtol, result_atol)
+            executed_tests = executed_tests + 1
+        return executed_tests
 
     @classmethod
     def _execute_pb_data(
         cls, model_dir: str, prepared_model: BackendRep, result_rtol: float, result_atol: float,
-    ) -> None:
+    ) -> int:
+        executed_tests = 0
         for test_data_dir in glob.glob(os.path.join(model_dir, "test_data_set*")):
             inputs = []
             inputs_num = len(glob.glob(os.path.join(test_data_dir, "input_*.pb")))
@@ -112,8 +116,12 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 with open(output_file, "rb") as f:
                     tensor.ParseFromString(f.read())
                 ref_outputs.append(numpy_helper.to_array(tensor))
+            if(len(inputs) == 0):
+                continue
             outputs = list(prepared_model.run(inputs))
             cls.assert_similar_outputs(ref_outputs, outputs, result_rtol, result_atol)
+            executed_tests = executed_tests + 1
+        return executed_tests
 
     def _add_model_execution_test(self, model_test: OnnxTestCase, kind: Text) -> None:
         # model is loaded at runtime, note sometimes it could even
@@ -125,13 +133,13 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             model_marker[0] = model
             prepared_model = self.backend.prepare(model, device)
             assert prepared_model is not None
-
-            ModelImportRunner._execute_npz_data(
+            executed_tests = ModelImportRunner._execute_npz_data(
                 model_test.model_dir, prepared_model, model_test.rtol, model_test.atol
             )
 
-            ModelImportRunner._execute_pb_data(
+            executed_tests = executed_tests + ModelImportRunner._execute_pb_data(
                 model_test.model_dir, prepared_model, model_test.rtol, model_test.atol
             )
 
+            assert executed_tests > 0, "This model have no test data"
         self._add_test(kind + "ModelExecution", model_test.name, run_execution, model_marker)
