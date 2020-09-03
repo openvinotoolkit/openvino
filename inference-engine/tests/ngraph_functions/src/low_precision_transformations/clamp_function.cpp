@@ -72,14 +72,10 @@ std::shared_ptr<ngraph::Function> ClampFunction::getReference(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
 
-    const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
-    std::shared_ptr<ngraph::opset1::Clamp> clamp;
-    if (quantizationOpBefore->get_output_element_type(0) == precisionAfterOperation) {
-        clamp = std::make_shared<ngraph::opset1::Clamp>(quantizationOpBefore, 0, 10);
-    } else {
-        clamp = std::make_shared<op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
-    }
+    std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
+
+    std::shared_ptr<ngraph::opset1::Clamp> clamp = std::make_shared<op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(clamp, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 
