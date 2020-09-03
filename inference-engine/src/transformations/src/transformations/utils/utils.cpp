@@ -63,12 +63,6 @@ std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& co
 }
 
 std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape& shape) {
-    if (input.get_shape().size() != shape.size())
-        throw ngraph_error("Shape dims mismatch");
-    for (size_t i = 0; i < input.get_shape().size(); i++) {
-        if (input.get_shape()[i] != 1 && input.get_shape()[i] != shape[i])
-            throw ngraph_error("Shape mismatch");
-    }
     return std::make_shared<op::v1::Broadcast>(input, op::Constant::create(ngraph::element::i64, Shape {shape.size()}, shape));
 }
 
@@ -90,6 +84,26 @@ bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function) 
         if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
             return true;
         }
+    }
+    return false;
+}
+
+bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape) {
+    // Check that other_shape doesn't broadcast ref_shape
+    if (other_shape.size() > ref_shape.size()) {
+        return true;
+    }
+    auto ref_it = ref_shape.rbegin();
+    auto other_it = other_shape.rbegin();
+    // Check that other_shape dims are equal to ref_shape dims
+    // In case if other_shape rank is less than ref_shape rank
+    // we stop comparision and return true
+    while (other_it != other_shape.rend()) {
+        if (*other_it != *ref_it && *other_it != 1) {
+            return true;
+        }
+        ++other_it;
+        ++ref_it;
     }
     return false;
 }
