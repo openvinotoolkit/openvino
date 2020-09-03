@@ -32,7 +32,10 @@ endif()
 #
 function(ie_cpack_set_library_dir)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+    message("!!! -- ${ARCH}")
+    if(ARCH STREQUAL "x86_64" OR
+       ARCH STREQUAL "amd64" OR # Windows detects Intel's 64-bit CPU as AMD64
+       ARCH STREQUAL "x64") # For UWP: -A x64 -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0.18362.0
         set(ARCH intel64)
     elseif(ARCH STREQUAL "i386")
         set(ARCH ia32)

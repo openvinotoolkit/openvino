@@ -6,7 +6,7 @@ set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
 include(dependency_solver)
 
-if(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING AND NGRAPH_ONNX_IMPORT_ENABLE)
 	if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
 	    set(HOST_X86_64 ON)
 	endif()
