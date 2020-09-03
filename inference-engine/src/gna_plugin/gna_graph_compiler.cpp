@@ -140,7 +140,6 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t padding = 0;
         size_t output_layer_size = 0;
 
-
         for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
             auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
@@ -169,6 +168,13 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
                 layerInfoItem.splitOutputLayers.emplace_back(
                     outFunctionalLayer.first, outFunctionalLayer.second, split_size, output_layer_size);
             }
+        }
+
+        // in case of unconnected split - we need properly increment size
+        if (getInputTo(layer->outData[i]).empty()) {
+            output_layer_size =
+                    InferenceEngine::details::product(begin(layer->outData[i]->getDims()),
+                                                      end(layer->outData[i]->getDims())) * layer->outData[i]->getPrecision().size();
         }
 
         split_size += padding + output_layer_size;
@@ -1931,7 +1937,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
         return LayerInfo(l).isNonFunctional();
     });
-
 
     gnalog() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 

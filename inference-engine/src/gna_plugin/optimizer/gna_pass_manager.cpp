@@ -87,7 +87,6 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
-
     // actual insertion
     CNNNetworkInsertLayer(prevLayer, nextLayer, diagonalWithQuant);
 }
@@ -944,68 +943,74 @@ void InsertSplitAligningFilterPass::run() {
             auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
             if (currentOffset != ALIGN64(currentOffset)) {
-                // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
+                // check that this split output actually connected to further layers
+                if (getInputTo(splitOutput).empty()) {
+                    gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
+                } else {
+                    // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
+                    // insert the filter
+                    auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
+
 #ifdef PLOT
-                // getting list of layers attached to current split output
-                gnalog() << "Inserted Affine Filter Layer between: " << l->name << " and ";
-                for (auto &&followingLayers : getInputTo(splitOutput)) {
-                    if (getInputTo(splitOutput).size() != 1) {
-                        gnalog() << "\n    ";
+                    // getting list of layers attached to current split output
+                    gnalog() << "Inserted Affine Filter: " << filterName << " between: " << l->name << " and ";
+                    for (auto &&followingLayers : getInputTo(splitOutput)) {
+                        if (getInputTo(splitOutput).size() != 1) {
+                            gnalog() << "\n    ";
+                        }
+                        gnalog() << followingLayers.second->name;
                     }
-                    gnalog() << followingLayers.second->name;
-                }
-                gnalog() << std::endl;
+                    gnalog() << std::endl;
 #endif
-                // insert the filter
-                auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
-                auto filterLayer =
-                        std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
+                    auto filterLayer =
+                            std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
 
+                    auto inputData = splitOutput;
 
-                auto inputData = splitOutput;
+                    size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
+                    size_t
+                            newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
+                                            / bytesPerSplitElement;
 
-                size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
-                size_t newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
-                                       / bytesPerSplitElement;
+                    IE_ASSERT(filterLayer != nullptr);
 
-                IE_ASSERT(filterLayer != nullptr);
+                    // encodes offset to beginning of split layer input
+                    filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
 
-                // encodes offset to beginning of split layer input
-                filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
+                    auto dims = splitOutput->getTensorDesc().getDims();
+                    if (dims.size() > 3) {
+                        THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
+                    }
 
-                auto dims = splitOutput->getTensorDesc().getDims();
-                if (dims.size() > 3) {
-                    THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
+                    auto num_rows_out = dims[1] * (dims.size() != 2 ? dims[2] : 1);
+                    std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
+
+                    auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+
+                    for (int i = 0; i != outputSize; i++) {
+                        filterWeights[offset] = 1.0f;
+                        offset += newOutputSize + 1;
+                    }
+
+                    filterLayer->_weights = make_shared_blob<float>(TensorDesc(
+                            inputData->getTensorDesc().getPrecision(),
+                            SizeVector({filterWeights.size()}),
+                            Layout::C));
+                    filterLayer->_weights->allocate();
+                    CopyVectorToBlob(filterLayer->_weights, filterWeights);
+
+                    auto outData = std::make_shared<Data>(filterName,
+                                                          TensorDesc(splitOutput->getTensorDesc().getPrecision(),
+                                                                     splitOutput->getTensorDesc().getDims(),
+                                                                     inputData->getTensorDesc().getLayout()));
+
+                    auto filterWithQuant = quantized ?
+                                           InferenceEngine::injectData<QuantizedLayerParams>(filterLayer) :
+                                           filterLayer;
+                    getCreatorLayer(outData) = filterWithQuant;
+                    filterWithQuant->outData.push_back(outData);
+                    CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
                 }
-
-                auto num_rows_out = dims[1]  * (dims.size() != 2 ? dims[2] : 1);
-                std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
-
-                auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
-
-                for (int i = 0; i != outputSize; i++) {
-                    filterWeights[offset] = 1.0f;
-                    offset += newOutputSize + 1;
-                }
-
-                filterLayer->_weights = make_shared_blob<float>(TensorDesc(
-                        inputData->getTensorDesc().getPrecision(),
-                        SizeVector({filterWeights.size()}),
-                        Layout::C));
-                filterLayer->_weights->allocate();
-                CopyVectorToBlob(filterLayer->_weights, filterWeights);
-
-                auto outData = std::make_shared<Data>(filterName,
-                                                      TensorDesc(splitOutput->getTensorDesc().getPrecision(),
-                                                                 splitOutput->getTensorDesc().getDims(),
-                                                                 inputData->getTensorDesc().getLayout()));
-
-                auto filterWithQuant = quantized ?
-                                       InferenceEngine::injectData<QuantizedLayerParams>(filterLayer) :
-                                       filterLayer;
-                getCreatorLayer(outData) = filterWithQuant;
-                filterWithQuant->outData.push_back(outData);
-                CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
             }
 
             // search data that starts from unaligned location

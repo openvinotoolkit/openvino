@@ -459,6 +459,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
     bool bLocated = false;
     bool hasOutputIndex = outDataIndex != invalid_data_idx;
     if (after != nullptr) {
+        int nUnconnectedOData = 0;
         for (auto && data : after->outData) {
             if (hasOutputIndex && outDataIndex) {
                 --outDataIndex;
@@ -485,8 +486,8 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                     break;
                 }
             }
-            if (getInputTo(data).empty()) {
-                bLocated = true;
+            if (inputTo.empty()) {
+                nUnconnectedOData++;
             }
             if (bLocated) {
                 // erasing all connection
@@ -499,6 +500,23 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                 break;
             }
             if (hasOutputIndex) {
+                break;
+            }
+        }
+
+        // separately checking case of possible single unconnected output of given layer
+        if (!bLocated && !before && !hasOutputIndex) {
+            if (nUnconnectedOData != 1) {
+                THROW_GNA_EXCEPTION << "Cannot insert layer: " << LAYER_NAME(layerToInsert) <<" after: " << LAYER_NAME(after);
+            }
+
+            for (auto && data : after->outData) {
+                if (!getInputTo(data).empty()) continue;
+
+                bLocated = true;
+                getInputTo(data)[layerToInsert->outData.front()->getName()]  = layerToInsert;
+                layerToInsert->insData.push_back(data);
+
                 break;
             }
         }
