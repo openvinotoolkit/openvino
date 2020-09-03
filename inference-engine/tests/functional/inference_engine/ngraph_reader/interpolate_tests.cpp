@@ -291,10 +291,10 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
         <layer name="output" type="Result" id="5" precision="FP32" version="opset1">
             <input>
                 <port id="0">
-                    <dim>1</dim>
-                    <dim>2</dim>
-                    <dim>50</dim>
-                    <dim>60</dim>
+                    <dim>9</dim>
+                    <dim>12</dim>
+                    <dim>600</dim>
+                    <dim>900</dim>
                 </port>
             </input>
         </layer>
