@@ -99,7 +99,7 @@ ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importer"
 if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_importerd", fn)]):
     ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importerd"
 
-def _remove_compiler_flags(self)
+def _remove_compiler_flags(self):
     """Makes pybind11 more verbose in debug builds
     """
     try:
