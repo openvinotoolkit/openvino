@@ -927,6 +927,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
                 return;
             }
         }
+
+        if (std::is_same<T, float>::value) {
+            avx512::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                      reinterpret_cast<const float**>(src0),
+                                      reinterpret_cast<const float**>(src1),
+                                      reinterpret_cast<const float*>(alpha),
+                                      reinterpret_cast<const int*>(mapsx),
+                                      reinterpret_cast<const float*>(beta),
+                                      inSz, outSz, lpi);
+            return;
+        }
     }
     #endif
 
@@ -946,6 +957,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 
                 return;
             }
+        }
+
+        if (std::is_same<T, float>::value) {
+            avx::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                   reinterpret_cast<const float**>(src0),
+                                   reinterpret_cast<const float**>(src1),
+                                   reinterpret_cast<const float*>(alpha),
+                                   reinterpret_cast<const int*>(mapsx),
+                                   reinterpret_cast<const float*>(beta),
+                                   inSz, outSz, lpi);
+            return;
         }
     }
     #endif
