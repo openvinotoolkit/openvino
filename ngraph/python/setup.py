@@ -101,8 +101,7 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
 
 
 def _remove_compiler_flags(self):
-    """Makes pybind11 more verbose in debug builds
-    """
+    """Make pybind11 more verbose in debug builds."""
     try:
         # pybind11 is much more verbose without the NDEBUG define
         if sys.platform == "win32":
@@ -116,8 +115,7 @@ def _remove_compiler_flags(self):
 
 
 def _remove_compiler_so_flags(self):
-    """Makes pybind11 more verbose in debug builds
-    """
+    """Make pybind11 more verbose in debug builds."""
     try:
         # pybind11 is much more verbose without the NDEBUG define
         if sys.platform == "win32":
