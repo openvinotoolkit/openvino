@@ -92,18 +92,4 @@ namespace ngraph
         }
         using v0::DetectionOutput;
     }
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::DetectionOutputAttrs> : public VisitorAdapter
-    {
-    public:
-        AttributeAdapter(op::DetectionOutputAttrs& ref);
-
-        virtual bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::DetectionOutputAttrs>",
-                                                    0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        op::DetectionOutputAttrs& m_ref;
-    };
 }
