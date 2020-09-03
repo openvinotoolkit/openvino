@@ -25,7 +25,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(fqParams, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(fqParams, netPrecision, inputShapes, targetDevice, config) = obj.param;
     size_t levels;
     std::vector<size_t> constShape;
     std::tie(levels, constShape) = fqParams;
@@ -36,14 +37,18 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
+    if (!config.first.empty()) {
+        result << "_targetConfig=" << config.first;
+    }
     return result.str();
 }
 
 void FakeQuantizeLayerTest::SetUp() {
     fqSpecificParams fqParams;
     std::vector<size_t> inputShape;
+    std::pair<std::string, std::map<std::string, std::string>> config;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(fqParams, netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(fqParams, netPrecision, inputShape, targetDevice, config) = this->GetParam();
     InferenceEngine::SizeVector kernel, stride, dilation;
     size_t levels;
     std::vector<size_t> constShape;
@@ -56,6 +61,8 @@ void FakeQuantizeLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
+
+    configuration = config.second;
 }
 
 TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {

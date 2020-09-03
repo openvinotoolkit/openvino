@@ -19,9 +19,10 @@ typedef std::tuple<
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,
-        InferenceEngine::Precision,   // Net precision
-        InferenceEngine::SizeVector,  // Input shapes
-        LayerTestsUtils::TargetDevice // Device name
+        InferenceEngine::Precision,        // Net precision
+        InferenceEngine::SizeVector,       // Input shapes
+        LayerTestsUtils::TargetDevice,     // Device name
+        std::pair<std::string, std::map<std::string, std::string>> // Additional backend configuration and alis name to it
 > fqLayerTestParamsSet;
 namespace LayerTestsDefinitions {
 
