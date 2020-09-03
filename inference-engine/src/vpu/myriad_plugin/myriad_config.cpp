@@ -59,6 +59,7 @@ const std::unordered_set<std::string>& MyriadConfig::getDeprecatedOptions() cons
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getDeprecatedOptions(), {
         VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
         VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
         VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });

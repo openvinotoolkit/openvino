@@ -29,7 +29,9 @@ static constexpr char platform_message[] = "Optional. Specifies movidius platfor
                                            " Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480."
                                            " Overwrites value from config.\n"
 "                                             This option must be used in order to compile blob"
-                                           " without a connected Myriad device.";
+                                           " without a connected Myriad device.\n"
+"                                             PLATFORM configuration keys and values ​​are deprecated"
+                                           " and may not be supported in future releases.";
 static constexpr char number_of_shaves_message[] = "Optional. Specifies number of shaves."
                                                    " Should be set with \"VPU_NUMBER_OF_CMX_SLICES\"."
                                                    " Overwrites value from config.";
