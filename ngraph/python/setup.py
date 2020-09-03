@@ -99,6 +99,24 @@ ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importer"
 if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_importerd", fn)]):
     ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importerd"
 
+def _remove_compiler_flags(self)
+    """Makes pybind11 more verbose in debug builds
+    """
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            self.compiler.remove("/DNDEBUG")
+            self.compiler.remove("/O2")
+            self.compiler_so.remove("/DNDEBUG")
+            self.compiler_so.remove("/O2")
+        else:
+            self.compiler.remove("-DNDEBUG")
+            self.compiler.remove("-O2")
+            self.compiler_so.remove("-DNDEBUG")
+            self.compiler_so.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
 
 def parallelCCompile(
     self,
@@ -124,20 +142,8 @@ def parallelCCompile(
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
 
     if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        try:
-            # pybind11 is much more verbose without the NDEBUG define
-            if sys.platform == "win32":
-                self.compiler.remove("/DNDEBUG")
-                self.compiler.remove("/O2")
-                self.compiler_so.remove("/DNDEBUG")
-                self.compiler_so.remove("/O2")
-            else:
-                self.compiler.remove("-DNDEBUG")
-                self.compiler.remove("-O2")
-                self.compiler_so.remove("-DNDEBUG")
-                self.compiler_so.remove("-O2")
-        except (AttributeError, ValueError):
-            pass
+        self._remove_compiler_flags()
+
     # parallel code
     import multiprocessing.pool
 
