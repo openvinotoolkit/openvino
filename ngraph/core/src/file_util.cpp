@@ -299,6 +299,7 @@ void file_util::iterate_files(const string& path,
     vector<string> files;
     vector<string> dirs;
 #ifdef _WIN32
+    /*
     string file_match = path_join(path, "*");
     WIN32_FIND_DATA data;
     HANDLE hFind = FindFirstFile(file_match.c_str(), &data);
@@ -327,6 +328,7 @@ void file_util::iterate_files(const string& path,
         } while (FindNextFile(hFind, &data));
         FindClose(hFind);
     }
+    */
 #else
     iterate_files_worker(path,
                          [&files, &dirs](const string& file, bool is_dir) {

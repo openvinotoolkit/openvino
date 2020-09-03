@@ -170,10 +170,12 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
 #ifdef _WIN32
     CHAR mpath[MAX_PATH + 1];
     HMODULE nModule;
+    /*
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         (LPCSTR)CLDNNCustomLayer::LoadFromFile,
         &nModule);
     GetModuleFileName(nModule, mpath, sizeof(mpath));
+    */
 #elif __linux__
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CLDNNCustomLayer::LoadFromFile), &dl_info);

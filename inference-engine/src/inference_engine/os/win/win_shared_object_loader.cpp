@@ -6,6 +6,11 @@
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
+#ifdef WINAPI_FAMILY
+# undef WINAPI_FAMILY
+# define WINAPI_FAMILY WINAPI_FAMILY_PC_APP
+#endif
+
 #include <direct.h>
 #include <windows.h>
 
@@ -23,9 +28,11 @@ private:
         // GetDLLDirectory does not distinguish if aplication specific
         // path was set to "" or NULL so reset it to "" to keep
         // aplication safe.
-        if (GetDllDirectory(0, NULL) <= 1) {
-            SetDllDirectory(TEXT(""));
+        /*
+        if (GetDllDirectoryA(0, NULL) <= 1) {
+            SetDllDirectoryA(TEXT(""));
         }
+        */
     }
 
 public:
@@ -33,24 +40,28 @@ public:
     explicit Impl(const wchar_t* pluginName) {
         ExcludeCurrentDirectory();
 
+        /*
         shared_object = LoadLibraryW(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
+        */
     }
 #endif
 
     explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectory();
 
+        /*
         shared_object = LoadLibraryA(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
                 << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
+        */
     }
 
     ~Impl() {

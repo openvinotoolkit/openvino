@@ -53,11 +53,13 @@ static std::string getIELibraryPathA() {
 #ifdef _WIN32
     char ie_library_path[4096];
     HMODULE hm = NULL;
+    /*
     if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         (LPCSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
     GetModuleFileName(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
+    */
     return getPathName(std::string(ie_library_path));
 #else
 #ifdef USE_STATIC_IE
@@ -85,11 +87,13 @@ std::wstring getIELibraryPathW() {
 #if defined(_WIN32) || defined(_WIN64)
     wchar_t ie_library_path[4096];
     HMODULE hm = NULL;
+    /*
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             (LPCWSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
+    */
     return getPathName(std::wstring(ie_library_path));
 #else
     return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());

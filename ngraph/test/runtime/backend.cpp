@@ -39,9 +39,11 @@ static string find_my_pathname()
 {
 #ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
 #ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
     WCHAR wpath[MAX_PATH];
+    /*
+    HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
+    */
     wstring ws(wpath);
     string path(ws.begin(), ws.end());
     replace(path.begin(), path.end(), '\\', '/');
