@@ -12,9 +12,12 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
+auto conv = ngraph::pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
+
+
     auto input = ngraph::pattern::any_input();
-    auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
-    auto tanh = std::make_shared<ngraph::opset4::Tanh>(softplus);
+    auto softplus = ngraph::pattern::wrap_type<ngraph::opset4::SoftPlus>({input}, pattern::consumers_count(1));
+    auto tanh = ngraph::pattern::wrap_type<ngraph::opset4::Tanh>({softplus}, pattern::consumers_count(1));
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
