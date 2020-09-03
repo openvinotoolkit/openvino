@@ -7,7 +7,6 @@ from shutil import copyfile, copytree, rmtree
 major_version = 0
 minor_version = 3
 
-hello = "hello"
 
 class Automation:
     @staticmethod
