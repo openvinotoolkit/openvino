@@ -135,7 +135,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, params.output.GetDType(), "_TYPED"));
 
     if (params.output.Feature().v % 16 != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.output.Feature().v % 16));
