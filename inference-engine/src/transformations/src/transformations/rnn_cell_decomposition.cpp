@@ -14,16 +14,16 @@
 
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
         if (!rnn_cell) {
             return false;
         }
-        Output<Node> X = rnn_cell->input_value(0);
-        Output<Node> H_t = rnn_cell->input_value(1);
-        Output<Node> W = rnn_cell->input_value(2);
-        Output<Node> R = rnn_cell->input_value(3);
-        Output<Node> bias = rnn_cell->input_value(4);
+        const Output<Node>& X = rnn_cell->input_value(0);
+        const Output<Node>& H_t = rnn_cell->input_value(1);
+        const Output<Node>& W = rnn_cell->input_value(2);
+        const Output<Node>& R = rnn_cell->input_value(3);
+        const Output<Node>& bias = rnn_cell->input_value(4);
 
         // Xt*(W^T)
         auto Xt_W = std::make_shared<opset4::MatMul>(X, W, false, true);

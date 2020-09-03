@@ -14,17 +14,17 @@
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto lstm_cell = ngraph::pattern::wrap_type<opset4::LSTMCell>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
         if (!lstm_cell) {
             return false;
         }
-        Output<Node> X = lstm_cell->input_value(0);
-        Output<Node> H_t = lstm_cell->input_value(1);
-        Output<Node> C_t = lstm_cell->input_value(2);
-        Output<Node> W = lstm_cell->input_value(3);
-        Output<Node> R = lstm_cell->input_value(4);
-        Output<Node> bias = lstm_cell->input_value(5);
+        const Output<Node>& X = lstm_cell->input_value(0);
+        const Output<Node>& H_t = lstm_cell->input_value(1);
+        const Output<Node>& C_t = lstm_cell->input_value(2);
+        const Output<Node>& W = lstm_cell->input_value(3);
+        const Output<Node>& R = lstm_cell->input_value(4);
+        const Output<Node>& bias = lstm_cell->input_value(5);
 
         // Xt*(W^T)
         auto Xt_W = std::make_shared<opset4::MatMul>(X, W, false, true);

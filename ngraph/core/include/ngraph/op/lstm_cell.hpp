@@ -262,7 +262,7 @@ namespace ngraph
             };
         } // v0
 
-        namespace v1
+        namespace v4
         {
             ///
             /// \brief      Class for single lstm cell node.

@@ -14,17 +14,17 @@
 
 ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell> (m.get_match_root());
         if (!gru_cell) {
             return false;
         }
 
-        Output<Node> X = gru_cell->input_value(0);
-        Output<Node> H_t = gru_cell->input_value(1);
-        Output<Node> W = gru_cell->input_value(2);
-        Output<Node> R = gru_cell->input_value(3);
-        Output<Node> B = gru_cell->input_value(4);
+        const Output<Node>& X = gru_cell->input_value(0);
+        const Output<Node>& H_t = gru_cell->input_value(1);
+        const Output<Node>& W = gru_cell->input_value(2);
+        const Output<Node>& R = gru_cell->input_value(3);
+        const Output<Node>& B = gru_cell->input_value(4);
 
         // Xt*(W^T)
         auto Xt_W = std::make_shared<opset4::MatMul>(X, W, false, true);
@@ -32,8 +32,8 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto Ht_R = std::make_shared<opset4::MatMul>(H_t, R, false, true);
 
         // split to gates:
-        auto axis_0 = ngraph::opset4::Constant::create(element::u64, Shape{}, {0});
-        auto axis_1 = ngraph::opset4::Constant::create(element::u64, Shape{}, {1});
+        auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
         auto Xt_W_zrh = std::make_shared<opset4::Split>(Xt_W, axis_1, 3);
         auto R_zrh = std::make_shared<opset4::Split>(R, axis_0, 3);
         auto Ht_R_zrh = std::make_shared<opset4::Split>(Ht_R, axis_1, 3);
@@ -86,9 +86,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto h_t = ngraph::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
         // Ht = (1 - zt) (.) ht + zt (.) Ht-1
-        auto one = opset4::Constant::create(z_t->get_element_type(),
-                                            z_t->get_shape(),
-                                            std::vector<float>(shape_size(z_t->get_shape()), 1.f));
+        auto one = opset4::Constant::create(z_t->get_element_type(), Shape{1}, {1.f});
         auto sub = std::make_shared<opset4::Subtract>(one, z_t);
         auto mul_1 = std::make_shared<opset4::Multiply>(sub, h_t);
         auto mul_2 = std::make_shared<opset4::Multiply>(z_t, H_t);

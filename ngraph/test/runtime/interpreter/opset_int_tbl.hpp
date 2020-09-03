@@ -29,7 +29,6 @@ NGRAPH_OP(LogicalAnd, op::v1)
 NGRAPH_OP(LogicalOr, op::v1)
 NGRAPH_OP(LogicalXor, op::v1)
 NGRAPH_OP(LogicalNot, op::v1)
-NGRAPH_OP(LSTMCell, op::v1)
 #undef ID_SUFFIX
 
 #define ID_SUFFIX(NAME) NAME##_v3
@@ -46,4 +45,5 @@ NGRAPH_OP(ScatterUpdate, op::v3)
 
 #define ID_SUFFIX(NAME) NAME##_v4
 NGRAPH_OP(CTCLoss, op::v4)
+NGRAPH_OP(LSTMCell, op::v4)
 #undef ID_SUFFIX

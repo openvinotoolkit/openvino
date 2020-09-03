@@ -10,13 +10,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<size_t> batch{1, 5};
+    std::vector<bool> should_decompose{false, true};
+    std::vector<size_t> batch{5};
     std::vector<size_t> hidden_size{1, 10};
     std::vector<size_t> input_size{1, 30};
     std::vector<std::vector<std::string>> activations = {{"relu", "tanh"}, {"tanh", "sigmoid"}, {"sigmoid", "tanh"},
                                                          {"tanh", "relu"}};
-    std::vector<std::vector<float>> activations_alpha = {{0.f, 0.f, 0.f}};
-    std::vector<std::vector<float>> activations_beta = {{0.f, 0.f, 0.f}};
     std::vector<float> clip = {0.0f, 0.7f};
     std::vector<bool> linear_before_reset = {true, false};
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
@@ -24,12 +23,11 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(GRUCellCommon, GRUCellTest,
             ::testing::Combine(
+            ::testing::ValuesIn(should_decompose),
             ::testing::ValuesIn(batch),
             ::testing::ValuesIn(hidden_size),
             ::testing::ValuesIn(input_size),
             ::testing::ValuesIn(activations),
-            ::testing::ValuesIn(activations_alpha),
-            ::testing::ValuesIn(activations_beta),
             ::testing::ValuesIn(clip),
             ::testing::ValuesIn(linear_before_reset),
             ::testing::ValuesIn(netPrecisions),

@@ -24,18 +24,10 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
     };
     auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        bool is_lstm = false;
-        {
-            auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset1::LSTMCell>(m.get_match_root());
-            is_lstm |= lstm_cell != nullptr;
-            auto lstm_cell_4 = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
-            is_lstm |= lstm_cell_4 != nullptr;
-        }
-
-        if (!is_lstm) {
+        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
+        if (!lstm_cell) {
             return false;
         }
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
         auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(3).get_node_shared_ptr());
         if (!W) {
             return false;

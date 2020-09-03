@@ -27,7 +27,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::LSTMCell::type_info;
+constexpr NodeTypeInfo op::v4::LSTMCell::type_info;
 constexpr NodeTypeInfo op::v0::LSTMCell::type_info;
 
 op::v0::LSTMCell::LSTMCell()
@@ -373,7 +373,7 @@ namespace ngraph
     }
 } // namespace ngraph
 
-op::v1::LSTMCell::LSTMCell()
+op::v4::LSTMCell::LSTMCell()
 {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
@@ -381,7 +381,7 @@ op::v1::LSTMCell::LSTMCell()
     m_activation_h = get_activation_function(2);
 }
 
-op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
+op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& initial_hidden_state,
                            const Output<Node>& initial_cell_state,
                            const Output<Node>& W,
@@ -405,7 +405,7 @@ op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
+op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& initial_hidden_state,
                            const Output<Node>& initial_cell_state,
                            const Output<Node>& W,
@@ -429,12 +429,12 @@ op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::LSTMCell::visit_attributes(AttributeVisitor& visitor)
+bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::v1::LSTMCell::validate_and_infer_types()
+void op::v4::LSTMCell::validate_and_infer_types()
 {
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
@@ -540,13 +540,13 @@ void op::v1::LSTMCell::validate_and_infer_types()
     set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-Output<Node> op::v1::LSTMCell::get_default_bias_input() const
+Output<Node> op::v4::LSTMCell::get_default_bias_input() const
 {
     return Output<Node>{op::Constant::create(
         get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v1::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     if (new_args.size() == 5)
