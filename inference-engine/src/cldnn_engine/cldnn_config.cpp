@@ -189,6 +189,14 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported NV12 flag value: " << val;
             }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                enable_fp16_for_quantized_models = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                enable_fp16_for_quantized_models = false;
+            } else {
+                THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
+            }
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property key by plugin: " << key;
         }
@@ -227,6 +235,11 @@ void Config::adjustKeyMapValues() {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::YES;
     else
         key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::NO;
+
+    if (enable_fp16_for_quantized_models)
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::YES;
+    else
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
 
     {
         std::string qp = "0";
