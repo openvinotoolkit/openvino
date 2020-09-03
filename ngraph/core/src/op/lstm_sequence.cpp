@@ -59,11 +59,11 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 
         // Stack together respective outputs from both forward and reverse passess.
         shared_ptr<Node> Y{
-                make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
         shared_ptr<Node> Y_h{
-                make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
         shared_ptr<Node> Y_c{
-                make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
+            make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
         results = OutputVector{Y, Y_h, Y_c};
     }
     return results;
@@ -132,14 +132,14 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
     // Create predicate nodes. The condition is whether current time step value
     // is greater than sequence length for respective batch inputs.
     shared_ptr<Node> curr_time_step_node = opset1::Constant::create(
-            element::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
+        element::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
 
     Output<Node> batch_seq_length = builder::opset1::legacy_broadcast_for_binary_operation(
-            curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);
+        curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
     shared_ptr<Node> mask_condition =
-            make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
+        make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
 
     // Select values depnding on mask_condition.
     // Select(<condition>, <true_value>, <false_value>)
@@ -305,7 +305,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
 
     // Validate rank and dimension for P input
     NODE_VALIDATION_CHECK(
-            this, (p_pshape.rank().is_static()), "LSTMSequence input tensor P shall have static rank.");
+        this, (p_pshape.rank().is_static()), "LSTMSequence input tensor P shall have static rank.");
 
     NODE_VALIDATION_CHECK(this,
                           (p_pshape.rank().get_length() == 2),
@@ -313,42 +313,42 @@ void op::v0::LSTMSequence::validate_and_infer_types()
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+        this,
+        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-            "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
-            "match.");
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(
-            this,
-            Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+        this,
+        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
             Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-            "Parameter batch_size not matched in LSTMSequence.");
+        "Parameter batch_size not matched in LSTMSequence.");
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(
-            this,
-            Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
+        this,
+        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
             Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[2]) &&
             Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-            "Parameter hidden_size not matched LSTMSequence.");
+        "Parameter hidden_size not matched LSTMSequence.");
 
     // Merge num_directions dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(
-            this,
-            Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
+        this,
+        Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
             Dimension::merge(merged_num_directions, merged_num_directions, ct_pshape[1]) &&
             Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
             Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
             Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
-            "Parameter num_directions not matched in LSTMSequence.");
+        "Parameter num_directions not matched in LSTMSequence.");
 
     // Validate hidden_size value for W, R, B and P inputs
     if (merged_hidden_size.is_static())
@@ -356,49 +356,49 @@ void op::v0::LSTMSequence::validate_and_infer_types()
         if (w_pshape[0].is_static())
         {
             NODE_VALIDATION_CHECK(
-                    this,
-                    w_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
-                    "Parameter hidden_size mistmatched in P input. Current value is: ",
-                    w_pshape[1].get_length(),
-                    ", expected: ",
-                    merged_hidden_size.get_length() * lstm_seq_gates_count,
-                    ".");
+                this,
+                w_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
+                w_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
+                ".");
         }
 
         if (r_pshape[0].is_static())
         {
             NODE_VALIDATION_CHECK(
-                    this,
-                    r_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
-                    "Parameter hidden_size mistmatched in R input. Current value is: ",
-                    r_pshape[1].get_length(),
-                    ", expected: ",
-                    merged_hidden_size.get_length() * lstm_seq_gates_count,
-                    ".");
+                this,
+                r_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
+                r_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
+                ".");
         }
 
         if (b_pshape[0].is_static())
         {
             NODE_VALIDATION_CHECK(
-                    this,
-                    b_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
-                    "Parameter hidden_size mistmatched in B input. Current value is: ",
-                    b_pshape[1].get_length(),
-                    ", expected: ",
-                    merged_hidden_size.get_length() * lstm_seq_gates_count,
-                    ".");
+                this,
+                b_pshape[1].compatible(merged_hidden_size * lstm_seq_gates_count),
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
+                b_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * lstm_seq_gates_count,
+                ".");
         }
 
         if (p_pshape[0].is_static())
         {
             NODE_VALIDATION_CHECK(
-                    this,
-                    p_pshape[1].compatible(merged_hidden_size * lstm_seq_peepholes_count),
-                    "Parameter hidden_size mistmatched in P input. Current value is: ",
-                    p_pshape[1].get_length(),
-                    ", expected: ",
-                    merged_hidden_size.get_length() * lstm_seq_peepholes_count,
-                    ".");
+                this,
+                p_pshape[1].compatible(merged_hidden_size * lstm_seq_peepholes_count),
+                "Parameter hidden_size mistmatched in P input. Current value is: ",
+                p_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * lstm_seq_peepholes_count,
+                ".");
         }
     }
 
@@ -414,7 +414,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     // Set output size, type and shape
     set_output_size(3);
     set_output_type(
-            0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
+        0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
     set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
     set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }

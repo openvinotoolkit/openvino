@@ -72,22 +72,22 @@ namespace ngraph
                                                                                     "tanh"},
                                       const float clip_threshold = 0,
                                       const bool input_forget = false)
-                        : FusedOp({X,
-                                   initial_hidden_state,
-                                   initial_cell_state,
-                                   sequence_lengths,
-                                   W,
-                                   R,
-                                   B,
-                                   P})
-                        , m_activations_alpha(activations_alpha)
-                        , m_activations_beta(activations_beta)
-                        , m_activations(activations)
-                        , m_clip_threshold(clip_threshold)
-                        , m_direction(lstm_direction)
-                        , m_hidden_size(hidden_size)
-                        , m_input_forget(input_forget)
-                        , m_weights_format(weights_format)
+                    : FusedOp({X,
+                               initial_hidden_state,
+                               initial_cell_state,
+                               sequence_lengths,
+                               W,
+                               R,
+                               B,
+                               P})
+                    , m_activations_alpha(activations_alpha)
+                    , m_activations_beta(activations_beta)
+                    , m_activations(activations)
+                    , m_clip_threshold(clip_threshold)
+                    , m_direction(lstm_direction)
+                    , m_hidden_size(hidden_size)
+                    , m_input_forget(input_forget)
+                    , m_weights_format(weights_format)
                 {
                     constructor_validate_and_infer_types();
                 }
@@ -109,27 +109,27 @@ namespace ngraph
                                                                                     "tanh"},
                                       const float clip_threshold = 0,
                                       const bool input_forget = false)
-                        : LSTMSequence(
-                        X,
-                        initial_hidden_state,
-                        initial_cell_state,
-                        sequence_lengths,
-                        W,
-                        R,
-                        B,
-                        Constant::create(
-                                element::f32,
-                                Shape{(lstm_direction == direction::BIDIRECTIONAL ? 2UL : 1UL),
-                                      3UL * static_cast<size_t>(hidden_size)},
-                                std::vector<float>{0.f}),
-                        hidden_size,
-                        lstm_direction,
-                        weights_format,
-                        activations_alpha,
-                        activations_beta,
-                        activations,
-                        clip_threshold,
-                        input_forget)
+                    : LSTMSequence(
+                          X,
+                          initial_hidden_state,
+                          initial_cell_state,
+                          sequence_lengths,
+                          W,
+                          R,
+                          B,
+                          Constant::create(
+                              element::f32,
+                              Shape{(lstm_direction == direction::BIDIRECTIONAL ? 2UL : 1UL),
+                                    3UL * static_cast<size_t>(hidden_size)},
+                              std::vector<float>{0.f}),
+                          hidden_size,
+                          lstm_direction,
+                          weights_format,
+                          activations_alpha,
+                          activations_beta,
+                          activations,
+                          clip_threshold,
+                          input_forget)
                 {
                 }
 
@@ -138,7 +138,7 @@ namespace ngraph
                 virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
-                clone_with_new_inputs(const OutputVector& new_args) const override;
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 std::vector<float> get_activations_alpha() const { return m_activations_alpha; }
                 std::vector<float> get_activations_beta() const { return m_activations_beta; }
@@ -163,10 +163,10 @@ namespace ngraph
                 /// \return     The masked value.
                 ///
                 std::shared_ptr<Node>
-                get_masked_node(const Output<Node>& data,
-                                std::int32_t time_step,
-                                std::size_t batch_axis = 0,
-                                const Output<Node>& default_value = Output<Node>()) const;
+                    get_masked_node(const Output<Node>& data,
+                                    std::int32_t time_step,
+                                    std::size_t batch_axis = 0,
+                                    const Output<Node>& default_value = Output<Node>()) const;
 
                 OutputVector lstm_pass(bool is_reverse = false) const;
 
@@ -242,7 +242,6 @@ namespace ngraph
 
                 direction get_direction() const { return m_direction; }
             private:
-
                 direction m_direction;
             };
         }
