@@ -110,6 +110,12 @@ void GNAGraphCompiler::fillConcatConnections(InferenceEngine::CNNLayerPtr layer)
                 InferenceEngine::details::product(begin(dataInput->getDims()),
                                                   end(dataInput->getDims())) * dataInput->getPrecision().size();
 
+        // concat align layer can have additional padding, so the size of layer needs to be calculated
+        // based on original number of rows
+        if (ptrConcatLayerInput->CheckParamPresence("original_num_rows")) {
+            layer_size = ptrConcatLayerInput->GetParamAsInt("original_num_rows") * dataInput->getPrecision().size();
+        }
+
         layerInfoItem.concatInputLayers.emplace_back(GNAConcatLayer::ConcatConnectedLayerInfo{ptrConcatLayerInput->name, concat_size, layer_size});
 
         concat_size += layer_size;

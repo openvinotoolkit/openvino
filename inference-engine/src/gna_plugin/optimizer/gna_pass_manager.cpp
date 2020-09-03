@@ -784,9 +784,9 @@ void InsertConcatAligningFilterPass::run() {
                 size_t num_rows_out = num_rows_padded + num_rows_in;
 
                 // encodes offset to beginning of split layer input
-                size_t off = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
+                size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
                 concatAligningFilter->params["output_offset"] =
-                        std::to_string(off);
+                        std::to_string(bytesOffset);
 
                 // for padded rows we cannot use copy layer - TBD how to implement
                 concatAligningFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);

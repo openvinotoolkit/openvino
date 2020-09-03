@@ -22,16 +22,14 @@
 namespace LayerTestsDefinitions {
 
 
-std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj) {
-    size_t inputNum;
-    std::vector<size_t> inputShapes;
+std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatMultiParams> obj) {
+    std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputNum, inputShapes, netPrecision, targetDevice, additional_config) = obj.param;
+    std::tie(inputShapes, netPrecision, targetDevice, additional_config) = obj.param;
 
     std::ostringstream result;
-    result << "IN=" << inputNum << "_";
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
@@ -40,16 +38,18 @@ std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatQuant
 }
 
 void ConcatMultiInput::SetUp() {
-    size_t inputNum = 0;
-    std::vector<size_t> inputShapes;
+    std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputNum, inputShapes, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes, netPrecision, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    std::vector<size_t> paramsSize = { 1, inputShapes[1] * inputNum };
-    auto params = ngraph::builder::makeParams(ngPrc, { paramsSize });
+    std::vector<size_t> paramSize = { 1, 0 };
+    for (const auto& val : inputShapes) {
+        paramSize[1] += val[1];
+    }
+    auto params = ngraph::builder::makeParams(ngPrc, { paramSize });
     auto stride = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
 
     std::vector<int64_t> newAxis = { 0, 0 };
@@ -59,14 +59,19 @@ void ConcatMultiInput::SetUp() {
     ngraph::OutputVector concatInput;
 
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    for (int64_t i = 0; i < inputNum; ++i) {
-        auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 },
-            std::vector<int64_t>{ 0, i * static_cast<int64_t>(inputShapes[1]) });
-        auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 },
-            std::vector<int64_t>{ 1, (i + 1) * static_cast<int64_t>(inputShapes[1]) });
+    std::vector<int64_t> startOffset = { 0, 0 };
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        std::vector<int64_t> shape = { static_cast<int64_t>(inputShapes[i][0]),
+                                       static_cast<int64_t>(inputShapes[i][1]) };
+        std::vector<int64_t> endoffset = { static_cast<int64_t>(inputShapes[i][0]) + startOffset[0],
+                                           static_cast<int64_t>(inputShapes[i][1]) + startOffset[1]};
+        auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, startOffset);
+        auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, endoffset);
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
         ssArray.push_back(ss);
         concatInput.push_back(ssArray[i]);
+
+        startOffset[1] += shape[1];
     }
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(concatInput, 1);

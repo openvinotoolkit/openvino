@@ -14,19 +14,18 @@
 #include "ngraph_functions/builders.hpp"
 
 typedef std::tuple<
-    size_t,                             // Number of Concat Input
-    std::vector<size_t>,                // Input shapes
+    std::vector<std::vector<size_t>>,   // Input shapes
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>  // Config
-> concatQuantizationParams;
+> concatMultiParams;
 
 namespace LayerTestsDefinitions {
 
-class ConcatMultiInput : public testing::WithParamInterface<concatQuantizationParams>,
+class ConcatMultiInput : public testing::WithParamInterface<concatMultiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<concatMultiParams> obj);
 
 protected:
     void SetUp() override;

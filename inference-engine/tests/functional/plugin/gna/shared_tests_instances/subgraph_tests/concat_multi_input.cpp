@@ -11,18 +11,13 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<size_t> inNum = {
-    2,
-    4,
-    16,
-};
-
-std::vector<std::vector<size_t>> inShapes = {
-    {1, 2},
-    {1, 9},
-    {1, 16},
-    {1, 32},
-    {1, 64},
+std::vector<std::vector<std::vector<size_t>>> inShapes = {
+    { {1,8}, {1,8} },
+    { {1,3}, {1,3}, {1,3} },
+    { {1,16}, {1,16}, {1,16} },
+    { {1,16}, {1,16}, {1,16}, {1,16} },
+    { {1,32}, {1,32}, {1,32}, {1,32} },
+    { {1,16}, {1,32}, {1,16}, {1,32}, {1,16}, {1,32} },
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -38,7 +33,6 @@ std::map<std::string, std::string> additional_config = {
 
 INSTANTIATE_TEST_CASE_P(concat_multi_input, ConcatMultiInput,
     ::testing::Combine(
-        ::testing::ValuesIn(inNum),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
