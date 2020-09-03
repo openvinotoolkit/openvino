@@ -150,7 +150,7 @@ void MKLDNNPermuteNode::getSupportedDescriptors() {
         order.push_back(static_cast<size_t>(ord));
 
     if (order.empty()) {
-        size_t rank = getParentEdgeAt(0)->getDims().size();
+        size_t rank = getParentEdgeAt(0)->getDims().ndims();
         for (size_t i = 1; i <= rank; ++i) {
             order.emplace_back(rank - i);
         }
