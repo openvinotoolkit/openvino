@@ -127,13 +127,23 @@ namespace
 
         default: throw ngraph_error("axis element type is not integral data type");
         }
-        AxisVector in_axis_order(shape_size(arg2->get_shape()));
-        std::transform(axis_order.begin(),
-                       axis_order.end(),
-                       in_axis_order.begin(),
-                       [&](const int64_t& v) { return (v > 0) ? v : 0; });
 
         Shape in_shape = arg1->get_shape();
+        AxisVector in_axis_order(shape_size(arg2->get_shape()));
+        if (in_axis_order.empty())
+        {
+            size_t rank = in_shape.size();
+            for (size_t i = 1; i <= rank; ++i)
+                in_axis_order.emplace_back(rank - i);
+        }
+        else
+        {
+            std::transform(axis_order.begin(),
+                           axis_order.end(),
+                           in_axis_order.begin(),
+                           [&](const int64_t& v) { return (v > 0) ? v : 0; });
+        }
+
         Shape out_shape(in_shape.size());
         std::transform(in_axis_order.begin(),
                        in_axis_order.end(),
