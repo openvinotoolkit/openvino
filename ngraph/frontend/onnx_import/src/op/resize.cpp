@@ -224,6 +224,44 @@ namespace ngraph
 
                     return scales;
                 }
+
+                OutputVector build_resize(const Node& node,
+                                          const std::shared_ptr<ngraph::Node>& output_shape,
+                                          const AxisSet& axes)
+                {
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+
+                    std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
+                    bool is_mode_supported =
+                        (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
+                         supported_modes.end());
+
+                    if (!is_mode_supported)
+                    {
+                        std::string supported_modes_str = "";
+                        for (const auto& mode_name : supported_modes)
+                        {
+                            supported_modes_str += (mode_name + ", ");
+                        }
+                        CHECK_VALID_NODE(node,
+                                         is_mode_supported,
+                                         mode,
+                                         " - this type of interpolation mode is not supported."
+                                         " Choose one of the following modes: ",
+                                         supported_modes_str);
+                    }
+
+                    auto attrs = ngraph::op::v0::InterpolateAttrs();
+                    attrs.axes = axes;
+                    attrs.mode = mode;
+                    attrs.align_corners = false;
+
+                    const auto inputs = node.get_ng_inputs();
+                    const auto& data = inputs.at(0);
+
+                    return {
+                        std::make_shared<ngraph::op::v0::Interpolate>(data, output_shape, attrs)};
+                }
             }
 
             namespace set_11
@@ -279,20 +317,17 @@ namespace ngraph
                     const auto& data_shape = data.get_partial_shape();
                     const auto& scales_shape = scales.get_partial_shape();
 
-                    auto attrs = get_resize_attrs(node);
-                    if (attrs.mode == InterpolateMode::linear_onnx)
-                    {
-                        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
-                    }
-
                     CHECK_VALID_NODE(
                         node,
                         (scales_shape.is_static() || data_shape.rank().is_static()),
-                        " Data rank or shape of Scales input is required to be static.");
+                        " Data rank or shape of scales input is required to be static.");
+
+                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
+                                                                : data_shape.rank().get_length();
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
-                    return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales, attrs)};
+                    return build_resize(
+                        node, output_shape, AxisSet(common::get_monotonic_range(axes_size)));
                 }
 
             } // namespace set_1
