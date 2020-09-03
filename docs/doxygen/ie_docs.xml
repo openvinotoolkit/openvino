@@ -267,7 +267,7 @@
                     <tab type="user" title="Introduction to Performance Topics" url="@ref openvino_docs_IE_DG_Intro_to_Performance"/>
                     <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
                     <tab type="user" title="Build a Model with nGraph" url="@ref openvino_docs_IE_DG_nGraphTutorial"/>
-                    <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Supported_Ops"/>
+                    <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Support"/>
                     <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                     <tab type="user" title="Graph Debug Capabilities" url="@ref openvino_docs_IE_DG_Graph_debug_capabilities"/>
                     <tab type="user" title="Using Dynamic Batching Feature" url="@ref openvino_docs_IE_DG_DynamicBatching"/>
