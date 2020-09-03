@@ -20,6 +20,7 @@ from typing import List
 
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -272,19 +273,12 @@ def replace_sequence(seq: List[Node], graph: Graph):
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
     else:
         attributes['in_ports_count'] = 4
-        interp_node = Interpolate(graph, attributes).create_node()
-
-        sizes_node = Const(graph, dict(name=fst_interp_node_name + '/sizes_', value=sizes)).create_node()
-        sizes_node.out_port(0).connect(interp_node.in_port(1))
-
-        scales_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=scales)).create_node()
-        scales_node.out_port(0).connect(interp_node.in_port(2))
+        interp_node = create_op_with_const_inputs(graph, Interpolate,
+                                                  {1: sizes, 2: scales, 3: axes_of_node},
+                                                  attributes)
 
         fst_interp_connection = fst_interp_node.in_port(0).get_connection()
         fst_interp_connection.set_destination(interp_node.in_port(0))
-
-        axes_node = Const(graph, {'name': fst_interp_node_name + '/axis_', 'value': axes_of_node}).create_node()
-        axes_node.out_port(0).connect(interp_node.in_port(3))
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
 
