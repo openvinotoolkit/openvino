@@ -241,11 +241,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
                 results.push_back(result);
 
-                std::string outputName = layerName;
-                if (layer->outputs().size() != 1) {
-                    outputName += "." + std::to_string(outputIndex);
+                auto outName = layer->output(outputIndex).get_tensor().get_name();
+                if (outName.empty()) {
+                    outName = ngraph::op::util::create_ie_output_name(layer->output(outputIndex));
                 }
-                if (_outputData.count(outputName) == 0) {
+                if (_outputData.count(outName) == 0) {
                     reshape();
                 }
                 return OK;

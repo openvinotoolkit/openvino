@@ -195,7 +195,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     try {
         OutputsDataMap outputs = nGraphImpl.getOutputsInfo();
         ASSERT_EQ(outputs.size(), 1);
-        ASSERT_EQ(outputs.begin()->first, "topK.1");
+        ASSERT_EQ(outputs.begin()->first, "topK");
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
