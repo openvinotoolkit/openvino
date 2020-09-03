@@ -108,11 +108,22 @@ def _remove_compiler_flags(self):
         if sys.platform == "win32":
             self.compiler.remove("/DNDEBUG")
             self.compiler.remove("/O2")
-            self.compiler_so.remove("/DNDEBUG")
-            self.compiler_so.remove("/O2")
         else:
             self.compiler.remove("-DNDEBUG")
             self.compiler.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
+
+def _remove_compiler_so_flags(self):
+    """Makes pybind11 more verbose in debug builds
+    """
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            self.compiler_so.remove("/DNDEBUG")
+            self.compiler_so.remove("/O2")
+        else:
             self.compiler_so.remove("-DNDEBUG")
             self.compiler_so.remove("-O2")
     except (AttributeError, ValueError):
@@ -144,6 +155,7 @@ def parallelCCompile(
 
     if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
         self._remove_compiler_flags()
+        self._remove_compiler_so_flags()
 
     # parallel code
     import multiprocessing.pool
@@ -343,13 +355,7 @@ class BuildExt(build_ext):
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
             if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                # pybind11 is much more verbose without the NDEBUG define
-                if sys.platform == "win32":
-                    self.compiler.compiler_so.remove("/DNDEBUG")
-                    self.compiler.compiler_so.remove("/O2")
-                else:
-                    self.compiler.compiler_so.remove("-DNDEBUG")
-                    self.compiler.compiler_so.remove("-O2")
+                self._remove_compiler_so_flags()
 
         except (AttributeError, ValueError):
             pass
