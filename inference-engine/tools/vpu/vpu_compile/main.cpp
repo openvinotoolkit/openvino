@@ -11,8 +11,8 @@
 #include <vector>
 #include <string>
 
-#include <mvnc.h>
 #include <gflags/gflags.h>
+
 #include "inference_engine.hpp"
 #include <vpu/private_plugin_config.hpp>
 #include "samples/common.hpp"
