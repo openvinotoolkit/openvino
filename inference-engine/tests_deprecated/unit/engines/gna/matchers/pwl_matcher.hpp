@@ -10,7 +10,7 @@
 
 extern void PwlApply16(intel_dnn_component_t *component, uint32_t num_subset_size);
 
-class PWLMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class PWLMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;
     int matchQuantity;
     mutable int timesInserted = 0;
@@ -25,7 +25,7 @@ class PWLMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> 
         : matchInserted(inserted), matchQuantity(matchQuantity), activationsToLookFor(particularActivations) {
     }
 
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         timesInserted = 0;
@@ -35,7 +35,7 @@ class PWLMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> 
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE &&
                 foo->pLayers[i].nLayerKind != INTEL_AFFINE_DIAGONAL &&
                 foo->pLayers[i].nLayerKind != INTEL_CONVOLUTIONAL) continue;
-            auto affine = reinterpret_cast<intel_affine_layer_t*>(foo->pLayers[i].pLayerStruct);
+            auto affine = reinterpret_cast<gna_affine_layer_t*>(foo->pLayers[i].pLayerStruct);
             if (affine == nullptr) continue;
 
             bool hasPwl = affine->pwl.nSegments != 0 && affine->pwl.pSegments != nullptr;
@@ -73,7 +73,7 @@ class PWLMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> 
         return timesInserted == 0;
     };
 
-    DnnActivationType detectPwlType(intel_nnet_layer_t *layer) const {
+    DnnActivationType detectPwlType(gna_nnet_layer_t *layer) const {
 
         intel_dnn_component_t comp;
         comp.ptr_outputs = layer->pOutputs;
@@ -82,11 +82,11 @@ class PWLMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> 
 
         if (layer->nLayerKind == INTEL_AFFINE ||
             layer->nLayerKind == INTEL_AFFINE_DIAGONAL) {
-            auto pAffineLayer = reinterpret_cast<intel_affine_layer_t *>(layer->pLayerStruct);
+            auto pAffineLayer = reinterpret_cast<gna_affine_layer_t *>(layer->pLayerStruct);
             comp.op.pwl.num_segments = pAffineLayer->pwl.nSegments;
             comp.op.pwl.ptr_segments = pAffineLayer->pwl.pSegments;
         } else if (layer->nLayerKind == INTEL_CONVOLUTIONAL) {
-            auto pConvolutionalLayer = reinterpret_cast<intel_convolutional_layer_t *>(layer->pLayerStruct);
+            auto pConvolutionalLayer = reinterpret_cast<gna_convolutional_layer_t *>(layer->pLayerStruct);
             comp.op.pwl.num_segments = pConvolutionalLayer->pwl.nSegments;
             comp.op.pwl.ptr_segments = pConvolutionalLayer->pwl.pSegments;
         } else {

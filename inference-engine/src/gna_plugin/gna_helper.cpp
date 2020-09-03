@@ -4,15 +4,13 @@
 //  gna_helper.cpp : various GNA-related utility functions
 //
 
-#define PROFILE
-
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <vector>
 #include <sstream>
 #include <string>
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "gna_plugin_log.hpp"
 
 #include "gna_lib_ver_selector.hpp"
@@ -48,21 +46,6 @@ void PrintMatrixFloat32(char *ptr_name, float *ptr_matrix, int num_rows, int num
     }
 }
 
-void PrintGnaNetwork(intel_nnet_type_t *ptr_nnet) {
-    PrintMatrixInt16("input", reinterpret_cast<int16_t*>(ptr_nnet->pLayers[0].pInputs),
-                     ptr_nnet->pLayers[0].nInputRows, ptr_nnet->pLayers[0].nInputColumns, ptr_nnet->pLayers[0].nInputColumns, 1.0);
-    for (uint32_t i = 0; i < ptr_nnet->nLayers; i++) {
-        char name[256];
-        snprintf(name, sizeof(name), "output %d", i);
-        if (ptr_nnet->pLayers[i].nBytesPerOutput == 2) {
-            PrintMatrixInt16(name, reinterpret_cast<int16_t*>(ptr_nnet->pLayers[i].pOutputs),
-                             ptr_nnet->pLayers[i].nOutputRows, ptr_nnet->pLayers[i].nOutputColumns, ptr_nnet->pLayers[i].nOutputColumns, 1.0);
-        } else {
-            PrintMatrixInt32(name, reinterpret_cast<int32_t*>(ptr_nnet->pLayers[i].pOutputs),
-                             ptr_nnet->pLayers[i].nOutputRows, ptr_nnet->pLayers[i].nOutputColumns, ptr_nnet->pLayers[i].nOutputColumns, 1.0);
-        }
-    }
-}
 
 typedef struct {
     std::string sName;
@@ -146,7 +129,7 @@ uint32_t BufferOffsetFromAddress(std::vector<intel_memory_region_t> &vBuffer, vo
     return (nOffsetBytes);
 }
 
-std::string LayerName(intel_nnet_layer_t *pLayer) {
+std::string LayerName(gna_nnet_layer_t *pLayer) {
     const auto nKind = pLayer->nLayerKind;
     std::string sKind;
     if (nKind == INTEL_AFFINE) {
@@ -164,7 +147,7 @@ std::string LayerName(intel_nnet_layer_t *pLayer) {
     return (sKind);
 }
 
-uint32_t NumInputs(intel_nnet_layer_t *pLayer) {
+uint32_t NumInputs(gna_nnet_layer_t *pLayer) {
     const auto nKind = pLayer->nLayerKind;
     uint32_t nInputs;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
@@ -180,7 +163,7 @@ uint32_t NumInputs(intel_nnet_layer_t *pLayer) {
     return (nInputs);
 }
 
-uint32_t NumOutputs(intel_nnet_layer_t *pLayer) {
+uint32_t NumOutputs(gna_nnet_layer_t *pLayer) {
     const auto nKind = pLayer->nLayerKind;
     uint32_t nOutputs;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
@@ -196,7 +179,7 @@ uint32_t NumOutputs(intel_nnet_layer_t *pLayer) {
     return (nOutputs);
 }
 
-uint32_t NumGroupSize(intel_nnet_layer_t *pLayer) {
+uint32_t NumGroupSize(gna_nnet_layer_t *pLayer) {
     const auto nKind = pLayer->nLayerKind;
     uint32_t nGroupSize;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
