@@ -284,7 +284,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
                     <dim>9</dim>
                     <dim>12</dim>
                     <dim>600</dim>
-                    <dim>600</dim>
+                    <dim>900</dim>
                 </port>
             </output>
         </layer>
@@ -375,7 +375,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
                     <dim>9</dim>
                     <dim>12</dim>
                     <dim>600</dim>
-                    <dim>600</dim>
+                    <dim>900</dim>
                 </port>
             </output>
         </layer>
@@ -391,7 +391,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
     compareIRs(model, modelV5, 24, [](Blob::Ptr& weights) {
         auto *data = weights->buffer().as<int*>();
         data[0] = 600;
-        data[1] = 600;
+        data[1] = 900;
         data[4] = 2;
         data[5] = 3;
 
