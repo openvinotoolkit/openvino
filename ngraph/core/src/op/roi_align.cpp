@@ -199,8 +199,8 @@ namespace
 {
     bool evaluate_roi_align(const HostTensorVector& args,
                             const HostTensorPtr& out,
-                            const int pooled_width,
                             const int pooled_height,
+                            const int pooled_width,
                             const int sampling_ratio,
                             const float spatial_scale,
                             const op::v3::ROIAlign::PoolingMode& pooling_mode)
@@ -258,8 +258,8 @@ namespace
                                                     rois->get_shape(),
                                                     batch_indices->get_shape(),
                                                     out->get_shape(),
-                                                    pooled_width,
                                                     pooled_height,
+                                                    pooled_width,
                                                     sampling_ratio,
                                                     spatial_scale,
                                                     pooling_mode);
@@ -275,8 +275,8 @@ namespace
                                                    rois->get_shape(),
                                                    batch_indices->get_shape(),
                                                    out->get_shape(),
-                                                   pooled_width,
                                                    pooled_height,
+                                                   pooled_width,
                                                    sampling_ratio,
                                                    spatial_scale,
                                                    pooling_mode);
@@ -292,8 +292,8 @@ namespace
                                                  rois->get_shape(),
                                                  batch_indices->get_shape(),
                                                  out->get_shape(),
-                                                 pooled_width,
                                                  pooled_height,
+                                                 pooled_width,
                                                  sampling_ratio,
                                                  spatial_scale,
                                                  pooling_mode);
@@ -309,8 +309,8 @@ namespace
                                                   rois->get_shape(),
                                                   batch_indices->get_shape(),
                                                   out->get_shape(),
-                                                  pooled_width,
                                                   pooled_height,
+                                                  pooled_width,
                                                   sampling_ratio,
                                                   spatial_scale,
                                                   pooling_mode);
@@ -330,5 +330,5 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
         this, inputs.size() >= 3, "Not enough input arguments for ROI align operator.");
 
     return evaluate_roi_align(
-        inputs, outputs[0], m_pooled_w, m_pooled_h, m_sampling_ratio, m_spatial_scale, m_mode);
+        inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }

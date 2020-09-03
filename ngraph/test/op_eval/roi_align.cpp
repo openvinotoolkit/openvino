@@ -57,11 +57,8 @@ TEST(op_eval, roi_align_avg_pool)
                                 52., 53., 54., 55., 56., 57., 58., 59., 60., 61., 62., 63., 64.,
                                 65., 66., 67., 68., 69., 70., 71., 72., 73., 74.};
 
-    std::vector<float> rois_vec{7.,   5.,  7.,   5., 
-                              -15., -15.,-15., -15., 
-                              -10.,  21.,-10.,  21., 
-                               13.,   8., 13.,   8., 
-                              -14.,  19.,-14.,  19.};
+    std::vector<float> rois_vec{7.,   5.,  7.,  5., -15., -15., -15., -15., -10., 21.,
+                                -10., 21., 13., 8., 13.,  8.,   -14., 19.,  -14., 19.};
 
     std::vector<int64_t> batch_indices_vec{0, 0, 0, 0, 0};
 
@@ -93,6 +90,65 @@ TEST(op_eval, roi_align_avg_pool)
         10.1042f, 10.1042f, 10.1354f, 31.7708f, 31.7708f, 31.7708f, 31.8021f, 33.4375f, 33.4375f,
         33.4375f, 33.4688f, 35.1042f, 35.1042f, 35.1042f, 35.1354f, 56.7708f, 56.7708f, 56.7708f,
         56.8021f, 58.4375f, 58.4375f, 58.4375f, 58.4688f, 60.1042f, 60.1042f, 60.1042f, 60.1354f};
+    const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
+
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_shape(), expected_shape);
+
+    auto result_data = read_vector<float>(result);
+    for (size_t i = 0; i < expected_vec.size(); i++)
+        EXPECT_NEAR(result_data[i], expected_vec[i], 0.000001);
+}
+
+TEST(op_eval, roi_align_simple)
+{
+    const int N = 1;
+    const int C = 1;
+    const int H = 10;
+    const int W = 10;
+    const int num_rois = 1;
+    const int pooled_height = 5;
+    const int pooled_width = 5;
+    const auto data_shape = Shape{N, C, H, W};
+    const auto rois_shape = Shape{num_rois, 4};
+
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+
+    auto roi_align = make_shared<op::v3::ROIAlign>(
+        data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f, "avg");
+
+    auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
+
+    std::vector<float> data_vec{
+        0.2764f, 0.7150f, 0.1958f, 0.3416f, 0.4638f, 0.0259f, 0.2963f, 0.6518f, 0.4856f, 0.7250f,
+        0.9637f, 0.0895f, 0.2919f, 0.6753f, 0.0234f, 0.6132f, 0.8085f, 0.5324f, 0.8992f, 0.4467f,
+        0.3265f, 0.8479f, 0.9698f, 0.2471f, 0.9336f, 0.1878f, 0.4766f, 0.4308f, 0.3400f, 0.2162f,
+        0.0206f, 0.1720f, 0.2155f, 0.4394f, 0.0653f, 0.3406f, 0.7724f, 0.3921f, 0.2541f, 0.5799f,
+        0.4062f, 0.2194f, 0.4473f, 0.4687f, 0.7109f, 0.9327f, 0.9815f, 0.6320f, 0.1728f, 0.6119f,
+        0.3097f, 0.1283f, 0.4984f, 0.5068f, 0.4279f, 0.0173f, 0.4388f, 0.0430f, 0.4671f, 0.7119f,
+        0.1011f, 0.8477f, 0.4726f, 0.1777f, 0.9923f, 0.4042f, 0.1869f, 0.7795f, 0.9946f, 0.9689f,
+        0.1366f, 0.3671f, 0.7011f, 0.6234f, 0.9867f, 0.5585f, 0.6985f, 0.5609f, 0.8788f, 0.9928f,
+        0.5697f, 0.8511f, 0.6711f, 0.9406f, 0.8751f, 0.7496f, 0.1650f, 0.1049f, 0.1559f, 0.2514f,
+        0.7012f, 0.4056f, 0.7879f, 0.3461f, 0.0415f, 0.2998f, 0.5094f, 0.3727f, 0.5482f, 0.0502f};
+
+    std::vector<float> rois_vec{0., 0., 9., 9.};
+
+    std::vector<int64_t> batch_indices_vec{0};
+
+    auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result},
+                            {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
+                             make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
+
+    std::vector<float> expected_vec{0.4664f, 0.4466f, 0.3405f, 0.5688f, 0.6068f, 
+                                    0.3714f, 0.4296f, 0.3835f, 0.5562f, 0.3510f, 
+                                    0.2768f, 0.4883f, 0.5222f, 0.5528f, 0.4171f, 
+                                    0.4713f, 0.4844f, 0.6904f, 0.4920f, 0.8774f, 
+                                    0.6239f, 0.7125f, 0.6289f, 0.3355f, 0.3495f};
     const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
 
     EXPECT_EQ(result->get_element_type(), element::f32);
