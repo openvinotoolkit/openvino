@@ -14,7 +14,6 @@
  limitations under the License.
 """
 import unittest
-from argparse import Namespace
 
 import numpy as np
 from generator import generator, generate
@@ -43,6 +42,8 @@ nodes = {
     **regular_op_with_shaped_data('identity_10', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
     **regular_op_with_shaped_data('identity_11', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
     **regular_op_with_shaped_data('concat', [1, 7, 60, 160], {'type': 'Concat', 'axis': 1, 'op': 'Concat'}),
+
+    **valued_const_with_data('N', np.array([1])),
 
     **result('output'),
     **result('output_1'),
@@ -134,7 +135,7 @@ class TestInterpolateConcat(unittest.TestCase):
 
     @generate(*[
         {'concat': {'axis': None}},
-        {'concat': {'axis': 2}},
+
         {'concat': {'axis': -1}},
         {'interpolate': {'axes': None}},
         {'interpolate': {'axes': np.array([1])}},
@@ -157,5 +158,18 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('concat', 'output'),
         ], update_attributes=update_attrs, nodes_with_edges_only=True)
 
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_interpolate_tf_style_concat(self):
+        graph = build_graph(nodes, [
+            *connect('placeholder', '0:interpolate'),
+            *connect('out_shape', '1:interpolate'),
+            *connect('interpolate', '0:concat'),
+            *connect('N', '1:concat'),
+            *connect('concat', 'output'),
+        ], update_attributes={'concat': {'N': 1}}, nodes_with_edges_only=True)
+        graph_ref = graph.copy()
+        InterpolateWithConcat().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)

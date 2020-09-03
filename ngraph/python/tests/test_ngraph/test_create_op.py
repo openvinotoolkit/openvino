@@ -623,9 +623,9 @@ def test_interpolate(dtype):
     image_shape = [1, 3, 1024, 1024]
     output_shape = [64, 64]
     attributes = {
-        "attrs.axes": [2, 3],
-        "attrs.mode": "cubic",
-        "attrs.pads_begin": np.array([2, 2], dtype=dtype),
+        "axes": [2, 3],
+        "mode": "cubic",
+        "pads_begin": np.array([2, 2], dtype=dtype),
     }
 
     image_node = ng.parameter(image_shape, dtype, name="Image")
@@ -656,9 +656,9 @@ def test_interpolate(dtype):
 def test_prior_box(int_dtype, fp_dtype):
     image_shape = np.array([64, 64], dtype=int_dtype)
     attributes = {
-        "attrs.offset": fp_dtype(0),
-        "attrs.min_size": np.array([2, 3], dtype=fp_dtype),
-        "attrs.aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
+        "offset": fp_dtype(0),
+        "min_size": np.array([2, 3], dtype=fp_dtype),
+        "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -688,9 +688,9 @@ def test_prior_box(int_dtype, fp_dtype):
 def test_prior_box_clustered(int_dtype, fp_dtype):
     image_size = np.array([64, 64], dtype=int_dtype)
     attributes = {
-        "attrs.offset": fp_dtype(0.5),
-        "attrs.widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
-        "attrs.heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
+        "offset": fp_dtype(0.5),
+        "widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
+        "heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
     }
 
     output_size = ng.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
@@ -719,9 +719,9 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
 )
 def test_detection_output(int_dtype, fp_dtype):
     attributes = {
-        "attrs.num_classes": int_dtype(85),
-        "attrs.keep_top_k": np.array([64], dtype=int_dtype),
-        "attrs.nms_threshold": fp_dtype(0.645),
+        "num_classes": int_dtype(85),
+        "keep_top_k": np.array([64], dtype=int_dtype),
+        "nms_threshold": fp_dtype(0.645),
     }
 
     box_logits = ng.parameter([4, 1, 5, 5], fp_dtype, "box_logits")
