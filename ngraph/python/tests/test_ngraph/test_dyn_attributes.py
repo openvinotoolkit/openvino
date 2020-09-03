@@ -66,22 +66,22 @@ def test_dynamic_attributes_softmax():
 )
 def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     attributes = {
-        "attrs.num_classes": int_dtype(85),
-        "attrs.background_label_id": int_dtype(13),
-        "attrs.top_k": int_dtype(16),
-        "attrs.variance_encoded_in_target": True,
-        "attrs.keep_top_k": np.array([64, 32, 16, 8], dtype=int_dtype),
-        "attrs.code_type": "pytorch.some_parameter_name",
-        "attrs.share_location": False,
-        "attrs.nms_threshold": fp_dtype(0.645),
-        "attrs.confidence_threshold": fp_dtype(0.111),
-        "attrs.clip_after_nms": True,
-        "attrs.clip_before_nms": False,
-        "attrs.decrease_label_id": True,
-        "attrs.normalized": True,
-        "attrs.input_height": int_dtype(86),
-        "attrs.input_width": int_dtype(79),
-        "attrs.objectness_score": fp_dtype(0.77),
+        "num_classes": int_dtype(85),
+        "background_label_id": int_dtype(13),
+        "top_k": int_dtype(16),
+        "variance_encoded_in_target": True,
+        "keep_top_k": np.array([64, 32, 16, 8], dtype=int_dtype),
+        "code_type": "pytorch.some_parameter_name",
+        "share_location": False,
+        "nms_threshold": fp_dtype(0.645),
+        "confidence_threshold": fp_dtype(0.111),
+        "clip_after_nms": True,
+        "clip_before_nms": False,
+        "decrease_label_id": True,
+        "normalized": True,
+        "input_height": int_dtype(86),
+        "input_width": int_dtype(79),
+        "objectness_score": fp_dtype(0.77),
     }
 
     box_logits = ng.parameter([4, 1, 5, 5], fp_dtype, "box_logits")
