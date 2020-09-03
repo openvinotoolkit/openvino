@@ -239,13 +239,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::f32,
             {
-                {ngraph::element::f32},
+                {},
                 {{128.f, 128.f, 128.f}},
                 {{3.f, 3.f, 3.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
         }
     },
     // I8 per channel quantization with the same values
@@ -262,13 +262,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::f32,
             {
-                {ngraph::element::f32},
+                {},
                 {{128.f, 128.f, 128.f}},
                 {{3.f, 3.f, 3.f}}
             },
-            ngraph::element::f32,
-            {{}, {}, {}}
         }
     },
     // U8 dequantization in second dimension
@@ -312,6 +312,48 @@ const std::vector<ClampTransformationTestValues> testValues = {
                 {ngraph::element::f32},
                 {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
                 {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+    // U8 asymmetric quantization
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{ 128.f, 0.f, 128.f }},
+                {{ 3.f, 3.f, 3.f }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
+            ngraph::element::f32,
+            {{}, {}, {{3.f, 3.f, 3.f}}}
+        }
+    },
+    // U8 without asymmetric quantization
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{ 128.f, 0.f, 128.f }},
+                {{ 3.f, 3.f, 3.f }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{ 128.f, 0.f, 128.f }},
+                {{ 3.f, 3.f, 3.f }}
             },
             ngraph::element::f32,
             {{}, {}, {}}

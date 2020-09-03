@@ -19,7 +19,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
@@ -31,7 +31,7 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 const std::vector<LayerTestsDefinitions::ClampTransformationParam> params{
     // tensor quantization
     {
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 128.f } },
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         {
             {},
             {{0.f, 0.f, 0.f}},
@@ -59,9 +59,13 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params{
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
-            { 255.f, 255.f, 255.f }
+            { 25.5f, 25.5f, 25.5f }
         },
-        { },
+        {
+            {},
+            {{0.f, 0.f, 0.f}},
+            {{0.1f, 0.1f, 0.1f}}
+        },
         0.0,
         128.0
     },
