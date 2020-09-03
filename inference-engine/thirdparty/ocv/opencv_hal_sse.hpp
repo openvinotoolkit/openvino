@@ -2973,19 +2973,16 @@ namespace {
     }
 }  // namespace
 
-static inline void v_gather_pairs(const float src[], const v_int32x4& index,
+static inline void v_gather_pairs(const float src[], const int mapsx[], int x,
                                   v_float32x4& low, v_float32x4& high) {
-    int i[4];
-    v_store(i, index);
-
     __m128 l = _mm_setzero_ps();
-    l = _mm_loadl_pi(l, (const __m64*)&src[i[0]]);  // pair of floats
-    l = _mm_loadh_pi(l, (const __m64*)&src[i[1]]);
+    l = _mm_loadl_pi(l, (const __m64*)&src[mapsx[x + 0]]);  // pair of floats
+    l = _mm_loadh_pi(l, (const __m64*)&src[mapsx[x + 1]]);
     low.val = l;
 
     __m128 h = _mm_setzero_ps();
-    h = _mm_loadl_pi(h, (const __m64*)&src[i[2]]);
-    h = _mm_loadh_pi(h, (const __m64*)&src[i[3]]);
+    h = _mm_loadl_pi(h, (const __m64*)&src[mapsx[x + 2]]);
+    h = _mm_loadh_pi(h, (const __m64*)&src[mapsx[x + 3]]);
     high.val = h;
 }
 
@@ -3070,17 +3067,14 @@ static inline v_uint8x16 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
                                    char b5, char b6, char b7, char b8, char b9,
                                    char b10, char b11, char b12, char b13, char b14,
                                    char b15) {
-    v_uint8x16 res;
-    res.val = _mm_setr_epi8(b0, b1, b2, b3, b4, b5, b6, b7, b8,
-                            b9, b10, b11, b12, b13, b14, b15);
-    return res;
+    return v_uint8x16(_mm_setr_epi8(b0, b1, b2, b3, b4, b5, b6, b7, b8,
+                                    b9, b10, b11, b12, b13, b14, b15));
 }
 
 
-static inline v_uint8x16 v_shuffle_s8(const v_uint8x16& a, const v_uint8x16& mask) {
-    v_uint8x16 res;
-    res.val = _mm_shuffle_epi8(a.val, mask.val);
-    return res;
+static inline v_uint8x16 v_shuffle_s8(const v_uint8x16& a, const v_uint8x16& mask)
+{
+    return v_uint8x16(_mm_shuffle_epi8(a.val, mask.val));
 }
 
 static inline void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[], const short mapsx[],
