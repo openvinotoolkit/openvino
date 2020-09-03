@@ -13,6 +13,8 @@ Options[*]:
 
 from stress_tests.scripts.run_memcheck import run
 import statistics as Statistics
+from pathlib import Path
+import tempfile
 
 
 def read_statistics(statistics_path, statistics):
@@ -50,7 +52,7 @@ def test_run(instance, binary, niter, omz, mo, out_dir, no_venv):
     # Execute binary and collect statistics
     statistics = {}
     for run_iter in range(niter):
-        statistics_path = r"C:\Work\openvino\tests\time_tests\a"    # TODO: generate random
+        statistics_path = (Path(".") / "statistics_dir" / Path(tempfile.NamedTemporaryFile().name).stem).absolute()
         cmd = cmd_common + ["-s", statistics_path]
         retcode, msg = run(cmd)
         # TODO: replace asserts with statuses handling to upload status to a DB
