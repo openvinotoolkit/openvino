@@ -17,9 +17,11 @@ This plugin adds the following command-line options:
   results to filesystem.
 * `--bitstream` - Path to bitstream to ran tests with.
 """
+
 # pylint:disable=import-error
 import pytest
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 
 def pytest_addoption(parser):
@@ -29,6 +31,18 @@ def pytest_addoption(parser):
         type=Path,
         help="Path to test config",
         default=Path(".") / "local_configs" / "test_config.xml"
+    )
+    parser.addoption(
+        "--binary",
+        required=True,
+        type=Path,
+        help="Path to a binary to execute",
+    )
+    parser.addoption(
+        "--niter",
+        type=int,
+        help="Number of iterations to run binary and aggregate results",
+        default=3
     )
     parser.addoption(
         "--omz",
@@ -61,6 +75,18 @@ def test_conf(request):
 
 
 @pytest.fixture(scope="session")
+def binary(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('binary')
+
+
+@pytest.fixture(scope="session")
+def niter(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('niter')
+
+
+@pytest.fixture(scope="session")
 def omz(request):
     """Fixture function for command-line option."""
     return request.config.getoption('omz')
@@ -85,64 +111,12 @@ def no_venv(request):
 
 
 
-
-
-
-
-
-
-
-
-from xml.etree import ElementTree as ET
-import itertools
-
-def read_test_config(test_config):
-    # TODO: unused
-    """Read test configuration file and return cartesian product of found
-    parameters (filtered and full).
-    """
-    test_conf_root = ET.parse(test_config).getroot()
-    devices = []
-    models = []
-    for rec in test_conf_root.find("devices"):
-        devices.append(rec.attrib)
-    for rec in test_conf_root.find("models"):
-        models.append(rec.attrib)
-
-    items = []
-    for item in itertools.product(devices, models):
-        items.append({"device": item[0],
-                      "model": item[1]})
-    return items
-
-
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
 
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
-    # TODO: attempt 1
-    # test_cases = read_test_config(metafunc.config.getoption('test_conf'))
-    # test_ids = []
-    # # TODO: write!!!
-    # # id = ""
-    # # for case in test_cases:
-    # #     id = "_".join([id] + ["{}-{}".format(key, val) for key, val in case.items()])
-    #
-    # if test_cases:
-    #     # metafunc.parametrize("instance", test_cases, ids=test_ids)
-    #     metafunc.parametrize("instance", test_cases)
-
-    # TODO: attempt 2
-    # test_conf_root = ET.parse(metafunc.config.getoption('test_conf')).getroot()
-    # for group in ["device", "model"]:
-    #     items = []
-    #     for rec in test_conf_root.iter(group):
-    #         items.append(rec.attrib)
-    #     metafunc.parametrize(group, items)
-
-    # TODO: attempt 3
     test_conf_root = ET.parse(metafunc.config.getoption('test_conf')).getroot()
     test_cases = []
     for test_rec in test_conf_root.iter("test"):
@@ -151,5 +125,10 @@ def pytest_generate_tests(metafunc):
             test_case.update({field.tag: field.attrib})
         test_cases.append(test_case)
     if test_cases:
+        # TODO: prepare human-readable test id
+        # test_ids = []
+        # id = ""
+        # for case in test_cases:
+        #     id = "_".join([id] + ["{}-{}".format(key, val) for key, val in case.items()])
         # metafunc.parametrize("instance", test_cases, ids=test_ids)
         metafunc.parametrize("instance", test_cases)
