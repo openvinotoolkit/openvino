@@ -503,10 +503,10 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
     return layers_map
 
 
-def get_layers_list(all_layers: dict, inputs: dict, outputs: list, layers: str):
+def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return {name: layer for name, layer in all_layers.items() if layer.type not in ['Const']}
+            return {layer.get_friendly_name(): layer for layer in all_layers if layer.get_type_name() not in ['Const']}
         else:
             user_layers = [layer.strip() for layer in layers.split(',')]
             layers_to_check = []
