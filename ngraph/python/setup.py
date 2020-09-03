@@ -125,11 +125,17 @@ def parallelCCompile(
 
     if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
         try:
-            # pybind11 is much more verbose without -DNDEBUG
-            self.compiler.remove("-DNDEBUG")
-            self.compiler.remove("-O2")
-            self.compiler_so.remove("-DNDEBUG")
-            self.compiler_so.remove("-O2")
+            # pybind11 is much more verbose without the NDEBUG define
+            if sys.platform == "win32":
+                self.compiler.remove("/DNDEBUG")
+                self.compiler.remove("/O2")
+                self.compiler_so.remove("/DNDEBUG")
+                self.compiler_so.remove("/O2")
+            else:
+                self.compiler.remove("-DNDEBUG")
+                self.compiler.remove("-O2")
+                self.compiler_so.remove("-DNDEBUG")
+                self.compiler_so.remove("-O2")
         except (AttributeError, ValueError):
             pass
     # parallel code
@@ -330,7 +336,7 @@ class BuildExt(build_ext):
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
             if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                # pybind11 is much more verbose without -DNDEBUG
+                # pybind11 is much more verbose without the NDEBUG define
                 if sys.platform == "win32":
                     self.compiler.compiler_so.remove("/DNDEBUG")
                     self.compiler.compiler_so.remove("/O2")
