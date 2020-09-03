@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "dnn_types.h"
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -176,7 +177,7 @@ public:
                                              float input_scale_factor,
                                              A *&ptr_inputs,
                                              B *&ptr_outputs,
-                                             intel_pwl_segment_t *ptr_segments) {
+                                             gna_pwl_segment_t *ptr_segments) {
         InitPiecewiseLinearComponentPrivate(cmp,
                                             function_id,
                                             orientation,
@@ -381,7 +382,7 @@ private:
                                                     float input_scale_factor,
                                                     void *&ptr_inputs,
                                                     void *&ptr_outputs,
-                                                    intel_pwl_segment_t *ptr_segments,
+                                                    gna_pwl_segment_t *ptr_segments,
                                                     bool postInitMem);
 
     static void InitInterleaveComponentPrivate(intel_dnn_component_t &cmp,

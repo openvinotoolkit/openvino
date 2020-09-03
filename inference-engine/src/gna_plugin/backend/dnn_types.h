@@ -6,7 +6,7 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <gna-api-types-xnn.h>
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -183,7 +183,7 @@ typedef struct {
 typedef struct {
     DnnActivation func_id;       // identifies function being approximated
     uint32_t num_segments;
-    intel_pwl_segment_t *ptr_segments;
+    gna_pwl_segment_t *ptr_segments;
 } intel_piecewiselinear_t;
 
 typedef struct {

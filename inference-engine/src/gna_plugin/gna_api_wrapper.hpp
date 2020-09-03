@@ -9,7 +9,7 @@
 #else
 #include <mm_malloc.h>
 #endif
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "gna_plugin_log.hpp"
 
 #if GNA_LIB_VER == 2
@@ -81,7 +81,7 @@ class CPPWrapper<Gna2Model> {
 };
 #else
 template <>
-class CPPWrapper<intel_nnet_type_t> {
+class CPPWrapper<gna_nnet_type_t> {
 public:
     intel_nnet_type_t obj;
 

@@ -16,7 +16,6 @@
 #include <iomanip>
 
 #include <legacy/graph_transformer.h>
-#include <gna-api.h>
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
