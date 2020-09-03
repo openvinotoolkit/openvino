@@ -10,10 +10,11 @@
 #include <iostream>
 
 #include <runtime/pwl.h>
+#include <backend/gna_types.h>
 
 #include "nnet_base_matcher.hpp"
 
-class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     const float rmse_threshold;
     const uint32_t activation_type;
     const uint16_t segment_threshold;
@@ -23,7 +24,7 @@ class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const i
                                                             rmse_threshold(precision_threshold),
                                                             segment_threshold(segments) {}
 
-    bool MatchAndExplain(const intel_nnet_type_t *nnet, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *nnet, ::testing::MatchResultListener *listener) const override {
         float rmse = 0.f;
         const float test_arg_scale_factor = 16384;
 
@@ -35,7 +36,7 @@ class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const i
                 nnet->pLayers[i].nLayerKind != INTEL_AFFINE_DIAGONAL &&
                 nnet->pLayers[i].nLayerKind != INTEL_CONVOLUTIONAL) continue;
 
-            auto affine = reinterpret_cast<intel_affine_layer_t*>(nnet->pLayers[i].pLayerStruct);
+            auto affine = reinterpret_cast<gna_affine_layer_t*>(nnet->pLayers[i].pLayerStruct);
 
             if (affine == nullptr ||
                 affine->pwl.nSegments == 0 ||
@@ -85,7 +86,7 @@ class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const i
             }
 
             std::vector<double> y_diviation(2*domain);
-            std::vector<intel_pwl_segment_t*> segments_vector(affine->pwl.nSegments);
+            std::vector<gna_pwl_segment_t*> segments_vector(affine->pwl.nSegments);
             std::iota(segments_vector.begin(), segments_vector.begin()+affine->pwl.nSegments,
                                                                                 affine->pwl.pSegments);
 
@@ -132,7 +133,7 @@ class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const i
     }
 };
 
-inline ::testing::Matcher<const intel_nnet_type_t*> PrecisionOfQuantizedPwlMetrics(uint32_t type,
+inline ::testing::Matcher<const gna_nnet_type_t*> PrecisionOfQuantizedPwlMetrics(uint32_t type,
                                                                                     float threshold,
                                                                                     uint16_t segments) {
     std::unique_ptr<NNetComponentMatcher> c (new NNetComponentMatcher());
