@@ -439,8 +439,7 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::transformFakeQuantizeToConst(Transfor
                                                                         const CNNLayerPtr fakeQuantize,
                                                                         const Blob::Ptr weights,
                                                                         const std::string& constLayerName) {
-    std::vector<CNNLayerPtr> constLayersToRemove;
-    constLayersToRemove.reserve(fakeQuantize->insData.size());
+    std::set<CNNLayerPtr> constLayersToRemove;
 
     for (const DataWeakPtr& insDataWeak : fakeQuantize->insData) {
         const DataPtr insData = insDataWeak.lock();
@@ -456,7 +455,7 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::transformFakeQuantizeToConst(Transfor
                                << fakeQuantize->name << "' is nullable";
         }
 
-        constLayersToRemove.push_back(parent);
+        constLayersToRemove.insert(parent);
     }
 
     for (const CNNLayerPtr& parent : constLayersToRemove) {
@@ -1348,20 +1347,21 @@ size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLaye
     bool wasFound = false;
     for (auto dataIt = parentLayer->outData.begin(); dataIt != parentLayer->outData.end(); ++dataIt) {
         auto data = *dataIt;
-        for (auto inputIt = getInputTo(data).begin(); inputIt != getInputTo(data).end(); ++inputIt) {
+
+        auto inputIt = getInputTo(data).begin();
+        while (inputIt != getInputTo(data).end()) {
             auto currentChildLayer = inputIt->second;
             if (currentChildLayer == nullptr) {
                 THROW_IE_EXCEPTION << "Output layer for '" << parentLayer->name << "'is absent";
             }
-            if (currentChildLayer->name == childLayer->name) {
-                getInputTo(data).erase(inputIt);
-                wasFound = true;
-                break;
-            }
-        }
 
-        if (wasFound) {
-            break;
+            if (currentChildLayer->name == childLayer->name) {
+                inputIt = getInputTo(data).erase(inputIt);
+                wasFound = true;
+                continue;
+            }
+
+            ++inputIt;
         }
     }
     if (!wasFound) {
@@ -1370,7 +1370,8 @@ size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLaye
     }
 
     wasFound = false;
-    for (auto it = childLayer->insData.begin(); it != childLayer->insData.end(); ++it) {
+    auto it = childLayer->insData.begin();
+    while (it != childLayer->insData.end()) {
         auto data = it->lock();
         if (data == nullptr) {
             THROW_IE_EXCEPTION << "Input layer data for '" << childLayer->name << "'is absent";
@@ -1379,11 +1380,14 @@ size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLaye
         if (currentParentLayer == nullptr) {
             THROW_IE_EXCEPTION << "Input layer for '" << childLayer->name << "'is absent";
         }
+
         if (currentParentLayer->name == parentLayer->name) {
-            childLayer->insData.erase(it);
+            it = childLayer->insData.erase(it);
             wasFound = true;
-            break;
+            continue;
         }
+
+        ++it;
     }
     if (!wasFound) {
         THROW_IE_EXCEPTION << "Input layer '" << parentLayer->name << "' was not found for '" << childLayer->name
