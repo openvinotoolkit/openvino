@@ -167,11 +167,8 @@ class InterpolateWithConcat(FrontReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate'):
-            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
+        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
-                continue
-            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
                 continue
 
             # Interpolate could be connected to Concat through identity operations, skipping them

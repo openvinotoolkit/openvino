@@ -70,4 +70,4 @@ class ONNXResize11Op(Op):
                 "Node {} with op {} has no value in input port 3".format(node.name, node.op)
             output_shape = sizes
 
-        node.out_node().shape = output_shape
+        node.out_node().shape = output_shape.copy()
