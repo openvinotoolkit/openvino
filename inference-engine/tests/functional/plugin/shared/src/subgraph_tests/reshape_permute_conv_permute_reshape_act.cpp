@@ -29,7 +29,7 @@ namespace LayerTestsDefinitions {
         results << "KS=" << CommonTestUtils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
         results << "OC=" << output_channels << "_";
         results << "netPRC=" << netPrecision.name() << "_";
-        results << "targetDevice=" << targetName << "_";
+        results << "targetDevice=" << targetName;
         return results.str();
     }
 
@@ -84,7 +84,7 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(tanh, input_parameter, "conv_reshape_act");
     }
 
-    void ConvReshapeAct::Run(){
+    void ConvReshapeAct::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         ConfigurePlugin();
@@ -96,7 +96,10 @@ namespace LayerTestsDefinitions {
         for (const auto &input : cnnNetwork.getInputsInfo()) {
             const auto &info = input.second;
             auto tensorDesc = info->getTensorDesc();
-            auto blob = FuncTestUtils::createAndFillBlob(tensorDesc, 2, -1, 100);
+
+            auto blob = FuncTestUtils::createAndFillBlobFloat(tensorDesc, 2, -1, 100, 111);
+
+            FuncTestUtils::fillInputsBySinValues(blob);
             inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
         }
@@ -107,6 +110,7 @@ namespace LayerTestsDefinitions {
         }
         inferRequest.Infer();
 
+        threshold = 0.1;
         Validate();
     }
 
