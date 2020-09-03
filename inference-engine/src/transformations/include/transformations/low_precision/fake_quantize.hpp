@@ -13,13 +13,17 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API FakeQuantizeTransformation : public FuseFakeQuantizeTransformation {
+class TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:
-    FakeQuantizeTransformation(const Params& params) : FuseFakeQuantizeTransformation(params) {}
+    FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {}
     ~FakeQuantizeTransformation() override {};
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+private:
+    std::shared_ptr<opset1::FakeQuantize> handle(
+        TransformationContext& context,
+        const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision
