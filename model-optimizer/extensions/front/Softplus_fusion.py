@@ -32,7 +32,7 @@ class SoftplusFusion(FrontReplacementSubgraph):
             nodes=[
                 ('exp', dict(op='Exp')),
                 ('add', dict(op='Add')),
-                ('const_1', dict(op='Const', value=lambda v: v is not None and np.isclose(v, 1.0, atol=1e-6))),
+                ('const_1', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0, atol=1e-6))),
                 ('ln', dict(op='Log')),
             ],
             edges=[
