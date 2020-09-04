@@ -10,9 +10,11 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == nchw) return "nchw";
     if (v == nChw8c) return "nChw8c";
     if (v == nChw16c) return "nChw16c";
+    if (v == nhwc) return "nhwc";
     if (v == ncdhw) return "ncdhw";
     if (v == nCdhw8c) return "nCdhw8c";
     if (v == nCdhw16c) return "nCdhw16c";
+    if (v == ndhwc) return "ndhwc";
     assert(!"unknown fmt");
     return "undef";
 }
@@ -26,9 +28,11 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
+    CASE(nhwc);
     CASE(ncdhw);
     CASE(nCdhw8c);
     CASE(nCdhw16c);
+    CASE(ndhwc);
 #undef CASE
     assert(!"unknown memory format");
     return undef;
