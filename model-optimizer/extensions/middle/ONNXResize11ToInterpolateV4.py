@@ -23,6 +23,7 @@ from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_depth_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.ops.const import Const
@@ -101,14 +102,20 @@ def replace_resize(graph: Graph, resize: Node):
     axes_node.out_port(0).connect(interpolate_node.in_port(3))
     shape_of = Shape(graph, {'name': resize_name + '/ShapeOf_'}).create_node()
 
+    add_node = create_op_with_const_inputs(graph, Add,
+                                           {1: float_array([1.0e-5])},
+                                           {'name': resize_name + '/Add_'})
+
     if num_of_inputs == 3:
-        cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
+        input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul_'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
-        cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
-        mul_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
-        cast_mul_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
+        cast_add_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
+        mul_node.out_port(0).connect(add_node.in_port(0))
+        add_node.out_port(0).connect(cast_add_result_to_int.in_port(0))
+        cast_add_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
         sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
         scales_ss.out_port(0).connect(interpolate_node.in_port(2))
 
@@ -129,9 +136,6 @@ def replace_resize(graph: Graph, resize: Node):
         cast_sizes_to_float.out_port(0).connect(div_node.in_port(0))
         cast_shape_to_float.out_port(0).connect(div_node.in_port(1))
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
-        add_node = create_op_with_const_inputs(graph, Add,
-                                               {1: float_array([1.0e-5])},
-                                               {'name': resize_name + '/Add_'})
         div_node.out_port(0).connect(add_node.in_port(0))
         add_node.out_port(0).connect(scales_ss.in_port(0))
         scales_ss.out_port(0).connect(interpolate_node.in_port(2))
