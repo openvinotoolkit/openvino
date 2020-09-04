@@ -45,7 +45,7 @@ def replace_resize(graph: Graph, resize: Node):
         log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize_name))
         return
 
-    num_of_inputs = len(resize.in_ports())
+    num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
     assert num_of_inputs in {3, 4}, \
         "Number of inputs of ONNXResize (with name {}) should be equal to 3 or 4".format(resize_name)
 
@@ -153,7 +153,7 @@ def replace_resize(graph: Graph, resize: Node):
 
 class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
     """
-    The transformation replaces ONNX Resize 11 with Interpolate-3.
+    The transformation replaces ONNX Resize 11 with Interpolate-4.
     """
     enabled = True
 
