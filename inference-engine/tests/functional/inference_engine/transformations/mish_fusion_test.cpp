@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/mish_fusion.hpp>
+#include <transformations/softplus_to_mish_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -34,6 +35,35 @@ TEST(TransformationTests, MishFusing) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MishFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto mish = std::make_shared<ngraph::opset4::Mish>(data);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+
+TEST(TransformationTests, MishWithSoftPlusFusing) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input0);
+        auto tanh = std::make_shared<ngraph::opset4::Tanh>(softplus);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input0, tanh);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
