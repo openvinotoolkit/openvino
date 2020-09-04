@@ -262,10 +262,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
     opset = fst_interp_node.get_opset()
     if opset == 'opset1':
         attributes['axes'] = axes_of_node
-        interp_node = Interpolate(graph, attributes).create_node()
-
-        sizes_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=sizes)).create_node()
-        sizes_node.out_port(0).connect(interp_node.in_port(1))
+        interp_node = create_op_with_const_inputs(graph, Interpolate, {1: sizes}, attributes)
 
         fst_interp_connection = fst_interp_node.in_port(0).get_connection()
         fst_interp_connection.set_destination(interp_node.in_port(0))
