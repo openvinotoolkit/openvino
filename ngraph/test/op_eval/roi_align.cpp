@@ -97,7 +97,7 @@ TEST(op_eval, roi_align_avg_pool)
 
     auto result_data = read_vector<float>(result);
     for (size_t i = 0; i < expected_vec.size(); i++)
-        EXPECT_NEAR(result_data[i], expected_vec[i], 0.000001);
+        EXPECT_NEAR(result_data[i], expected_vec[i], 0.001);
 }
 
 TEST(op_eval, roi_align_simple)
@@ -144,11 +144,10 @@ TEST(op_eval, roi_align_simple)
                              make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
 
-    std::vector<float> expected_vec{0.4664f, 0.4466f, 0.3405f, 0.5688f, 0.6068f, 
-                                    0.3714f, 0.4296f, 0.3835f, 0.5562f, 0.3510f, 
-                                    0.2768f, 0.4883f, 0.5222f, 0.5528f, 0.4171f, 
-                                    0.4713f, 0.4844f, 0.6904f, 0.4920f, 0.8774f, 
-                                    0.6239f, 0.7125f, 0.6289f, 0.3355f, 0.3495f};
+    std::vector<float> expected_vec{0.4664f, 0.4466f, 0.3405f, 0.5688f, 0.6068f, 0.3714f, 0.4296f,
+                                    0.3835f, 0.5562f, 0.3510f, 0.2768f, 0.4883f, 0.5222f, 0.5528f,
+                                    0.4171f, 0.4713f, 0.4844f, 0.6904f, 0.4920f, 0.8774f, 0.6239f,
+                                    0.7125f, 0.6289f, 0.3355f, 0.3495f};
     const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
 
     EXPECT_EQ(result->get_element_type(), element::f32);
@@ -156,5 +155,118 @@ TEST(op_eval, roi_align_simple)
 
     auto result_data = read_vector<float>(result);
     for (size_t i = 0; i < expected_vec.size(); i++)
+        EXPECT_NEAR(result_data[i], expected_vec[i], 0.000001);
+}
+
+TEST(op_eval, roi_align_simplest)
+{
+    const int N = 1;
+    const int C = 1;
+    const int H = 4;
+    const int W = 4;
+    const int num_rois = 1;
+    const int pooled_height = 1;
+    const int pooled_width = 1;
+    const auto data_shape = Shape{N, C, H, W};
+    const auto rois_shape = Shape{num_rois, 4};
+
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+
+    auto roi_align = make_shared<op::v3::ROIAlign>(
+        data, rois, batch_indices, pooled_height, pooled_width, 2, 0.1f, "avg");
+
+    auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
+
+    std::vector<float> data_vec{1.0f,
+                                1.0f,
+                                2.0f,
+                                2.0f,
+                                1.0f,
+                                1.0f,
+                                2.0f,
+                                2.0f,
+                                3.0f,
+                                3.0f,
+                                4.0f,
+                                4.0f,
+                                3.0f,
+                                3.0f,
+                                4.0f,
+                                4.0f};
+
+    std::vector<float> rois_vec{0., 0., 30., 30.};
+
+    std::vector<int64_t> batch_indices_vec{0};
+
+    auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result},
+                            {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
+                             make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
+
+    std::vector<float> expected_vec{2.5f};
+    const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
+
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_shape(), expected_shape);
+
+    auto result_data = read_vector<float>(result);
+    for (size_t i = 0; i < expected_shape.size(); i++)
+        EXPECT_NEAR(result_data[i], expected_vec[i], 0.000001);
+}
+
+TEST(op_eval, roi_align_10)
+{
+    const int N = 1;
+    const int C = 1;
+    const int H = 10;
+    const int W = 10;
+    const int num_rois = 1;
+    const int pooled_height = 1;
+    const int pooled_width = 1;
+    const auto data_shape = Shape{N, C, H, W};
+    const auto rois_shape = Shape{num_rois, 4};
+
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+
+    auto roi_align = make_shared<op::v3::ROIAlign>(
+        data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f, "avg");
+
+    auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
+
+    std::vector<float> data_vec{
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    };
+
+    std::vector<float> rois_vec{0., 0., 9., 9.};
+
+    std::vector<int64_t> batch_indices_vec{0};
+
+    auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result},
+                            {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
+                             make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
+
+    std::vector<float> expected_vec{1.0f};
+    const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
+
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_shape(), expected_shape);
+
+    auto result_data = read_vector<float>(result);
+    for (size_t i = 0; i < expected_shape.size(); i++)
         EXPECT_NEAR(result_data[i], expected_vec[i], 0.000001);
 }
