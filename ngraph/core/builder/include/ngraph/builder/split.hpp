@@ -34,7 +34,7 @@ namespace ngraph
         NGRAPH_DEPRECATED("This builder was deprecated.")
         OutputVector split(const Output<Node>& value,
                            const std::vector<size_t>& length_parts,
-                           size_t axis = 0);
+                           int64_t axis = 0);
 
         /// \brief      Split node on specified axis into multiple parts.
         ///
