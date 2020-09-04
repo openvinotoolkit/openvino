@@ -2,86 +2,81 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vpu/stages/nms.hpp>
+
 #include <vpu/frontend/frontend.hpp>
 #include <memory>
 #include <set>
 
 namespace vpu {
 
-namespace {
+StagePtr NonMaxSuppression::cloneImpl() const {
+    return std::make_shared<NonMaxSuppression>(*this);
+}
 
-// Current NMS implementation doesn't allow calculation of `> boxesTresshold` boxes using one SHAVE
-constexpr int boxesThreshold = 3650;
+void NonMaxSuppression::propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) {
+}
 
-class NonMaxSuppression final : public StageNode {
-private:
-    StagePtr cloneImpl() const override {
-        return std::make_shared<NonMaxSuppression>(*this);
+void NonMaxSuppression::getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) {
+}
+
+void NonMaxSuppression::finalizeDataLayoutImpl() {
+}
+
+void NonMaxSuppression::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) {
+}
+
+StageSHAVEsRequirements NonMaxSuppression::getSHAVEsRequirementsImpl() const {
+    // Current NMS implementation doesn't allow calculation of `> boxesThreshold` boxes using one SHAVE
+    constexpr int boxesThreshold = 3650;
+
+    const auto& inDesc = input(0)->desc();
+    const auto& maxBoxesNum = inDesc.dim(Dim::H);
+
+    if (maxBoxesNum > boxesThreshold) {
+        return StageSHAVEsRequirements::NeedMax;
+    } else {
+        return StageSHAVEsRequirements::OnlyOne;
     }
+}
 
-    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
-    }
+void NonMaxSuppression::initialCheckImpl() const {
+    assertInputsOutputsTypes(this,
+                             {{DataType::FP16},
+                              {DataType::FP16},
+                              {DataType::S32},
+                              {DataType::FP16},
+                              {DataType::FP16}},
+                             {{DataType::S32}});
+}
 
-    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
-    }
+void NonMaxSuppression::finalCheckImpl() const {
+}
 
-    void finalizeDataLayoutImpl() override {
-    }
+void NonMaxSuppression::serializeParamsImpl(BlobSerializer& serializer) const {
+    bool center_point_box = attrs().get<bool>("center_point_box");
 
-    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
-    }
+    serializer.append(static_cast<int32_t>(center_point_box));
+}
 
-    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        const auto& inDesc = input(0)->desc();
-        const auto& maxBoxesNum = inDesc.dim(Dim::H);
+void NonMaxSuppression::serializeDataImpl(BlobSerializer& serializer) const {
+    IE_ASSERT(inputEdges().size() >= 2 && inputEdges().size() <= 5);
+    IE_ASSERT(outputEdges().size() == 1);
 
-        if (maxBoxesNum > boxesThreshold) {
-            return StageSHAVEsRequirements::NeedMax;
-        } else {
-            return StageSHAVEsRequirements::OnlyOne;
-        }
-    }
+    auto input1 = inputEdges()[0]->input();
+    auto input2 = inputEdges()[1]->input();
+    auto input3 = inputEdges()[2]->input();
+    auto input4 = inputEdges()[3]->input();
+    auto input5 = inputEdges()[4]->input();
+    auto output = outputEdges()[0]->output();
 
-    void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this,
-                                 {{DataType::FP16},
-                                  {DataType::FP16},
-                                  {DataType::S32},
-                                  {DataType::FP16},
-                                  {DataType::FP16}},
-                                 {{DataType::S32}});
-    }
-
-    void finalCheckImpl() const override {
-    }
-
-    void serializeParamsImpl(BlobSerializer& serializer) const override {
-        bool center_point_box = attrs().get<bool>("center_point_box");
-
-        serializer.append(static_cast<int32_t>(center_point_box));
-    }
-
-    void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(inputEdges().size() >= 2 && inputEdges().size() <= 5);
-        IE_ASSERT(outputEdges().size() == 1);
-
-        auto input1 = inputEdges()[0]->input();
-        auto input2 = inputEdges()[1]->input();
-        auto input3 = inputEdges()[2]->input();
-        auto input4 = inputEdges()[3]->input();
-        auto input5 = inputEdges()[4]->input();
-        auto output = outputEdges()[0]->output();
-
-        input1->serializeBuffer(serializer);
-        input2->serializeBuffer(serializer);
-        output->serializeBuffer(serializer);
-        input3->serializeBuffer(serializer);
-        input4->serializeBuffer(serializer);
-        input5->serializeBuffer(serializer);
-    }
-};
-
-}  // namespace
+    input1->serializeBuffer(serializer);
+    input2->serializeBuffer(serializer);
+    output->serializeBuffer(serializer);
+    input3->serializeBuffer(serializer);
+    input4->serializeBuffer(serializer);
+    input5->serializeBuffer(serializer);
+}
 
 void FrontEnd::parseNonMaxSuppression(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::NonMaxSuppressionLayer>(_layer);
