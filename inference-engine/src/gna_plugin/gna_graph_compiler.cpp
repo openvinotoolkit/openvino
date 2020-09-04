@@ -15,7 +15,6 @@
 #include <limits>
 
 #include <legacy/ie_layers.h>
-#include <gna-api-types-xnn.h>
 #include <ie_algorithm.hpp>
 #include <debug.h>
 
@@ -25,7 +24,6 @@
 #include "layers/gna_layer_info.hpp"
 #include "ie_memcpy.h"
 #include "caseless.hpp"
-#include "gna-api.h"
 #include "backend/am_intel_dnn.hpp"
 #include "runtime/pwl.h"
 #include "gna_graph_tools.hpp"
@@ -140,7 +138,6 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t padding = 0;
         size_t output_layer_size = 0;
 
-
         for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
             auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
@@ -169,6 +166,13 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
                 layerInfoItem.splitOutputLayers.emplace_back(
                     outFunctionalLayer.first, outFunctionalLayer.second, split_size, output_layer_size);
             }
+        }
+
+        // in case of unconnected split - we need properly increment size
+        if (getInputTo(layer->outData[i]).empty()) {
+            output_layer_size =
+                    InferenceEngine::details::product(begin(layer->outData[i]->getDims()),
+                                                      end(layer->outData[i]->getDims())) * layer->outData[i]->getPrecision().size();
         }
 
         split_size += padding + output_layer_size;
@@ -533,7 +537,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
     } else {
         //use PWL to calculate power
-        std::vector<intel_pwl_segment_t> ptr_pwl_segments;
+        std::vector<gna_pwl_segment_t> ptr_pwl_segments;
 
         auto orientation = kDnnInterleavedOrientation;
 
@@ -544,7 +548,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
         auto& pwlComponent = dnnComponents.addComponent(layer->name, "power");
 
-        intel_pwl_segment_t* ptr_pwl_segments_target = nullptr;
+        gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
         float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
         float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
@@ -570,7 +574,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             }
         }
 
-        ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
+        ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
 
         void* ptr_pwl_input = nullptr;
         void* ptr_pwl_outputs = nullptr;
@@ -594,7 +598,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (ptr_pwl_segments_target != nullptr) {
             gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
                 &ptr_pwl_segments.front(),
-                ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
+                ptr_pwl_segments.size() * sizeof(gna_pwl_segment_t),
                 64);
         }
     }
@@ -1460,7 +1464,7 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
 void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto* generic = dynamic_cast<GenericLayer*>(layer.get());
     std::string type;
-    std::vector<intel_pwl_segment_t> ptr_pwl_segments;
+    std::vector<gna_pwl_segment_t> ptr_pwl_segments;
     uint32_t num_rows;
     uint32_t num_columns;
     void* ptr_inputs = nullptr;
@@ -1576,8 +1580,7 @@ case name:\
 #endif
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, actName);
-
-    intel_pwl_segment_t* ptr_pwl_segments_target = nullptr;
+    gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
     if (!gnaFlags->sw_fp32) {
         // TODO: generalize activation function code
@@ -1612,7 +1615,7 @@ case name:\
                 input_pwl_scale_factor,
                 output_pwl_scale_factor);
         }
-        ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
+        ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
 
     dnn->InitPiecewiseLinearComponent(currentComponent,
@@ -1635,7 +1638,7 @@ case name:\
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
             &ptr_pwl_segments.front(),
-            ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
+            ptr_pwl_segments.size() * sizeof(gna_pwl_segment_t),
             64);
     }
 }
@@ -1931,7 +1934,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
         return LayerInfo(l).isNonFunctional();
     });
-
 
     gnalog() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 

@@ -4,8 +4,9 @@
 
 #pragma once
 
+#include "backend/gna_types.h"
 
-class OutputFiller : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class OutputFiller : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     mutable std::stringstream reason;
     int32_t fill32BValue;
     int16_t fill16BValue;
@@ -14,7 +15,7 @@ class OutputFiller : public ::testing::MatcherInterface<const intel_nnet_type_t*
     OutputFiller(int32_t fill32BValue, int16_t fill16BValue) : fill32BValue(fill32BValue), fill16BValue(fill16BValue) {}
 
 
-    bool MatchAndExplain(const intel_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
         if (foo == nullptr)
             return false;
         reason.str("");
