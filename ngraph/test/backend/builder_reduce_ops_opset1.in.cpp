@@ -16,6 +16,8 @@
 
 #include <numeric>
 
+#include "ngraph/builder/reduce_ops.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
