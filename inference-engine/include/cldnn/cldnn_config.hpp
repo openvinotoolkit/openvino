@@ -59,9 +59,12 @@ DECLARE_CLDNN_CONFIG_KEY(GRAPH_DUMPS_DIR);
 DECLARE_CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR);
 
 /**
-* @brief This key turns usage of int8 optimizations and qunatized models on.
+* @brief This key enables FP16 precision for quantized models.
+* By default the model is converted to FP32 precision before running LPT. If this key is enabled (default), then non-quantized layers
+* will be converted back to FP16 after LPT, which might imrpove the performance if a model has a lot of compute operations in
+* non-quantized path. This key has no effect if current device doesn't have INT8 optimization capabilities.
 */
-DECLARE_CLDNN_CONFIG_KEY(INT8_ENABLED);
+DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
 
 /**
 * @brief This key should be set to correctly handle NV12 input without pre-processing.

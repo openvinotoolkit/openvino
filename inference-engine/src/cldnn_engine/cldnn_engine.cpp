@@ -87,6 +87,23 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
+            // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                return !reduce_along_f;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMax>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                return !reduce_along_f;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceSum>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                return !reduce_along_f;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||

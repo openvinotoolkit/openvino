@@ -4,15 +4,16 @@
 
 #pragma once
 #include "nnet_base_matcher.hpp"
+#include "backend/gna_types.h"
 #include "gna_lib_ver_selector.hpp"
 
-class NNetPrecisionMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class NNetPrecisionMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     GnaPluginTestEnvironment::NnetPrecision nnetPrecision;
     intel_layer_kind_t layerKind = (intel_layer_kind_t)-1;
  public:
     explicit  NNetPrecisionMatcher(GnaPluginTestEnvironment::NnetPrecision nnetPrecision,
                                    intel_layer_kind_t layerKind = (intel_layer_kind_t)-1) : nnetPrecision(nnetPrecision), layerKind(layerKind) {}
-    bool MatchAndExplain(const intel_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t* foo, ::testing::MatchResultListener* listener) const override {
 
         auto ioPrecision = (foo->pLayers->nBytesPerInput == nnetPrecision.input_precision.size()) &&
             (foo->pLayers->nBytesPerOutput== nnetPrecision.output_precision.size());
@@ -25,7 +26,7 @@ class NNetPrecisionMatcher : public ::testing::MatcherInterface<const intel_nnet
             }
             switch (layerKind) {
                 case INTEL_AFFINE : {
-                    auto affine = (intel_affine_layer_t *) (foo->pLayers->pLayerStruct);
+                    auto affine = (gna_affine_layer_t *) (foo->pLayers->pLayerStruct);
 
                     return affine->affine.nBytesPerBias == nnetPrecision.biases_precision.size() &&
                         affine->affine.nBytesPerWeight == nnetPrecision.weights_precision.size();
@@ -47,7 +48,7 @@ class NNetPrecisionMatcher : public ::testing::MatcherInterface<const intel_nnet
     }
 };
 
-inline ::testing::Matcher<const intel_nnet_type_t*> BitnessOfNNetEq(GnaPluginTestEnvironment::NnetPrecision nnetPrecision,
+inline ::testing::Matcher<const gna_nnet_type_t*> BitnessOfNNetEq(GnaPluginTestEnvironment::NnetPrecision nnetPrecision,
                                                          intel_layer_kind_t component) {
     std::unique_ptr<NNetComponentMatcher> c (new NNetComponentMatcher());
     c->add(new NNetPrecisionMatcher(nnetPrecision, component));

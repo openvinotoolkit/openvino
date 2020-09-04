@@ -154,7 +154,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     const auto input_shape_rank = input_shape.rank().get_length();
 
     auto order = as_type_ptr<opset3::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!order) {
+    if (!order || !ngraph::shape_size(order->get_shape())) {
         return false;
     }
 

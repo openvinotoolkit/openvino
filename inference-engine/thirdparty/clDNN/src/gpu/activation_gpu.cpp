@@ -120,6 +120,12 @@ attach_activation_gpu::attach_activation_gpu() {
         { std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw },
         { std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw },
         { std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw },
+        // bfwzyx
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw},
         // fs_b_yx_fsv32
         {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
     });

@@ -346,7 +346,7 @@ namespace
 
     void op_is_GRUCell()
     {
-        op::GRUCell node;
+        op::v3::GRUCell node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -472,7 +472,7 @@ namespace
 
     void op_is_LSTMCell()
     {
-        op::LSTMCell node;
+        op::v4::LSTMCell node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -481,7 +481,7 @@ namespace
 
     void op_is_LSTMSequence()
     {
-        op::LSTMSequence node;
+        op::v0::LSTMSequence node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -733,7 +733,7 @@ namespace
 
     void op_is_RNNCell()
     {
-        op::RNNCell node;
+        op::v0::RNNCell node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
