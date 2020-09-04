@@ -17,6 +17,7 @@
 #include "nodes/mkldnn_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_resample_node.h"
+#include "nodes/mkldnn_interpolate_node.h"
 
 #include <blob_factory.hpp>
 #include <legacy/ie_layers_internal.hpp>
@@ -130,6 +131,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     graph.RemoveDroppedNodes();
 
     FuseResampleAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    FuseInterpolateAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
     FuseNormalizeAndSimpleOperation(graph);
@@ -1721,6 +1725,74 @@ void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
                 if (p_edge->getParent()->getType() == Resample)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
+}
+
+void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
+    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
+        auto& edges = graph.GetEdges();
+        for (auto it = edges.begin(); it != edges.end(); it++) {
+            if ((*it) == edge) {
+                edges.erase(it);
+                return;
+            }
+        }
+    };
+
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
+        bool isSuitable = (node->getType() == Interpolate);
+        if (isSuitable) {
+            return node->getChildEdges().size() == 1;
+        } else {
+            return false;
+        }
+    };
+
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        // Avoid cycle dependencies
+        for (auto &childParentEdge : childNode->getParentEdges()) {
+            for (auto &parentParentEdge : parentNode->getParentEdges()) {
+                if (childParentEdge.lock()->getParent() == parentParentEdge.lock()->getParent())
+                    return false;
+            }
+        }
+        if (!childNode->getFusedWith().empty())
+            return false;
+        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        return interpolateNode->canFuse(childNode);
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        if (!isSutableChildNode(parentNode, childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Depthwise || childNode->getType() == Activation) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == Interpolate)
                     continue;
 
                 removeEdge(graph, p_edge);
