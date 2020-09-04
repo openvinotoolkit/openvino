@@ -38,7 +38,10 @@ template<> inline short saturate_cast(int x) { return (std::min)(SHRT_MAX, (std:
 template<> inline short saturate_cast(float x) { return saturate_cast<short>(static_cast<int>(std::rint(x))); }
 template<> inline float saturate_cast(float x) { return x; }
 template<> inline short saturate_cast(short x) { return x; }
+template<> inline uint16_t saturate_cast(uint16_t x) { return x; }
+template<> inline float    saturate_cast(uint16_t x) { return x; }
 template<> inline uint16_t saturate_cast(int x) { return (std::min)(USHRT_MAX, (std::max)(0, x)); }
+template<> inline uint16_t saturate_cast(float x)    { return saturate_cast<uint16_t>(static_cast<int>(std::rint(x))); }
 template<> inline uchar saturate_cast<uchar>(int v) { return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0); }
 
 //------------------------------------------------------------------------------

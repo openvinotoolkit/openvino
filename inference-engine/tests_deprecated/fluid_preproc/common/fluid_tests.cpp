@@ -625,27 +625,31 @@ TEST_P(I420toRGBTestGAPI, AccuracyTest)
     }
 }
 
-TEST_P(U16toF32TestGAPI, AccuracyTest)
+TEST_P(ConvertDepthTestGAPI, AccuracyTest)
 {
     const auto params = GetParam();
-    cv::Size sz      = std::get<0>(params);
-    double tolerance = std::get<1>(params);
+    int in_depth      = std::get<0>(params);
+    int out_depth     = std::get<1>(params);
+    cv::Size sz       = std::get<2>(params);
+    double tolerance  = std::get<3>(params);
 
-    initMatrixRandU(CV_16UC1, sz, CV_32FC1);
+    const int out_type = CV_MAKETYPE(out_depth,1);
+
+    initMatrixRandU(CV_MAKETYPE(in_depth,1), sz, out_type);
 
     // G-API code //////////////////////////////////////////////////////////////
-    FluidU16ToF32Computation cc(to_test(in_mat1), to_test(out_mat_gapi));
+    ConvertDepthComputation cc(to_test(in_mat1), to_test(out_mat_gapi), out_mat_gapi.depth());
     cc.warmUp();
 
 #if PERF_TEST
     // iterate testing, and print performance
     test_ms([&](){ cc.apply(); },
-        400, "U16ToF32 GAPI %s %dx%d", typeToString(CV_16UC1).c_str(), sz.width, sz.height);
+        400, "ConvDepth GAPI %s to %s %dx%d", depthToString(in_mat1.depth()).c_str(), depthToString(out_mat_gapi.depth()).c_str(), sz.width, sz.height);
 #endif
 
     // OpenCV code /////////////////////////////////////////////////////////////
     {
-        in_mat1.convertTo(out_mat_ocv, CV_32FC1);
+        in_mat1.convertTo(out_mat_ocv, out_type);
     }
     // Comparison //////////////////////////////////////////////////////////////
     {

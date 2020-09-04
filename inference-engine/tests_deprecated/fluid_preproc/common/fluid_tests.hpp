@@ -19,7 +19,12 @@ struct NV12toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct I420toRGBTestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 struct ResizeRoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
 struct ResizeRGB8URoiTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, cv::Rect, double>> {};
-struct U16toF32TestGAPI: public TestParams<std::tuple<cv::Size, double>> {};
+struct ConvertDepthTestGAPI: public TestParams<std::tuple<
+                            int,  // input matrix depth
+                            int,  // output matrix depth
+                            cv::Size,
+                            double>>   // tolerance
+{};
 //------------------------------------------------------------------------------
 
 struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};

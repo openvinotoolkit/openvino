@@ -143,11 +143,12 @@ namespace gapi {
         }
     };
 
-    G_TYPED_KERNEL(U16toF32, <cv::GMat(cv::GMat)>, "com.intel.ie.u16tof32") {
-        static cv::GMatDesc outMeta(const cv::GMatDesc& in) {
-            GAPI_Assert(in.depth == CV_16U);
+    G_TYPED_KERNEL(ConvertDepth, <cv::GMat(cv::GMat, int depth)>, "com.intel.ie.ConvertDepth") {
+        static cv::GMatDesc outMeta(const cv::GMatDesc& in, int depth) {
+            GAPI_Assert(in.depth == CV_16U || in.depth == CV_32F);
+            GAPI_Assert(depth == CV_32F || depth == CV_16U);
 
-            return in.withDepth(CV_32F);
+            return in.withDepth(depth);
         }
     };
 
