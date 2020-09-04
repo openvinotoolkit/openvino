@@ -85,12 +85,12 @@ public:
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
-        auto asyncTreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
+        auto asyncThreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
                 syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
         asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
-                           asyncTreadSafeImpl),
+                           asyncThreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });
-        asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
     void Export(std::ostream& model) override {

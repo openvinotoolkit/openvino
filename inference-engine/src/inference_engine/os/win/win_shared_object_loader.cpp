@@ -16,22 +16,36 @@ class SharedObjectLoader::Impl {
 private:
     HMODULE shared_object;
 
-    void ExcludeCurrentDirectory() {
+    void ExcludeCurrentDirectoryA() {
         // Exclude current directory from DLL search path process wise.
         // If application specific path was configured before then
         // current directory is alread excluded.
         // GetDLLDirectory does not distinguish if aplication specific
         // path was set to "" or NULL so reset it to "" to keep
         // aplication safe.
-        if (GetDllDirectory(0, NULL) <= 1) {
-            SetDllDirectory(TEXT(""));
+        if (GetDllDirectoryA(0, NULL) <= 1) {
+            SetDllDirectoryA("");
         }
     }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    void ExcludeCurrentDirectoryW() {
+        // Exclude current directory from DLL search path process wise.
+        // If application specific path was configured before then
+        // current directory is alread excluded.
+        // GetDLLDirectory does not distinguish if aplication specific
+        // path was set to "" or NULL so reset it to "" to keep
+        // aplication safe.
+        if (GetDllDirectoryW(0, NULL) <= 1) {
+            SetDllDirectoryW(TEXT(""));
+        }
+    }
+#endif
 
 public:
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) {
-        ExcludeCurrentDirectory();
+        ExcludeCurrentDirectoryW();
 
         shared_object = LoadLibraryW(pluginName);
         if (!shared_object) {
@@ -43,7 +57,7 @@ public:
 #endif
 
     explicit Impl(const char* pluginName) {
-        ExcludeCurrentDirectory();
+        ExcludeCurrentDirectoryA();
 
         shared_object = LoadLibraryA(pluginName);
         if (!shared_object) {

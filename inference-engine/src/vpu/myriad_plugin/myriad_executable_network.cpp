@@ -182,8 +182,6 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
-
-    return {};
 }
 
 InferenceEngine::CNNNetwork ExecutableNetwork::GetExecGraphInfo() {

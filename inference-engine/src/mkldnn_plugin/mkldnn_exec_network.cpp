@@ -228,8 +228,6 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
-
-    return {};
 }
 
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const {

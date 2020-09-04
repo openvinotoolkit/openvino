@@ -60,6 +60,7 @@ public:
                                p->Release();
                            });
         asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        CreateAsyncInferRequestFromSync<AsyncInferRequestThreadSafeDefault>();
     }
 
     /**
@@ -71,8 +72,20 @@ public:
     }
 
 protected:
+    template <typename AsyncInferRequestType>
+    InferRequest CreateAsyncInferRequestFromSync(IInferRequest::Ptr &asyncRequest) {
+        auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+
+        auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
+
+        asyncRequest.reset(new InferRequestBase<AsyncInferRequestType>(asyncThreadSafeImpl),
+            [](IInferRequest *p) { p->Release(); });
+        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    }
+
     /**
-     * @brief Create a synchronous inference request object used to infer the network
+     * @brief Creates a synchronous inference request object used to infer the network
      * @note Used by ExecutableNetworkThreadSafeDefault::CreateInferRequest as a plugin-specific implementation
      * @param networkInputs An input info map needed to create input blobs
      * @param networkOutputs An output data map needed to create output blobs
