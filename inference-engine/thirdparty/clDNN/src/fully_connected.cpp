@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,6 +50,47 @@ bool is_batch_after_spatial(const std::string order) {
     }
     return false;
 }
+
+format::type get_preferred_format(const fully_connected_node& node) {
+    auto input_layout = node.input().get_output_layout();
+
+    if (data_type_traits::is_floating_point(input_layout.data_type) &&
+        (is_batch_after_spatial(input_layout.format.order()) ||
+         input_layout.format == format::bs_x_bsv16 ||
+         input_layout.format == format::bs_xs_xsv8_bsv8))
+        return format::yxfb;
+
+    bool no_spatial_padding = true;
+    for (auto pad : input_layout.data_padding.lower_size().spatial)
+        no_spatial_padding &= pad == 0;
+    for (auto pad : input_layout.data_padding.upper_size().spatial)
+        no_spatial_padding &= pad == 0;
+
+    if (input_layout.data_type == data_types::f32 &&
+        input_layout.format == format::bfyx &&
+        no_spatial_padding &&
+        input_layout.size.batch[0] != 8)
+        return format::bfyx;
+
+    auto input_pitches = input_layout.get_pitches();
+    if (input_layout.data_type == data_types::f16 &&
+        input_layout.format == format::bfyx &&
+        no_spatial_padding &&
+        input_pitches.batch[0] % 2 == 0 &&
+        input_layout.size.batch[0] != 16)
+        return format::bfyx;
+
+    // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
+    // extra reorder between input and this fc from bfyx to yxfb format (so
+    // "is_batch_after_spatial" should return true)
+    if (data_type_traits::is_floating_point(input_layout.data_type) &&
+        input_layout.format == format::bfyx &&
+        input_layout.size.batch[0] > 1)
+        return format::yxfb;
+
+    return format::bfyx;
+}
+
 }  // namespace
 
 layout fully_connected_inst::calc_output_layout(fully_connected_node const& node) {
@@ -65,24 +106,10 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = node.get_fused_output_layout().data_type;
     }
 
-    if (data_type_traits::is_floating_point(input_layout.data_type) &&
-        (is_batch_after_spatial(input_layout.format.order()) ||
-        (input_layout.format ==
-             format::bfyx &&  // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
-         input_layout.size.batch[0] > 1) ||  // extra reorder between input and this fc from bfyx to yxfb format (so
-                                             // "is_batch_after_spatial" should return true)
-        input_layout.format == format::bs_x_bsv16 ||
-        input_layout.format == format::bs_xs_xsv8_bsv8)) {
-        auto result = layout(output_type,
-                             format::yxfb,
-                             tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1));
-        return result;
-    } else {
-        auto result = layout(output_type,
-                             format::bfyx,
-                             tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1));
-        return result;
-    }
+    auto output_size = tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1);
+    format output_format = get_preferred_format(node);
+
+    return layout(output_type, output_format, output_size);
 }
 
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
