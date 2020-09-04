@@ -38,19 +38,29 @@ class SharedObjectLoader::Impl {
         return last_sep;
     }
 
+    std::basic_string<CHAR> GetDirname(LPCSTR path) {
+        auto pos = FindLastPathSeparator(path);
+        if (pos == nullptr) {
+            return path;
+        }
+        std::basic_string<СHAR> original(path);
+        original[pos - path] = 0;
+        return original;
+    }
+
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     static const wchar_t* FindLastPathSeparator(LPCWSTR path) {
-        const char* const last_sep = wcsrchr(path, kPathSeparator);
+        const wchar_t* const last_sep = wcsrchr(path, kPathSeparator);
         return last_sep;
     }
 
     std::basic_string<WCHAR> GetDirname(LPCWSTR path) {
         auto pos = FindLastPathSeparator(path);
-        if (pos==nullptr) {
+        if (pos == nullptr) {
             return path;
         }
         std::basic_string<WCHAR> original(path);
-        original[pos] = 0;
+        original[pos - path] = 0;
         return original;
     }
 
@@ -146,18 +156,17 @@ class SharedObjectLoader::Impl {
     }
 };
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
-    _impl = std::make_shared<Impl>(pluginName);
-}
-#endif
-
 SharedObjectLoader::~SharedObjectLoader() noexcept(false) {
 }
 
 SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
     _impl = std::make_shared<Impl>(pluginName);
 }
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
+    _impl = std::make_shared<Impl>(pluginName);
+}
+#endif
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
     return _impl->get_symbol(symbolName);
