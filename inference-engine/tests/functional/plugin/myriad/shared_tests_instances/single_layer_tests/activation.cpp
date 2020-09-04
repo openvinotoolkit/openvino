@@ -15,16 +15,16 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
-        Gelu,
-        Mish,
-        SoftPlus,
-        Swish
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sigmoid,  {}},
+        {Tanh,     {}},
+        {Relu,     {}},
+        {Exp,      {}},
+        {Log,      {}},
+        {Gelu,     {}},
+        {Mish,     {}},
+        {SoftPlus, {}},
+        {Swish,    {{0.05f}, {0.8f}, {1.0f}, {15.0f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -33,9 +33,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
