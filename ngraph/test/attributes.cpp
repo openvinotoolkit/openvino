@@ -20,6 +20,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset4.hpp"
 
 #include "util/visitor.hpp"
 
@@ -1063,7 +1064,7 @@ TEST(attributes, lrn_op)
 
 TEST(attributes, lstm_cell_op)
 {
-    FactoryRegistry<Node>::get().register_factory<opset1::LSTMCell>();
+    FactoryRegistry<Node>::get().register_factory<opset4::LSTMCell>();
     auto X = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto H = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<op::Parameter>(element::f32, Shape{12, 3});
@@ -1072,40 +1073,33 @@ TEST(attributes, lstm_cell_op)
     const auto initial_cell_state = make_shared<op::Parameter>(element::f32, Shape{2, 3});
 
     const auto hidden_size = 3;
-    const auto weights_format = op::LSTMWeightsFormat::ICOF;
     const std::vector<std::string> activations = {"tanh", "sigmoid", "tanh"};
     auto activations_alpha = std::vector<float>{1.0, 1.5};
     auto activations_beta = std::vector<float>{2.0, 1.0};
     const float clip = 0.5f;
-    bool input_forget = true;
-
-    const auto lstm_cell = make_shared<opset1::LSTMCell>(X,
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                          initial_hidden_state,
                                                          initial_cell_state,
                                                          W,
                                                          R,
                                                          hidden_size,
-                                                         weights_format,
                                                          activations,
                                                          activations_alpha,
                                                          activations_beta,
-                                                         clip,
-                                                         input_forget);
+                                                         clip);
     NodeBuilder builder(lstm_cell);
-    auto g_lstm_cell = as_type_ptr<opset1::LSTMCell>(builder.create());
+    auto g_lstm_cell = as_type_ptr<opset4::LSTMCell>(builder.create());
 
     EXPECT_EQ(g_lstm_cell->get_hidden_size(), lstm_cell->get_hidden_size());
     EXPECT_EQ(g_lstm_cell->get_activations(), lstm_cell->get_activations());
     EXPECT_EQ(g_lstm_cell->get_activations_alpha(), lstm_cell->get_activations_alpha());
     EXPECT_EQ(g_lstm_cell->get_activations_beta(), lstm_cell->get_activations_beta());
     EXPECT_EQ(g_lstm_cell->get_clip(), lstm_cell->get_clip());
-    EXPECT_EQ(g_lstm_cell->get_input_forget(), lstm_cell->get_input_forget());
-    EXPECT_EQ(g_lstm_cell->get_weights_format(), lstm_cell->get_weights_format());
 }
 
 TEST(attributes, lstm_sequence_op)
 {
-    FactoryRegistry<Node>::get().register_factory<opset1::LSTMSequence>();
+    FactoryRegistry<Node>::get().register_factory<op::v1::LSTMSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -1127,14 +1121,12 @@ TEST(attributes, lstm_sequence_op)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
-    const auto weights_format = op::LSTMWeightsFormat::ICOF;
     const std::vector<float> activations_alpha = {1, 2, 3};
     const std::vector<float> activations_beta = {4, 5, 6};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "tanh"};
     const float clip_threshold = 0.5f;
-    const bool input_forget = true;
 
-    const auto lstm_sequence = make_shared<opset1::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v1::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -1143,23 +1135,19 @@ TEST(attributes, lstm_sequence_op)
                                                                  B,
                                                                  hidden_size,
                                                                  lstm_direction,
-                                                                 weights_format,
                                                                  activations_alpha,
                                                                  activations_beta,
                                                                  activations,
-                                                                 clip_threshold,
-                                                                 input_forget);
+                                                                 clip_threshold);
     NodeBuilder builder(lstm_sequence);
-    auto g_lstm_sequence = as_type_ptr<opset1::LSTMSequence>(builder.create());
+    auto g_lstm_sequence = as_type_ptr<op::v1::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());
     EXPECT_EQ(g_lstm_sequence->get_activations(), lstm_sequence->get_activations());
     EXPECT_EQ(g_lstm_sequence->get_activations_alpha(), lstm_sequence->get_activations_alpha());
     EXPECT_EQ(g_lstm_sequence->get_activations_beta(), lstm_sequence->get_activations_beta());
-    EXPECT_EQ(g_lstm_sequence->get_clip_threshold(), lstm_sequence->get_clip_threshold());
+    EXPECT_EQ(g_lstm_sequence->get_clip(), lstm_sequence->get_clip());
     EXPECT_EQ(g_lstm_sequence->get_direction(), lstm_sequence->get_direction());
-    EXPECT_EQ(g_lstm_sequence->get_input_forget(), lstm_sequence->get_input_forget());
-    EXPECT_EQ(g_lstm_sequence->get_weights_format(), lstm_sequence->get_weights_format());
 }
 
 TEST(attributes, shuffle_channels_op)

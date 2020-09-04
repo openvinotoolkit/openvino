@@ -439,7 +439,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Select>>("Select"),
         std::make_shared<LayerCreator<ngraph::op::LRN>>("LRN"),
         std::make_shared<LayerCreator<ngraph::op::MVN>>("MVN"),
-        std::make_shared<LayerCreator<ngraph::op::LSTMCell>>("LSTMCell"),
+        std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
         std::make_shared<LayerCreator<ngraph::op::v1::Maximum>>("Maximum"),
         std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
@@ -910,7 +910,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Convert>::crea
 
 // LSTMCell layer
 template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LSTMCell>::createLayer(
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 6);
@@ -922,7 +922,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LSTMCell>::cre
     std::vector<float> activations_alpha = getParameters<float>(dn, "activations_alpha", {});
     std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
     float clip = GetFloatAttr(dn, "clip", 0.f);
-    return std::make_shared<ngraph::op::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
+    return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
                                                   GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
 }

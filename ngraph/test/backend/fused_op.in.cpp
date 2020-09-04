@@ -33,7 +33,9 @@
 #include "gtest/gtest.h"
 #include "ngraph/check.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/rnn_cell_base.hpp"
 #include "op/group_conv.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
@@ -1629,11 +1631,17 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(
-        X, H_t, C_t, W, R, B, P, hidden_size, op::LSTMWeightsFormat::IOFC);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(
+        X,
+        H_t,
+        C_t,
+        op::util::convert_lstm_node_format(W, op::util::LSTMWeightsFormat::IOFC),
+        op::util::convert_lstm_node_format(R, op::util::LSTMWeightsFormat::IOFC),
+        op::util::convert_lstm_node_format(B, op::util::LSTMWeightsFormat::IOFC),
+        hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1665,18 +1673,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     // P
     vector<float> in_P(3 * hidden_size, 0.f);
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.81457126f, 0.61109227f, 0.769522f, 0.52239674f, 0.4324641f, 0.63183f});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {1.4444952f, 0.9635685f, 1.2875274f, 0.8053419f, 0.7184521f, 0.95803297f});
@@ -1700,11 +1706,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(
-        X, H_t, C_t, W, R, B, P, hidden_size, op::LSTMWeightsFormat::IOFC);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
 
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1755,18 +1760,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.9218244f, 0.78787273f, 0.8754273f, 0.7361462f, 0.70927656f, 0.83522964f});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {1.7094649f, 1.1259761f, 1.444019f, 1.086587f, 0.9762144f, 1.3066899f});
@@ -1792,22 +1795,19 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X,
-                                                     H_t,
-                                                     C_t,
-                                                     W,
-                                                     R,
-                                                     B,
-                                                     P,
-                                                     hidden_size,
-                                                     op::LSTMWeightsFormat::IOFC,
-                                                     vector<string>{"sigmoid", "tanh", "tanh"},
-                                                     vector<float>{},
-                                                     vector<float>{},
-                                                     clip_threshold,
-                                                     input_forget);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
+                                                         H_t,
+                                                         C_t,
+                                                         W,
+                                                         R,
+                                                         B,
+                                                         hidden_size,
+                                                         vector<string>{"sigmoid", "tanh", "tanh"},
+                                                         vector<float>{},
+                                                         vector<float>{},
+                                                         clip_threshold);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1858,18 +1858,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.71485436f, 0.71844107f, 0.72704613f, 0.6235602f, 0.68306124f, 0.6978715f});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.94656503f, 0.9527454f, 0.9706756f, 0.84206575f, 0.91898793f, 0.9127192f});
@@ -1898,22 +1896,19 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
 
-    const auto lstm_cell = make_shared<op::LSTMCell>(X,
-                                                     H_t,
-                                                     C_t,
-                                                     W,
-                                                     R,
-                                                     B,
-                                                     P,
-                                                     hidden_size,
-                                                     op::LSTMWeightsFormat::IOFC,
-                                                     activations,
-                                                     activation_alpha,
-                                                     activation_beta,
-                                                     clip_threshold,
-                                                     input_forget);
+    const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
+                                                         H_t,
+                                                         C_t,
+                                                         W,
+                                                         R,
+                                                         B,
+                                                         hidden_size,
+                                                         activations,
+                                                         activation_alpha,
+                                                         activation_beta,
+                                                         clip_threshold);
     auto ht_function = make_shared<Function>(OutputVector{lstm_cell->output(0)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ht_test_case = test::TestCase<TestEngine>(ht_function);
 
     // X
@@ -1964,18 +1959,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
                        0.13840231f,
                        0.24175227f};
 
-    ht_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ht_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.96834344f, 0.9695254f, 0.97068775f, 0.9077866f, 0.94161016f, 0.96599925f});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
-                                             ParameterVector{X, H_t, C_t, W, R, B, P});
+                                             ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
-    ct_test_case.add_multiple_inputs(
-        vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B, in_P});
+    ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
     ct_test_case.add_expected_output<float>(
         Shape{batch_size, hidden_size},
         {0.94656503f, 0.9527454f, 0.9706756f, 0.84206575f, 0.91898793f, 0.9127192f});
@@ -2168,7 +2161,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_no_bias)
     const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X, H_t, W, R, hidden_size);
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2219,16 +2212,16 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_bias_clip)
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X,
-                                                   H_t,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size,
-                                                   vector<string>{"tanh"},
-                                                   vector<float>{},
-                                                   vector<float>{},
-                                                   clip);
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       vector<string>{"tanh"},
+                                                       vector<float>{},
+                                                       vector<float>{},
+                                                       clip);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R, B});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2281,16 +2274,16 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_activation_function)
     const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
 
-    const auto rnn_cell = make_shared<op::RNNCell>(X,
-                                                   H_t,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size,
-                                                   vector<string>{"sigmoid"},
-                                                   vector<float>{},
-                                                   vector<float>{},
-                                                   clip);
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       vector<string>{"sigmoid"},
+                                                       vector<float>{},
+                                                       vector<float>{},
+                                                       clip);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R, B});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2347,17 +2340,17 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_bias_clip)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
-                                                   H_t,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size,
-                                                   vector<string>{"sigmoid", "tanh"},
-                                                   vector<float>{},
-                                                   vector<float>{},
-                                                   clip,
-                                                   linear_before_reset);
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       vector<string>{"sigmoid", "tanh"},
+                                                       vector<float>{},
+                                                       vector<float>{},
+                                                       clip,
+                                                       linear_before_reset);
     auto function = make_shared<Function>(gru_cell, ParameterVector{X, H_t, W, R, B});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2420,17 +2413,17 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_linear_before_reset)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
-                                                   H_t,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size,
-                                                   vector<string>{"sigmoid", "tanh"},
-                                                   vector<float>{},
-                                                   vector<float>{},
-                                                   clip,
-                                                   linear_before_reset);
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       vector<string>{"sigmoid", "tanh"},
+                                                       vector<float>{},
+                                                       vector<float>{},
+                                                       clip,
+                                                       linear_before_reset);
     auto function = make_shared<Function>(gru_cell, ParameterVector{X, H_t, W, R, B});
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -2492,17 +2485,17 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_activation_function)
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
 
-    const auto gru_cell = make_shared<op::GRUCell>(X,
-                                                   H_t,
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   hidden_size,
-                                                   vector<string>{"hardsigmoid", "hardsigmoid"},
-                                                   vector<float>{1.8345f, 1.8345f},
-                                                   vector<float>{3.05f, 3.05f},
-                                                   clip,
-                                                   linear_before_reset);
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       vector<string>{"hardsigmoid", "hardsigmoid"},
+                                                       vector<float>{1.8345f, 1.8345f},
+                                                       vector<float>{3.05f, 3.05f},
+                                                       clip,
+                                                       linear_before_reset);
     auto function = make_shared<Function>(gru_cell, ParameterVector{X, H_t, W, R, B});
 
     auto test_case = test::TestCase<TestEngine>(function);

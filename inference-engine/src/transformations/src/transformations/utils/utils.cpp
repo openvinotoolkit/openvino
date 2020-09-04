@@ -108,6 +108,18 @@ bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &ot
     return false;
 }
 
+std::shared_ptr<ngraph::Node> activation(const std::string& activation_name, const ngraph::Output<ngraph::Node>& apply_to) {
+    if (activation_name == "relu") {
+        return std::make_shared<ngraph::opset4::Relu>(apply_to);
+    } else if (activation_name == "sigmoid") {
+        return std::make_shared<ngraph::opset4::Sigmoid>(apply_to);
+    } else if (activation_name == "tanh") {
+        return std::make_shared<ngraph::opset4::Tanh>(apply_to);
+    } else {
+        throw ngraph_error("Unsupported activation function");
+    }
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

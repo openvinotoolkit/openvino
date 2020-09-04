@@ -1867,54 +1867,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::LSTMCellIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "LSTMCell",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::LSTMCellIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto res = std::make_shared<InferenceEngine::LSTMCell>(params);
-    res->params["hidden_size"] = asString(castedLayer->get_hidden_size());
-    std::string value;
-    for (const auto& val : castedLayer->get_activations()) {
-        if (!value.empty()) value += ",";
-        value += val;
-    }
-    res->params["activations"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_activations_alpha()) {
-        if (!value.empty()) value += ",";
-        value += val;
-    }
-    res->params["activations_alpha"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_activations_beta()) {
-        if (!value.empty()) value += ",";
-        value += val;
-    }
-    res->params["activations_beta"] = value;
-    res->params["clip"] = asString(castedLayer->get_clip());
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = layer->input_value(3).get_node_shared_ptr();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-    }
-
-    const auto biasNode = layer->input_value(4).get_node_shared_ptr();
-    if (converter.canCreate(biasNode)) {
-        const auto& bias = converter.createLayer(biasNode);
-        res->blobs["biases"] = bias->blobs["custom"];
-        res->_biases = bias->blobs["custom"];
-    }
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::MatMul>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Gemm",
                           details::convertPrecision(layer->get_output_element_type(0))};

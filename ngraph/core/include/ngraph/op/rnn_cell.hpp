@@ -26,8 +26,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -52,7 +50,7 @@ namespace ngraph
             ///
             /// \sa         LSTMSequence, LSTMCell, GRUCell
             ///
-            class NGRAPH_API RNNCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API RNNCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"RNNCell", 0};
@@ -129,11 +127,9 @@ namespace ngraph
                     const std::vector<float>& activations_beta = {},
                     float clip = 0.f);
 
-                virtual void validate_and_infer_types() override;
+                void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
             private:
@@ -152,8 +148,5 @@ namespace ngraph
                 static constexpr std::size_t s_gates_count{1};
             };
         }
-        using v0::RNNCell;
     } // namespace op
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END

@@ -105,3 +105,20 @@ INTERPRETER.onnx_model_gatherND_float
 
 # Round op doesn't support some specific cases of rounding
 onnx_model_round_half_nearest_even
+
+# Unsupported op 'LSTMSequence': not FusedOp anymore, no reference implementation yet
+onnx_model_lstm_fwd_with_clip
+onnx_model_lstm_fwd_mixed_seq
+onnx_model_lstm_fwd_hardsigmoid_activation
+onnx_model_lstm_fwd_large_batch_no_clip
+onnx_model_lstm_bdir_short_input_seq
+onnx_model_lstm_mixed_seq_reverse
+
+# Activation function hardsigmoid is not supported.
+gru_cell_activation_function
+lstm_cell_activaction_functions
+onnx_model_gru_fwd_activations
+
+# Peepholes, input_forget are not supported
+lstm_cell_bias_peepholes
+lstm_cell_bias_peepholes_clip_input_forget

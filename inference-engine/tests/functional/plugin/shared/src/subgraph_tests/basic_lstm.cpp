@@ -72,7 +72,7 @@ void Basic_LSTM_S::SetUp() {
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
     outFormShapes1 = { batch_size, reshape1_shape[2] };
     auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, outFormShapes1);
-    auto lstm1 = std::make_shared<ngraph::opset1::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+    auto lstm1 = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
         H_t, C_t,
         weightsNode, reccurrenceWeightsNode, hidden_size);
 
@@ -137,7 +137,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
 
     ngraph::Output<ngraph::Node> H[iterations + 1];
     ngraph::Output<ngraph::Node> C[iterations + 1];
-    std::shared_ptr<ngraph::opset1::LSTMCell> lstm[iterations];
+    std::shared_ptr<ngraph::opset4::LSTMCell> lstm[iterations];
     H[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
     C[0] = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hidden_size }, {}, true);
     auto reshape1_shape = reshape1->output(0).get_shape();
@@ -149,7 +149,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
 
     for (size_t i = 0; i < iterations; ++i) {
         auto X = split1->output(i);
-        lstm[i] = std::make_shared<ngraph::opset1::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+        lstm[i] = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
             H[i], C[i],
             weightsNode, reccurrenceWeightsNode, hidden_size);
 
