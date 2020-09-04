@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.middle.LeakyReluPattern import LeakyReLU
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -25,6 +26,9 @@ class CaffeMeanFileProcessing(MiddleReplacementPattern):
     enabled = True
     force_clean_up = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'caffe']
+
+    def run_after(self):
+        return [LeakyReLU]
 
     def run_before(self):
         return [PostMiddleStart]

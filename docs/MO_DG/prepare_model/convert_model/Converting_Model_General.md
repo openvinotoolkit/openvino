@@ -109,7 +109,8 @@ Framework-agnostic parameters:
   --disable_gfusing     Turn off fusing of grouped convolutions
   --enable_concat_optimization
                         Turn on Concat optimization.
-  --move_to_preprocess  Move mean values to IR preprocess section
+  --move_to_preprocess  Move mean values to IR preprocess section. It
+                        DEPRECATED parameter.
   --extensions EXTENSIONS
                         Directory or a comma separated list of directories
                         with extensions. To disable all extensions including
