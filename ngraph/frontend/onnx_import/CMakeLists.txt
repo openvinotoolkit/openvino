@@ -42,7 +42,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES})
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder)
 target_link_libraries(onnx_importer PUBLIC ngraph)
 
 set_target_properties(onnx_importer PROPERTIES
