@@ -170,8 +170,10 @@ INSTANTIATE_TEST_CASE_P(I420toRGBTestFluid, I420toRGBTestGAPI,
                                        cv::Size( 320,  200)),
                                 Values(0)));
 
-INSTANTIATE_TEST_CASE_P(U16toF32TestGAPIFluid, U16toF32TestGAPI,
-                        Combine(Values(cv::Size(3840, 2160),
+INSTANTIATE_TEST_CASE_P(ConvertDepthFluid, ConvertDepthTestGAPI,
+                        Combine(Values(CV_16U, CV_32F),
+                                Values(CV_32F, CV_16U),
+                                Values(cv::Size(3840, 2160),
                                        cv::Size(1920, 1080),
                                        cv::Size(1280,  720),
                                        cv::Size(1280,  960),
@@ -179,7 +181,7 @@ INSTANTIATE_TEST_CASE_P(U16toF32TestGAPIFluid, U16toF32TestGAPI,
                                        cv::Size( 640,  480),
                                        cv::Size( 300,  300),
                                        cv::Size( 320,  200)),
-                                Values(0)));
+                                Values(1)));
 
 INSTANTIATE_TEST_CASE_P(ResizeRoiTestFluid, ResizeRoiTestGAPI,
                         Combine(Values(CV_8UC1, CV_8UC3),
