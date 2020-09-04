@@ -79,6 +79,23 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
     return np.maximum(shape_1, shape_2)
 
 
+def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
+    """
+    Explicit shape broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
+    :param input_value: input value to broadcast
+    :param target_shape: target shape
+    :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
+    :return: broadcasted shape
+    """
+    assert np.all(np.diff(axes_mapping) >= 0), "axes_mapping is not sorted"
+
+    res = target_shape.copy()
+    for i, axis in enumerate(axes_mapping):
+        assert axis < len(res), "axis value from axes_mapping exceeds rank of target_shape"
+        res[axis] = input_shape[i]
+    return res
+
+
 def uni_directional_broadcasting(input_value: np.array, target_shape: np.array):
     """
     Uni-directional broadcasting of input tensor to target shape following the numpy semantic
@@ -103,3 +120,18 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
         'The tensor of shape "{}" cannot be bi-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                second_shape)
     return np.array(input_value * np.ones(second_shape), dtype=input_value.dtype)
+
+
+def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
+    """
+    Explicit broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
+    :param input_value: input value to broadcast
+    :param target_shape: target shape
+    :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
+    :return: broadcasted value
+    """
+    res_shape = explicit_shape_broadcasting(input_value, target_shape, axes_mapping)
+    expand_dim_axis = set(np.arange(len(target_shape))) - set(axes_mapping)
+
+    input_expanded = np.expand_dims(input_value.copy(), axis=list(expand_dim_axis))
+    return np.broadcast_to(input_expanded, res_shape)

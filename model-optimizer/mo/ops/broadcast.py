@@ -18,7 +18,7 @@ from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, uni_directional_shape_broadcasting, \
-    uni_directional_broadcasting, bi_directional_broadcasting
+    uni_directional_broadcasting, bi_directional_broadcasting, explicit_broadcasting, explicit_shape_broadcasting
 from mo.utils.error import Error
 
 
@@ -28,7 +28,7 @@ class Broadcast(Op):
         Inputs:
             [0] - tensor to be broadcasted
             [1] - shape to be broadcast to
-            [2] - optional axis parameter that which axis are allowed to be broadcasted
+            [2] - optional axes_mapping tensor
     """
 
     op = 'Broadcast'
@@ -69,6 +69,9 @@ class Broadcast(Op):
                 node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
+            elif node.mode == 'explicit' and node.in_port(2).data.get_value() is not None:
+                axes_mapping = node.in_port(2).data.get_value()
+                node.out_port(0).data.set_value(explicit_broadcasting(input_shape, target_shape, axes_mapping))
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
         else:
@@ -76,5 +79,8 @@ class Broadcast(Op):
                 node.out_port(0).data.set_shape(uni_directional_shape_broadcasting(input_shape, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_shape(bi_directional_shape_broadcasting(input_shape, target_shape))
+            elif node.mode == 'explicit' and node.in_port(2).data.get_value() is not None:
+                axes_mapping = node.in_port(2).data.get_value()
+                node.out_port(0).data.set_shape(explicit_shape_broadcasting(input_shape, target_shape, axes_mapping))
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
