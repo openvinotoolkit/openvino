@@ -63,7 +63,8 @@ std::vector<ngraph::bfloat16> inline generateBF16Vector(size_t vec_len) {
 template<typename fromType, typename toType>
 std::vector<toType> castVector(const std::vector<fromType> &vec) {
     std::vector<toType> resVec;
-    for (auto el : vec) {
+    resVec.reserve(vec.size());
+    for (auto& el : vec) {
         resVec.push_back(static_cast<toType>(el));
     }
     return resVec;
