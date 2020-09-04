@@ -54,9 +54,9 @@ void GatherTreeLayerTest::SetUp() {
     } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
         auto maxBeamIndex = inputShape.at(2) - 1;
 
-        inp2 = ngraph::builder::makeConstant(ngPrc, inputShape, {}, true, maxBeamIndex);
-        inp3 = ngraph::builder::makeConstant(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
-        inp4 = ngraph::builder::makeConstant(ngPrc, {}, {}, true, maxBeamIndex);
+        inp2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {}, true, maxBeamIndex);
+        inp3 = ngraph::builder::makeConstant<float>(ngPrc, {inputShape.at(1)}, {}, true, maxBeamIndex);
+        inp4 = ngraph::builder::makeConstant<float>(ngPrc, {}, {}, true, maxBeamIndex);
     } else {
         throw std::runtime_error("Unsupported inputType");
     }
