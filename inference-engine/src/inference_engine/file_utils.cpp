@@ -19,6 +19,10 @@
 # include <unistd.h>
 # include <dlfcn.h>
 #else
+# ifdef WINAPI_FAMILY
+#  undef WINAPI_FAMILY
+#  define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
+# endif
 # include <Windows.h>
 #endif
 
@@ -51,15 +55,13 @@ std::basic_string<C> getPathName(const std::basic_string<C>& s) {
 
 static std::string getIELibraryPathA() {
 #ifdef _WIN32
-    char ie_library_path[4096];
+    CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
-    /*
-    if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)getIELibraryPath, &hm)) {
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
-    GetModuleFileName(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
-    */
+    GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
 #else
 #ifdef USE_STATIC_IE
@@ -87,13 +89,11 @@ std::wstring getIELibraryPathW() {
 #if defined(_WIN32) || defined(_WIN64)
     wchar_t ie_library_path[4096];
     HMODULE hm = NULL;
-    /*
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             (LPCWSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
-    */
     return getPathName(std::wstring(ie_library_path));
 #else
     return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());

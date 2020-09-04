@@ -27,16 +27,19 @@
 #include <utility>
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <SetupAPI.h>
-#include <devguid.h>
-#include <cstring>
+# ifdef WINAPI_FAMILY
+#  error "Windows Store platform is not supported"
+# endif
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <SetupAPI.h>
+# include <devguid.h>
+# include <cstring>
 #else
-#include <unistd.h>
-#include <limits.h>
-#include <link.h>
-#include <dlfcn.h>
+# include <unistd.h>
+# include <limits.h>
+# include <link.h>
+# include <dlfcn.h>
 #endif
 
 namespace cldnn {

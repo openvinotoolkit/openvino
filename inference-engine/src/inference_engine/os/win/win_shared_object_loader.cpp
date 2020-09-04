@@ -6,9 +6,51 @@
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
 
+//
+// LoadLibraryA, LoadLibraryW:
+//  WINAPI_FAMILY_DESKTOP_APP - OK (default)
+//  WINAPI_FAMILY_PC_APP - FAIL ?? (defined by cmake)
+//  WINAPI_FAMILY_PHONE_APP - FAIL ??
+//  WINAPI_FAMILY_GAMES - OK
+//  WINAPI_FAMILY_SERVER - OK
+//  WINAPI_FAMILY_SYSTEM - OK
+//
+// GetModuleHandleExA, GetModuleHandleExW:
+//  WINAPI_FAMILY_DESKTOP_APP - OK (default)
+//  WINAPI_FAMILY_PC_APP - FAIL ?? (defined by cmake)
+//  WINAPI_FAMILY_PHONE_APP - FAIL ??
+//  WINAPI_FAMILY_GAMES - OK
+//  WINAPI_FAMILY_SERVER - OK
+//  WINAPI_FAMILY_SYSTEM - OK
+//
+// SetDllDirectoryA, SetDllDirectoryW:
+//  WINAPI_FAMILY_DESKTOP_APP - OK (default)
+//  WINAPI_FAMILY_PC_APP - FAIL ?? (defined by cmake)
+//  WINAPI_FAMILY_PHONE_APP - FAIL ??
+//  WINAPI_FAMILY_GAMES - OK
+//  WINAPI_FAMILY_SERVER - FAIL
+//  WINAPI_FAMILY_SYSTEM - FAIL
+//
+// GetDllDirectoryA, GetDllDirectoryW:
+//  WINAPI_FAMILY_DESKTOP_APP - FAIL
+//  WINAPI_FAMILY_PC_APP - FAIL (defined by cmake)
+//  WINAPI_FAMILY_PHONE_APP - FAIL
+//  WINAPI_FAMILY_GAMES - FAIL
+//  WINAPI_FAMILY_SERVER - FAIL
+//  WINAPI_FAMILY_SYSTEM - FAIL
+//
+// SetupDiGetClassDevsA, SetupDiEnumDeviceInfo, SetupDiGetDeviceInstanceIdA, SetupDiDestroyDeviceInfoList:
+//  WINAPI_FAMILY_DESKTOP_APP - FAIL (default)
+//  WINAPI_FAMILY_PC_APP - FAIL (defined by cmake)
+//  WINAPI_FAMILY_PHONE_APP - FAIL
+//  WINAPI_FAMILY_GAMES - FAIL
+//  WINAPI_FAMILY_SERVER - FAIL
+//  WINAPI_FAMILY_SYSTEM - FAIL
+//
+
 #ifdef WINAPI_FAMILY
 # undef WINAPI_FAMILY
-# define WINAPI_FAMILY WINAPI_FAMILY_PC_APP
+# define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
 #endif
 
 #include <direct.h>
@@ -21,47 +63,49 @@ class SharedObjectLoader::Impl {
 private:
     HMODULE shared_object;
 
+    // Exclude current directory from DLL search path process wise.
+    // If application specific path was configured before then
+    // current directory is already excluded.
+    // GetDLLDirectory does not distinguish if aplication specific
+    // path was set to "" or NULL so reset it to "" to keep
+    // aplication safe.
     void ExcludeCurrentDirectory() {
-        // Exclude current directory from DLL search path process wise.
-        // If application specific path was configured before then
-        // current directory is alread excluded.
-        // GetDLLDirectory does not distinguish if aplication specific
-        // path was set to "" or NULL so reset it to "" to keep
-        // aplication safe.
-        /*
-        if (GetDllDirectoryA(0, NULL) <= 1) {
-            SetDllDirectoryA(TEXT(""));
-        }
-        */
+         // if (GetDllDirectoryA(0, NULL) <= 1) {
+             SetDllDirectoryA("");
+         // }
     }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    void ExcludeCurrentDirectoryW() {
+        //  if (GetDllDirectoryW(0, NULL) <= 1) {
+            SetDllDirectoryW(L"");
+        //  }
+    }
+#endif
 
 public:
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) {
-        ExcludeCurrentDirectory();
+        ExcludeCurrentDirectoryW();
 
-        /*
         shared_object = LoadLibraryW(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
-        */
     }
 #endif
 
     explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectory();
 
-        /*
         shared_object = LoadLibraryA(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
                 << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
-        */
     }
 
     ~Impl() {

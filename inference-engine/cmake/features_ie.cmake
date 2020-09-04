@@ -7,7 +7,7 @@ include (options)
 
 #these options are aimed to optimize build time on development system
 
-ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)
+ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT WINDOWS_STORE;NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
@@ -60,7 +60,7 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
 

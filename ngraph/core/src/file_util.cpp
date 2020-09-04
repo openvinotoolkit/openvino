@@ -300,9 +300,9 @@ void file_util::iterate_files(const string& path,
     vector<string> dirs;
 #ifdef _WIN32
     /*
-    string file_match = path_join(path, "*");
+    std::wstring file_match = path_join(path, "*");
     WIN32_FIND_DATA data;
-    HANDLE hFind = FindFirstFile(file_match.c_str(), &data);
+    HANDLE hFind = FindFirstFileW(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE)
     {
         do
