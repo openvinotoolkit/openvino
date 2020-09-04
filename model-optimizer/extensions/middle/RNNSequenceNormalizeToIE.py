@@ -51,6 +51,8 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             6: (optional for LSTM) Peepholes weights, shape  [(M - 1) * hidden_size]
 
     """
+    force_shape_inference = True
+
     def run_after(self):
         from extensions.middle.DecomposeBidirectionalRNNSequence import DecomposeBidirectionalRNNSequence
         return [DecomposeBidirectionalRNNSequence]
