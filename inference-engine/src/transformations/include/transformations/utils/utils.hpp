@@ -99,6 +99,11 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
 
+TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
+                                                             const ngraph::Output<ngraph::Node>& apply_to);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

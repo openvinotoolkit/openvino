@@ -78,6 +78,7 @@
 #include <legacy/graph_tools.hpp>
 #include <legacy/ie_layers_internal.hpp>
 #include <legacy/net_pass.h>
+#include <precision_utils.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include "caseless.hpp"
@@ -97,6 +98,176 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+namespace {
+
+std::vector<CNNLayerPtr> BFSSort(const ICNNNetwork& network) {
+    std::vector<CNNLayerPtr> ordered;
+    std::unordered_set<std::string> used;
+
+    OutputsDataMap outputs;
+    network.getOutputsInfo(outputs);
+
+    InputsDataMap inputs;
+    network.getInputsInfo(inputs);
+
+    auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
+        std::vector<CNNLayerPtr> consumers;
+        for (const auto & output : node->outData) {
+            for (const auto &consumer : getInputTo(output)) {
+                consumers.push_back(consumer.second);
+            }
+        }
+        return consumers;
+    };
+    auto bfs = [&used, &ordered, &get_consumers](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
+        if (!start_node) return;
+        std::deque<CNNLayerPtr> q;
+        q.push_front(start_node);
+        while (!q.empty()) {
+            auto node = q.front();
+            q.pop_front();
+            if (used.insert(node->name).second) {
+                ordered.push_back(node);
+            }
+
+            // Traverse via inputs
+            for (const auto & input : node->insData) {
+                auto locked_input = input.lock();
+                if (!locked_input) {
+                    THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                }
+                if (auto next_node = getCreatorLayer(locked_input).lock()) {
+                    if (!used.count(next_node->name)) {
+                        // Check that all consumers were used
+                        bool all_consumers_used(true);
+                        for (const auto & consumer : get_consumers(next_node)) {
+                            if (!used.count(consumer->name)) all_consumers_used = false;
+                        }
+                        if (all_consumers_used) {
+                            q.push_front(next_node);
+                        }
+                    }
+                }
+            }
+
+            // Traverse via outputs
+            if (traverse_via_outputs) {
+                for (const auto &consumer : get_consumers(node)) {
+                    if (!used.count(consumer->name)) {
+                        q.push_front(consumer);
+                    }
+                }
+            }
+        }
+    };
+
+    // First we run bfs starting from outputs that provides deterministic graph traverse
+    for (const auto & output : outputs) {
+        if (!used.count(output.first)) {
+            bfs(getCreatorLayer(output.second).lock());
+        }
+    }
+
+    // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
+    for (const auto & input : inputs) {
+        const auto data_ptr = input.second->getInputData();
+        for (const auto & consumer : getInputTo(data_ptr))
+        if (!used.count(consumer.first)) {
+            bfs(consumer.second, true);
+        }
+    }
+
+    std::reverse(ordered.begin(), ordered.end());
+    return ordered;
+}
+
+template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
+                           const typename PrecisionTrait<PREC_FROM>::value_type* src, size_t nelem) {
+    using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
+
+    for (size_t i = 0; i < nelem; i++) {
+        dst[i] = static_cast<dst_type>(src[i]);
+    }
+}
+
+template <>
+void convertArrayPrecision<Precision::FP16, Precision::FP32>(float* dst, const short* src, size_t nelem) {
+    InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
+}
+
+template <>
+void convertArrayPrecision<Precision::FP32, Precision::FP16>(short* dst, const float* src, size_t nelem) {
+    InferenceEngine::PrecisionUtils::f32tof16Arrays(dst, src, nelem, 1.0f, 0.0f);
+}
+
+template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+Blob::Ptr convertBlobPrecision(const Blob::Ptr& blob) {
+    using from_d_type = typename PrecisionTrait<PREC_FROM>::value_type;
+    using to_d_type = typename PrecisionTrait<PREC_TO>::value_type;
+
+    auto tensor_desc = blob->getTensorDesc();
+    Blob::Ptr new_blob = make_shared_blob<to_d_type>(TensorDesc {PREC_TO, tensor_desc.getDims(), tensor_desc.getLayout()});
+    new_blob->allocate();
+    auto target = new_blob->buffer().as<to_d_type*>();
+    auto source = blob->buffer().as<from_d_type*>();
+    convertArrayPrecision<PREC_FROM, PREC_TO>(target, source, blob->size());
+    return new_blob;
+}
+
+template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
+    if (layer->type == "TensorIterator" && dynamic_cast<TensorIterator*>(layer.get()) != nullptr) {
+        return;
+    }
+
+    using LayerType = CLDNNPlugin::Program::LayerType;
+
+    if (!isOutput) {
+        for (auto &out_data : layer->outData) {
+            if (PREC_FROM == out_data->getPrecision())
+                out_data->setPrecision(PREC_TO);
+        }
+    }
+
+    for (auto &in_data : layer->insData) {
+        auto data = in_data.lock();
+        if (PREC_FROM == data->getPrecision())
+            data->setPrecision(PREC_TO);
+
+        auto prev_layer = getCreatorLayer(data).lock();
+
+        if (CLDNNPlugin::Program::LayerTypeFromStr(prev_layer->type) == LayerType::ConstantBlob &&
+            CLDNNPlugin::Program::LayerTypeFromStr(layer->type) != LayerType::Quantize) {
+            convertLayerPrecision<Precision::FP32, Precision::FP16>(prev_layer, false);
+        }
+    }
+
+    if (layer->precision == PREC_FROM)
+        layer->precision = PREC_TO;
+
+    auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *>(layer.get());
+    if (wLayer) {
+        if (wLayer->_weights && wLayer->_weights->getTensorDesc().getPrecision() == PREC_FROM) {
+            wLayer->_weights = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_weights);
+        }
+        if (wLayer->_biases && wLayer->_biases->getTensorDesc().getPrecision() == PREC_FROM) {
+            wLayer->_biases = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_biases);
+        }
+    }
+
+    for (auto &blob : layer->blobs) {
+        auto &data = blob.second;
+        if (nullptr != data) {
+            if (data->getTensorDesc().getPrecision() == PREC_FROM) {
+                data = convertBlobPrecision<PREC_FROM, PREC_TO>(data);
+            }
+        }
+    }
+}
+
+}  // namespace
 
 namespace CLDNNPlugin {
 
@@ -242,29 +413,103 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
                 .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 
-        auto it = details::CNNNetworkIterator(&network);
-        auto end = details::CNNNetworkIterator();
         bool fqFound = false;
         bool allFQareSupported = true;
-        while (it != end) {
-            if (CaselessEq<std::string>()((*it)->type, "FakeQuantize")) {
-                fqFound = true;
-                auto levels = (*it)->GetParamAsUInt("levels");
-                if (levels != 255 && levels != 256) {
-                    allFQareSupported = false;
-                    break;
+        bool baselineIsFP16 = false;
+        {
+            auto it = details::CNNNetworkIterator(&network);
+            auto end = details::CNNNetworkIterator();
+            while (it != end) {
+                auto& layer = *it;
+                if (layer->precision == Precision::FP16) {
+                    baselineIsFP16 = true;
                 }
+
+                if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
+                    fqFound = true;
+                    auto levels = layer->GetParamAsUInt("levels");
+                    if (levels != 255 && levels != 256) {
+                        allFQareSupported = false;
+                    }
+                }
+                it++;
             }
-            it++;
         }
 
-        // [WA] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+        // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
         if (fqFound && allFQareSupported) {
             NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
         }
 
         LowPrecisionTransformer transformer(transforms);
         transformer.transform(network);
+
+        // [WA part2] Try to find non-quantized layers and convert them back to FP16
+        if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
+            auto layersSorted = BFSSort(network);
+
+            for (auto& layer : layersSorted) {
+                if (layer == nullptr)
+                    continue;
+
+                if (layer->outData.empty() || layer->insData.empty())
+                    continue;
+
+                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
+                    auto type = LayerTypeFromStr(l->type);
+                    // Don't do conversion for outputs
+                    auto next = GetNextLayers(l);
+                    if (next.empty()) {
+                        return false;
+                    }
+
+                    if (type == LayerType::ScaleShift) {
+                        // ScaleShift is supposed to return Dequantized values, so in most of the cases we can convert it's output to FP16
+                        // The exception is when the next node is Eltwise, so LPT keeps modified ScaleShift node on one of the branches
+                        // and this node doesn't do requantization, thus we have to keep the result in FP32 precision.
+                        for (auto n : next) {
+                            if (LayerTypeFromStr(n->type) == LayerType::Eltwise)
+                                return false;
+                        }
+                        return true;
+                    }
+
+                    if (type == LayerType::Quantize) {
+                        auto in = getCreatorLayer(l->insData[0].lock()).lock();
+                        if (l->outData[0]->getPrecision() == Precision::FP32 && in->type != "Input")
+                            return true;
+                    }
+
+                    return false;
+                };
+
+                auto canReducePrecision = [](const CNNLayerPtr& l) -> bool {
+                    auto layerType = LayerTypeFromStr(l->type);
+
+                    bool result = true;
+                    for (auto& in : l->insData) {
+                        auto input = in.lock();
+                        auto precision = input->getPrecision();
+                        auto in_type = LayerTypeFromStr(getCreatorLayer(input).lock()->type);
+                        if (precision != Precision::FP16 && in_type != LayerType::ConstantBlob) {
+                            result = false;
+                            break;
+                        }
+                    }
+
+                    return result;
+                };
+
+                if (canReducePrecision(layer)) {
+                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, GetNextLayers(layer).empty());
+                } else if (canReduceOutputPrecision(layer)) {
+                    for (auto &out_data : layer->outData) {
+                        if (out_data->getPrecision() == Precision::FP32)
+                            out_data->setPrecision(Precision::FP16);
+                    }
+                }
+            }
+        }
     }
 
     NetPass::CombineRNNSeq(network);

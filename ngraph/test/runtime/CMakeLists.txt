@@ -58,6 +58,7 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 target_link_libraries(ngraph_backend PUBLIC ngraph 
+                                            ngraph::builder
                                             ngraph::reference)
 if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE dl)

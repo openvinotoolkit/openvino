@@ -78,35 +78,40 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( libgstreamer1.0-0 
-                    gstreamer1.0-plugins-base 
-                    gstreamer1.0-plugins-good  
-                    gstreamer1.0-plugins-bad 
-                    gstreamer1.0-plugins-ugly 
-                    gstreamer1.0-libav 
-                    libgstreamer-plugins-base1.0-dev 
+            PKGS+=( libglib2.0-0
+                    libgstreamer1.0-0
+                    gstreamer1.0-plugins-base
+                    gstreamer1.0-plugins-good
+                    gstreamer1.0-plugins-bad
+                    gstreamer1.0-plugins-ugly
+                    gstreamer1.0-libav
+                    libgstreamer-plugins-base1.0-dev
                     gstreamer1.0-doc
                     gstreamer1.0-tools
                     gstreamer1.0-x
-                    gstreamer1.0-alsa 
-                    gstreamer1.0-gl 
-                    gstreamer1.0-gtk3 
-                    gstreamer1.0-qt5 
-                    gstreamer1.0-pulseaudio 
+                    gstreamer1.0-alsa
+                    gstreamer1.0-gl
+                    gstreamer1.0-gtk3
+                    gstreamer1.0-qt5
+                    gstreamer1.0-pulseaudio
                     libgstrtspserver-1.0-dev
                     python3-gst-1.0
                     libfluidsynth2
                     libnettle7
                     libopenexr24
+                    python3.8
+                    libpython3.8
                 )
         elif [ "$system_ver" = "18.04" ]; then
-            PKGS+=( libfluidsynth1
+            PKGS+=( libglib2.0
+                    libfluidsynth1
                     libnettle6
                     libopenexr22
+                    python3.6
+                    libpython3.6
                 )
         fi
         PKGS+=( libgtk-3-0
-                libglib2.0-0
                 flex
                 bison
                 libgmp10
@@ -203,8 +208,6 @@ if [ -f /etc/lsb-release ]; then
                 libva2
                 libxrandr2
                 libudev1
-                python3.6
-                libpython3.6
                 python3-gi
         )
     fi
