@@ -152,7 +152,6 @@ class InterpolateReshapeWA(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
-            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
             self.make_interpolate_reshapeable(interpolate)
