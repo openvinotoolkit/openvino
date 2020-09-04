@@ -127,13 +127,20 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
+
+    const Shape inputShape = op->get_input_shape(0);
+    const Shape outputShape = op->get_output_shape(0);
+    // TODO: story 38439
+    if ((inputShape[0] != outputShape[0]) || (inputShape[1] != outputShape[1])) {
+        return false;
+    }
+
     const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->get_input_node_ptr(1)->get_output_shape(0);
     const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0);
     if ((subtractShape.empty() || (subtractShape.size() == 1ul)) && (multiplyShape.empty() || (multiplyShape.size() == 1ul))) {
         return true;
     }
 
-    const auto inputShape = op->get_input_shape(0);
     Shape subtractShapeWithBatch = subtractShape;
     if ((dequantization.subtract != nullptr) && (subtractShapeWithBatch.size() < inputShape.size())) {
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), inputShape[0]);
@@ -144,7 +151,6 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), inputShape[0]);
     }
 
-    const auto outputShape = op->get_output_shape(0);
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputShape, outputShape);
 }
 
