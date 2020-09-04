@@ -88,7 +88,7 @@ void SplitTransformation::validateNGraph() {
         std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
         std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
         const std::string typeName = scaleShift->get_type_name();
-        ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE");
+        ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
     }
 }
 
