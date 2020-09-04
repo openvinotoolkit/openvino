@@ -358,6 +358,8 @@ int main(int argc, char *argv[]) {
                 if (isImage(item.second)) {
                     /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
                     item.second->setPrecision(Precision::U8);
+                } else if (item.second->getPrecision() == Precision::I64) {
+                    item.second->setPrecision(Precision::I32);
                 }
             }
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
