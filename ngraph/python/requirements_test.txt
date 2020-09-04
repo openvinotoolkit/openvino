@@ -1,10 +1,13 @@
 flake8
+flake8-bugbear
 flake8-comprehensions
 flake8-docstrings
 flake8-quotes
+mypy
 onnx
 pydocstyle
 pytest
+pytest-xdist
 retrying
 tox
-wheel
+wheel==0.35.1

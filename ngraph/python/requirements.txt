@@ -1,2 +1,5 @@
+Cython==0.29.21
 numpy
+pip==20.2.2
+setuptools==50.1.0
 typing
