@@ -18,16 +18,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Mul
-from mo.front.common.partial_infer.utils import float_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph, rename_nodes
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_value_in_port, \
     get_tensor_in_port
 from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
 
 
 def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True):
@@ -81,7 +75,6 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
     for fuse_node in fuse_nodes:
         weights_port = fuse_node.in_port(1)
-        wdims_number = weights_port.data.get_attr('dims_number')
         value = np.array(const_port.data.get_value())
 
         value = np.squeeze(value)
@@ -90,36 +83,6 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         # We will multiply weights according output/input channel dimension
         ch_dim = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
         shape = np.array([weights_port.data.get_shape()[ch_dim]])
-
-        group = fuse_node.soft_get('group', 1)
-        if group != 1 and shape[0] % group != 0:
-            shape *= group
-            # reshape weights [I,O,H,W] -> [I/G,G*O,H,W]
-            weights_node = weights_port.get_connection().get_source().node
-            weights_name = weights_node.soft_get('name', weights_node.id)
-
-            shape_node = Shape(graph, {'name': weights_name + '/Shape'}).create_node()
-            shape_node.in_port(0).connect(weights_node.out_port(0))
-
-            reshape_before = Reshape(graph, {'name': weights_name + '/ReshapeBefore',
-                                             'override_output_shape': True}).create_node()
-            mul_const = float_array([1. / group, 1 * group])
-            for x in range(wdims_number - 2):
-                mul_const = np.append(mul_const, 1.)
-            mul = create_op_with_const_inputs(graph, Mul, {1: mul_const}, {'name': weights_name + '/Mul'})
-            mul.in_port(0).connect(shape_node.out_port(0))
-            mul.out_port(0).connect(reshape_before.in_port(1))
-
-            cast_shape = Cast(graph, {'dst_type': np.int64}).create_node()
-            reshape_before.in_port(1).get_connection().insert_node(cast_shape)
-
-            reshape_after = Reshape(graph, {'name': weights_name + '/ReshapeAfter'}).create_node()
-            reshape_after.in_port(1).connect(shape_node.out_port(0))
-            rename_nodes([(weights_node, weights_name + '/Weights'), (reshape_after, weights_name)])
-
-            weights_port.get_connection().insert_node(reshape_before)
-            weights_port.get_connection().insert_node(reshape_after)
-            weights_port = reshape_after.in_port(0)
 
         # Scalar broadcast
         if value.size == 1:
@@ -137,18 +100,25 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
                 value = np.tile(value, int(cnt))
 
         # Expand dims for multiplication (ex. [38] to [38, 1, 1])
+        wdims_number = weights_port.data.get_attr('dims_number')
         for x in range(wdims_number - ch_dim - 1):
             shape = np.append(shape, 1)
 
         mul_val = np.array(value)
-        value = np.reshape(value, shape)
+        # If the value fails to reshape to the provided shape, skip fusing.
+        # This can happen in case of group != 1 of the convolution.
+        try:
+            value = np.reshape(value, shape)
+        except ValueError:
+            log.error("Cannot fuse cost from {} to {}. Reshape failed. Skipping.".format(
+                node.soft_get('name', node.id),fuse_node.soft_get('name', fuse_node.id)), extra={'is_warning': True})
+            return False
 
         # Weights multiplication
         mul_name = node.name + '_copy'
         mul_const = Const(graph, {'value': value, 'name': mul_name + '/const'}).create_node()
         w_mul = node.copy_node({'name': mul_name, 'in_ports_count': len(node.in_ports()),
-                                'out_ports_count': len(node.out_ports()), 'can_be_fused': False,
-                                'override_output_shape': True})
+                                'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
         w_const = weights_port.get_source()
         weights_port.get_connection().set_source(w_mul.out_port(0))
@@ -159,6 +129,9 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
                 not fuse_node.has_and_set('shape_input'):
             conv_bias = fuse_node.in_port(2)
             conv_bias.data.set_value(conv_bias.data.get_value() * np.squeeze(mul_val))
+
+        mul_const.infer(mul_const)
+        w_mul.infer(w_mul)
 
         log.debug('Fused: {} to {}'.format(node.name, fuse_node.name))
         is_fused = True

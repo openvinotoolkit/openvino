@@ -797,66 +797,32 @@ class FuseMulTests(unittest.TestCase):
         w_shape = np.array([20, 2, 3, 3])
         out_shape = np.array([1, 10, 21, 21])
         mul_const = np.array(range(10))
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'deconv'),
-                             ('const_deconv_w', 'deconv_w'),
-                             ('deconv_w', 'deconv'),
-                             ('deconv', 'deconv_data'),
-                             ('deconv_data', 'mul_1'),
-                             ('const_mul_1_w', 'mul_1_w'),
-                             ('mul_1_w', 'mul_1'),
-                             ('mul_1', 'mul_1_data'),
-                             ('mul_1_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': in_shape},
-                             'const_conv_1_w': {'shape': w_shape, 'value': np.ones(w_shape)},
-                             'deconv': {'group': 5},
-                             'deconv_w': {'shape': w_shape, 'value': np.ones(w_shape),
-                                          'output_channel_dim': 1, 'input_channel_dim': 0,
-                                          'dims_number': 4},
-                             'deconv_data': {'shape': out_shape},
-                             'mul_1_data': {'shape': mul_const.shape},
-                             'const_mul_1_w': {'shape': mul_const.shape, 'value': mul_const},
-                             'mul_1_w': {'shape': mul_const.shape, 'value': mul_const},
-                             })
 
-        nodes_attributes_ref = {
-            **const_with_data('div_const', np.array([0.2, 5., 1., 1.])),
-            **regular_op_with_empty_data('shape', {'type': 'ShapeOf'}),
-            **regular_op_with_empty_data('div', {'type': 'Mul'}),
-            **regular_op_with_empty_data('cast', {'type': 'Convert'}),
-            **regular_op_with_empty_data('r_before', {'type': 'Reshape'}),
-            **regular_op_with_empty_data('r_after', {'type': 'Reshape'}),
-        }
-        nodes_attributes_ref.update(nodes_attributes)
-
-        graph_ref = build_graph(nodes_attributes_ref,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('const_deconv_w', 'deconv_w'),
-                                 ('deconv_w', 'shape'),
-                                 *connect('shape', '0:div'),
-                                 *connect('div_const', '1:div'),
-                                 *connect('div', 'cast'),
-                                 ('deconv_w', 'r_before'),
-                                 *connect('cast', '1:r_before'),
-                                 *connect('r_before', 'mul_1'),
-                                 ('const_mul_1_w', 'mul_1_w'),
-                                 ('mul_1_w', 'mul_1'),
-                                 ('mul_1', 'mul_1_data'),
-                                 ('mul_1_data', 'r_after'),
-                                 ('shape_d', 'r_after'),
-                                 ('placeholder_1_data', 'deconv'),
-                                 *connect('r_after', '1:deconv'),
-                                 ('deconv', 'deconv_data'),
-                                 ('deconv_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': in_shape},
-                                 'deconv_w': {'shape': w_shape, 'value': np.ones(w_shape),
-                                              'output_channel_dim': 1, 'input_channel_dim': 0,
-                                              'dims_number': 4},
-                                 'mul_1': {'can_be_fused': False}
-                                 })
+        edges = [('placeholder_1', 'placeholder_1_data'),
+                 ('placeholder_1_data', 'deconv'),
+                 ('const_deconv_w', 'deconv_w'),
+                 ('deconv_w', 'deconv'),
+                 ('deconv', 'deconv_data'),
+                 ('deconv_data', 'mul_1'),
+                 ('const_mul_1_w', 'mul_1_w'),
+                 ('mul_1_w', 'mul_1'),
+                 ('mul_1', 'mul_1_data'),
+                 ('mul_1_data', 'op_output')
+                 ]
+        attr_updates = {'placeholder_1_data': {'shape': in_shape},
+                        'const_conv_1_w': {'shape': w_shape, 'value': np.ones(w_shape)},
+                        'deconv': {'group': 5},
+                        'deconv_w': {'shape': w_shape, 'value': np.ones(w_shape),
+                                     'output_channel_dim': 1, 'input_channel_dim': 0,
+                                     'dims_number': 4},
+                        'deconv_data': {'shape': out_shape},
+                        'mul_1_data': {'shape': mul_const.shape},
+                        'const_mul_1_w': {'shape': mul_const.shape, 'value': mul_const},
+                        'mul_1_w': {'shape': mul_const.shape, 'value': mul_const},
+                        }
+        graph = build_graph(nodes_attributes, edges, attr_updates)
+        # same graph, nothing fused
+        graph_ref = build_graph(nodes_attributes, edges, attr_updates)
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'deconv')], backward=True)
         graph.clean_up()
