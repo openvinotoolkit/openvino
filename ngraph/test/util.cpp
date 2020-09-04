@@ -733,3 +733,153 @@ TEST(util, double_to_int)
     EXPECT_TRUE(double_to_int<int32_t>(x, floor_func) == 1);
     EXPECT_TRUE(double_to_int<int32_t>(x, round_func) == 2);
 }
+
+template <typename hosttensor_t, typename vector_t>
+void host_tensor_2_vector_test(const vector<hosttensor_t>& input,
+                               const vector<vector_t>& output,
+                               const element::Type& hosttensor_elem_t)
+{
+    auto tensor = make_shared<HostTensor>(hosttensor_elem_t, Shape{2, 2});
+    tensor->write(input.data(), input.size() * sizeof(hosttensor_t));
+    auto result = host_tensor_2_vector<vector_t>(tensor);
+
+    ASSERT_TRUE(test::all_close(result, output));
+}
+
+TEST(util_host_tensor_2_vector, tensor_nullptr)
+{
+    ASSERT_THROW(host_tensor_2_vector<int64_t>(nullptr), ngraph::CheckFailure);
+}
+
+TEST(util_host_tensor_2_vector, ht_boolean_2_vec_bool)
+{
+    vector<char> input{1, 0, 1, 0};
+    vector<bool> output{true, false, true, false};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::boolean);
+}
+
+TEST(util_host_tensor_2_vector, ht_boolean_2_vec_int64)
+{
+    vector<char> input{1, 0, 1, 0};
+    vector<int64_t> output{true, false, true, false};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::boolean);
+}
+
+TEST(util_host_tensor_2_vector, ht_i8_2_vec_int64)
+{
+    vector<int8_t> input{
+        0, 1, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max()};
+    vector<int64_t> output{
+        0, 1, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::i8);
+}
+
+TEST(util_host_tensor_2_vector, ht_i16_2_vec_int64)
+{
+    vector<int16_t> input{
+        0, 1, std::numeric_limits<int16_t>::min(), std::numeric_limits<int16_t>::max()};
+    vector<int64_t> output{
+        0, 1, std::numeric_limits<int16_t>::min(), std::numeric_limits<int16_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::i16);
+}
+
+TEST(util_host_tensor_2_vector, ht_i32_2_vec_int64)
+{
+    vector<int32_t> input{
+        0, 1, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()};
+    vector<int64_t> output{
+        0, 1, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::i32);
+}
+
+TEST(util_host_tensor_2_vector, ht_i64_2_vec_int64)
+{
+    vector<int64_t> input{
+        0, 1, std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()};
+    vector<int64_t> output{input};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::i64);
+}
+
+TEST(util_host_tensor_2_vector, ht_bf16_2_vec_double)
+{
+    vector<bfloat16> input{
+        0, 1, std::numeric_limits<bfloat16>::min(), std::numeric_limits<bfloat16>::max()};
+    vector<double> output{
+        0, 1, std::numeric_limits<bfloat16>::min(), std::numeric_limits<bfloat16>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::bf16);
+}
+
+TEST(util_host_tensor_2_vector, ht_f16_2_vec_double)
+{
+    vector<float16> input{
+        0, 1, std::numeric_limits<float16>::min(), std::numeric_limits<float16>::max()};
+    vector<double> output{
+        0, 1, std::numeric_limits<float16>::min(), std::numeric_limits<float16>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::f16);
+}
+
+TEST(util_host_tensor_2_vector, ht_f32_2_vec_double)
+{
+    vector<float> input{0, 1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()};
+    vector<double> output{
+        0, 1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::f32);
+}
+
+TEST(util_host_tensor_2_vector, ht_f64_2_vec_double)
+{
+    vector<double> input{
+        0, 1, std::numeric_limits<double>::min(), std::numeric_limits<double>::max()};
+    vector<double> output{
+        0, 1, std::numeric_limits<double>::min(), std::numeric_limits<double>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::f64);
+}
+
+TEST(util_host_tensor_2_vector, ht_u8_2_vec_uint64)
+{
+    vector<uint8_t> input{
+        0, 1, std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max()};
+    vector<uint64_t> output{
+        0, 1, std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::u8);
+}
+
+TEST(util_host_tensor_2_vector, ht_u16_2_vec_uint64)
+{
+    vector<uint16_t> input{
+        0, 1, std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max()};
+    vector<uint64_t> output{
+        0, 1, std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::u16);
+}
+
+TEST(util_host_tensor_2_vector, ht_u32_2_vec_uint64)
+{
+    vector<uint32_t> input{
+        0, 1, std::numeric_limits<uint32_t>::min(), std::numeric_limits<uint32_t>::max()};
+    vector<uint64_t> output{
+        0, 1, std::numeric_limits<uint32_t>::min(), std::numeric_limits<uint32_t>::max()};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::u32);
+}
+
+TEST(util_host_tensor_2_vector, ht_u64_2_vec_uint64)
+{
+    vector<uint64_t> input{
+        0, 1, std::numeric_limits<uint64_t>::min(), std::numeric_limits<uint64_t>::max()};
+    vector<uint64_t> output{input};
+    host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
+        input, output, element::u64);
+}
