@@ -30,7 +30,7 @@ namespace ngraph
         /// floating-point data.
         /// Subclasses: `QLinearMatmulFactory` and `MatmulIntegerFactory` implement quantized
         /// versions.
-        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API MatmulFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") MatmulFactory
         {
         public:
             explicit MatmulFactory(const OutputVector& inputs)
@@ -60,7 +60,7 @@ namespace ngraph
 
         /// \brief  Factory class which generates an nGraph sub-graph based on an ONNX QLinearMatMul
         /// operation.
-        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API QLinearMatmulFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") QLinearMatmulFactory
             : public MatmulFactory
         {
         public:
@@ -76,7 +76,7 @@ namespace ngraph
 
         /// \brief  Factory class which generates an nGraph sub-graph based on an ONNX MatMulInteger
         /// operation.
-        class NGRAPH_DEPRECATED("This builder was deprecated.") NGRAPH_API MatmulIntegerFactory
+        class NGRAPH_DEPRECATED("This builder was deprecated.") MatmulIntegerFactory
             : public MatmulFactory
         {
         public:

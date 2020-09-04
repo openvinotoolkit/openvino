@@ -19,10 +19,10 @@
 #include <memory>
 #include <numeric>
 
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "ngraph/builder/matmul_factory.hpp"
-#include "ngraph/builder/reshape.hpp"
+#include "builder/autobroadcast.hpp"
+#include "builder/make_constant.hpp"
+#include "builder/matmul_factory.hpp"
+#include "builder/reshape.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/dot.hpp"
 #include "ngraph/op/quantized_dot.hpp"

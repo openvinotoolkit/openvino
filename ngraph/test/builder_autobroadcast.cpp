@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/ngraph.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

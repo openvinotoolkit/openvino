@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/builder/split.hpp"
+#include "builder/split.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/opsets/opset1.hpp"
 

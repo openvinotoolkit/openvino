@@ -35,7 +35,6 @@ namespace ngraph
             /// \param[in]  shape  The new shape.
             ///
             /// \return     Reshape:v1 op.
-            NGRAPH_API
             std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape);
 
             /// \brief Permute axes according to specified axes_order parameter.
@@ -44,7 +43,6 @@ namespace ngraph
             /// \param      axes_order The permutation of axes.
             ///
             /// \return     Transpose:v1 op.
-            NGRAPH_API
             std::shared_ptr<Node> reorder_axes(const Output<Node>& value,
                                                std::vector<size_t> axes_order = {});
 
@@ -53,7 +51,6 @@ namespace ngraph
             /// \param      Value to transpose.
             ///
             /// \return     Transpose:v1 op.
-            NGRAPH_API
             std::shared_ptr<Node> transpose(const Output<Node>& value);
 
             /// \brief       Flatten a value into a 2D matrix, with a static dividing axis.
@@ -63,7 +60,6 @@ namespace ngraph
             ///
             /// \return      The new value will be a 2D matrix representing the flattened input
             /// node.
-            NGRAPH_API
             std::shared_ptr<Node> flatten(const Output<Node>& value, int axis);
 
             /// \brief      Expands node tensor shape with empty axis at
@@ -74,7 +70,6 @@ namespace ngraph
             ///                    new axis is placed.
             ///
             /// \return     Reshape:v1 op.
-            NGRAPH_API
             std::shared_ptr<Node> expand_dims(const Output<Node>& value, std::size_t axis = 0);
 
             /// \brief      Remove empty axes from input tensor.
@@ -83,7 +78,6 @@ namespace ngraph
             /// \param[in]  axes   The vector defining indexes of axes to be removed.
             ///
             /// \return     Reshape:v1 op.
-            NGRAPH_API
             std::shared_ptr<Node> squeeze(const Output<Node>& value,
                                           std::vector<std::size_t> axes = {0});
 
@@ -97,7 +91,6 @@ namespace ngraph
             ///
             /// \return     The node with collapsed specified axes.
             ///
-            NGRAPH_API
             std::shared_ptr<Node> collapse(const Output<Node>& value,
                                            const std::size_t start_axis,
                                            const std::size_t end_axis);

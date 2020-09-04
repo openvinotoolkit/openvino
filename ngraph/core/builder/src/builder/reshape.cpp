@@ -19,8 +19,8 @@
 #include <iterator>
 #include <numeric>
 
+#include "builder/reshape.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/product.hpp"
