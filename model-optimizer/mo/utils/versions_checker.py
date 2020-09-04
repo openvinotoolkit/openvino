@@ -44,7 +44,7 @@ def check_python_version():
         return 1
 
 
-def parse_versions_list(required_fw_versions, version_list, env_params=dict()):
+def parse_versions_list(required_fw_versions, version_list, env_params):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -121,7 +121,7 @@ def parse_versions_list(required_fw_versions, version_list, env_params=dict()):
     return version_list
 
 
-def get_module_version_list_from_file(file_name, env_params=dict()):
+def get_module_version_list_from_file(file_name, env_params):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -187,17 +187,16 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
     return exit_code
 
 
-def get_environment_variables():
+def get_environment_setup():
     """
+    Get environment setup such as python version
     Checks if installed modules versions satisfy required versions in requirements file
     :return: a dictionary of environment variables
     """
     env_params = dict()
-    exec("import sys")
     python_version = "{}.{}.{}".format(sys.version_info.major,
                                        sys.version_info.minor,
                                        sys.version_info.micro)
-    exec("del sys")
     env_params['python_version'] = python_version
     return env_params
 
@@ -220,20 +219,19 @@ def check_requirements(framework=None):
         try:
             exec("import tensorflow")
             tf_version = sys.modules["tensorflow"].__version__
-            if tf_version < "2.0.0":
+            if tf_version < LooseVersion("2.0.0"):
                 framework_suffix = "_tf"
             else:
                 framework_suffix = "_tf2"
             exec("del tensorflow")
-        except ImportError:
-            log.error("TensorFlow is not installed.")
-            return 1
+        except (AttributeError, ImportError):
+            framework_suffix = "_tf"
     else:
         framework_suffix = "_{}".format(framework)
 
     file_name = "requirements{}.txt".format(framework_suffix)
     requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, file_name))
-    env_params = get_environment_variables()
+    env_params = get_environment_setup()
     requirements_list = get_module_version_list_from_file(requirements_file, env_params)
     not_satisfied_versions = []
     exit_code = 0

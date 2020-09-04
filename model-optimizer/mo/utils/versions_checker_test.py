@@ -30,7 +30,7 @@ class TestingVersionsChecker(unittest.TestCase):
         ref_list =[('mxnet', '>=', '1.0.0'), ('mxnet', '<=', '1.3.1'),
                           ('networkx', '>=', '1.11'),
                           ('numpy', '==', '1.12.0'), ('defusedxml', '<=', '0.5.0')]
-        version_list = get_module_version_list_from_file('mock_file')
+        version_list = get_module_version_list_from_file('mock_file', {})
         self.assertEqual(len(version_list), 5)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
@@ -74,7 +74,7 @@ class TestingVersionsChecker(unittest.TestCase):
         mock_open.return_value.__iter__ = mock.Mock(
             return_value=iter(['mxnet']))
         ref_list = [('mxnet', None, None)]
-        version_list = get_module_version_list_from_file('mock_file')
+        version_list = get_module_version_list_from_file('mock_file', {})
         self.assertEqual(len(version_list), 1)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
@@ -82,7 +82,7 @@ class TestingVersionsChecker(unittest.TestCase):
     def test_append_version_list(self):
         v1 = 'mxnet>=1.0.0,<=1.3.1'
         req_list = list()
-        parse_versions_list(v1, req_list)
+        parse_versions_list(v1, req_list, {})
         ref_list = [('mxnet', '>=', '1.0.0'),
                     ('mxnet', '<=', '1.3.1')]
         for i, v in enumerate(req_list):
