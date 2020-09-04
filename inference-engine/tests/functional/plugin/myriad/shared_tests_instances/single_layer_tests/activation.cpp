@@ -23,7 +23,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Log,
         Gelu,
         Mish,
-        SoftPlus
+        SoftPlus,
+        Swish
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
