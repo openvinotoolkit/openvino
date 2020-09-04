@@ -35,21 +35,22 @@ def convert_mode(onnx_mode: str) -> str:
 
 
 def replace_resize(graph: Graph, resize: Node):
-    log.debug("Converting of ONNX Resize-11 to Interpolate-4 is triggered.")
+    log.debug("Converting of ONNX Resize-11 to Interpolate-4 "
+              "is triggered for node {}.".format(resize.soft_get('name', resize.id)))
 
     input_shape = resize.in_port(0).data.get_shape()
     input_rank = len(input_shape)
+    resize_name = resize.soft_get('name', resize.id)
     if input_rank not in {4, 5}:
-        log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize.name))
+        log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize_name))
         return
 
     num_of_inputs = len(resize.in_ports())
-    resize_name = resize.name
     assert num_of_inputs in {3, 4}, \
         "Number of inputs of ONNXResize (with name {}) should be equal to 3 or 4".format(resize_name)
 
     assert resize.soft_get('coordinate_transformation_mode') != 'tf_crop_and_resize', \
-        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op, resize.name)
+        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op, resize_name)
 
     layout = graph.graph['layout']
 
