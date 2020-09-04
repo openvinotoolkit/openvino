@@ -688,7 +688,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     }
 
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
-    std::unordered_map<string, string> skippedLayers;
+    std::unordered_map<string, std::vector<string>> skippedLayers;
 
     bool withConv = false;
     for (auto &layer : sortedNet) {
@@ -715,23 +715,32 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 
                 auto dnnLayer = graphCompiler.dnnComponents.findComponent(layer);
                 string inputName = prevLayer->name;
+                std::vector<string> inputs;
                 if (skippedLayers.count(prevLayer->name)) {
-                    inputName = skippedLayers[prevLayer->name];
+                    inputs = skippedLayers[prevLayer->name];
+                } else {
+                    inputs.push_back(inputName);
                 }
 
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
                     // storing input name for skipped layer
-                    skippedLayers[layer->name] = inputName;
+                    if (skippedLayers[inputName].size() == 0) {
+                        skippedLayers[layer->name].push_back(inputName);
+                    } else {
+                        skippedLayers[layer->name] = skippedLayers[inputName];
+                    }
                     continue;
                 }
 
                 // input orientation might be already initialized, thus verify that it matches
-                if (!inputsDesc->orientation_in.count(inputName)) {
-                    inputsDesc->orientation_in[inputName] = dnnLayer->orientation_in;
-                } else {
-                    if (inputsDesc->orientation_in[inputName] != dnnLayer->orientation_in) {
-                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputName << "cannot be calculated";
+                for (auto input : inputs) {
+                    if (!inputsDesc->orientation_in.count(input)) {
+                        inputsDesc->orientation_in[input] = dnnLayer->orientation_in;
+                    } else {
+                        if (inputsDesc->orientation_in[input] != dnnLayer->orientation_in) {
+                            THROW_GNA_EXCEPTION << "orientation for input layer: " << input << "cannot be calculated";
+                        }
                     }
                 }
             }
