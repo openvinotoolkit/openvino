@@ -19,8 +19,8 @@ import re
 import sys
 
 import setuptools
+import ccompiler
 from setuptools import Extension, setup
-from setuptools._distutils import ccompiler
 from setuptools.command.build_ext import build_ext
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
@@ -71,7 +71,7 @@ def find_pybind_headers_dir():
 
 
 NGRAPH_CPP_DIST_DIR = find_ngraph_dist_dir()
-OPENVINO_CPP_INCLUDE_DIR = "/Users/mkarzyns/Projects/OpenVINO/openvino/inference-engine/include"
+OPENVINO_CPP_INCLUDE_DIR = "/home/jiwaszki/openvino/inference-engine/include"
 PYBIND11_INCLUDE_DIR = find_pybind_headers_dir() + "/include"
 NGRAPH_CPP_INCLUDE_DIR = NGRAPH_CPP_DIST_DIR + "/include"
 if os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib")):
@@ -149,7 +149,7 @@ def parallelCCompile(
     return objects
 
 
-ccompiler.CCompiler.compile = parallelCCompile
+ccompiler.compile = parallelCCompile
 
 
 def has_flag(compiler, flagname):
@@ -242,7 +242,7 @@ packages = [
 
 include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, OPENVINO_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
-library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/Users/mkarzyns/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
+library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/jiwaszki/dldt_dist/debug/deployment_tools/inference_engine/lib/intel64/"]
 
 
 extra_compile_args = []

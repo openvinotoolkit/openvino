@@ -16,6 +16,7 @@
 
 //#include <pybind11/pybind11.h>
 #include "../../pybind11/include/pybind11/pybind11.h"
+#include "inference_engine/ie_blob.hpp"
 #include "inference_engine/ie_core.hpp"
 #include "inference_engine/ie_executable_network.hpp"
 #include "inference_engine/ie_infer_request.hpp"
@@ -28,6 +29,21 @@ PYBIND11_MODULE(pyopenvino, m)
 {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     regclass_IECore(m);
+
+    regclass_Blob<float>(m);
+    // // TODO: do it the same way like Variants or somehow make trampoline to decide with Blob is called?
+    // regclass_Blob<int8_t>(m);
+    // regclass_Blob<uint8_t>(m);
+    // regclass_Blob<int16_t>(m);
+    // regclass_Blob<uint16_t>(m);
+    // regclass_Blob<int32_t>(m);
+    // regclass_Blob<uint32_t>(m);
+    // regclass_Blob<long>(m);
+    // regclass_Blob<unsigned long>(m);
+    // regclass_Blob<long long>(m);
+    // regclass_Blob<unsigned long long>(m);
+    // regclass_Blob<double>(m);
+
     regclass_IENetwork(m);
     regclass_IEExecutableNetwork(m);
     regclass_InferRequest(m);

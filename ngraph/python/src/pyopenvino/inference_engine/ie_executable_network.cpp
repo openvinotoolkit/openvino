@@ -27,6 +27,4 @@ void regclass_IEExecutableNetwork(py::module m)
     py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(m, "IEExecutableNetwork");
 
     cls.def("create_infer_request", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
-
-
 }
