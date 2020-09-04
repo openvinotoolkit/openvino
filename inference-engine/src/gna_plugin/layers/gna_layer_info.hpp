@@ -7,11 +7,12 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "inference_engine.hpp"
-#include "details/caseless.hpp"
+#include "ie_layers.h"
+#include "caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "gna-api.h"
+#include "backend/gna_types.h"
 #include "gna_permute.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 
 namespace GNAPluginNS {
@@ -96,7 +97,14 @@ class LayerInfo {
              "abs",
              "neglog",
              "neghalflog",
-             "softsign"};
+             "softsign",
+             "power"};
+
+        if (isPower()) {
+            auto powerLayer = as<const InferenceEngine::PowerLayer*>();
+            return powerLayer != nullptr && powerLayer->power != 1.0f;
+        }
+
         return activations.find(layer->type) != activations.end();
     }
 
@@ -207,6 +215,7 @@ class LayerInfo {
         if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
             return true;  // supported case
         }
+        IE_ASSERT(!layer->insData.empty());
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 

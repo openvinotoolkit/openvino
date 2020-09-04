@@ -4,14 +4,19 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <ngraph/pass/pass.hpp>
+
+namespace ngraph {
+namespace pass {
+
+class MyFunctionTransformation;
+
+}  // namespace pass
+}  // namespace ngraph
 
 // ! [function_pass:template_transformation_hpp]
 // template_function_transformation.hpp
-class MyFunctionTransformation: public ngraph::pass::FunctionPass {
+class ngraph::pass::MyFunctionTransformation: public ngraph::pass::FunctionPass {
 public:
     MyFunctionTransformation() : FunctionPass() {}
 

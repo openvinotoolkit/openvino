@@ -11,8 +11,6 @@ ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
-ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
-
 # "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
 if (ENABLE_MKL_DNN)
     if(AARCH64)
@@ -97,6 +95,10 @@ ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid mod
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
+
+ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
+
+ie_option (ENABLE_JAVA "enables ie java bridge build" OFF)
 
 ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
 

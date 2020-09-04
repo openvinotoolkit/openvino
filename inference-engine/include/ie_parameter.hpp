@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "ie_api.h"
 #include "ie_blob.h"
 
 namespace ngraph {

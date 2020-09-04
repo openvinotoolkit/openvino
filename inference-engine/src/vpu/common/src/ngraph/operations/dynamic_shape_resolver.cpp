@@ -18,7 +18,7 @@ DynamicShapeResolver::DynamicShapeResolver(
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> DynamicShapeResolver::copy_with_new_args(const NodeVector& new_args) const {
+std::shared_ptr<Node> DynamicShapeResolver::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<DynamicShapeResolver>(new_args.at(0), new_args.at(1), m_mode);
 }
@@ -192,7 +192,7 @@ bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
 }  // namespace
 
 bool DynamicShapeResolver::evaluate(const HostTensorVector& outputs,
-                                    const HostTensorVector& inputs) {
+                                    const HostTensorVector& inputs) const {
     return evaluateDynamicShapeResolver(inputs[0], inputs[1], outputs[0]);
 }
 

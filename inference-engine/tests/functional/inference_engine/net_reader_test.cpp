@@ -8,7 +8,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 
-#include "details/ie_cnn_network_tools.h"
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -61,8 +61,9 @@ protected:
     void compareWithRef(const InferenceEngine::CNNNetwork &network,
                         const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
         IE_SUPPRESS_DEPRECATED_START
-        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(
-                InferenceEngine::details::CNNNetSortTopologically(network),
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
+                InferenceEngine::details::CNNNetSortTopologically(*convertedNetwork),
                 refLayersVec, false));
         IE_SUPPRESS_DEPRECATED_END
     }
@@ -122,12 +123,12 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(_modelPath, modelPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _modelPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(modelPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(modelPath) << "'";
             }
             is_copy_successfully = CommonTestUtils::copyFile(_weightsPath, weightsPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _weightsPath << "' to '"
-                       << InferenceEngine::details::wStringtoMBCSstringChar(weightsPath) << "'";
+                       << FileUtils::wStringtoMBCSstringChar(weightsPath) << "'";
             }
             GTEST_COUT << "Test " << testIndex << std::endl;
             InferenceEngine::Core ie;
@@ -145,6 +146,80 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
 }
 
 #endif
+
+TEST(NetReaderTest, IRSupportModelDetection) {
+    InferenceEngine::Core ie;
+
+    static char const *model = R"V0G0N(<net name="Network" version="10" some_attribute="Test Attribute">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Abs" id="1" type="Abs" version="experimental">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    // For supported model detection the IRReader uses first 512 bytes from model.
+    // These headers shifts the trim place.
+
+    std::string headers[] = {
+        R"()",
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)",
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->)"
+    };
+
+    InferenceEngine::Blob::CPtr weights;
+
+    for (auto header : headers) {
+        ASSERT_NO_THROW(ie.ReadNetwork(header + model, weights));
+    }
+}
 
 std::string getTestCaseName(testing::TestParamInfo<NetReaderTestParams> testParams) {
     InferenceEngine::SizeVector dims;

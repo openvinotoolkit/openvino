@@ -14,6 +14,7 @@
 #include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -39,6 +40,7 @@ typedef std::tuple<
 
 enum RefMode {
     INTERPRETER,
+    INTERPRETER_TRANSFORMATIONS,
     CONSTANT_FOLDING,
     IE
 };
@@ -53,6 +55,8 @@ public:
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
     virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
+
+    virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void SetRefMode(RefMode mode);
 
@@ -84,11 +88,17 @@ protected:
         return refMode;
     }
 
-    void ConfigurePlugin() const;
+    std::shared_ptr<InferenceEngine::Core> getCore() {
+        return core;
+    }
+
+    void ConfigurePlugin();
+
+    void ConfigureNetwork() const;
 
     void LoadNetwork();
 
-    void Infer();
+    virtual void Infer();
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
@@ -102,18 +112,15 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
-
+    std::shared_ptr<InferenceEngine::Core> core;
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
-
-private:
-    void ConfigureNetwork() const;
-
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
-    std::shared_ptr<InferenceEngine::Core> core;
     InferenceEngine::InferRequest inferRequest;
+
+private:
     RefMode refMode = RefMode::INTERPRETER;
 };
 

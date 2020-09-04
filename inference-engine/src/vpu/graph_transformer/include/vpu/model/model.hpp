@@ -32,6 +32,7 @@ struct Resources final {
     int numCMXSlices = 0;
     int numSHAVEs = 0;
     int numExecutors = 0;
+    int tilingCMXLimit = 0;
 };
 
 void printTo(std::ostream& os, const Resources& res);
@@ -162,6 +163,7 @@ public:
             const Stage& newDependentStage);
 
     void removeStageDependency(const StageDependency& edge);
+    void removeStageDependency(const Stage& stage, const Data& dependency);
 
     //
     // Stage <-> Stage edges

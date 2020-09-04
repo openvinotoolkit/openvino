@@ -23,6 +23,8 @@
 #include <list>
 #include <utility>
 
+#include "reshape_inst.h"
+
 using namespace cldnn;
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
@@ -83,8 +85,9 @@ void remove_redundant_reorders::run(program_impl& p) {
                 continue;
 
             auto output_padded = static_cast<bool>(output_layout.data_padding);
-            auto can_omit_padding = (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
-                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4);
+            auto can_omit_padding = ((output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
+                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4)) ||
+                                    (output_layout.format == format::b_fs_zyx_fsv16 && input.get_output_layout().format == format::bfzyx);
 
             if (output_padded && !can_omit_padding) {
                 if (input.get_users().size() != 1)
@@ -361,5 +364,43 @@ void remove_redundant_reorders::run(program_impl& p) {
         p.add_optimized_primitive_info(node->id());
         p.remove_all_connections(*node);
         p.remove_if_dangling(*node);
+    }
+
+    // Additional reshape chains shrink.
+    // This step is needed to handle the cases when the plugin creates patterns like reshape -> reorder -> reshape
+    // So these reshapes are not optimized in handle_reshape pass due to reorder between them,
+    // but the reorder can be removed by one of the steps above, so we can optimize reshapes after that.
+    // In addition this pass can completely remove useless reshapes sequence where the output size is equal to input.
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node = *itr++;
+        if (!node->is_type<reshape>())
+            continue;
+
+        auto& reshape_node = node->as<reshape>();
+        auto& dep_node = reshape_node.get_dependency(0);
+
+        if (!dep_node.is_type<reshape>())
+            continue;
+
+        auto& reshape_input_node = dep_node.as<reshape>();
+
+        bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
+                          reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
+        bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
+                              reshape_input_node.get_dependency(0).get_output_layout().size == reshape_node.get_output_layout().size &&
+                              reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
+
+        if (remove_dep) {
+            reshape_input_node.can_be_optimized(true);
+            p.add_optimized_primitive_info(reshape_input_node.id());
+            p.extract_and_remove(reshape_input_node);
+        }
+
+        if (remove_current) {
+            reshape_node.can_be_optimized(true);
+            p.add_optimized_primitive_info(reshape_node.id());
+            p.extract_and_remove(reshape_node);
+        }
     }
 }

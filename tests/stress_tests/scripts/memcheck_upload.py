@@ -21,15 +21,17 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+from pathlib import Path
 import yaml
 from pymongo import MongoClient
 
+# Database arguments
+DATABASE = 'memcheck'   # database name for memcheck results
+DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
-PRODUCT_NAME = 'dldt'  # product name from build manifest
-DATABASE = 'memcheck'  # database name for memcheck results
+PRODUCT_NAME = 'dldt'   # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
-RE_GTEST_CUR_MEASURE = re.compile(
-    r'Current values of virtual memory consumption')
+RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
     r'Reference values of virtual memory consumption')
 RE_GTEST_PASSED = re.compile(r'\[\s*PASSED\s*\]')
@@ -67,7 +69,23 @@ def metadata_from_manifest(manifest):
         'repo_url': repo_trigger['url'],
         'target_branch': repo_trigger['target_branch'],
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+        f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }
+
+
+def info_from_test_config(test_conf):
+    """ Extract models information for memcheck record from test config
+    """
+    test_conf_obj = ET.parse(test_conf)
+    test_conf_root = test_conf_obj.getroot()
+    records = {}
+    for model_rec in test_conf_root.find("models"):
+        model = model_rec.attrib["path"]
+        records[Path(model)] = {
+            "framework": model_rec.attrib.get("framework"),
+            "source": model_rec.attrib.get("source"),
+        }
+    return records
 
 
 def parse_memcheck_log(log_path):
@@ -97,13 +115,14 @@ def parse_memcheck_log(log_path):
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
+            test_name = log_lines[index].split()[-1]
             heading = [name.lower() for name in log_lines[index+1]
                        [len(GTEST_INFO):].split()]
             values = [int(val) for val in log_lines[index+2]
                       [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
-                test_name=model['test'],
+                test_name=test_name,
                 model_name=os.path.splitext(
                     os.path.basename(model['path']))[0],
                 precision=next(pr for pr in PRECISSIONS if pr.upper()
@@ -238,7 +257,7 @@ def main():
                         help='MongoDB URL in a for "mongodb://server:port".')
     parser.add_argument('--db_collection', required=not is_dryrun,
                         help=f'Collection name in {DATABASE} database to upload.',
-                        choices=["commit", "nightly", "weekly"])
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')

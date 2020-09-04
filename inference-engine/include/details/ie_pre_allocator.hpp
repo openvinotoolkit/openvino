@@ -9,10 +9,10 @@
  */
 #pragma once
 
-#include <details/ie_exception.hpp>
 #include <memory>
 
 #include "ie_allocator.hpp"
+#include "details/ie_exception.hpp"
 
 namespace InferenceEngine {
 namespace details {

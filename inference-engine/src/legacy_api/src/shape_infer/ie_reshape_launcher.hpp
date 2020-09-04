@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <ie_layers.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -13,7 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
+#include <legacy/ie_layers.h>
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
 #include "shape_infer/const_infer/ie_const_infer_impl.hpp"
 
 namespace InferenceEngine {

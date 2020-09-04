@@ -18,7 +18,7 @@ using QueryNetworkTestParameters = std::tuple<
 >;
 
 struct QueryNetworkTest : public testing::WithParamInterface<QueryNetworkTestParameters>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
     enum {Plugin, Function};
     ~QueryNetworkTest() override = default;
     void SetUp() override;

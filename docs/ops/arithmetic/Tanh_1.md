@@ -1,4 +1,4 @@
-## Tanh<a name="Tanh"></a>
+## Tanh<a name="Tanh"></a> {#openvino_docs_ops_arithmetic_Tanh_1}
 
 **Versioned name**: *Tanh-1*
 

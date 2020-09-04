@@ -14,17 +14,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertTileToIETile;
+class TRANSFORMATIONS_API ConvertTileToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertTileToIETile: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertTileToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertTileToIETile() : GraphRewrite() {
-        convert_tile();
-    }
-
-private:
-    void convert_tile();
+    ConvertTileToLegacyMatcher();
 };

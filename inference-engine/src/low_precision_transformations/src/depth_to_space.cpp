@@ -5,7 +5,7 @@
 #include "low_precision_transformations/depth_to_space.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>

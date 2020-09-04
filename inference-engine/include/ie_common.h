@@ -11,13 +11,11 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "ie_unicode.hpp"
+#include <map>
 
 namespace InferenceEngine {
 /**
@@ -27,20 +25,6 @@ namespace InferenceEngine {
  * first.
  */
 using SizeVector = std::vector<size_t>;
-
-/**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 /**
  * @brief The main data representation node
@@ -249,6 +233,29 @@ struct ResponseDesc {
      * @brief A character buffer that holds the detailed information for an error.
      */
     char msg[4096] = {};
+};
+
+
+/**
+ * @brief Responce structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response message
+     */
+    ResponseDesc resp;
 };
 
 /** @brief This class represents StatusCode::GENERIC_ERROR exception */

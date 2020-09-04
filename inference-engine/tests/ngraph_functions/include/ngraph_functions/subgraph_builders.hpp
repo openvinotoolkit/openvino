@@ -130,7 +130,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
     inShape = {N, I};
     auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
     auto LSTM_cell =
-            std::make_shared<ngraph::opset1::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+            std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(H_t, constantH, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(C_t, constantH, false),
                                                    W_body,
@@ -140,7 +140,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
     auto constantHo = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{3}, inShape);
     auto H_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(0), constantHo, false);
     auto C_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(1), constantHo, false);
-    auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
+    auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{H_o, C_o}, ngraph::ParameterVector{X, H_t, C_t});
 
     auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();

@@ -60,6 +60,7 @@
 #include "reorder_inst.h"
 #include "split_inst.h"
 #include "mvn_inst.h"
+#include "reduce_inst.h"
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 
@@ -420,6 +421,10 @@ void program_impl::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
+        // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
+        // but after format selection to select correct alignment.
+        // Unfortunately those passes currently happen in reverse order.
+        apply_opt_pass<concat_input_order>();
 
         // TODO this code should be moved to post compilation after kernel selector will support handling reorder bias
         apply_opt_pass<pre_optimize_bias>(rf);
@@ -1085,6 +1090,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
+    bool is_quantized_int8_model = false;
     size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
     size_t total_dw_splitted_conv_layers = 0;
@@ -1161,14 +1167,21 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::mutable_data::type_id())
+            prim.type() != cldnn::mutable_data::type_id() &&
+            prim.type() != cldnn::reduce::type_id())
             can_use_fsv16 = false;
 
-        // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.
-        // Detects if given crop layer is located in the very beginning of the graph.
+        if (prim.type() == cldnn::quantize::type_id() &&
+            (prim.get_output_layout().data_type == data_types::i8 || prim.get_output_layout().data_type == data_types::u8)) {
+            is_quantized_int8_model = true;
+        }
+
+        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
+        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (!prim.get_dependencies()[0]->is_type<reorder>() || !prim.get_dependencies()[0]->get_dependencies()[0]->is_input())
+            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
+            }
         }
 
         if (prim.is_in_data_flow() &&
@@ -1195,9 +1208,10 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
 
-    bool should_use_b_fs_yx_fsv16_conv = can_use_fsv16 &&
-                                         total_conv_layers > 11 &&
-                                         lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f;
+    bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
+                                         (can_use_fsv16 &&
+                                          total_conv_layers > 11 &&
+                                          lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&

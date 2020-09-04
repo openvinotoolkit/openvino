@@ -10,7 +10,7 @@
 #include <utility>
 #include <set>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <vpu/model/base.hpp>
 #include <vpu/model/edges.hpp>
@@ -58,7 +58,6 @@ VPU_DECLARE_ENUM(StageType,
     Reshape,
     Expand,
     Crop,
-    StridedSlice,
 
     Empty = -1,
 
@@ -168,6 +167,11 @@ VPU_DECLARE_ENUM(StageType,
     Concat = 128,
     Broadcast = 129,
     StaticShapeNMS = 130,
+    Mish = 131,
+    Gelu = 132,
+    StridedSlice = 133,
+    SoftPlus = 134,
+    Swish = 135,
 )
 
 //

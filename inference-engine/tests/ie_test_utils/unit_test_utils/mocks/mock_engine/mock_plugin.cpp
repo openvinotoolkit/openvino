@@ -8,44 +8,34 @@
 #include <string>
 
 #include "mock_plugin.hpp"
+#include <cpp_interfaces/exception2status.hpp>
 #include "description_buffer.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
-#define ACTION_IF_NOT_NULL(action) (nullptr == _target) ? NOT_IMPLEMENTED : _target->action
-#define IF_NOT_NULL(action) if (nullptr != _target) {_target->action;}
 
 MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
-StatusCode MockPlugin::LoadNetwork(IExecutableNetwork::Ptr &ret, const ICNNNetwork &network,
-                                   const std::map<std::string, std::string> &config, ResponseDesc *resp) noexcept {
-    return ACTION_IF_NOT_NULL(LoadNetwork(ret, network, config, resp));
+void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
+    this->config = config;
 }
 
-void MockPlugin::Release() noexcept {
-    if (nullptr != _target) _target->Release();
-    delete this;
+ExecutableNetwork
+MockPlugin::LoadNetwork(const ICNNNetwork &network,
+                        const std::map<std::string, std::string> &config) {
+    if (_target) {
+        return _target->LoadNetwork(network, config);
+    } else {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
 }
 
-void MockPlugin::GetVersion(const Version *&versionInfo) noexcept {
-    versionInfo = &version;
-}
-
-StatusCode MockPlugin::AddExtension(IExtensionPtr extension, InferenceEngine::ResponseDesc *resp) noexcept {
-    return NOT_IMPLEMENTED;
-}
-
-StatusCode MockPlugin::SetConfig(const std::map<std::string, std::string> &_config, ResponseDesc *resp) noexcept {
-    config = _config;
-    return InferenceEngine::OK;
-}
-
-StatusCode
-MockPlugin::ImportNetwork(IExecutableNetwork::Ptr &ret, const std::string &modelFileName,
-                          const std::map<std::string, std::string> &config, ResponseDesc *resp) noexcept {
-    return NOT_IMPLEMENTED;
+ExecutableNetworkInternal::Ptr
+MockPlugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork& network,
+                               const std::map<std::string, std::string>& config) {
+    return {};
 }
 
 InferenceEngine::IInferencePlugin *__target = nullptr;

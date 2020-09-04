@@ -20,7 +20,7 @@ op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::Eltwise::copy_with_new_args(const NodeVector& new_args) const {
+std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }

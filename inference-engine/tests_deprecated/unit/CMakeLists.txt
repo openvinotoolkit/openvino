@@ -17,7 +17,6 @@ file(GLOB
         graph_tools/*.cpp
         inference_engine_tests/*.cpp
         stress_tests/*.cpp
-        topology_verification_tests/*.cpp
         )
 
 if (ENABLE_GNA)
@@ -143,8 +142,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_lp_transformations
     inference_engine_transformations
-    inference_engine_ir_v7_reader
-    ${CMAKE_DL_LIBS})
+    inference_engine_ir_v7_reader)
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)

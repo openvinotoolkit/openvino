@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <cnn_network_impl.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -13,10 +13,10 @@
 #include <map>
 
 #include <cpp/ie_cnn_network.h>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
@@ -26,8 +26,9 @@
 #include <ngraph/op/convert.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/relu.hpp>
-#include <ngraph/op/fused/prelu.hpp>
+#include <ngraph/op/prelu.hpp>
 #include <ngraph/op/result.hpp>
+#include <common_test_utils/ngraph_test_utils.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -38,28 +39,6 @@ using namespace testing;
 using namespace InferenceEngine;
 
 IE_SUPPRESS_DEPRECATED_START
-
-TEST(CNNNGraphImplTests, TestConvertNetwork) {
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto cnnRefNet = cnnNet.getCNNNetwork();
-    cnnNet.convertToCNNNetworkImpl();
-
-    ASSERT_EQ(cnnRefNet, cnnNet.getCNNNetwork());
-}
 
 TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;
@@ -81,10 +60,10 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    InferenceEngine::ICNNNetwork& cnnRefNet = *cnnNet.getCNNNetwork();
+    auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
     // Remove convert layer
-    InferenceEngine::NetPass::ConvertPrecision(cnnRefNet, Precision::I64, Precision::I32);
-    ASSERT_NO_THROW(cloneNet(cnnRefNet));
+    InferenceEngine::NetPass::ConvertPrecision(*convertedNet, Precision::I64, Precision::I32);
+    ASSERT_NO_THROW(cloneNet(*convertedNet));
 }
 
 TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
@@ -105,7 +84,7 @@ TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    ASSERT_NO_THROW(cnnNet.getCNNNetwork());
+    ASSERT_NO_THROW(auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet));
 }
 
 TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
@@ -129,11 +108,13 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    cnnNet.addOutput(testLayerName);
+    InferenceEngine::CNNNetwork convertedNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
+    convertedNetwork.addOutput(testLayerName);
 
     InferenceEngine::OutputsDataMap outs = cnnNet.getOutputsInfo();
-    ASSERT_EQ(2, outs.size());
+    InferenceEngine::OutputsDataMap convertedOuts = convertedNetwork.getOutputsInfo();
+    ASSERT_EQ(1, outs.size());
+    ASSERT_EQ(2, convertedOuts.size());
 }
 
 TEST(CNNNGraphImplTests, TestSetCurrentBatch) {
@@ -175,15 +156,48 @@ TEST(CNNNGraphImplTests, TestSetBatch) {
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
-    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));
+    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
     ASSERT_EQ(2, cnnNet.getBatchSize());
     ASSERT_EQ(nullptr, cnnNet.getFunction());
-    auto cnnRefNet = cnnNet.getCNNNetwork();
+}
 
-    cnnNet.convertToCNNNetworkImpl();
+TEST(CNNNGraphImplTests, TestGetBatchScalar) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::Shape shape({});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
 
-    ASSERT_EQ(2, cnnNet.getBatchSize());
-    ASSERT_EQ(2, cnnNet.getCNNNetwork()->getBatchSize());
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+}
+
+TEST(CNNNGraphImplTests, TestSetBatchScalar) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::Shape shape({});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
 }
 
 TEST(CNNNGraphImplTests, TestSaveAffinity) {
@@ -206,7 +220,8 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    auto cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet);
+    auto cnnLayer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "testReLU");
     ASSERT_NE(nullptr, cnnLayer);
     ASSERT_EQ(cnnLayer->affinity, testAffinity);
 }
@@ -270,8 +285,8 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
     // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    auto outputs = cnnNet.getOutputsInfo();
+    InferenceEngine::CNNNetwork convertedNetwork(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
+    auto outputs = convertedNetwork.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
@@ -295,9 +310,8 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    ASSERT_EQ(4, cnnNet.layerCount());
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet);
+    ASSERT_EQ(4, convertedNetwork->layerCount());
 }
 
 TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
@@ -320,48 +334,14 @@ TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    cnnNet.convertToCNNNetworkImpl();
     auto inputInfo = cnnNet.getInput(name);
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::NO_RESIZE);
     inputInfo->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_AREA);
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
 
-    cnnNet.convertToCNNNetworkImpl();
-    inputInfo = cnnNet.getInput(name);
+    auto cnnNetImpl = std::make_shared<details::CNNNetworkImpl>(cnnNet);
+    inputInfo = cnnNetImpl->getInput(name);
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
-}
-
-TEST(CNNNGraphImplTests, SaveAttributesAfterConversion) {
-    std::string name = "prelu";
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto constant = ngraph::op::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
-        auto prelu = std::make_shared<ngraph::op::PRelu>(param, constant);
-        prelu->set_friendly_name(name);
-        auto add = std::make_shared<ngraph::op::v1::Maximum>(prelu, constant);
-        auto result = std::make_shared<ngraph::op::Result>(add);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto * icnnnetwork = static_cast<InferenceEngine::ICNNNetwork*>(&cnnNet);
-    CNNLayerPtr layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
-    layer->params["test"] = "2";
-    layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
-    ASSERT_TRUE(layer->params.find("test") != layer->params.end());
-    ASSERT_EQ(layer->params["test"], "2");
-
-    cnnNet.convertToCNNNetworkImpl();
-    layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
-    ASSERT_TRUE(layer->params.find("test") != layer->params.end());
-    ASSERT_EQ(layer->params["test"], "2");
 }
 
 TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
@@ -419,8 +399,9 @@ TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
 
     auto network = ie.ReadNetwork(model, weights);
     auto inputInfo = network.getInputsInfo();
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
     auto cnnLayer = getCreatorLayer(inputInfo.begin()->second->getInputData()).lock();
-    ASSERT_TRUE(cnnLayer);
+    ASSERT_NE(nullptr, cnnLayer);
     ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
     ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
 }
@@ -480,6 +461,100 @@ TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
     ASSERT_EQ(3, network.layerCount());
 }
 
+TEST(CNNNGraphImplTests, ReadMeanImageFromCNNNetReader) {
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <pre-process mean-precision="FP32" reference-layer-name="data">
+        <channel id="0">
+            <mean offset="0" size="1936"/>
+        </channel>
+        <channel id="1">
+            <mean offset="1936" size="1936"/>
+        </channel>
+        <channel id="2">
+            <mean offset="3872" size="1936"/>
+        </channel>
+    </pre-process>
+    <layers>
+        <layer name="data" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core core;
+    size_t hwSize = 22*22;
+    size_t dataSize = hwSize*3;
+    Blob::Ptr data = make_shared_blob<float>(TensorDesc(Precision::FP32, {dataSize}, Layout::C));
+    data->allocate();
+    {
+        auto lockData = data->buffer();
+        float *dataPtr = lockData.as<float*>();
+
+        for (size_t i = 0; i < dataSize; ++i) {
+            dataPtr[i] = i;
+        }
+    }
+    CNNNetwork network = core.ReadNetwork(model, data);
+    ASSERT_EQ(3, network.layerCount());
+    auto inputInfo = network.getInputsInfo().begin()->second;
+    ASSERT_NE(inputInfo, nullptr);
+    auto preProc = inputInfo->getPreProcess();
+    ASSERT_EQ(3, preProc.getNumberOfChannels());
+    ASSERT_EQ(preProc.getMeanVariant(), MeanVariant::MEAN_IMAGE);
+
+    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
+        auto chMeanImg = preProc[i];
+        ASSERT_NE(chMeanImg, nullptr);
+        ASSERT_NE(chMeanImg->meanData, nullptr);
+        auto lockData = chMeanImg->meanData->cbuffer();
+        auto *dataPtr = lockData.as<const float*>();
+        for (size_t j = 0; j < hwSize; j++) {
+            ASSERT_EQ(dataPtr[j], hwSize*i + j);
+        }
+    }
+}
+
 TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -511,16 +586,18 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
 
         inputsInfo.at("input")->setPrecision(Precision::FP16);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto inputsInfo = cnnNet.getInputsInfo();
+        const auto inputsInfo = convertedNetwork.getInputsInfo();
 
         ASSERT_EQ(inputsInfo.at("input")->getPrecision(), Precision::FP16)
                 << "Manually set presision should be left unchanged";
@@ -558,16 +635,18 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
 
         inputsInfo.at("input")->setLayout(Layout::NHWC);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto inputsInfo = cnnNet.getInputsInfo();
+        const auto inputsInfo = convertedNetwork.getInputsInfo();
 
         ASSERT_EQ(inputsInfo.at("input")->getLayout(), Layout::NHWC)
                 << "Manually set layout should be left unchanged";
@@ -605,16 +684,18 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         outputsInfo.at("output")->setPrecision(Precision::FP16);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto outputsInfo = cnnNet.getOutputsInfo();
+        const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
         ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
                 << "Manually set presision should be left unchanged";
@@ -652,16 +733,18 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
 
         outputsInfo.at("output")->setLayout(Layout::NHWC);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto outputsInfo = cnnNet.getOutputsInfo();
+        const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
         ASSERT_EQ(outputsInfo.at("output")->getLayout(), Layout::NHWC)
                 << "Manually set layout should be left unchanged";
@@ -704,7 +787,97 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto status = cnnNet.getCNNNetwork()->setBatchSize(4, nullptr);
+    auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
+    auto status = convertedNet->setBatchSize(4, nullptr);
     EXPECT_EQ(status, StatusCode::OK);
 }
+
+TEST(CNNNGraphImplTests, addSameOutput) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(param);
+        auto reshape = std::make_shared<ngraph::opset3::Reshape>(relu, shapeof, true);
+        reshape->set_friendly_name("reshape");
+        auto result = std::make_shared<ngraph::op::Result>(reshape);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("reshape");
+    auto outputs = cnnNetwork.getOutputsInfo();
+
+    ASSERT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.count("reshape"), 1);
+    ASSERT_EQ(outputs["reshape"]->getLayout(), InferenceEngine::Layout::NCHW);
+}
+
+TEST(CNNNGraphImplTests, addOutput) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(param);
+        auto reshape = std::make_shared<ngraph::opset3::Reshape>(relu, shapeof, true);
+        reshape->set_friendly_name("reshape");
+        auto relu2 = std::make_shared<ngraph::opset3::Relu>(reshape);
+        auto result = std::make_shared<ngraph::op::Result>(relu2);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("reshape");
+    auto outputs = cnnNetwork.getOutputsInfo();
+
+    ASSERT_EQ(outputs.size(), 2);
+    ASSERT_EQ(outputs.count("reshape"), 1);
+    ASSERT_EQ(outputs["reshape"]->getLayout(), InferenceEngine::Layout::NCHW);
+}
+
+TEST(CNNNGraphImplTests, addOutputForParameter) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::opset3::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    cnnNetwork.addOutput("param");
+    {
+        auto output_info = cnnNetwork.getOutputsInfo();
+        ASSERT_EQ(output_info.count("param"), 1);
+        ASSERT_EQ(output_info["param"]->getTensorDesc().getDims(), SizeVector({1, 3, 22, 22}));
+    }
+
+    cnnNetwork.reshape({{"param", SizeVector({1, 3, 32, 64})}});
+    cnnNetwork.addOutput("param");
+    {
+        auto output_info = cnnNetwork.getOutputsInfo();
+        ASSERT_EQ(output_info.count("param"), 1);
+        ASSERT_EQ(output_info["param"]->getTensorDesc().getDims(), SizeVector({1, 3, 32, 64}));
+    }
+}
+
 IE_SUPPRESS_DEPRECATED_END

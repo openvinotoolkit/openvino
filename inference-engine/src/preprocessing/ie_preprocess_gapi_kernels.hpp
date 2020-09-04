@@ -143,6 +143,17 @@ namespace gapi {
         }
     };
 
+    G_TYPED_KERNEL(ConvertDepth, <cv::GMat(cv::GMat, int depth)>, "com.intel.ie.ConvertDepth") {
+        static cv::GMatDesc outMeta(const cv::GMatDesc& in, int depth) {
+            GAPI_Assert(in.depth == CV_16U || in.depth == CV_32F);
+            GAPI_Assert(depth == CV_32F || depth == CV_16U);
+
+            return in.withDepth(depth);
+        }
+    };
+
+
+
     cv::gapi::GKernelPackage preprocKernels();
 
 }  // namespace gapi

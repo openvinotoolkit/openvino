@@ -13,13 +13,11 @@
 #include <memory>
 #include <string>
 
-#include "details/ie_irelease.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_preprocess.hpp"
+#include "details/ie_irelease.hpp"
 
 namespace ngraph {
 

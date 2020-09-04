@@ -26,7 +26,7 @@ using StaticShapeNMSTestParam = std::tuple<
 namespace LayerTestsDefinitions {
 
 class StaticShapeNMSLayerTest : public testing::WithParamInterface<StaticShapeNMSTestParam>,
-                                      public LayerTestsUtils::LayerTestsCommon {
+                                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeNMSTestParam>& obj) {
         StaticShapeNMSParam NMSParams;

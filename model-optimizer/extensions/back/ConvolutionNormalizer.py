@@ -20,7 +20,7 @@ from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.ReverseInputChannels import ApplyReverseChannels
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
@@ -224,6 +224,7 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         node = match['node']
+        node_name = node.soft_get('name', node.id)
 
         if 2 in node.in_ports() and not node.in_port(2).disconnected():
             # Third input represents output shape. Cutting its value according to scheme:
@@ -233,22 +234,17 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             shape_src = node.in_port(2).get_source()
             node.in_port(2).disconnect()
 
-            begin = Const(graph, {'value': np.array([2], dtype=np.int32)}).create_node()
-            end = Const(graph, {'value': np.array([in_rank], dtype=np.int32)}).create_node()
-            stride = Const(graph, {'value': np.array([1], dtype=np.int32)}).create_node()
-
-            ss_0 = StridedSlice(graph, {'name': node.name + '/ss_0_port',
-                                        'begin_mask': np.array([1], dtype=np.int32),
-                                        'end_mask': np.array([0], dtype=np.int32),
-                                        'new_axis_mask': np.array([0], dtype=np.int32),
-                                        'shrink_axis_mask': np.array([0], dtype=np.int32),
-                                        'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()
+            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([2], dtype=np.int32),
+                                                                     2: np.array([in_rank], dtype=np.int32),
+                                                                     3: np.array([1], dtype=np.int32)},
+                                               {'name': node_name + '/ss_0_port',
+                                                'begin_mask': np.array([1], dtype=np.int32),
+                                                'end_mask': np.array([0], dtype=np.int32),
+                                                'new_axis_mask': np.array([0], dtype=np.int32),
+                                                'shrink_axis_mask': np.array([0], dtype=np.int32),
+                                                'ellipsis_mask': np.array([0], dtype=np.int32)})
 
             shape_src.connect(ss_0.in_port(0))
-            begin.out_port(0).connect(ss_0.in_port(1))
-            end.out_port(0).connect(ss_0.in_port(2))
-            stride.out_port(0).connect(ss_0.in_port(3))
-
             ss_0.out_port(0).connect(node.in_port(2))
 
             # Specification: *padding amount* is deduced from relation of input and output spatial shapes
@@ -256,7 +252,8 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
         elif node.has_valid('original_output_spatial_shape'):
             # node had fixed output spatial shape set in original framework, so we restore it here
-            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape)}).create_node()
+            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape),
+                                  'name': node_name + '/original_spatial_shape'}).create_node()
             node.add_input_port(2, skip_if_exist=True)
             const.out_port(0).connect(node.in_port(2))
 

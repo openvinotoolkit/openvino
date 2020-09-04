@@ -17,7 +17,7 @@ public:
     Operation() = default;
     Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add);
     void validate_and_infer_types() override;
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override;
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
     int64_t getAddAttr() { return add; }
 

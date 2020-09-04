@@ -26,8 +26,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/ngraph.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"

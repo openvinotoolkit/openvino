@@ -16,7 +16,6 @@
 #include "helpers/myriad_devices.hpp"
 #include <details/ie_exception.hpp>
 
-#include <cpp_interfaces/interface/ie_plugin.hpp>
 #include <ie_plugin_ptr.hpp>
 
 using namespace std;
@@ -225,7 +224,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         ctime = Time::now();
         ret = core.LoadNetwork(network, GetParam().device, {
             {KEY_LOG_LEVEL, LOG_INFO},
-            {KEY_VPU_MYRIAD_WATCHDOG, NO}});
+            {InferenceEngine::MYRIAD_WATCHDOG, NO}});
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
 

@@ -213,3 +213,15 @@ FluidI420toRGBComputation::FluidI420toRGBComputation(test::Mat inMat_y, test::Ma
                                ,{to_own(outMat)}
                                })
 {}
+
+ConvertDepthComputation::ConvertDepthComputation(test::Mat inMat, test::Mat outMat,  int depth)
+    : FluidComputation(new Priv{ [depth]()-> cv::GComputation {
+                                    cv::GMat in;
+                                    cv::GMat out = InferenceEngine::gapi::ConvertDepth::on(in, depth);
+                                    return cv::GComputation(cv::GIn(in), cv::GOut(out));
+                                 }()
+                               , {to_own(inMat)}
+                               , {to_own(outMat)}
+                               })
+{}
+

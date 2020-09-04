@@ -15,10 +15,12 @@
 //*****************************************************************************
 
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "gtest/gtest.h"
 
+#include <ngraph/coordinate_transform.hpp>
 #include "ngraph/ngraph.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"

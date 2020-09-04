@@ -1,4 +1,4 @@
-## PriorBoxClustered <a name="PriorBoxClustered"></a>
+## PriorBoxClustered <a name="PriorBoxClustered"></a> {#openvino_docs_ops_detection_PriorBoxClustered_1}
 
 **Versioned name**: *PriorBoxClustered-1*
 

@@ -1,4 +1,4 @@
-## Atanh <a name="Atanh"></a>
+## Atanh <a name="Atanh"></a> {#openvino_docs_ops_arithmetic_Atanh_1}
 
 **Versioned name**: *Atanh-1*
 

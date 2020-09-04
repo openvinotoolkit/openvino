@@ -14,8 +14,6 @@
 #include <string>
 #include <vector>
 
-#include "details/ie_exception.hpp"
-#include "ie_api.h"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_precision.hpp"
@@ -61,11 +59,6 @@ public:
      * @return An assigned object
      */
     Data & operator = (const Data& data);
-
-    /**
-     * @brief A virtual destructor
-     */
-    virtual ~Data() = default;
 
     /**
      * @brief Checks if the current node is resolved

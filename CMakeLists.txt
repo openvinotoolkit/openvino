@@ -69,10 +69,8 @@ function(build_ngraph)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-        ngraph_set(NGRAPH_IE_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
-        ngraph_set(NGRAPH_IE_ENABLE FALSE)
     endif()
 
     if(NOT ANDROID)
@@ -97,6 +95,13 @@ function(build_ngraph)
     elseif(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
+    
+    # Preserve the original flags for further use
+    set(CMAKE_ORIGINAL_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_ORIGINAL_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    set(CMAKE_ORIGINAL_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
+    set(CMAKE_ORIGINAL_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
+    set(CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
 
     if(ENABLE_LTO)
         ie_enable_lto()
@@ -109,6 +114,34 @@ function(build_ngraph)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
+
+file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
+
+unset(OpenVINODeveloperPackageTargets CACHE)
+
+function(openvino_developer_export_targets)
+    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets};${ARGV}")
+
+    # to allow exporting of aliased targets with the original names
+    foreach(target_name ${OpenVINODeveloperPackageTargets})
+        if(TARGET "${target_name}")
+            get_target_property(original_name ${target_name} ALIASED_TARGET)
+            if(TARGET "${original_name}")
+                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
+                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                list(REMOVE_ITEM OpenVINODeveloperPackageTargets ${target_name})
+                list(APPEND OpenVINODeveloperPackageTargets ${original_name})
+            endif()
+        endif()
+    endforeach()
+
+    list(REMOVE_DUPLICATES OpenVINODeveloperPackageTargets)
+    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets}" CACHE INTERNAL
+        "Paths to extra Inference Engine plugins" FORCE)
+endfunction()
+
+
+add_subdirectory(openvino)
 
 build_ngraph()
 

@@ -11,22 +11,24 @@
 
 #include <algorithm>
 #include <functional>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/node.hpp>
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
+#include <ngraph/attribute_visitor.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/node.hpp>
+
+#include <ie_icnn_network.hpp>
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+
+#include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -43,7 +45,8 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
-    ~CNNNetworkNGraphImpl() override;
+    CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
+    ~CNNNetworkNGraphImpl() override = default;
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
@@ -56,10 +59,6 @@ public:
 
     void setInputInfo(InputInfo::Ptr data);
 
-    std::shared_ptr<ICNNNetwork> getCNNNetwork();
-
-    void addLayer(const CNNLayerPtr& layer) noexcept;
-
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
 
@@ -70,7 +69,7 @@ public:
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
-    void addOutput(const std::string& dataName);
+    void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
     void Release() noexcept override {
         delete this;
@@ -91,11 +90,10 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    void convertToCNNNetworkImpl();
 protected:
+    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
-    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
-            std::vector<size_t>>& inputShapes = {}) const;
+
 private:
     std::map<std::string, DataPtr> _data;
     InferenceEngine::InputsDataMap _inputData;
@@ -111,10 +109,16 @@ private:
      */
     void createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr);
 
-    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
-    convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl, bool keep_constant_inputs);
+    /**
+     * @brief Converts ngraph::Function to old CNNNetworkImpl representation
+     */
+    void convertToCNNNetworkImpl();
 
+    friend INFERENCE_ENGINE_API_CPP(void)
+    convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
+                                 const ICNNNetwork& nGraphImpl,
+                                 CNNNetworkImpl* cnnNetworkImpl,
+                                 bool keep_constant_inputs);
 
     /**
      * @brief Reshape on the same shape
@@ -127,37 +131,10 @@ public:
     explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
 
 protected:
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const override {
+    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
         return _ngraph_function;
     }
 };
-
-IE_SUPPRESS_DEPRECATED_START
-
-/**
- * @brief Special derived class of Data which converts CNNNetworkNGraphImpl to CNNLayer-based representation
- * in case if a user called Data::getCreatorLayer or Data::getInputTo
- */
-class NGraphData : public Data {
-public:
-    using Ptr = std::shared_ptr<NGraphData>;
-
-    NGraphData(CNNNetworkNGraphImpl* network, const std::string& name, const TensorDesc& desc)
-        : Data(name, desc), network(network) {}
-
-    void reset() {
-        network = nullptr;
-    }
-
-    CNNLayerWeakPtr& getCreatorLayer();
-
-    std::map<std::string, CNNLayerPtr>& getInputTo();
-
-private:
-    CNNNetworkNGraphImpl* network;
-};
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace details
 }  // namespace InferenceEngine

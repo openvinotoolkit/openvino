@@ -131,7 +131,7 @@ public:
         set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
             throw ngraph::ngraph_error("Incorrect number of new arguments");
         }
@@ -193,16 +193,12 @@ class smoke_ExtensionTest : public TestsCommon,
 protected:
     void checkExtensionRemoved(extension_params p) {
         try {
-            StatusCode sts;
-            ResponseDesc resp;
             std::unique_ptr<InferenceEnginePluginPtr> score_engine;
             score_engine.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
-            sts = (*score_engine)->SetConfig(p.config, &resp);
-            ASSERT_TRUE(sts == OK) << resp.msg;
+            (*score_engine)->SetConfig(p.config);
             ASSERT_EQ(p.extension.use_count(), 2);
 
-            sts = (*score_engine)->AddExtension(p.extension, &resp);
-            ASSERT_TRUE(sts == OK) << resp.msg;
+            (*score_engine)->AddExtension(p.extension);
             // multi-device holds additional reference of the extension ptr
             ASSERT_EQ(p.extension.use_count(), p.pluginName.find("Multi")==std::string::npos ? 3 : 4);
             score_engine.reset();
@@ -214,21 +210,16 @@ protected:
     }
     void checkExtensionNotRemovedFromAnotherEngineObject(extension_params p) {
         try {
-            StatusCode sts;
-            ResponseDesc resp;
             std::unique_ptr<InferenceEnginePluginPtr> score_engine1;
             score_engine1.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
-            sts = (*score_engine1)->SetConfig(p.config, &resp);
-            ASSERT_TRUE(sts == OK) << resp.msg;
-
+            (*score_engine1)->SetConfig(p.config);
+            
             std::unique_ptr<InferenceEnginePluginPtr> score_engine2;
             score_engine2.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
-            sts = (*score_engine2)->SetConfig(p.config, &resp);
-            ASSERT_TRUE(sts == OK) << resp.msg;
+            (*score_engine2)->SetConfig(p.config);
             ASSERT_EQ(p.extension.use_count(), 2);
 
-            sts = (*score_engine1)->AddExtension(p.extension, &resp);
-            ASSERT_TRUE(sts == OK) << resp.msg;
+            (*score_engine1)->AddExtension(p.extension);
             // multi-device holds additional reference of the extension ptr
             ASSERT_EQ(p.extension.use_count(), p.pluginName.find("Multi")==std::string::npos ? 3 : 4);
             score_engine2.reset();

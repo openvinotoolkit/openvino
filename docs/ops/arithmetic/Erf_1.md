@@ -1,4 +1,4 @@
-## Erf <a name="Erf"></a>
+## Erf <a name="Erf"></a> {#openvino_docs_ops_arithmetic_Erf_1}
 
 **Versioned name**: *Erf-1*
 

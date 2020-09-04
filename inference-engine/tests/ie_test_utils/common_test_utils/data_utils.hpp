@@ -10,6 +10,7 @@
 #include <ngraph/type/float16.hpp>
 
 #include <ie_blob.h>
+#include <blob_factory.hpp>
 #include <random>
 
 namespace CommonTestUtils {
@@ -30,15 +31,46 @@ static void fill_data_sine(float *data, size_t size, float center, float ampl, f
     }
 }
 
-static void fill_data_const(float *data, size_t size, float value) {
-    for (size_t i = 0; i < size; i++) {
-        data[i] = value;
-    }
-}
+/**
+ * Fill blob with value data blob. Broadcast semantic is included.
+ * Broadcasting with alignment through last dimension.
+ *
+ * @param blob tensor to fill in
+ * @param values src tensor which should be broadcast
+ */
+void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Blob::Ptr& values);
 
-static void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val) {
-    fill_data_const(blob->buffer().as<float*>(), blob->size(), val);
-}
+/**
+ * Wrapper on top of fill_data_with_broadcast with simplified signature
+ *
+ * @param blob the destination blob to fill in
+ * @param axis Axis to apply values
+ * @param values data to broadcast
+ */
+void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std::vector<float> values);
+
+/**
+ * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
+ *
+ * NB! Limitation: the nwe one blob will no have ownership of data buffer. The original blob should be alive
+ *     while view is in use.
+ *
+ * @param blob original source tensor
+ * @param new_shape new one shape for view blob
+ * @return new one blob view
+ */
+InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
+
+/**
+ * Fill blob with single value for all elements
+ *
+ * like:
+ *     fill_data_with_broadcast(blob, 0, {val});
+ *
+ * @param blob tensor to fill in
+ * @param val value to set into each element
+ */
+void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
 
 static void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
     float center_h = (height - 1.0f) / 2;
@@ -170,7 +202,6 @@ template<>
 void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {
     fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k);
 }
-
 
 template<>
 void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {

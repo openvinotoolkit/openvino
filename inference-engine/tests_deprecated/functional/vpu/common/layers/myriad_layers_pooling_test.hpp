@@ -111,9 +111,9 @@ TEST_P(myriadLayers_IR3_PoolingTests_smoke, Pooling) {
 
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     int32_t OW = 1;
     int32_t OH = 1;
     int32_t OC = 1;
@@ -191,9 +191,9 @@ TEST_P(myriadLayers_IR3_BatchPoolingTests_smoke, Pooling) {
 
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     int32_t OW = 1;
     int32_t OH = 1;
     int32_t OC = 1;

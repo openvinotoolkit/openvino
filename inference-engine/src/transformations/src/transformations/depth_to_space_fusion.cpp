@@ -154,7 +154,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
 
-        if (!transformation_callback(depth_to_space)) {
+        if (!m_transformation_callback(depth_to_space)) {
             return false;
         }
 

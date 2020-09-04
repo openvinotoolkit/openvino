@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <iomanip>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>

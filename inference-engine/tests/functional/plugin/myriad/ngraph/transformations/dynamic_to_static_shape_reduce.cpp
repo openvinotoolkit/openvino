@@ -111,7 +111,7 @@ protected:
             "Actual");
         node->set_output_type(0, data_type, ngraph::PartialShape::dynamic(node->get_output_partial_shape(0).rank()));
         const auto transformations = vpu::Transformations{{type_info, vpu::dynamicToStaticShapeReduce}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

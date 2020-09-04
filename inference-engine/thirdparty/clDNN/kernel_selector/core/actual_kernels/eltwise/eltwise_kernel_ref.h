@@ -25,6 +25,11 @@ public:
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE };
+    }
+
+    JitConstants GetJitConstants(const eltwise_params& params) const;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;

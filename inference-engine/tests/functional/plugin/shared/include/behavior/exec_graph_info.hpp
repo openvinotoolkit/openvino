@@ -13,7 +13,7 @@
 #include <vector>
 #include <string>
 #include <ie_core.hpp>
-#include <details/ie_cnn_network_tools.h>
+#include <legacy/details/ie_cnn_network_tools.h>
 #include <functional_test_utils/behavior_test_utils.hpp>
 #include <exec_graph_info.hpp>
 #include "common_test_utils/common_utils.hpp"
@@ -41,7 +41,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
@@ -128,7 +128,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
@@ -228,7 +228,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());

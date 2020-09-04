@@ -27,7 +27,6 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

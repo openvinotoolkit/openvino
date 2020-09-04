@@ -18,7 +18,7 @@ from typing import Dict
 import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
-from extensions.back.ReduceToPooling import ReduceMerge
+from extensions.back.ReduceMerge import ReduceMerge
 from extensions.ops.ReduceOps import reduce_map
 from extensions.ops.gather import Gather
 from mo.back.replacement import BackReplacementPattern

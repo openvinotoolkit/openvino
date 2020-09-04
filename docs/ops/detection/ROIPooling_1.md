@@ -1,4 +1,4 @@
-## ROIPooling <a name="ROIPooling"></a>
+## ROIPooling <a name="ROIPooling"></a> {#openvino_docs_ops_detection_ROIPooling_1}
 
 **Versioned name**: *ROIPooling-1*
 

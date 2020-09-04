@@ -1,4 +1,4 @@
-## CTCGreedyDecoder <a name="CTCGreedyDecoder"></a>
+## CTCGreedyDecoder <a name="CTCGreedyDecoder"></a> {#openvino_docs_ops_sequence_CTCGreedyDecoder_1}
 
 **Versioned name**: *CTCGreedyDecoder-1*
 

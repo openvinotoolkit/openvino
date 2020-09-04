@@ -1,4 +1,4 @@
-ir_version: 3
+ir_version: 6
 producer_name: "ngraph ONNXImporter"
 graph {
   node {

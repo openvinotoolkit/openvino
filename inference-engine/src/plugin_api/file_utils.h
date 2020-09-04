@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief Basic function to work with file system and UNICDE symbols
+ * @brief Basic function to work with file system and UNICODE symbols
  * @file file_utils.h
  */
 
@@ -14,10 +14,27 @@
 #include <cstring>
 
 #include "ie_api.h"
-#include "ie_unicode.hpp"
-#include "details/os/os_filesystem.hpp"
+#include "details/ie_so_pointer.hpp"
 
 namespace FileUtils {
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+/**
+ * @brief Conversion from wide character string to a single-byte chain.
+ * @param wstr A wide-char string
+ * @return A multi-byte string
+ */
+INFERENCE_ENGINE_API_CPP(std::string) wStringtoMBCSstringChar(const std::wstring& wstr);
+
+/**
+ * @brief Conversion from single-byte chain to wide character string.
+ * @param str A null-terminated string
+ * @return A wide-char string
+ */
+INFERENCE_ENGINE_API_CPP(std::wstring) multiByteCharToWString(const char* str);
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
 template <typename T> struct FileTraits;
 
@@ -83,7 +100,7 @@ INFERENCE_ENGINE_API(long long) fileSize(const char *fileName);
  * @return     { description_of_the_return_value }
  */
 inline long long fileSize(const wchar_t* fileName) {
-    return fileSize(InferenceEngine::details::wStringtoMBCSstringChar(fileName).c_str());
+    return fileSize(::FileUtils::wStringtoMBCSstringChar(fileName).c_str());
 }
 
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
@@ -122,15 +139,6 @@ inline bool fileExist(const std::basic_string<C> &fileName) {
 }
 
 /**
- * @brief CPP Interface function to read a file. In case of read error throws an exception. The function supports UNICODE path
- * @ingroup ie_dev_api_file_utils
- * @param file_name - name of the file to read
- * @param buffer - buffer to read file to
- * @param maxSize - maximum size in bytes to read
- */
-INFERENCE_ENGINE_API_CPP(void) readAllFile(const std::string &file_name, void *buffer, size_t maxSize);
-
-/**
  * @brief CPP Interface function to combint path with filename. The function supports UNICODE path
  * @ingroup ie_dev_api_file_utils
  * @param folder - path to add filename to
@@ -163,22 +171,6 @@ inline std::basic_string<C> fileExt(const std::basic_string<C> &filename) {
     return filename.substr(pos + 1);
 }
 
-/**
- * @brief CPP Interface function to check if given fileName belongs to shared library
- * @ingroup ie_dev_api_file_utils
- * @param fileName A file name to check
- * @return `True` if fileName is a shared library fileName
- */
-inline bool isSharedLibrary(const std::string &fileName) {
-    return 0 ==
-#ifdef _WIN32
-        _strnicmp
-#else
-        strncasecmp
-#endif
-        (fileExt(fileName).c_str(), FileTraits<char>::SharedLibraryExt().c_str(), FileTraits<char>::SharedLibraryExt().size());
-}
-
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
 inline std::basic_string<C> makeSharedLibraryName(const std::basic_string<C> &path, const std::basic_string<C> &input) {
     std::basic_string<C> separator(1, FileTraits<C>::FileSeparator);
@@ -192,11 +184,11 @@ inline std::basic_string<C> makeSharedLibraryName(const std::basic_string<C> &pa
 using FilePath = std::wstring;
 
 inline std::string fromFilePath(const FilePath & path) {
-    return InferenceEngine::details::wStringtoMBCSstringChar(path);
+    return ::FileUtils::wStringtoMBCSstringChar(path);
 }
 
 inline FilePath toFilePath(const std::string & path) {
-    return InferenceEngine::details::multiByteCharToWString(path.c_str());
+    return ::FileUtils::multiByteCharToWString(path.c_str());
 }
 
 #else

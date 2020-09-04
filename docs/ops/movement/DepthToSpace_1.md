@@ -1,4 +1,4 @@
-## DepthToSpace <a name="DepthToSpace"></a>
+## DepthToSpace <a name="DepthToSpace"></a> {#openvino_docs_ops_movement_DepthToSpace_1}
 
 **Versioned name**: *DepthToSpace-1*
 

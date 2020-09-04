@@ -218,6 +218,7 @@ public:
     //
 
     Pass::Ptr dumpModel(const std::string& postfix);
+    Pass::Ptr markFastStages();
 
     //
     // Dilation Conv NCE  passes
@@ -244,6 +245,8 @@ public:
     Pass::Ptr replaceGemmByConv();
 
     Pass::Ptr propagateDynamism();
+
+    Pass::Ptr annotateMemoryTypes();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

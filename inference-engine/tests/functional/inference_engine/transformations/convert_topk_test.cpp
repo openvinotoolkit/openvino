@@ -15,6 +15,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/topk_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -29,10 +30,14 @@ TEST(TransformationTests, ConvertTopKToTopKIEStatic) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
@@ -59,8 +64,10 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic1) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ngraph::pass::ConstantFolding().run_on_function(f);
     }
@@ -88,8 +95,10 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic2) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ngraph::pass::ConstantFolding().run_on_function(f);
     }
@@ -117,8 +126,10 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic3) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ngraph::pass::ConstantFolding().run_on_function(f);
     }
@@ -146,8 +157,10 @@ TEST(TransformationTests, ConvertTopKToTopKIENegative) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input, k});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ngraph::pass::ConstantFolding().run_on_function(f);
     }

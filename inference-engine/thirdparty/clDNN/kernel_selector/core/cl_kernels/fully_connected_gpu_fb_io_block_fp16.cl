@@ -214,8 +214,9 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
     CHUNK_TYPE acc[UNITS_PER_SG_READ] = {};
 
     // Iterate over yxf linear plane (both filters/weights and input).
-    for (uint input_offset = input_base, filter_offset = filter_base; input_offset < input_byte_size; input_offset += input_sg_reads_distance)
-    {
+    uint input_offset = input_base;
+    uint filter_offset = filter_base;
+    do {
         CHUNK_TYPE input_val = INPUT0_READ(input, input_offset + sg_elem_offset);
 
         // Iterate over filters needed to process input read by sub-group.
@@ -233,7 +234,9 @@ KERNEL (fully_connected_gpu_xb_xb_block_fp16)(
                 acc[acc_pos] = AS_CHUNK(fma(AS_UNITS(input_val), SG_UNIT_SELECT(filter_val, acc_pos), AS_UNITS(acc[acc_pos])));
             }
         }
-    }
+
+        input_offset += input_sg_reads_distance;
+    } while (input_offset < input_byte_size);
 
     // WRITE OUTPUT
     // BATCH = 32x? (HF) / 16x? (F)

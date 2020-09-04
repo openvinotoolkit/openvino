@@ -37,7 +37,7 @@ typedef std::tuple<
 
 class CTCGreedyDecoderLayerTest
     :  public testing::WithParamInterface<ctcGreedyDecoderParams>,
-       public LayerTestsUtils::LayerTestsCommon {
+       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj);
 

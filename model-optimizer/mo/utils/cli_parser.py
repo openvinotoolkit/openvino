@@ -317,10 +317,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Force to generate deprecated IR V7 with layers from old IR specification.',
                               action=IgnoredAction,
                               default=False)
+    common_group.add_argument('--static_shape',
+                              help='Enables `ShapeOf` operation with all children folding to `Constant`. '
+                                   'This option makes model not reshapable in Inference Engine',
+                              action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
                                    'This feature makes model reshapable in Inference Engine',
-                              action='store_true', default=False)
+                              action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
                               action='store_true', default=False)
@@ -610,7 +614,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    tf_group = parser.add_argument_group('ONNX*-specific parameters')
+    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     return parser
 

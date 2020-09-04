@@ -26,17 +26,32 @@ bool SpaceToBatchKernelBase::Validate(const Params& p, const optional_params& o)
         return false;
     }
 
+    const space_to_batch_params& params = static_cast<const space_to_batch_params&>(p);
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    if (params.inputs[0].Dimentions() > 6)
+        return false;
+
     return true;
 }
 
 CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_params& params, const optional_params&) const {
+    const auto& out = params.output;
+
     CommonDispatchData runInfo;
+    std::vector<size_t> global;
+    std::vector<size_t> local;
 
-    std::vector<size_t> global = { params.output.Batch().v,
-                                   params.output.Feature().v,
-                                   params.output.W().v * params.output.Z().v * params.output.Y().v * params.output.X().v };
-
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
+        global = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
+        local = {1, 16, 1};
+    } else {
+        global = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
+        local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    }
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
@@ -93,7 +108,8 @@ KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params, c
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = estimatedTime;
 

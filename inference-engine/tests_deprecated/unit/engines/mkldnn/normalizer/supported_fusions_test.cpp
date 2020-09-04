@@ -85,8 +85,8 @@ protected:
             InferenceEngine::Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
+            InferenceEngine::ExecutableNetwork exeNetwork1;
+            ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
             auto conv = CommonTestUtils::getLayerByName(network, "Convolution2");
             auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
@@ -145,8 +145,8 @@ protected:
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
+            InferenceEngine::ExecutableNetwork exeNetwork1;
+            ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, { }));
 
             auto conv = CommonTestUtils::getLayerByName(network, "Convolution2");
             auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
@@ -206,8 +206,8 @@ protected:
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
+            InferenceEngine::ExecutableNetwork exeNetwork1;
+            ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, { }));
 
             auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
             auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");
@@ -265,8 +265,8 @@ protected:
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
+            InferenceEngine::ExecutableNetwork exeNetwork1;
+            ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, { }));
 
             auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
             auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");
@@ -341,8 +341,8 @@ protected:
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
+            InferenceEngine::ExecutableNetwork exeNetwork1;
+            ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
             auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
             auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");

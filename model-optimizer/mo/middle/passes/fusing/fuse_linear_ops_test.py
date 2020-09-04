@@ -934,62 +934,6 @@ class FuseLinOpsTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'fc_1_data')
         self.assertTrue(flag, resp)
 
-    # FC(w)->Add(scalar)
-    @unittest.skip("FC fusion is disabled")
-    def test_fuse_add_to_fc_3(self):
-        # Placeholder->FC->Add
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'fc_1'),
-                             ('const_fc_1_w', 'fc_1_w'),
-                             ('fc_1_w', 'fc_1'),
-                             ('fc_1', 'fc_1_data'),
-                             ('fc_1_data', 'add_1'),
-                             ('const_add_1_w', 'add_1_w'),
-                             ('add_1_w', 'add_1'),
-                             ('add_1', 'add_1_data'),
-                             ('add_1_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                             'add_1_data': {'shape': np.array([1, 10260])},
-                             'const_add_1_w': {'shape': np.array([1]), 'value': np.array([6]), 'data_type': None},
-                             'add_1_w': {'shape': np.array([1]), 'value': np.array([6]), 'data_type': None},
-                             'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                             'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                        'output_channel_dim': 0, 'input_channel_dim': 1,
-                                        'dims_number': 2, 'data_type': None},
-                             'fc_1_data': {'shape': np.array([1, 10260])},
-                             })
-
-        ref_weights = np.ones((10260, 2048))
-        ref_biases = np.array([6 for x in range(10260)])
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'fc_1'),
-                                 ('const_fc_1_w', 'fc_1_w'),
-                                 ('const_fc_1_b', 'fc_1_b'),
-                                 ('fc_1_w', 'fc_1'),
-                                 ('fc_1_b', 'fc_1'),
-                                 ('fc_1', 'fc_1_data'),
-                                 ('fc_1_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                                 'const_fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights},
-                                 'fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights,
-                                            'output_channel_dim': 0, 'input_channel_dim': 1,
-                                            'dims_number': 2},
-                                 'const_fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_data': {'shape': np.array([1, 10260])},
-                                 })
-
-        fuse_linear_ops(graph)
-        graph.clean_up()
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
-        self.assertTrue(flag, resp)
-
     #                 +-----------+
     #                 |           |           =>  Same
     # Placeholder--->Add->Mul-----+->Concat

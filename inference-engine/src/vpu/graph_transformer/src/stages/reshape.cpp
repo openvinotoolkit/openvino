@@ -61,9 +61,8 @@ private:
 }  // namespace
 
 void FrontEnd::parseReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 1 || (inputs.size() == 2 && inputs[1]->usage() == DataUsage::Const),
+    VPU_THROW_UNLESS(inputs.size() == 1 || inputs.size() == 2,
         "%v of type %v is not supported with dynamic shape", layer->name, layer->type);
-    IE_ASSERT((inputs.size() == 1) || (inputs.size() == 2 && inputs[1]->usage() == DataUsage::Const));
     IE_ASSERT(outputs.size() == 1);
     _stageBuilder->addReshapeStage(model, layer->name, layer, inputs[0], outputs[0]);
 }

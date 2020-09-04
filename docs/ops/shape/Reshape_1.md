@@ -1,4 +1,4 @@
-## Reshape <a name="Reshape"></a>
+## Reshape <a name="Reshape"></a> {#openvino_docs_ops_shape_Reshape_1}
 
 **Versioned name**: *Reshape-1*
 
@@ -24,13 +24,19 @@
 
 **Inputs**:
 
-*   **1**: `data` -- multidimensional input tensor. Required.
+*   **1**: `data` -- multidimensional input tensor of type *T*. *Required*.
 
-*   **2**: `shape` -- 1D tensor describing output shape. Required.
+*   **2**: `shape` -- 1D tensor of type *T_SHAPE* describing output shape. *Required*.
 
 **Outputs**:
 
 *   **1**: Output tensor with the same content as a tensor at input `data` but with shape defined by input `shape`.
+
+**Types**
+
+* *T*: supported type.
+
+* *T_SHAPE*: supported integer type.
 
 **Examples**
 

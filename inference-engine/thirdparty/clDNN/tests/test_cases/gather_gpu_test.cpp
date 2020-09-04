@@ -125,7 +125,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);
@@ -186,7 +186,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);
@@ -247,7 +247,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 1, 2))
     );
 
     network network(engine, topology);
@@ -366,7 +366,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);
@@ -427,7 +427,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+        gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);
@@ -488,7 +488,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 1, 2))
     );
 
     network network(engine, topology);
@@ -549,7 +549,7 @@ TEST(gather_gpu_int32, d22_axisF) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 1, 2))
     );
 
     network network(engine, topology);
@@ -668,7 +668,7 @@ TEST(gather_gpu_int32, d222_axisB) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);
@@ -729,7 +729,7 @@ TEST(gather_gpu_int32, d22_axisY) {
     topology.add(input_layout("InputDictionary", input1.get_layout()));
     topology.add(input_layout("InputText", input2.get_layout()));
     topology.add(
-            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 1, 2, 2))
     );
 
     network network(engine, topology);

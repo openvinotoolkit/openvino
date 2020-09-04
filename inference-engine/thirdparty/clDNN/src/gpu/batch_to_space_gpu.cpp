@@ -38,24 +38,11 @@ public:
         auto batch_to_space_optional_params =
             get_default_optional_params<kernel_selector::batch_to_space_optional_params>(arg.get_program());
 
-        // Getting data from constant inputs. There are 3 args: block_shape, crops_begin, crops_end
-        for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-            auto& input = arg.get_dependency(i).as<data>();
-            auto& mem = input.get_attached_memory();
-            std::vector<int32_t> sizes;
-            if (input.get_output_layout().data_type == cldnn::data_types::i64) {
-                int64_t* data = static_cast<int64_t*>(mem.lock());
-                std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + input.get_output_layout().count());
-                sizes.resize(sizes_i64.size());
-                for (size_t j = 0; j < sizes.size(); j++)
-                    sizes[j] = static_cast<int32_t>(sizes_i64[j]);
-            } else {
-                int32_t* data = static_cast<int32_t*>(mem.lock());
-                sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
-            }
-            batch_to_space_params.bts_params.push_back(sizes);
-            mem.unlock();
-        }
+        auto primitive = arg.get_primitive();
+
+        batch_to_space_params.block_shape = convert_dim_vector(primitive->block_shape);
+        batch_to_space_params.crops_begin = convert_dim_vector(primitive->crops_begin);
+        batch_to_space_params.crops_end = convert_dim_vector(primitive->crops_end);
 
         auto& kernel_selector = kernel_selector::batch_to_space_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(batch_to_space_params, batch_to_space_optional_params);
@@ -77,10 +64,20 @@ attach_batch_to_space_gpu::attach_batch_to_space_gpu() {
     auto val_fw = batch_to_space_gpu::create;
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
     implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
 }
 
 }  // namespace detail

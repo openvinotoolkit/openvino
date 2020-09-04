@@ -22,9 +22,11 @@ typedef std::tuple<
 > RangeParams;
 
 class RangeLayerTest : public testing::WithParamInterface<RangeParams>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
+    float start, stop, step;
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    void Infer() override;
 
 protected:
     void SetUp() override;

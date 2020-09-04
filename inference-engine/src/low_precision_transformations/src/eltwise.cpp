@@ -4,18 +4,17 @@
 
 #include "low_precision_transformations/eltwise.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 
@@ -202,9 +201,11 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
         } else if (eltwiseLayer->_operation == EltwiseLayer::eOperation::Prod) {
             for (size_t i = 0ul; i < emptyPathDequantizationScales.size(); ++i) {
                 fullPathDequantizationScales[i] = fullPathDequantizationScales[i] * emptyPathDequantizationScales[i];
+                fullPathDequantizationShifts[i] = fullPathDequantizationShifts[i] * emptyPathDequantizationScales[i];
             }
 
             CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "weights", fullPathDequantizationScales);
+            CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "biases", fullPathDequantizationShifts);
         } else {
             THROW_IE_EXCEPTION << "unexpected operation '" << eltwiseLayer->_operation << "'";
         }

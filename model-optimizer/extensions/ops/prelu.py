@@ -17,12 +17,11 @@
 import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class PreluOp(Op):
+class PReLU(Op):
     op = 'PReLU'
     enabled = True
 
@@ -39,12 +38,6 @@ class PreluOp(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
         }, attrs)
-
-    def supported_attrs(self):
-        if self.ir_version != 10:
-            return ['channel_shared', 'filler_type', 'filler_value', 'min', 'max', 'mean', 'std', 'sparse', 'variance_norm']
-        else:
-            return []
 
     @staticmethod
     def infer(node):

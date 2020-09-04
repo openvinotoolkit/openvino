@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "net_pass.h"
+#include "legacy/net_pass.h"
 
 #include <algorithm>
 #include <memory>
@@ -16,13 +16,15 @@
 #include <vector>
 
 #include "blob_factory.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "cnn_network_impl.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
 #include "cnn_network_ngraph_impl.hpp"
-#include "graph_tools.hpp"
-#include "ie_layers_internal.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/ie_layers_internal.hpp"
 #include "ie_memcpy.h"
 #include "precision_utils.h"
+
+#include "ie_legacy_itt.hpp"
 
 namespace InferenceEngine {
 namespace NetPass {
@@ -492,8 +494,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 
 bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
-    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
-    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
+    IE_ASSERT(inet != nullptr);
 
     if (cur->type != "TensorIterator") return true;
 
@@ -513,8 +514,7 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         auto holder = body_list[i].inputs.back();
         if (holder->getPrecision() == Precision::UNSPECIFIED) {
             for (auto kvp : getInputTo(holder)) {
-                if (inet) inet->addLayer(kvp.second);
-                else ngraphnet->addLayer(kvp.second);
+                inet->addLayer(kvp.second);
             }
         }
     }
@@ -1242,14 +1242,12 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
 
 void restore_net_consistency(ICNNNetwork& net) {
     auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
-    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
-    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
+    IE_ASSERT(inet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     IE_SUPPRESS_DEPRECATED_START
     for (auto& l : TopolSort(net)) {
-        if (inet) inet->addLayer(l);
-        else ngraphnet->addLayer(l);
+        inet->addLayer(l);
     }
     IE_SUPPRESS_DEPRECATED_END
 }
@@ -1336,7 +1334,7 @@ void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = static_cast<dst_type>(src[i]);
+        dst[i] = PrecisionUtils::saturate_cast<dst_type>(src[i]);
     }
 }
 
@@ -1404,6 +1402,25 @@ void convertLayerPrecision(const CNNLayerPtr& layer) {
 }
 
 template <typename NET>
+void RemoveConverts(NET& net, std::vector<CNNLayerPtr>& to_remove) {
+    for (auto& layer : to_remove) {
+        RemoveLayer(layer, net);
+    }
+}
+
+template <>
+void RemoveConverts(ICNNNetwork& net, std::vector<CNNLayerPtr>& to_remove) {
+    OutputsDataMap outputs;
+    net.getOutputsInfo(outputs);
+    for (auto& layer : to_remove) {
+        if (!std::any_of(outputs.begin(), outputs.end(),
+            [layer](std::pair<std::string, DataPtr> p) { return p.second->getName() == layer->name; })) {
+            RemoveLayer(layer, net);
+        }
+    }
+}
+
+template <typename NET>
 void fixConvertLayers(NET &net) {
     std::vector<CNNLayerPtr> to_remove;
     auto all_layers = TopolSort(net);
@@ -1424,9 +1441,7 @@ void fixConvertLayers(NET &net) {
             }
         }
     }
-    for (auto &layer : to_remove) {
-        RemoveLayer(layer, net);
-    }
+    RemoveConverts(net, to_remove);
 }
 
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO, typename NET>
@@ -1454,8 +1469,13 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer) {
 }
 
 void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "NetPass::ConvertPrecision");
+
     auto compare = getPrecisionMask(from, to);
     switch (compare) {
+        case getPrecisionMask(Precision::U32, Precision::I32):
+            convertPrecisionForAll<Precision::U32, Precision::I32>(net);
+            break;
         case getPrecisionMask(Precision::U64, Precision::I32):
             convertPrecisionForAll<Precision::U64, Precision::I32>(net);
             break;
@@ -1481,6 +1501,24 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
             THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to
                                << " currently is not supported. You may expand precision"
                                   " conversion pass.";
+    }
+}
+
+void ConvertIOPrecision(ICNNNetwork& net, Precision from, Precision to) {
+    InputsDataMap inputDataMap;
+    net.getInputsInfo(inputDataMap);
+    for (auto & i : inputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
+    }
+
+    OutputsDataMap outputDataMap;
+    net.getOutputsInfo(outputDataMap);
+    for (auto & i : outputDataMap) {
+        if (i.second->getPrecision() == from) {
+            i.second->setPrecision(to);
+        }
     }
 }
 

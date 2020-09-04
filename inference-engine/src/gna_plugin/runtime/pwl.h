@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "backend/dnn_types.h"
+#include "backend/gna_types.h"
 
 #define SIGMOID_NUM_SEGMENTS 65
 #define SIGMOID_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
@@ -32,6 +33,9 @@
 #define LOG_DOMAIN (2981.0)
 #define EXP_DOMAIN (8.0)
 #define EXP_BREAK (0.045)
+#define POW_NUM_SEGMENTS 65
+#define POW_BREAK 0
+#define POW_DOMAIN (16.0)
 
 typedef struct {
     double t;
@@ -61,7 +65,7 @@ double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
 
-std::vector<pwl_t> pwl_search(const DnnActivationType fun,
+std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                               const double l_bound,
                               const double u_bound,
                               const double threshold,
@@ -73,7 +77,7 @@ bool split_search(const DnnActivationType fun,
                   const double l_bound,
                   const double u_bound);
 
-double calculate_error_pct(const DnnActivationType fun,
+double calculate_error_pct(const DnnActivation& activation_type,
                            const double l_bound,
                            const double u_bound,
                            const double offset,
@@ -92,11 +96,11 @@ void PwlApply32(intel_dnn_component_t *component,
                 const uint32_t num_col_start,
                 const uint32_t num_col_end);
 void PwlDesign16(const DnnActivation activation_type,
-                 intel_pwl_segment_t *ptr_segment,
+                 gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
                  const float scale_out);
 void PwlDesignOpt16(const DnnActivation activation_type,
-                std::vector<intel_pwl_segment_t> &ptr_segment,
+                std::vector<gna_pwl_segment_t> &ptr_segment,
                 const float scale_in,
                 const float scale_out);

@@ -21,6 +21,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             unitTestUtils
+            ngraphFunctions
             mvnc
         ADD_CPPLINT
         LABELS

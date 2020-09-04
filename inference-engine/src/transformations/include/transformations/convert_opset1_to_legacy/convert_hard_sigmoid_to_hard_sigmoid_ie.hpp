@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertHardSigmoidToHardSigmoidIE;
+class TRANSFORMATIONS_API ConvertHardSigmoidToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertHardSigmoidToHardSigmoidIE : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
-    ConvertHardSigmoidToHardSigmoidIE() : GraphRewrite() {
-        convert_hard_sigmoid();
-    }
-
-private:
-    void convert_hard_sigmoid();
+    ConvertHardSigmoidToLegacyMatcher();
 };

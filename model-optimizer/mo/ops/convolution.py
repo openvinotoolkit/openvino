@@ -32,10 +32,10 @@ class Convolution(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],
             'in_ports_count': 3,
@@ -43,64 +43,28 @@ class Convolution(Op):
         }, attrs)
 
     def backend_attrs(self):
-        if self.ir_version == 10:
-            def pad_attribute_helper(node: Node, pad_type: str='begin'):
-                assert pad_type in ['begin', 'end']
-                if not node.has_valid('pad'):
-                    return None
-                pad = get_backend_pad(node.pad, node.spatial_dims, 0 if pad_type == 'begin' else 1)
-                if node.has_valid('auto_pad'):
-                    pad = [0 for _ in pad]
-                return ','.join(map(str, pad))
+        def pad_attribute_helper(node: Node, pad_type: str='begin'):
+            assert pad_type in ['begin', 'end']
+            if not node.has_valid('pad'):
+                return None
+            pad = get_backend_pad(node.pad, node.spatial_dims, 0 if pad_type == 'begin' else 1)
+            if node.has_valid('auto_pad'):
+                pad = [0 for _ in pad]
+            return ','.join(map(str, pad))
 
-            return [
-                'auto_pad',
-                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-                ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
-                ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
-                ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
-                    if node.has_valid('output_padding') else None),
-
-                # for BinaryConvolution only
-                'pad_value',
-                'mode',
-            ]
         return [
-           'auto_pad',
-           'group',
-           ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-           ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-           ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) \
-               if node.has_valid('kernel_spatial') else None),
-           ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
-           ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
-           'output',
-           'pad_value',
-           'mode',
-           'input',
-        ]
-
-    def backend_attrs_v2(self):
-        return [
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-
-            ('kernel-x', lambda node: node.kernel_spatial[1]),
-            ('kernel-y', lambda node: node.kernel_spatial[0]),
-
-            spatial_getter('dilation-x', 'dilation', 0),
-            spatial_getter('dilation-y', 'dilation', 1),
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-            spatial_getter('pad-r', 'pad', 1, lambda x: x[1]),
-            spatial_getter('pad-b', 'pad', 0, lambda x: x[1]),
-
             'auto_pad',
-            'output',
-            'group',
-        ]
+            ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
+            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+            ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
+            ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
+            ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
+                if node.has_valid('output_padding') else None),
 
+            # for BinaryConvolution only
+            'pad_value',
+            'mode',
+        ]
 
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):

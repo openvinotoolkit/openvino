@@ -74,7 +74,7 @@ TEST_P(myriadLayersTestsReorg_smoke, TestsReorg) {
     if(!customConfig.empty() && !CheckMyriadX()) {
 		GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
 	}
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const auto dimsOutput = SizeVector{dimsInput[0],
 									   dimsInput[1] * (stride * stride),

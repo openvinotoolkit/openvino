@@ -15,13 +15,15 @@ typedef std::tuple<
         InferenceEngine::Precision,
         InferenceEngine::SizeVector,
         InferenceEngine::SizeVector,
+        bool,
+        bool,
         ngraph::helpers::InputLayerType,
         LayerTestsUtils::TargetDevice
 > MatMulLayerTestParamsSet;
 
 namespace LayerTestsDefinitions {
 
-class MatMulTest : public testing::WithParamInterface<MatMulLayerTestParamsSet>, public LayerTestsUtils::LayerTestsCommon {
+class MatMulTest : public testing::WithParamInterface<MatMulLayerTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj);
 

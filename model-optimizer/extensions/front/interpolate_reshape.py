@@ -119,10 +119,13 @@ class InterpolateWithConcat(FrontReplacementPattern):
         or through identity operation sequence. Returns the list of Concat sources that satisfy the condition.
         """
         assert concat.soft_get('type') == 'Concat'
-        sources = []
+        sources, ports_to_omit = [], []
+        if concat.has_valid('N'):
+            # TODO: should be removed after Concat operation normalization
+            ports_to_omit.append(concat.N)
 
         for in_port in concat.in_ports().values():
-            if in_port.disconnected():
+            if in_port.disconnected() or in_port.idx in ports_to_omit:
                 continue
             next_node = in_port.get_source().node
             while next_node.soft_get('type') != 'Interpolate' and next_node.has_and_set('identity'):
@@ -171,11 +174,12 @@ class InterpolateWithConcat(FrontReplacementPattern):
 
             # Interpolate could be connected to Concat through identity operations, skipping them
             next_node = self.get_single_output_destination_safely(interpolate)
-            while next_node.soft_get('type') != 'Concat' and next_node.has_and_set('identity'):
-                node = self.get_single_output_destination_safely(next_node)
-                if node is not None:
-                    next_node = node
-                else:
-                    break
-            if next_node.soft_get('type') == 'Concat':
-                self.make_interpolate_reshape_able(interpolate, next_node)
+            if next_node is not None:
+                while next_node.soft_get('type') != 'Concat' and next_node.has_and_set('identity'):
+                    node = self.get_single_output_destination_safely(next_node)
+                    if node is not None:
+                        next_node = node
+                    else:
+                        break
+                if next_node.soft_get('type') == 'Concat':
+                    self.make_interpolate_reshape_able(interpolate, next_node)

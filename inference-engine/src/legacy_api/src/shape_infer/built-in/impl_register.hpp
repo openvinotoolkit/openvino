@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {

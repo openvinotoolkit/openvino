@@ -43,7 +43,7 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
         };
 
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.set_callback(callback);
         depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -77,7 +77,7 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
         };
 
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.set_callback(callback);
         depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -112,7 +112,7 @@ TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
 
         // transformation won't be applied because of shape_reshape_before is dynamic, the graph will remain the same
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.set_callback(callback);
         depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -157,7 +157,7 @@ TEST(TransformationTests, DepthToSpaceFusionSeveralConsumers) {
 
         // transformation won't be applied because of reshape_before has several consumers, the graph will remain the same
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
-        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.set_callback(callback);
         depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

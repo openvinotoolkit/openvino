@@ -28,11 +28,11 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     void setMode(DynamicShapeResolverMode mode) { m_mode = mode; }
     DynamicShapeResolverMode getMode() { return m_mode; }

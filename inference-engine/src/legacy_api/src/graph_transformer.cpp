@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_transformer.h"
 
-#include <cpp/ie_cnn_network.h>
-#include <details/ie_cnn_network_tools.h>
-
-#include <details/caseless.hpp>
 #include <iterator>
 #include <map>
 #include <utility>
@@ -17,11 +12,13 @@
 #include <mutex>
 #include <algorithm>
 
-#include <cnn_network_ngraph_impl.hpp>
+#include <cpp/ie_cnn_network.h>
 #include "blob_factory.hpp"
-#include "cnn_network_impl.hpp"
-#include "graph_tools.hpp"
-#include "net_pass.h"
+
+#include <legacy/cnn_network_impl.hpp>
+#include "legacy/graph_tools.hpp"
+#include "legacy/net_pass.h"
+#include "legacy/graph_transformer.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -69,19 +66,6 @@ ConstTransformer::ConstTransformer(details::CNNNetworkImpl* _network)
         : network(_network), inputs(get_inputs(_network)), outputs(get_outputs(_network)) {
     if (!_network)
         THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
-}
-
-ConstTransformer::ConstTransformer(ICNNNetwork* _network) {
-    if (auto cnnNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(_network)) {
-        network = cnnNet;
-    } else if (auto nGraphNet = dynamic_cast<InferenceEngine::details::CNNNetworkNGraphImpl *>(_network)) {
-        if (auto cnnNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(nGraphNet->getCNNNetwork().get()))
-            network = cnnNet;
-    }
-    if (!network)
-        THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with unsupported network type";
-    inputs = get_inputs(network);
-    outputs = get_outputs(network);
 }
 
 ConstTransformer::ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs)

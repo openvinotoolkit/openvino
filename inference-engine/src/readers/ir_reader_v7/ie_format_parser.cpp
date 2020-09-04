@@ -3,6 +3,7 @@
 //
 
 #include "ie_format_parser.h"
+#include "ie_layer_validators.hpp"
 
 #include <fstream>
 #include <set>
@@ -11,7 +12,6 @@
 
 #include "ie_blob_proxy.hpp"
 #include "ie_layer_parsers.h"
-#include "ie_profiling.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine;
@@ -432,7 +432,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
                                    << parseInfo.inputPorts[i].portId << " is not connected to any data";
             }
         }
-        layer->validateLayer();
+        layer->parseParams();
+        details::validateLayer(layer.get());
     }
     // parse mean image
     ParsePreProcess(root);

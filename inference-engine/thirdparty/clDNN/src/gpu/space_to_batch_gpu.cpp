@@ -64,10 +64,20 @@ attach_space_to_batch_gpu::attach_space_to_batch_gpu() {
     auto val_fw = space_to_batch_gpu::create;
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
     implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<space_to_batch>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw);
 }
 
 }  // namespace detail

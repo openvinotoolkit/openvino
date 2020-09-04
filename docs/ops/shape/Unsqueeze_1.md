@@ -1,4 +1,4 @@
-## Unsqueeze <a name="Unsqueeze"></a>
+## Unsqueeze <a name="Unsqueeze"></a> {#openvino_docs_ops_shape_Unsqueeze_1}
 
 **Versioned name**: *Unsqueeze-1*
 
@@ -10,9 +10,15 @@
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor. Required.
+*   **1**: Multidimensional input tensor of type *T*. *Required*.
 
-*   **2**: OD or 1D tensor with dimensions indices to be set to 1. Values could be negative. Indices could be integer or float values.
+*   **2**: OD or 1D tensor of type *T_SHAPE* with dimensions indices to be set to 1. Values could be negative. *Required*.
+
+**Types**
+
+* *T*: supported type.
+
+* *T_SHAPE*: supported integer type.
 
 **Example**
 

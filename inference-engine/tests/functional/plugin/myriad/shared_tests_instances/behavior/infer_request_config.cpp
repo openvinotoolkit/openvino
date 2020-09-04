@@ -20,11 +20,11 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
-    const std::vector<std::map<std::string, std::string>> Inconfigs = {
+    const std::vector<std::map<std::string, std::string>> inferConfigs = {
             {},
 
-            {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},
-            {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)}},
 
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)}},
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_ERROR)}},
@@ -33,18 +33,41 @@ namespace {
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_TRACE)}},
 
+            {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-1"}},
+            {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "0"}},
+            {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "1"}},
+
+            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)}},
+
+            {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO)}},
+
+            {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "1"}},
+            {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2"}},
+            {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3"}},
+
+
+            // Deprecated
+            {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},
+            {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}},
+
             {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}},
             {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)}},
 
             {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}},
-            {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}}
+            {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}},
     };
 
-    const std::vector<std::map<std::string, std::string>> InmultiConfigs = {
+    const std::vector<std::map<std::string, std::string>> inferMultiConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
+             {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}}
+             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}},
+
+            // Deprecated
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+             {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigTests,
@@ -65,13 +88,13 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                    ::testing::ValuesIn(Inconfigs)),
+                                    ::testing::ValuesIn(inferConfigs)),
                             InferConfigInTests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferConfigInTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(InmultiConfigs)),
+                                    ::testing::ValuesIn(inferMultiConfigs)),
                             InferConfigInTests::getTestCaseName);
 }  // namespace

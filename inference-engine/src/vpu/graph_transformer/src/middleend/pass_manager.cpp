@@ -203,13 +203,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     }
 
     //
-    // Replace StridedSlice to other stages
-    //
-
-    ADD_PASS(stridedSlice);
-    ADD_DUMP_PASS("stridedSlice");
-
-    //
     // HW stages tiling
     //
 
@@ -347,6 +340,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
+
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

@@ -1,4 +1,4 @@
-## GRN <a name="GRN"></a>
+## GRN <a name="GRN"></a> {#openvino_docs_ops_normalization_GRN_1}
 
 **Versioned name**: *GRN-1*
 

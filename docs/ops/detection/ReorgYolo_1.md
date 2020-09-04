@@ -1,4 +1,4 @@
-## ReorgYolo Layer <a name="ReorgYolo"></a>
+## ReorgYolo Layer <a name="ReorgYolo"></a> {#openvino_docs_ops_detection_ReorgYolo_1}
 
 **Versioned name**: *ReorgYolo-1*
 

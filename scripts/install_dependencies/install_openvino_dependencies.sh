@@ -77,8 +77,41 @@ if [ -f /etc/lsb-release ]; then
     if [ "$system_ver" = "16.04" ]; then
         PKGS+=( libgtk2.0-0 )
     else
+        if [ "$system_ver" = "20.04" ]; then
+            PKGS+=( libglib2.0-0
+                    libgstreamer1.0-0
+                    gstreamer1.0-plugins-base
+                    gstreamer1.0-plugins-good
+                    gstreamer1.0-plugins-bad
+                    gstreamer1.0-plugins-ugly
+                    gstreamer1.0-libav
+                    libgstreamer-plugins-base1.0-dev
+                    gstreamer1.0-doc
+                    gstreamer1.0-tools
+                    gstreamer1.0-x
+                    gstreamer1.0-alsa
+                    gstreamer1.0-gl
+                    gstreamer1.0-gtk3
+                    gstreamer1.0-qt5
+                    gstreamer1.0-pulseaudio
+                    libgstrtspserver-1.0-dev
+                    python3-gst-1.0
+                    libfluidsynth2
+                    libnettle7
+                    libopenexr24
+                    python3.8
+                    libpython3.8
+                )
+        elif [ "$system_ver" = "18.04" ]; then
+            PKGS+=( libglib2.0
+                    libfluidsynth1
+                    libnettle6
+                    libopenexr22
+                    python3.6
+                    libpython3.6
+                )
+        fi
         PKGS+=( libgtk-3-0
-                libglib2.0-0
                 flex
                 bison
                 libgmp10
@@ -93,7 +126,7 @@ if [ -f /etc/lsb-release ]; then
                 libgl1-mesa-dri
                 libgles2
                 libgl-dev
-                gudev-1.0
+                gir1.2-gudev-1.0
                 libtheora0
                 libcdparanoia0
                 libpango-1.0-0
@@ -124,7 +157,7 @@ if [ -f /etc/lsb-release ]; then
                 libtwolame0
                 libwavpack1
                 libbluetooth3
-                libusb-1.0.0-dev
+                libusb-1.0-0-dev
                 libass9
                 libbs2b0
                 libchromaprint1
@@ -137,10 +170,8 @@ if [ -f /etc/lsb-release ]; then
                 libfaac0
                 libfdk-aac1
                 libflite1
-                libfluidsynth1
                 libgme0
                 libgsm1
-                libnettle6
                 libkate1
                 liblrdf0
                 libde265-0
@@ -150,7 +181,6 @@ if [ -f /etc/lsb-release ]; then
                 libmpcdec6
                 libneon27
                 libopenal1
-                libopenexr22
                 libopenjp2-7
                 libopenmpt0
                 libopenni2-0
@@ -178,8 +208,6 @@ if [ -f /etc/lsb-release ]; then
                 libva2
                 libxrandr2
                 libudev1
-                python3.6
-                libpython3.6
                 python3-gi
         )
     fi

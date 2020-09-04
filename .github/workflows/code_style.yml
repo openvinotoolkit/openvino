@@ -6,23 +6,29 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install clang-format-3.9
         run: sudo apt --assume-yes install clang-format-3.9
 
+      - name: Install dependencies
+        run: |
+          sudo apt --assume-yes install libusb-1.0-0-dev
+          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+
       - name: CMake
         run: |
-          mkdir ngraph-build
-          cd ngraph-build
-          cmake ../ngraph
+          mkdir build
+          cd build
+          cmake ..
 
-      - name: Check
-        run: |
-          make style-check
-        working-directory: ngraph-build
+      - name: Check code style
+        run: make style-check
+        working-directory: build
 
-      - name: apply-code-format
-        if: ${{ failure() }}
+      - name: Create code style diff
+        if: failure()
         run: |
           ngraph/maint/apply-code-format.sh
           git diff >code_style_diff.patch

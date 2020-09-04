@@ -1,8 +1,8 @@
-# Hello NV12 Input Classification C Sample
+# Hello NV12 Input Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README}
 
 This topic describes how to run the Hello NV12 Input Classification sample application.
 The sample demonstrates how to use the new NV12 automatic input pre-processing API of the Inference Engine in your applications.
-Refer to [Integrate the Inference Engine New Request API with Your Application](./docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
+Refer to [Integrate the Inference Engine New Request API with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
 
 ## How It Works
 
@@ -30,16 +30,16 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+>   [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
 To run the sample, you can use public or pre-trained models. To download pre-trained models, use
-the OpenVINO&trade; [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader)
+the OpenVINO&trade; [Model Downloader](@ref omz_tools_downloader_README)
 or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the
-> Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 You can perform inference on an NV12 image using a trained AlexNet network on CPU with the following command:
 ```sh

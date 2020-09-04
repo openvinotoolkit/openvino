@@ -27,8 +27,9 @@ __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
-NGRAPH_ONNX_IMPORT_ENABLE = os.environ.get("NGRAPH_ONNX_IMPORT_ENABLE")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
+# Change current working dircectory to ngraph/python
+os.chdir(PYNGRAPH_ROOT_DIR)
 
 
 def find_ngraph_dist_dir():
@@ -186,12 +187,11 @@ sources = [
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
+    "pyngraph/node_input.cpp",
+    "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
-    "pyngraph/ops/get_output_element.cpp",
-    "pyngraph/ops/op.cpp",
     "pyngraph/ops/parameter.cpp",
-    "pyngraph/ops/regmodule_pyngraph_op.cpp",
     "pyngraph/ops/result.cpp",
     "pyngraph/ops/util/arithmetic_reduction.cpp",
     "pyngraph/ops/util/binary_elementwise_arithmetic.cpp",
@@ -205,17 +205,22 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
     "pyngraph/tensor_iterator_builder.cpp",
     "pyngraph/types/element_type.cpp",
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
+    "pyngraph/variant.cpp",
+    "pyngraph/rt_map.cpp",
 ]
 
 packages = [
     "ngraph",
+    "ngraph.opset1",
+    "ngraph.opset2",
+    "ngraph.opset3",
+    "ngraph.opset4",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
@@ -232,9 +237,6 @@ library_dirs = [NGRAPH_CPP_LIBRARY_DIR]
 libraries = [NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME]
 
 extra_compile_args = []
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    extra_compile_args.append("-DNGRAPH_ONNX_IMPORT_ENABLE")
-
 extra_link_args = []
 
 data_files = [
@@ -243,6 +245,7 @@ data_files = [
         [
             os.path.join(NGRAPH_CPP_LIBRARY_DIR, library)
             for library in os.listdir(NGRAPH_CPP_LIBRARY_DIR)
+            if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
     (
@@ -254,15 +257,6 @@ data_files = [
     ),
     ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
-
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    onnx_sources = [
-        "pyngraph/onnx_import/onnx_import.cpp",
-    ]
-    onnx_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in onnx_sources]
-    sources = sources + onnx_sources
-
-    packages.append("ngraph.impl.onnx_import")
 
 ext_modules = [
     Extension(
@@ -374,7 +368,7 @@ setup(
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
     ext_modules=ext_modules,
-    package_dir={'': 'src'},
+    package_dir={"": "src"},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,

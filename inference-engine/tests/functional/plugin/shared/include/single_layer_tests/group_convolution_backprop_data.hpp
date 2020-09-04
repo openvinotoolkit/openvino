@@ -31,7 +31,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 
 class GroupConvBackpropDataLayerTest : public testing::WithParamInterface<groupConvBackpropDataLayerTestParamsSet>,
-                                       public LayerTestsUtils::LayerTestsCommon {
+                                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet> obj);
 

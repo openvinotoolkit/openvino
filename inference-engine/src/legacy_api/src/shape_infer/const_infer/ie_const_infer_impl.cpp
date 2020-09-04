@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_profiling.hpp"
-
 using namespace InferenceEngine;
 using namespace ShapeInfer;
 

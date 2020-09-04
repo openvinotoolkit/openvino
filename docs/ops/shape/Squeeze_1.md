@@ -1,4 +1,4 @@
-## Squeeze<a name="Squeeze"></a>
+## Squeeze<a name="Squeeze"></a> {#openvino_docs_ops_shape_Squeeze_1}
 
 **Versioned name**: *Squeeze-1*
 
@@ -10,9 +10,15 @@
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor. Required.
+*   **1**: Multidimensional input tensor of type *T*. *Required*.
 
-*   **2**: `(optional)`: 0D or 1D tensor with dimensions indices to squeeze. Values could be negative. Indices could be integer or float values.
+*   **2**: 0D or 1D tensor of type *T_SHAPE* with dimensions indices to squeeze. Values could be negative. *Optional*.
+
+**Types**
+
+* *T*: supported type.
+
+* *T_SHAPE*: supported integer type.
 
 **Example**
 

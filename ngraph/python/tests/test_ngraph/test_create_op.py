@@ -18,6 +18,7 @@ import pytest
 from _pyngraph import PartialShape
 
 import ngraph as ng
+import ngraph.opset1 as ng_opset1
 from ngraph.impl import Type
 
 np_types = [np.float32, np.int32]
@@ -231,6 +232,62 @@ def test_lstm_cell_operator(dtype):
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_lstm_cell_operator_opset1(dtype):
+    batch_size = 1
+    input_size = 16
+    hidden_size = 128
+
+    X_shape = [batch_size, input_size]
+    H_t_shape = [batch_size, hidden_size]
+    C_t_shape = [batch_size, hidden_size]
+    W_shape = [4 * hidden_size, input_size]
+    R_shape = [4 * hidden_size, hidden_size]
+    B_shape = [4 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    expected_shape = [1, 128]
+
+    node_default = ng_opset1.lstm_cell(
+        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
+    )
+
+    assert node_default.get_type_name() == "LSTMCell"
+    assert node_default.get_output_size() == 2
+    assert list(node_default.get_output_shape(0)) == expected_shape
+    assert list(node_default.get_output_shape(1)) == expected_shape
+
+    activations = ["tanh", "Sigmoid", "RELU"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 0.5
+
+    node_param = ng_opset1.lstm_cell(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "LSTMCell"
+    assert node_param.get_output_size() == 2
+    assert list(node_param.get_output_shape(0)) == expected_shape
+    assert list(node_param.get_output_shape(1)) == expected_shape
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_lstm_sequence_operator_bidirectional(dtype):
     batch_size = 1
     input_size = 16
@@ -255,7 +312,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng.lstm_sequence(
+    node = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -275,7 +332,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -321,7 +378,7 @@ def test_lstm_sequence_operator_reverse(dtype):
 
     direction = "REVERSE"
 
-    node_default = ng.lstm_sequence(
+    node_default = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -341,7 +398,7 @@ def test_lstm_sequence_operator_reverse(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -387,7 +444,7 @@ def test_lstm_sequence_operator_forward(dtype):
 
     direction = "forward"
 
-    node_default = ng.lstm_sequence(
+    node_default = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -407,7 +464,7 @@ def test_lstm_sequence_operator_forward(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng.lstm_sequence(
+    node = ng_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -513,19 +570,6 @@ def test_convert_like():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 2, 3, 4]
     assert node.get_output_element_type(0) == Type.i8
-
-
-def test_reverse():
-    parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
-    parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)
-    expected_shape = [3, 10, 100, 200]
-
-    node = ng.reverse(parameter_data, parameter_axis, "index")
-
-    assert node.get_type_name() == "Reverse"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
-    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_bucketize():
@@ -636,9 +680,9 @@ def test_interpolate(dtype):
     image_shape = [1, 3, 1024, 1024]
     output_shape = [64, 64]
     attributes = {
-        "attrs.axes": [2, 3],
-        "attrs.mode": "cubic",
-        "attrs.pads_begin": np.array([2, 2], dtype=dtype),
+        "axes": [2, 3],
+        "mode": "cubic",
+        "pads_begin": np.array([2, 2], dtype=dtype),
     }
 
     image_node = ng.parameter(image_shape, dtype, name="Image")
@@ -669,9 +713,9 @@ def test_interpolate(dtype):
 def test_prior_box(int_dtype, fp_dtype):
     image_shape = np.array([64, 64], dtype=int_dtype)
     attributes = {
-        "attrs.offset": fp_dtype(0),
-        "attrs.min_size": np.array([2, 3], dtype=fp_dtype),
-        "attrs.aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
+        "offset": fp_dtype(0),
+        "min_size": np.array([2, 3], dtype=fp_dtype),
+        "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -701,9 +745,9 @@ def test_prior_box(int_dtype, fp_dtype):
 def test_prior_box_clustered(int_dtype, fp_dtype):
     image_size = np.array([64, 64], dtype=int_dtype)
     attributes = {
-        "attrs.offset": fp_dtype(0.5),
-        "attrs.widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
-        "attrs.heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
+        "offset": fp_dtype(0.5),
+        "widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
+        "heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
     }
 
     output_size = ng.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
@@ -732,9 +776,9 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
 )
 def test_detection_output(int_dtype, fp_dtype):
     attributes = {
-        "attrs.num_classes": int_dtype(85),
-        "attrs.keep_top_k": np.array([64], dtype=int_dtype),
-        "attrs.nms_threshold": fp_dtype(0.645),
+        "num_classes": int_dtype(85),
+        "keep_top_k": np.array([64], dtype=int_dtype),
+        "nms_threshold": fp_dtype(0.645),
     }
 
     box_logits = ng.parameter([4, 1, 5, 5], fp_dtype, "box_logits")
@@ -763,25 +807,25 @@ def test_detection_output(int_dtype, fp_dtype):
 )
 def test_proposal(int_dtype, fp_dtype):
     attributes = {
-        "attrs.base_size": int_dtype(1),
-        "attrs.pre_nms_topn": int_dtype(20),
-        "attrs.post_nms_topn": int_dtype(64),
-        "attrs.nms_thresh": fp_dtype(0.34),
-        "attrs.feat_stride": int_dtype(16),
-        "attrs.min_size": int_dtype(32),
-        "attrs.ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
-        "attrs.scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
+        "base_size": int_dtype(1),
+        "pre_nms_topn": int_dtype(20),
+        "post_nms_topn": int_dtype(64),
+        "nms_thresh": fp_dtype(0.34),
+        "feat_stride": int_dtype(16),
+        "min_size": int_dtype(32),
+        "ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale": np.array([2, 3, 3, 4], dtype=fp_dtype),
     }
     batch_size = 7
 
     class_probs = ng.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
-    class_logits = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "class_logits")
+    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
     image_shape = ng.parameter([3], fp_dtype, "image_shape")
-    node = ng.proposal(class_probs, class_logits, image_shape, attributes)
+    node = ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
     assert node.get_type_name() == "Proposal"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["attrs.post_nms_topn"], 5]
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
 
 
 def test_tensor_iterator():
@@ -813,7 +857,7 @@ def test_tensor_iterator():
     zero = ng.constant(0, dtype=np.int32)
     one = ng.constant(1, dtype=np.int32)
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
-    iter_cnt = ng.ops.range(zero, np.int32(16), np.int32(1))
+    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])

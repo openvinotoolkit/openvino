@@ -29,8 +29,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "ngraph/frontend/onnx_import/default_opset.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -1206,20 +1206,57 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_input_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // mode: nearest
+//
+//     Shape expected_output_shape{1, 1, 4, 6};
+//     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_input<float>({1.0, 1.0, 2.0, 3.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+//                                 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+//     test_case.run();
+// }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_input_nearest.prototxt"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_input_opset1.prototxt"));
 
-    // Input data shape (1, 1, 2, 2)
-    // mode: nearest
-
-    Shape expected_output_shape{1, 1, 4, 6};
     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_input<float>({1.0, 1.0, 2.0, 3.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
-                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+    test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+    test_case.add_expected_output<float>(Shape{1, 4}, {5, 6, 7, 8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_clamp_neg_ends_opset1.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+    test_case.add_expected_output<float>(Shape{1, 3}, {2, 3, 4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_3d_input_21_axes_ends_max_opset1.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    const Shape input_shape{1, 2, 3, 4};
+    std::vector<float> input_values(shape_size(input_shape));
+    std::iota(input_values.begin(), input_values.end(), 0);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {13, 14, 15, 17, 18, 19, 21, 22, 23});
     test_case.run();
 }

@@ -13,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
+import numpy as np
 
-from ngraph.impl import Dimension, PartialShape, Shape
+import ngraph as ng
+from ngraph.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():
@@ -222,3 +224,17 @@ def test_partial_shape_equals():
     shape = Shape([1, 2, 3])
     ps = PartialShape([1, 2, 3])
     assert shape == ps
+
+
+def test_repr_dynamic_shape():
+    shape = PartialShape([-1, 2])
+    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    model = parameter_a + parameter_b
+    function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+
+    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ({?,2})>"
+
+    ops = function.get_ordered_ops()
+    for op in ops:
+        assert "{?,2}" in repr(op)

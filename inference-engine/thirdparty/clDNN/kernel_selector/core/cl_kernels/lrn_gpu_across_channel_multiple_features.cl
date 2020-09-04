@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ KERNEL (lrn_gpu_across_channel_multiple_features)(
 #endif
     )
 {
-#if defined OUTPUT_LAYOUT_BFYX || defined OUTPUT_LAYOUT_B_FS_YX_FSV4 || defined OUTPUT_LAYOUT_B_FS_YX_FSV16
+#if defined OUTPUT_LAYOUT_BFYX || defined OUTPUT_LAYOUT_B_FS_YX_FSV4
 // PERF NOTE: SIMD IS OVER global_id(0) so in SIMD global_id(1) and global_id(2) does not change, so we can use group_id to have SIMD1 instructions
     const uint x            = get_global_id(0);
     const uint y            = get_group_id(1);
@@ -61,13 +61,12 @@ KERNEL (lrn_gpu_across_channel_multiple_features)(
     // prefetch
     for(uint j = 0; j < OFM_PER_SIMD; j++)
     {
+        bool zero = input_offset_f < 0 || input_offset_f >= INPUT0_FEATURE_NUM;
     #if !INPUT0_SIMPLE
         uint input_idx = INPUT0_GET_INDEX(batch_id, feature_id - PADDING + j, y, x);
         input_idx =  MULTIPLY_OFFSET(INPUT0_TYPE, input_idx);
-        bool zero = input_offset_f < 0 || input_offset_f >= INPUT0_FEATURE_NUM;
         vals[j] = zero ? INPUT0_VAL_ZERO : TO_INPUT0_TYPE(ALPHA_VAL_FACTOR_DIV_BY_SIZE) * (*OFFSET_GLOBAL_PTR(INPUT0_TYPE, input, input_idx));
     #else
-        bool zero = input_offset_f < 0 || input_offset_f >= INPUT0_FEATURE_NUM;
         vals[j] = zero ? INPUT0_VAL_ZERO : TO_INPUT0_TYPE(ALPHA_VAL_FACTOR_DIV_BY_SIZE) * (*OFFSET_GLOBAL_PTR(INPUT0_TYPE, input, input_idx));
         input_idx += MULTIPLY_OFFSET(INPUT0_VAL_ZERO, INPUT0_FEATURE_PITCH);
     #endif
@@ -100,10 +99,6 @@ KERNEL (lrn_gpu_across_channel_multiple_features)(
     for(uint j = 0; j < OFM_PER_SIMD; j++)
     {
         results[j] = mad(vals[j], vals[j], results[j]);
-    }
-
-    for(uint j = 0; j < OFM_PER_SIMD; j++)
-    {
         results[j] = mad(results[j], TO_INPUT0_TYPE(ALPHA_DIV_BY_SIZE), TO_INPUT0_TYPE(K));
         results[j] = native_powr(results[j], -TO_INPUT0_TYPE(BETA));
     }
@@ -123,8 +118,7 @@ KERNEL (lrn_gpu_across_channel_multiple_features)(
         lrn_result = results[j] * input[input_id];
         #if HAS_FUSED_OPS
             FUSED_OPS;
-            OUTPUT_TYPE res = FUSED_OPS_RESULT;
-            output[output_idx] = res;
+            output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
         #else
             output[output_idx] = ACTIVATION(lrn_result, ACTIVATION_PARAMS);
         #endif

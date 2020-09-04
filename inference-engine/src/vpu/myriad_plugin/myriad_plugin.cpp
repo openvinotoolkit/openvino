@@ -9,16 +9,20 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
+
 #include "generic_ie.hpp"
 
 #include "myriad_plugin.h"
@@ -39,11 +43,21 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto clonedNetwork = cloneNetwork(network);
     if (auto function = clonedNetwork->getFunction()) {
         ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::CommonOptimizations().run_on_function(function);
-        vpu::DynamicToStaticShape().transform(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<vpu::DynamicToStaticShape>();
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
+
+        ngraph::pass::Manager ti_manager;
+        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        ti_manager.run_passes(function);
     }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
+        _mvnc, _devicePool,
+        parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -84,6 +98,10 @@ void Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+    }
+
     const auto log = std::make_shared<Logger>(
         "GraphCompiler",
         parsedConfigCopy.logLevel(),
@@ -93,7 +111,8 @@ void Engine::QueryNetwork(
         network,
         static_cast<Platform>(parsedConfigCopy.platform()),
         parsedConfigCopy.compileConfig(),
-        log);
+        log,
+        GetCore());
 
     for (const auto& layerName : layerNames) {
         res.supportedLayersMap.insert({ layerName, GetName() });
@@ -107,18 +126,27 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
-        { KEY_LOG_LEVEL, "LOG_NONE" },
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
+        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
+        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
+        { MYRIAD_CUSTOM_LAYERS, "" },
+        { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
+
+        // Deprecated
+        { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
+        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
+        { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
-        { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
-        { KEY_PERF_COUNT, "OFF" },
+
+        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
+        { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
+        { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
+IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
@@ -131,11 +159,9 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
 
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy);
+                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 
-    return InferenceEngine::ExecutableNetwork{IExecutableNetwork::Ptr(
-        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
-        [](ie::details::IRelease *p) {p->Release();})};
+    return make_executable_network(executableNetwork);
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(

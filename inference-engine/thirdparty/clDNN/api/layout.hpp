@@ -344,14 +344,6 @@ struct layout {
     tensor get_pitches() const {
         auto sizes = get_buffer_size().sizes(format);
 
-        if (format == format::byxf_af32) {
-            sizes[3] = align_to(sizes[3], 32);
-        }
-
-        if (format == format::byx8_f4) {
-            sizes[3] = align_to(sizes[3], 4);
-            sizes[2] = align_to(sizes[2], 8);
-        }
         std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
         std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
         return {format, pitches};
@@ -394,15 +386,7 @@ struct layout {
             sizes[block_axis] = align_to(sizes[block_axis], block_size);
         }
 
-        if (this->format == cldnn::format::bf8_xy16 && !(is_aligned_to(sizes[1], 8) && is_aligned_to(sizes[2] * sizes[3], 16))) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 16);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::byxf_af32 && !(is_aligned_to(sizes[1], 32))) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::byx8_f4 && (!is_aligned_to(sizes[1], 4) || !is_aligned_to(sizes[2], 8))) {
-            sizes[1] = align_to(sizes[1], 4);
-            sizes[2] = align_to(sizes[2], 8);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
+        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 8);
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32))) {
