@@ -21,7 +21,7 @@ from ngraph.impl import Function
 
 
 def test_ie_core_class():
-    input_shape = [1, 3, 22, 22]
+    input_shape = [1, 3, 4, 4]
     param = ng.parameter(input_shape, np.float32, name="parameter")
     relu = ng.relu(param, name="relu")
     func = Function([relu], [param], 'test')
@@ -39,7 +39,18 @@ def test_ie_core_class():
     # from IPython import embed; embed()
 
     request = executable_network.create_infer_request()
-    input_shape = np.random.rand(*input_shape)
-    request.infer({'parameter': input_shape})
+    input_data = np.random.rand(*input_shape) - 0.5
 
-    result = request.output_blobs['relu'].buffer
+    expected_output = np.maximum(0.0, input_data)
+
+    input_blob = ie_api.Blob(td, input_data) # , 0)
+
+    request.set_input({'parameter': input_blob})
+    request.infer()
+
+    result = request.get_blob('relu').buffer()
+
+    print(input_blob.buffer())
+    print(result)
+
+    assert np.allclose(result, expected_output)

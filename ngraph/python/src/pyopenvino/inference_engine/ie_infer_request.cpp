@@ -13,20 +13,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+
+#include <boost/type_index.hpp>
+
+#include <string>
+#include <vector>
 
 #include <cpp/ie_infer_request.hpp>
 
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
 #include "../../../pybind11/include/pybind11/pybind11.h"
-
+#include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
 namespace py = pybind11;
 
 void regclass_InferRequest(py::module m)
 {
-    py::class_<InferenceEngine::InferRequest, std::shared_ptr<InferenceEngine::InferRequest>> cls(m, "InferRequest");
-
+    py::class_<InferenceEngine::InferRequest, std::shared_ptr<InferenceEngine::InferRequest>> cls(
+        m, "InferRequest");
 
     cls.def("infer", &InferenceEngine::InferRequest::Infer);
+    cls.def("get_blob", &InferenceEngine::InferRequest::GetBlob);
+    cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
+        for (auto&& input : inputs)
+        {
+            auto name = input.first.cast<std::string>().c_str();
+            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            self.SetBlob(name, blob);
+        }
+    });
+    cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
+        for (auto&& result : results)
+        {
+            auto name = result.first.cast<std::string>().c_str();
+            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = result.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            self.SetBlob(name, blob);
+        }
+    });
 
+    //&InferenceEngine::InferRequest::SetOutput);
 }
