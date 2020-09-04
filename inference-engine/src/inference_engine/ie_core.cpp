@@ -55,34 +55,6 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     return {deviceName_, config_};
 }
 
-Parameter copyParameterValue(const Parameter & value) {
-    if (value.is<bool>()) {
-        return { value.as<bool>() };
-    } else if (value.is<int>()) {
-        return { value.as<int>() };
-    } else if (value.is<unsigned int>()) {
-        return { value.as<unsigned int>() };
-    } else if (value.is<float>()) {
-        return { value.as<float>() };
-    } else if (value.is<std::string>()) {
-        return { value.as<std::string>() };
-    } else if (value.is<std::vector<std::string> >()) {
-        return { value.as<std::vector<std::string> >() };
-    } else if (value.is<std::vector<int> >()) {
-        return { value.as<std::vector<int> >() };
-    } else if (value.is<std::vector<float> >()) {
-        return { value.as<std::vector<float> >() };
-    } else if (value.is<std::vector<unsigned int> >()) {
-        return { value.as<std::vector<unsigned int> >() };
-    } else if (value.is<std::tuple<unsigned int, unsigned int, unsigned int> >()) {
-        return { value.as<std::tuple<unsigned int, unsigned int, unsigned int> >() };
-    } else if (value.is<std::tuple<unsigned int, unsigned int> >()) {
-        return { value.as<std::tuple<unsigned int, unsigned int> >() };
-    }
-
-    return std::move(value);
-}
-
 template <typename F>
 void allowNotImplemented(F && f) {
     try {
@@ -321,7 +293,7 @@ public:
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
         // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).GetMetric(name, parsed._config));
+        return GetCPPPluginByName(parsed._deviceName).GetMetric(name, parsed._config);
     }
 
     /**
@@ -737,7 +709,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // we need to return a copy of Parameter object which is created on Core side,
     // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
     // TODO: remove this WA after *-31417 is resolved
-    return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).GetConfig(name, parsed._config));
+    return _impl->GetCPPPluginByName(parsed._deviceName).GetConfig(name, parsed._config);
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name) const {
