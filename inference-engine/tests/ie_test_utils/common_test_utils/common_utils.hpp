@@ -82,4 +82,39 @@ std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>>
     return resVec;
 }
 
+inline bool endsWith(const std::string& source, const std::string& expectedSuffix) {
+    return expectedSuffix.size() <= source.size() && source.compare(source.size() - expectedSuffix.size(), expectedSuffix.size(), expectedSuffix) == 0;
+}
+
+template<std::size_t... I>
+struct Indices {
+    using next = Indices<I..., sizeof...(I)>;
+};
+
+template<std::size_t Size>
+struct MakeIndices {
+    using value = typename MakeIndices<Size - 1>::value::next;
+};
+
+template<>
+struct MakeIndices<0> {
+    using value = Indices<>;
+};
+
+template<class Tuple>
+constexpr typename MakeIndices<std::tuple_size<typename std::decay<Tuple>::type>::value>::value makeIndices() {
+    return {};
+}
+
+template<class Tuple, std::size_t... I>
+std::vector<typename std::tuple_element<0, typename std::decay<Tuple>::type>::type> tuple2Vector(Tuple&& tuple, Indices<I...>) {
+    using std::get;
+    return {{ get<I>(std::forward<Tuple>(tuple))... }};
+}
+
+template<class Tuple>
+inline auto tuple2Vector(Tuple&& tuple) -> decltype(tuple2Vector(std::declval<Tuple>(), makeIndices<Tuple>())) {
+    return tuple2Vector(std::forward<Tuple>(tuple), makeIndices<Tuple>());
+}
+
 }  // namespace CommonTestUtils
