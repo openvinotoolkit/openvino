@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
-        { "convolution", "fullyconnected", "innerproduct" };
+        { "convolution", "fullyconnected", "innerproduct", "gemm" };
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
         { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
           "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory" };
