@@ -110,7 +110,8 @@ enum ActivationTypes {
     PReLu,
     Mish,
     HSwish,
-    SoftPlus
+    SoftPlus,
+    Swish
 };
 
 enum EltwiseTypes {
