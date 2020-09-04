@@ -227,6 +227,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_printReceiveTensorTime,                       switches, config, ie::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
     setOption(_perfCount,                                    switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_perfReport,                                perfReports, config, ie::MYRIAD_PERF_REPORT_MODE);
+    setOption(_compileConfig.enableMemoryTypesAnnotation,    switches, config, ie::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));

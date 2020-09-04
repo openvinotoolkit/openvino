@@ -109,6 +109,7 @@ struct CompilationConfig final {
     bool enableReplaceWithReduceMean = true;
     bool enableTensorIteratorUnrolling = false;
     bool forcePureTensorIterator = false;
+    bool enableMemoryTypesAnnotation = false;
 
     //
     // Deprecated options

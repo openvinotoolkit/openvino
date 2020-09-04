@@ -14,11 +14,7 @@ class VPU_SplitLargeKernelConvTest : public GraphTransformerTest {
     Model model;
 
  public:
-    void InitConvStage(
-        int inputX = 8960,
-        int inputY = 1,
-        bool isOutput4D = true) {
-
+    void InitConvStage(int inputX = 8960, int inputY = 1, bool isOutput4D = true) {
         int kernelx = 16;
         int kernely = 1;
         int kernelStrideX = 1;
@@ -97,7 +93,9 @@ class VPU_SplitLargeKernelConvTest : public GraphTransformerTest {
     }
 };
 
-TEST_F(VPU_SplitLargeKernelConvTest, splitLargeKernelConvIfKernelSizeIs1x16) {
+// Test is going to fail if target convolution is not converted to HW stage
+// Conversion to HW stage fails due to #-33366
+TEST_F(VPU_SplitLargeKernelConvTest, DISABLED_splitLargeKernelConvIfKernelSizeIs1x16) {
     InitCompileEnv();
     InitConvStage();
 
