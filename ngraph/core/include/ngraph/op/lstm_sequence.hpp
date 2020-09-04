@@ -27,8 +27,7 @@
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "ngraph/op/util/rnn_cell_base.hpp"
 
 namespace ngraph
 {
@@ -186,9 +185,66 @@ namespace ngraph
                 LSTMWeightsFormat m_weights_format;
             };
         }
-        using v0::LSTMSequence;
+
+        namespace v1
+        {
+            ///
+            /// \brief      Class for lstm sequence node.
+            ///
+            /// \note       It follows notation and equations defined as in ONNX standard:
+            ///             https://github.com/onnx/onnx/blob/master/docs/Operators.md#LSTM
+            ///
+            /// \sa         LSTMCell, RNNCell, GRUCell
+            ///
+            ///
+            class NGRAPH_API LSTMSequence : public util::RNNCellBase
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"LSTMSequence", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                LSTMSequence() = default;
+
+                using direction = RecurrentSequenceDirection;
+
+                size_t get_default_output_index() const override { return no_default_index(); }
+                explicit LSTMSequence(const Output<Node>& X,
+                                      const Output<Node>& initial_hidden_state,
+                                      const Output<Node>& initial_cell_state,
+                                      const Output<Node>& sequence_lengths,
+                                      const Output<Node>& W,
+                                      const Output<Node>& R,
+                                      const Output<Node>& B,
+                                      const std::int64_t hidden_size,
+                                      const direction lstm_direction,
+                                      const std::vector<float> activations_alpha = {},
+                                      const std::vector<float> activations_beta = {},
+                                      const std::vector<std::string> activations = {"sigmoid",
+                                                                                    "tanh",
+                                                                                    "tanh"},
+                                      const float clip = 0.f)
+                    : RNNCellBase(
+                          {X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B},
+                          hidden_size,
+                          clip,
+                          activations,
+                          activations_alpha,
+                          activations_beta)
+                    , m_direction(lstm_direction)
+                {
+                    constructor_validate_and_infer_types();
+                }
+
+                void validate_and_infer_types() override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
+
+                virtual std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                direction get_direction() const { return m_direction; }
+            private:
+                direction m_direction;
+            };
+        }
     } // namespace op
 
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END

@@ -42,7 +42,7 @@ class LSTMCell(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
-            'version': 'opset1',
+            'version': 'opset4',
             'infer': __class__.infer,
             'in_ports_count': 5,
             'out_ports_count': 2,

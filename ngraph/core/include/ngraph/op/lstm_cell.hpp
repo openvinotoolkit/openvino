@@ -69,7 +69,7 @@ namespace ngraph
             ///
             /// \sa         LSTMSequence, RNNCell, GRUCell
             ///
-            class NGRAPH_API LSTMCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API LSTMCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"LSTMCell", 0};
@@ -216,24 +216,11 @@ namespace ngraph
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_input_forget() const { return m_input_forget; }
                 LSTMWeightsFormat get_weights_format() const { return m_weights_format; }
-                ///
-                /// \brief      Change data format of provided node into IFCO.
-                ///
-                /// \node       The IFCO format was chosen because it's default DNNL format.
-                ///
-                /// \param[in]  node  The input node to be permuted.
-                ///
-                /// \return     Node representing reshaped tensor according to IFCO weights format.
-                ///
-                std::shared_ptr<Node> convert_node_format(const Output<Node>& node) const;
-
             private:
                 ///
                 /// \brief      Creates the default bias input initialized with zeros.
@@ -273,9 +260,149 @@ namespace ngraph
                 static constexpr std::size_t s_gates_count{4};
                 static constexpr std::size_t s_peepholes_count{3};
             };
-        }
-        using v0::LSTMCell;
-    } // namespace op
+        } // v0
+
+        namespace v4
+        {
+            ///
+            /// \brief      Class for single lstm cell node.
+            ///
+            /// \note       Following implementation supports:
+            ///             \li \c peepholes Gers & Schmidhuber (2000)
+            ///             https://ieeexplore.ieee.org/document/861302
+            ///             \li Coupling input and forget gates.
+            ///
+            /// \note       It calculates following equations:
+            ///
+            ///             it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
+            ///             ft = f(Xt*(Wf^T) + Ht-1*(Rf^T)  + Wbf + Rbf)
+            ///             ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
+            ///             Ct = ft (.) Ct-1 + it (.) ct
+            ///             ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
+            ///             Ht = ot (.) h(Ct)
+            ///
+            ///             *       - Is a dot product,
+            ///             (.)     - is a Hadamard product (element-wise),
+            ///             f, g, h - are activation functions.
+            ///
+            /// \note       This class represents only single *cell* (for current time step) and not
+            ///             the whole LSTM Sequence layer
+            ///
+            /// \sa         LSTMSequence, RNNCell, GRUCell
+            ///
+            class NGRAPH_API LSTMCell : public util::RNNCellBase
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"LSTMCell", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                LSTMCell();
+                ///
+                /// \brief      Constructs LSTMCell node.
+                ///
+                /// \param[in]  X                     The input tensor with shape: [batch_size,
+                ///                                   input_size].
+                /// \param[in]  initial_hidden_state  The hidden state tensor at current time step
+                ///                                   with shape: [batch_size, hidden_size].
+                /// \param[in]  initial_cell_state    The cell state tensor at current time step
+                ///                                   with shape: [batch_size, hidden_size].
+                /// \param[in]  W                     The gate weights tensor with shape:
+                ///                                   [4*hidden_size, input_size].
+                /// \param[in]  R                     The recurrence weights tensor with shape:
+                ///                                   [4*hidden_size, hidden_size].
+                /// \param[in]  hidden_size           The number of hidden units for recurrent cell.
+                /// \param[in]  activations           The vector of activation functions used inside
+                ///                                   recurrent cell.
+                /// \param[in]  activations_alpha     The vector of alpha parameters for activation
+                ///                                   functions in order respective to activation
+                ///                                   list.
+                /// \param[in]  activations_beta      The vector of beta parameters for activation
+                ///                                   functions in order respective to activation
+                ///                                   list.
+                /// \param[in]  clip                  The value defining clipping range [-clip,
+                ///                                   clip] on input of activation functions.
+                LSTMCell(const Output<Node>& X,
+                         const Output<Node>& initial_hidden_state,
+                         const Output<Node>& initial_cell_state,
+                         const Output<Node>& W,
+                         const Output<Node>& R,
+                         std::size_t hidden_size,
+                         const std::vector<std::string>& activations =
+                             std::vector<std::string>{"sigmoid", "tanh", "tanh"},
+                         const std::vector<float>& activations_alpha = {},
+                         const std::vector<float>& activations_beta = {},
+                         float clip = 0.f);
+
+                ///
+                /// \brief      Constructs LSTMCell node.
+                ///
+                /// \param[in]  X                     The input tensor with shape: [batch_size,
+                ///                                   input_size].
+                /// \param[in]  initial_hidden_state  The hidden state tensor at current time step
+                ///                                   with shape: [batch_size, hidden_size].
+                /// \param[in]  initial_cell_state    The cell state tensor at current time step
+                ///                                   with shape: [batch_size, hidden_size].
+                /// \param[in]  W                     The weight tensor with shape: [4*hidden_size,
+                ///                                   input_size].
+                /// \param[in]  R                     The recurrence weight tensor with shape:
+                ///                                   [4*hidden_size, hidden_size].
+                /// \param[in]  B                     The bias tensor for gates with shape:
+                ///                                   [4*hidden_size].
+                /// \param[in]  hidden_size           The number of hidden units for recurrent cell.
+                /// \param[in]  activations           The vector of activation functions used inside
+                ///                                   recurrent cell.
+                /// \param[in]  activations_alpha     The vector of alpha parameters for activation
+                ///                                   functions in order respective to activation
+                ///                                   list.
+                /// \param[in]  activations_beta      The vector of beta parameters for activation
+                ///                                   functions in order respective to activation
+                ///                                   list.
+                /// \param[in]  clip                  The value defining clipping range [-clip,
+                ///                                   clip] on input of activation functions.
+                ///
+                LSTMCell(const Output<Node>& X,
+                         const Output<Node>& initial_hidden_state,
+                         const Output<Node>& initial_cell_state,
+                         const Output<Node>& W,
+                         const Output<Node>& R,
+                         const Output<Node>& B,
+                         std::size_t hidden_size,
+                         const std::vector<std::string>& activations =
+                             std::vector<std::string>{"sigmoid", "tanh", "tanh"},
+                         const std::vector<float>& activations_alpha = {},
+                         const std::vector<float>& activations_beta = {},
+                         float clip = 0.f);
+
+                void validate_and_infer_types() override;
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+            private:
+                ///
+                /// \brief      Creates the default bias input initialized with zeros.
+                ///
+                /// \return     The object of Output class.
+                ///
+                Output<Node> get_default_bias_input() const;
+
+                ///
+                /// \brief The Activation function f.
+                ///
+                util::ActivationFunction m_activation_f;
+                ///
+                /// \brief The Activation function g.
+                ///
+                util::ActivationFunction m_activation_g;
+                ///
+                /// \brief The Activation function h.
+                ///
+                util::ActivationFunction m_activation_h;
+
+                static constexpr std::size_t s_gates_count{4};
+            };
+        } // v1
+    }     // namespace op
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type);
@@ -294,5 +421,3 @@ namespace ngraph
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END

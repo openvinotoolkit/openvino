@@ -14,14 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/builder/autobroadcast.hpp"
+#include "builder/autobroadcast.hpp"
 
 #include <memory>
 #include <numeric>
 #include <sstream>
 
+#include "builder/reshape.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
