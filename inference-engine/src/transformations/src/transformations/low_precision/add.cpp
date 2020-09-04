@@ -20,6 +20,40 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+std::shared_ptr<opset1::Subtract> replaceToSubtract(std::shared_ptr<opset1::Add>& add) {
+    // TODO: separate this part to standalone transformation: AddToSubtractTransformation
+    // motivation:
+    //    - single responsibility
+    //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
+    const int constBranchIndex = is_type<opset1::Constant>(add->get_input_node_ptr(0)) ?
+        0 :
+        (is_type<opset1::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
+    if (constBranchIndex == -1) {
+        return nullptr;
+    }
+    const size_t dataBranchIndex = constBranchIndex == 0 ? 1ul : 0;
+
+    const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
+    if (is_type<opset1::Convolution>(parent) ||
+        is_type<opset1::GroupConvolution>(parent) ||
+        (is_type<opset1::MatMul>(parent) &&
+        (is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
+        return nullptr;
+    }
+
+    auto constant = fold<opset1::Negative>(add->get_input_node_shared_ptr(constBranchIndex));
+    auto constOutput = constant->output(0);
+
+    const auto subtract = std::make_shared<opset1::Subtract>(
+        add->get_input_node_shared_ptr(dataBranchIndex),
+        constOutput,
+        add->get_autob());
+    NetworkHelper::copyInfo(add, subtract);
+
+    replace_node(add, subtract);
+    return subtract;
+}
+
 void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addSingleNodePattern<opset1::Add>(pass, context);
 }
@@ -39,14 +73,23 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         // swap constant multiply and add and possibly fuse to subtract
         const auto multiplyBranch = getMultiplyConstBranch(add);
 
-        if (multiplyBranch.first == -1)
-            return false;
+        if (multiplyBranch.first == -1) {
+            auto subtract = replaceToSubtract(add);
+            if (subtract == nullptr) {
+                return false;
+            }
+            updateOutput(context, subtract, add);
+            return true;
+        }
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
 
         if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAdd = as_type_ptr<opset1::Add>(newMultiply->get_input_node_shared_ptr(0));
-
+            auto subtract = replaceToSubtract(as_type_ptr<opset1::Add>(newAdd));
+            if (subtract != nullptr) {
+                newAdd = subtract;
+            }
 
             if (is_type<opset1::Subtract>(newAdd->get_input_node_shared_ptr(0))) {
                 if (is_type<opset1::Constant>(newAdd->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {

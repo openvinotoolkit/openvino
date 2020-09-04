@@ -473,16 +473,21 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         }
 
         convert2 = std::make_shared<DequantizationConvert>(convert, fq->get_output_element_type(0));
+        convert2->set_friendly_name(convert->get_friendly_name() + "_Convert");
     }
 
     // TODO: why type relaxed?
     const std::shared_ptr<ngraph::Node> sub = shift == nullptr ?
         nullptr :
         std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(convert2 == nullptr ? newFQ : convert2, shift);
+    if (sub != nullptr) {
+        sub->set_friendly_name(newFQ->get_friendly_name() + "_Subtract");
+    }
 
     const std::shared_ptr<ngraph::opset1::Multiply> dequantize = std::make_shared<DequantizationMultiply>(
         sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
         scale);
+    dequantize->set_friendly_name(newFQ->get_friendly_name() + "_Multiply");
 
     replace_node(fq, dequantize);
 

@@ -146,8 +146,7 @@ bool MultiplyToGroupConvolutionTransformation::isQuantized(std::shared_ptr<Node>
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
-    if (!is_type<opset1::Constant>(parent0) ||
-        !is_type<opset1::Constant>(parent1)) {
+    if (!is_type<opset1::Constant>(parent0) && !is_type<opset1::Constant>(parent1)) {
         return false;
     }
 
