@@ -52,12 +52,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         // Add two constants using opset3::Add constant folding and create new Add operation
         auto new_add = std::make_shared<opset3::Add>(new_mul, eltwise_fold<opset3::Multiply>(add_const, mul_const));
 
-#ifdef LPT_SUPPORT
-        copy_runtime_info(add,  new_add);
-        copy_runtime_info(mul, new_mul);
-#else
         copy_runtime_info({ add, mul }, { new_mul, new_add });
-#endif
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
         return true;

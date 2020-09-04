@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include "transformations_visibility.hpp"
+#include "transformations/rt_info/dequantization_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -49,7 +50,7 @@ namespace low_precision {
 namespace {
 void initRuntimeInfo(ngraph::Node& operation) {
     auto& rtInfo = operation.get_rt_info();
-    rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<std::string>>("");
+    rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
 }
 
 // #include <ngraph/rt_info.hpp>
