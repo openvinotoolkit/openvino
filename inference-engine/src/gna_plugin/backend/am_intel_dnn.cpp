@@ -430,9 +430,8 @@ void GNAPluginNS::backend::AMIntelDNN::Propagate() {
                 break;
             case kDnnCopyOp:ApplyCopy(comp);
                 break;
-            default:fprintf(stderr, "Bad operation in Propagate!\n");
-                throw -1;
-                break;
+            default:
+                THROW_GNA_EXCEPTION << "Bad operation in Propagate : " << comp->operation;
         }
         //  PrintOutputs(i); fflush(stdout);
     }
