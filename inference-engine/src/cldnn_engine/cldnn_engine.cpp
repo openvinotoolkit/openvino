@@ -88,20 +88,27 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             }
 
             // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
+            // Reshape->Pooling->Reshape scenario is also more optimal in case when batch > 1 and network precission is FP16
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
             }
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMax>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
             }
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceSum>(node)) {
                 auto reduction_axes = redOp->get_reduction_axes().to_vector();
                 bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
-                return !reduce_along_f;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
             }
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
