@@ -24,6 +24,7 @@ NGRAPH_OP(MVN, ngraph::op::v0)
 NGRAPH_OP(LRN, ngraph::op::v0)
 NGRAPH_OP(DetectionOutput, op::v0)
 NGRAPH_OP(BatchNormInference, op::v0)
+NGRAPH_OP(ReverseSequence, op::v0)
 
 NGRAPH_OP(Convolution, ngraph::op::v1)
 NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)

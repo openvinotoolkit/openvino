@@ -26,7 +26,6 @@
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/select.hpp>
-
 #include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "reference/gelu.hpp"
@@ -35,6 +34,8 @@
 #include "reference/selu.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
+#include "ngraph/runtime/reference/batch_norm.hpp"
+#include "ngraph/runtime/reference/reverse_sequence.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -451,6 +452,18 @@ namespace {
                                                  input[4]->get_data_ptr<T>(),
                                                  outputs[0]->get_data_ptr<T>(),
                                                  op->get_input_shape(2));
+        return true;
+    }
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::ReverseSequence> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::reverse_sequence(input[0]->get_data_ptr<T>(),
+                                             outputs[0]->get_data_ptr<T>(),
+                                             input[0]->get_shape(),
+                                             op->get_batch_axis(),
+                                             op->get_sequence_axis(),
+                                             input[1]->get_data_ptr<element::Type_t::i32>());
         return true;
     }
 
