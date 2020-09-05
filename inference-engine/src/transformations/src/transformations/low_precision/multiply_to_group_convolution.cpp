@@ -84,12 +84,14 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         pads,
         pads,
         dilations);
+    convolution->set_friendly_name(multiply->get_friendly_name() + "/GroupConvolution");
 
     std::shared_ptr<Node> lastNode = convolution;
     if (dequantization.subtract != nullptr) {
         lastNode = std::make_shared<opset1::Add>(
             convolution,
             fold<opset1::Negative>(fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), element::f32)));
+        lastNode->set_friendly_name(dequantization.subtract->get_friendly_name());
     }
 
     if (updatePrecisions) {

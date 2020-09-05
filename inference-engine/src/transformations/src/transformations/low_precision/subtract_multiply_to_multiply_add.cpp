@@ -130,6 +130,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         if (dequantization.subtract != nullptr) {
             auto lastNewPtr = lastNew.get_node_shared_ptr();
             NetworkHelper::copyInfo(dequantization.subtract, lastNewPtr);
+        } else {
+            lastNew.get_node_shared_ptr()->set_friendly_name(dequantization.multiply->get_friendly_name() + "/Add");
         }
 
         lastNewPrecision = precisionAfterDequantization;

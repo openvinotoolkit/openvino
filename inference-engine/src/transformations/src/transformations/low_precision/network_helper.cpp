@@ -165,10 +165,10 @@ void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
 std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
     // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
-    auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
+    const auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
 
-    auto multiplyParent1 = multiply->get_input_node_shared_ptr(0);
-    auto multiplyParent2 = multiply->get_input_node_shared_ptr(1);
+    const auto multiplyParent1 = multiply->get_input_node_shared_ptr(0);
+    const auto multiplyParent2 = multiply->get_input_node_shared_ptr(1);
 
     auto multiplyInput = as_type_ptr<opset1::Multiply>(multiplyParent1);
     auto multiplyConst = as_type_ptr<opset1::Constant>(multiplyParent2);
@@ -183,10 +183,10 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     if (multiplyConst == nullptr)
         return addAfterMultiply;
 
-    auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
-    auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
-    auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
-    auto bDivA = fold<opset1::Divide>(b, a);
+    const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    const auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
+    const auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
+    const auto bDivA = fold<opset1::Divide>(b, a);
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
 
@@ -197,13 +197,29 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
         ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+    copyInfo(addAfterMultiply, newAdd);
+
     NetworkHelper::setOutDataPrecision(newAdd, addAfterMultiply->get_output_element_type(0));
 
     auto newMultiply = std::make_shared<DequantizationMultiply>(newAdd, a);
-    replace_node(addAfterMultiply, newMultiply);
+    copyInfo(multiply, newMultiply);
 
-    copyInfo(addAfterMultiply, newAdd);
+    replace_node(addAfterMultiply, newMultiply);
     return newMultiply;
+}
+
+void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
+    // TODO: merge_runtime_info with correctly defined DEQUANTIZATION
+    const auto& sourceAttributes = source->get_rt_info();
+    auto& targetAttrubutes = target->get_rt_info();
+    for (auto attribute : sourceAttributes) {
+        targetAttrubutes[attribute.first] = attribute.second;
+    }
+
+    const std::string friendlyName = source->get_friendly_name();
+    if (!friendlyName.empty()) {
+        target->set_friendly_name(friendlyName);
+    }
 }
 
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
@@ -473,7 +489,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         }
 
         convert2 = std::make_shared<DequantizationConvert>(convert, fq->get_output_element_type(0));
-        convert2->set_friendly_name(convert->get_friendly_name() + "_Convert");
+        convert2->set_friendly_name(convert->get_friendly_name() + "/DequantizationConvert");
     }
 
     // TODO: why type relaxed?
@@ -481,13 +497,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         nullptr :
         std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(convert2 == nullptr ? newFQ : convert2, shift);
     if (sub != nullptr) {
-        sub->set_friendly_name(newFQ->get_friendly_name() + "_Subtract");
+        sub->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationSubtract");
     }
 
     const std::shared_ptr<ngraph::opset1::Multiply> dequantize = std::make_shared<DequantizationMultiply>(
         sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
         scale);
-    dequantize->set_friendly_name(newFQ->get_friendly_name() + "_Multiply");
+    dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
 
     replace_node(fq, dequantize);
 

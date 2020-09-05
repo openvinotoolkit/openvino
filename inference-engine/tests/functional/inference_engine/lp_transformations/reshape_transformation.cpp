@@ -197,6 +197,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         }
     },
     // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization
+    // TODO: story 38439
     {
         ngraph::Shape({ 1, 16, 384, 384 }),
         { 6144, -1 },
@@ -207,9 +208,9 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
+            {{ngraph::element::f32}, {}, {0.1f}},
+            ngraph::element::f32,
+            {}
         }
     },
     // U8: no subtract 2D -> 4D: channels are affected: per channel quantization
@@ -293,6 +294,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         }
     },
     // U8: no subtract 2D -> 4D: channels are not affected: per tensor quantization
+    // TODO: story 38439
     {
         ngraph::Shape({ 1, 3, 1, 1 }),
         { 0, -1 },
@@ -303,9 +305,9 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
             {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3}}},
+            ngraph::element::f32,
+            {{}, {}, {}}
         }
     },
     // U8: no subtract 2D -> 4D: channels are not affected: per channel quantization: case #1: dequantization operation constant needs broadcast
