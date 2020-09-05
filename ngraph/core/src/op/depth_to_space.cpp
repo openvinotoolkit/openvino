@@ -204,10 +204,6 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
         dispersed_shape.push_back(data_shape.at(spatial_dim_index + i));
     }
     vector<size_t> axes_order{0};
-    std::vector<size_t> plain_axes_order(data_shape.size());
-    std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
-    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
-    std::vector<char> transposed_data(shape_size(data_shape) * elem_size);
     switch (m_mode) {
         // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2,
         // ..., DK])
@@ -216,42 +212,13 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
         // ..., DK * block_size])
         case DepthToSpaceMode::DEPTH_FIRST: {
             dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
-            runtime::opt_kernel::reshape(data->get_data_ptr<char>(),
-                                         dispersed_data.data(),
-                                         data_shape,
-                                         plain_axes_order,
-                                         dispersed_shape,
-                                         elem_size);
-
             axes_order.push_back(1);
             for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
                 axes_order.push_back(spatial_dims + i);
                 axes_order.push_back(i);
             }
-            Shape post_transpose_shape(axes_order.size());
-            for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx) {
-                post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
-            }
-            runtime::opt_kernel::reshape(dispersed_data.data(),
-                                         transposed_data.data(),
-                                         dispersed_shape,
-                                         axes_order,
-                                         post_transpose_shape,
-                                         elem_size);
-            Shape squeezed_shape{n_dim, c_flat};
-            for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
-                squeezed_shape.push_back(data_shape.at(i) * bs);
-            }
-            for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1; ++i) {
-                plain_axes_order.push_back(plain_axes_order[i] + 1);
-            }
-            runtime::opt_kernel::reshape(transposed_data.data(),
-                                         out->get_data_ptr<char>(),
-                                         post_transpose_shape,
-                                         plain_axes_order,
-                                         squeezed_shape,
-                                         elem_size);
-            return true;
+
+            break;
         }
             // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2,
             // ..., DK])
@@ -261,44 +228,51 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
         case DepthToSpaceMode::BLOCKS_FIRST:
         default: {
             dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
-            runtime::opt_kernel::reshape(data->get_data_ptr<char>(),
-                                         dispersed_data.data(),
-                                         data_shape,
-                                         plain_axes_order,
-                                         dispersed_shape,
-                                         elem_size);
-
             axes_order.push_back(spatial_dims + 1);
             for (int i = 2; i < data_shape.size(); ++i) {
                 axes_order.push_back(spatial_dims + i);
                 axes_order.push_back(i - 1);
             }
-            Shape post_transpose_shape(axes_order.size());
-            for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx) {
-                post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
-            }
-            runtime::opt_kernel::reshape(dispersed_data.data(),
-                                         transposed_data.data(),
-                                         dispersed_shape,
-                                         axes_order,
-                                         post_transpose_shape,
-                                         elem_size);
-            Shape squeezed_shape{n_dim, c_flat};
-            for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
-                squeezed_shape.push_back(data_shape.at(i) * bs);
-            }
-            for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1; ++i) {
-                plain_axes_order.push_back(plain_axes_order[i] + 1);
-            }
-            runtime::opt_kernel::reshape(transposed_data.data(),
-                                         out->get_data_ptr<char>(),
-                                         post_transpose_shape,
-                                         plain_axes_order,
-                                         squeezed_shape,
-                                         elem_size);
-            return true;
+            break;
         }
     }
+    std::vector<size_t> plain_axes_order(data_shape.size());
+    std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
+    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
+    std::vector<char> transposed_data(shape_size(data_shape) * elem_size);
+
+    runtime::opt_kernel::reshape(data->get_data_ptr<char>(),
+                                 dispersed_data.data(),
+                                 data_shape,
+                                 plain_axes_order,
+                                 dispersed_shape,
+                                 elem_size);
+
+    Shape post_transpose_shape(axes_order.size());
+    for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx) {
+        post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
+    }
+    runtime::opt_kernel::reshape(dispersed_data.data(),
+                                 transposed_data.data(),
+                                 dispersed_shape,
+                                 axes_order,
+                                 post_transpose_shape,
+                                 elem_size);
+
+    Shape squeezed_shape{n_dim, c_flat};
+    for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
+        squeezed_shape.push_back(data_shape.at(i) * bs);
+    }
+    for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1; ++i) {
+        plain_axes_order.push_back(plain_axes_order[i] + 1);
+    }
+    runtime::opt_kernel::reshape(transposed_data.data(),
+                                 out->get_data_ptr<char>(),
+                                 post_transpose_shape,
+                                 plain_axes_order,
+                                 squeezed_shape,
+                                 elem_size);
+    return true;
 }
 namespace ngraph
 {
