@@ -20,11 +20,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-std::shared_ptr<opset1::Subtract> replaceToSubtract(std::shared_ptr<opset1::Add>& add) {
+std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
     // TODO: separate this part to standalone transformation: AddToSubtractTransformation
     // motivation:
     //    - single responsibility
     //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
+    const auto add = as_type_ptr<opset1::Add>(op);
     if (add == nullptr) {
         return nullptr;
     }
@@ -59,7 +60,8 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(std::shared_ptr<opset1::Add>
     return subtract;
 }
 
-std::shared_ptr<opset1::Subtract> fuseWithSubtract(std::shared_ptr<opset1::Add>& add) {
+std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
+    const auto add = as_type_ptr<opset1::Add>(op);
     if ((add == nullptr) ||
         !is_type<opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
         // TODO: use general way from getDequantization: is eltwise with Constant
@@ -110,12 +112,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
-            auto subtract = fuseWithSubtract(as_type_ptr<opset1::Add>(newAddOrSubtract));
+            auto subtract = fuseWithSubtract(newAddOrSubtract);
             if (subtract != nullptr) {
                 newAddOrSubtract = subtract;
             }
 
-            subtract = replaceToSubtract(as_type_ptr<opset1::Add>(newAddOrSubtract));
+            subtract = replaceToSubtract(newAddOrSubtract);
             if (subtract != nullptr) {
                 newAddOrSubtract = subtract;
             }
