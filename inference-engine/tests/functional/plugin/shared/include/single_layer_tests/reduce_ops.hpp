@@ -34,4 +34,9 @@ protected:
     void SetUp() override;
 };
 
+class ReduceOpsLayerWithSpecificInputTest : public ReduceOpsLayerTest {
+protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+};
+
 }  // namespace LayerTestsDefinitions
