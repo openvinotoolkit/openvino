@@ -146,17 +146,16 @@ namespace
 
         auto data_shape = arg0->get_shape();
         int64_t data_rank = static_cast<int64_t>(data_shape.size());
-        auto axes_shape = arg1->get_shape();
-        NGRAPH_CHECK(axes_shape.size() <= 1, "Axes to remove must be a vector or empty.");
-
         auto out_shape = data_shape;
         // Empty axes vector
-        if (axes_shape.size() == 0 || axes_shape[0] == 0)
+        if (!arg1)
         {
             out_shape.erase(std::remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
         }
         else
         {
+            auto axes_shape = arg1->get_shape();
+            NGRAPH_CHECK(axes_shape.size() <= 1, "Axes to remove must be a 0/1D vector of one element.");
             // Get axes
             vector<int64_t> axes = read_index_vector(arg1);
             // Normalize axes
@@ -200,5 +199,11 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
-    return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    if (inputs.size() == 2)
+    {
+        NGRAPH_CHECK(inputs[1], "HostTensor of Squeeze second input (axes) is invalid");
+        return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    }
+    else
+        return evaluate_squeeze(inputs[0], HostTensorPtr(), outputs[0]);
 }
