@@ -29,46 +29,62 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
         auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
-            // Original Reshape operation is used to update operation Constant.
-            // But original Reshape operation output data shape constant should be changed before reshape.
+            if (reshape->output(0).get_shape().size() == 2ul) {
+                const auto inputShape = reshape->input(0).get_shape();
+                const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
+                    op->get_input_node_shared_ptr(1),
+                    std::make_shared<opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape));
 
-            // simple broadcast operation Constant shape to shape on activations
-            auto newOperationConstantShape = op->input(1).get_shape();
-            auto const reshapeInputShape = reshape->input(0).get_shape();
-            if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
-                newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
-            }
-            const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
-            const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
-                op->input(1).get_element_type(),
-                newOperationConstantShape,
-                originalConstant->cast_vector<float>());
+                const std::shared_ptr<Node> reshapedConstant = fold<opset1::Reshape>(
+                    broadcastedConstant,
+                    reshape->get_input_node_shared_ptr(1),
+                    reshape->get_special_zero());
 
-            // update Reshape constant
-            const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
-            std::vector<int> newReshapeConstValues(reshapeConstValues);
-            for (int i = newReshapeConstValues.size() - 1; i >= 0; --i) {
-                if (newOperationConstantShape.size() <= i) {
-                    newReshapeConstValues[i] = 1;
-                } else if (newOperationConstantShape[i] == 1ul) {
-                    // not used dimension
-                    newReshapeConstValues[i] = 1;
-                } else {
-                    break;
+                replace_node(op->get_input_node_shared_ptr(1), reshapedConstant);
+            } else {
+                // Original Reshape operation is used to update operation Constant.
+                // But original Reshape operation output data shape constant should be changed before reshape.
+
+                // simple broadcast operation Constant shape to shape on activations
+                auto newOperationConstantShape = op->input(1).get_shape();
+                auto const reshapeInputShape = reshape->input(0).get_shape();
+                if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
+                    newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
                 }
+                const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+                const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
+                    op->input(1).get_element_type(),
+                    newOperationConstantShape,
+                    originalConstant->cast_vector<float>());
+
+                // update Reshape constant
+                const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
+                std::vector<int> newReshapeConstValues(reshapeConstValues);
+                for (int i = newReshapeConstValues.size() - 1; i >= 0; --i) {
+                    if (newOperationConstantShape.size() <= i) {
+                        newReshapeConstValues[i] = 1;
+                    }
+                    else if (newOperationConstantShape[i] == 1ul) {
+                        // not used dimension
+                        newReshapeConstValues[i] = 1;
+                    }
+                    else {
+                        break;
+                    }
+                }
+
+                const std::shared_ptr<opset1::Constant> newReshapedConstant = std::make_shared<opset1::Constant>(
+                    reshape->input(1).get_element_type(),
+                    Shape({ newReshapeConstValues.size() }),
+                    newReshapeConstValues);
+
+                const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+                    newOperationConstant,
+                    newReshapedConstant,
+                    reshape->get_special_zero());
+
+                replace_node(op->get_input_node_shared_ptr(1), resultConstant);
             }
-
-            const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
-                reshape->input(1).get_element_type(),
-                Shape({ newReshapeConstValues.size() }),
-                newReshapeConstValues);
-
-            const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
-                newOperationConstant,
-                newReshapeConstant,
-                reshape->get_special_zero());
-
-            replace_node(op->get_input_node_shared_ptr(1), resultConstant);
         };
 
         if (dequantization.subtract != nullptr) {
@@ -90,6 +106,8 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+
+    std::cout << "ReshapeTransformation::transform: DONE: " << reshape->get_friendly_name() << std::endl;
     return true;
 }
 
@@ -127,31 +145,33 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-
-    const Shape inputShape = op->get_input_shape(0);
-    const Shape outputShape = op->get_output_shape(0);
-    // TODO: story 38439
-    if ((inputShape[0] != outputShape[0]) || (inputShape[1] != outputShape[1])) {
-        return false;
-    }
-
-    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->get_input_node_ptr(1)->get_output_shape(0);
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0);
-    if ((subtractShape.empty() || (subtractShape.size() == 1ul)) && (multiplyShape.empty() || (multiplyShape.size() == 1ul))) {
-        return true;
-    }
-
+    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->input(1).get_shape();
     Shape subtractShapeWithBatch = subtractShape;
-    if ((dequantization.subtract != nullptr) && (subtractShapeWithBatch.size() < inputShape.size())) {
+    const Shape inputShape = op->get_input_shape(0);
+    if ((dequantization.subtract != nullptr) &&
+        (subtractShapeWithBatch.size() > 1) &&
+        (subtractShapeWithBatch.size() < inputShape.size())) {
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), inputShape[0]);
     }
 
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->input(1).get_shape();
     Shape multiplyShapeWithBatch = multiplyShape;
-    if ((dequantization.multiply != nullptr) && (multiplyShapeWithBatch.size() < inputShape.size())) {
+    if ((dequantization.multiply != nullptr) &&
+        (multiplyShapeWithBatch.size() > 1) &&
+        (multiplyShapeWithBatch.size() < inputShape.size())) {
         multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), inputShape[0]);
     }
 
+    const Shape outputShape = op->get_output_shape(0);
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputShape, outputShape);
+}
+
+size_t getChannelVolume(const Shape& shape) {
+    size_t volume = 1ul;
+    for (size_t i = 2; i < shape.size(); ++i) {
+        volume = volume * shape[i];
+    }
+    return volume;
 }
 
 bool ReshapeTransformation::canBeTransformed(
@@ -159,10 +179,48 @@ bool ReshapeTransformation::canBeTransformed(
     const ngraph::Shape& multiplyShape,
     const ngraph::Shape& inputShape,
     const ngraph::Shape& outputShape) {
-    const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
-    const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
-    if (lastNotBroadcastedChannel >= firstChangedChannel) {
+    if (inputShape.size() < 2ul) {
         return false;
+    }
+
+    if (outputShape.size() < 2ul) {
+        return false;
+    }
+
+    // TODO: story 38439
+    if ((inputShape.size() == 4ul) && (outputShape.size() == 2ul)) {
+        auto checkSpatialDimensions = [](const Shape& dequantizationConstShape) {
+            for (size_t i = (dequantizationConstShape.size() - 2); i < dequantizationConstShape.size(); ++i) {
+                if (dequantizationConstShape[i] != 1ul) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        if (((subtractShape.size() >= 3ul) && (!checkSpatialDimensions(subtractShape))) ||
+            ((multiplyShape.size() >= 3ul) && (!checkSpatialDimensions(multiplyShape)))) {
+            return false;
+        }
+
+        // custom validation for Layout::NCHW => Layout::NC
+        const size_t inputChannelsCount = inputShape.size() > 1ul ? inputShape[1] : inputShape[0];
+        const size_t outputChannelsCount = outputShape.size() > 1ul ? outputShape[1] : outputShape[0];
+        if ((inputShape[0] != outputShape[0]) || ((inputChannelsCount * getChannelVolume(inputShape)) != outputChannelsCount)) {
+            return false;
+        }
+    } else {
+        for (size_t i = 0; i < 2ul; ++i) {
+            if (inputShape[i] != outputShape[i]) {
+                return false;
+            }
+        }
+
+        const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
+        const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
+        if (lastNotBroadcastedChannel >= firstChangedChannel) {
+            return false;
+        }
     }
 
     return true;
