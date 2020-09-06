@@ -123,6 +123,40 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     }
 }
 
+template<InferenceEngine::Precision::ePrecision SRC_E, InferenceEngine::Precision::ePrecision DST_E>
+void copy_with_convert(InferenceEngine::Blob::Ptr& src_blob, InferenceEngine::Blob::Ptr& dst_blob) {
+    using SRC_TYPE = typename InferenceEngine::PrecisionTrait<SRC_E>::value_type;
+    using DST_TYPE = typename InferenceEngine::PrecisionTrait<DST_E>::value_type;
+
+    auto src_lock_m = src_blob->as<InferenceEngine::MemoryBlob>()->rwmap();
+    auto src_ptr = src_lock_m.as<SRC_TYPE*>();
+    auto src_size = src_blob->size();
+
+    auto dst_lock_m = dst_blob->as<InferenceEngine::MemoryBlob>()->rwmap();
+    auto dst_ptr = dst_lock_m.as<DST_TYPE*>();
+
+    std::copy(src_ptr, src_ptr + src_size, dst_ptr);
+}
+
+InferenceEngine::Blob::Ptr make_with_precision_convert(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Precision prc) {
+    IE_ASSERT(isDenseBlob(blob));
+    auto td = blob->getTensorDesc();
+    td.setPrecision(prc);
+
+    auto new_blob = make_blob_with_precision(td);
+    new_blob->allocate();
+
+#define CASE(_PRC) case InferenceEngine::Precision::_PRC: \
+        copy_with_convert<InferenceEngine::Precision::FP32, InferenceEngine::Precision::_PRC> (blob, new_blob); break
+    switch (prc) {
+        CASE(FP32); CASE(I64); CASE(U64); CASE(I32); CASE(U32); CASE(I16); CASE(U16); CASE(I8); CASE(U8);
+        default: THROW_IE_EXCEPTION << "Unsupported precision case";
+    }
+#undef CASE
+
+    return new_blob;
+}
+
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std::vector<float> values) {
     InferenceEngine::SizeVector value_dims(blob->getTensorDesc().getDims().size() - axis, 1);
     value_dims.front() = values.size();
@@ -130,7 +164,14 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std
     auto layout = InferenceEngine::TensorDesc::getLayoutByDims(value_dims);
     InferenceEngine::TensorDesc value_tdesc(prc, value_dims, layout);
 
-    auto values_blob = make_blob_with_precision(value_tdesc, values.data());
+    InferenceEngine::Blob::Ptr values_blob;
+    if (prc == InferenceEngine::Precision::FP32) {
+        values_blob = make_blob_with_precision(value_tdesc, values.data());
+    } else {
+        values_blob = make_blob_with_precision(value_tdesc, values.data());
+        values_blob = make_with_precision_convert(values_blob, prc);
+    }
+
     fill_data_with_broadcast(blob, values_blob);
 }
 
