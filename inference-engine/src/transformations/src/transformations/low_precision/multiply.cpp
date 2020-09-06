@@ -60,9 +60,13 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         auto multiplyParentConst = multiplyParent->get_input_node_shared_ptr(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
-            std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
+            std::vector<ngraph::element::Type>{ element::f32, element::f32 },
+            std::vector<ngraph::element::Type>{element::f32},
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(fold<opset1::Multiply>(multiplyParentConst, constParent), element::f32).get());
+
+        NetworkHelper::copyInfo(multiplyParent, newMultiply);
+        NetworkHelper::copyInfo(multiply, newMultiply);
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
@@ -104,6 +108,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
     replace_node(multiply, newMultiply);
     updateOutput(context, newMultiply, multiply);
+
     return true;
 }
 

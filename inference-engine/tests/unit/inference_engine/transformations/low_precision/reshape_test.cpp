@@ -25,7 +25,7 @@ TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perTensor2) {
 }
 
 TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perChannels) {
-    ASSERT_FALSE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
+    ASSERT_TRUE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
         ngraph::Shape({ 1, 3 }),
         ngraph::Shape({ 1, 3 }),
         ngraph::Shape({ 1, 3, 4, 5 }),
@@ -33,7 +33,7 @@ TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perChannels) {
 }
 
 TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perChannels2) {
-    ASSERT_FALSE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
+    ASSERT_TRUE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
         ngraph::Shape({ 1, 3, 1, 1 }),
         ngraph::Shape({ 1, 3, 1, 1 }),
         ngraph::Shape({ 1, 3, 4, 5 }),
@@ -142,4 +142,21 @@ TEST(LPT_ReshapeTransformation, canBeTransformed_3D_to_4D_perSpacial) {
         ngraph::Shape({ 1, 3, 20 }),
         ngraph::Shape({ 1, 3, 20 }),
         ngraph::Shape({ 1, 3, 4, 5 })));
+}
+
+TEST(LPT_ReshapeTransformation, canBeTransformed_4D_to_2D_perSpacial_TRUE) {
+    ASSERT_TRUE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
+        ngraph::Shape({ 1, 256, 1, 1 }),
+        ngraph::Shape({ 1, 256, 1, 1 }),
+        ngraph::Shape({ 1, 256, 6, 6 }),
+        ngraph::Shape({ 1, 9216 })));
+}
+
+// TODO: story 38439
+TEST(LPT_ReshapeTransformation, canBeTransformed_5D_to_5D_perBatch) {
+    ASSERT_FALSE(ngraph::pass::low_precision::ReshapeTransformation::canBeTransformed(
+        ngraph::Shape({ 1, 16, 1, 1, 1 }),
+        ngraph::Shape({ 1, 16, 1, 1, 1 }),
+        ngraph::Shape({ 1, 16, 128, 128, 128 }),
+        ngraph::Shape({ 8, 2, 128, 128, 128 })));
 }

@@ -26,7 +26,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const int constInput,
     const std::vector<float>& constValues,
-    std::string additionalLayer) {
+    const std::string& additionalLayer) {
     std::shared_ptr<ngraph::Node> input1;
     if (constInput == 0) {
         input1 = std::make_shared<ngraph::opset1::Constant>(
@@ -114,11 +114,12 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const ngraph::element::Type& precision2,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-    const int constInput,
+    const int constInputIndex,
     const std::vector<float>& constValues,
-    std::string additionalLayer) {
+    const std::string& additionalLayer,
+    const std::string& operationType) {
     std::shared_ptr<ngraph::Node> input1;
-    if (constInput == 0) {
+    if (constInputIndex == 0) {
         input1 = std::make_shared<ngraph::opset1::Constant>(
             precision,
             inputShape,
@@ -132,7 +133,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantization1);
 
     std::shared_ptr<ngraph::Node> input2;
-    if (constInput == 1) {
+    if (constInputIndex == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
             precision,
             inputShape,
@@ -176,14 +177,18 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     }
     const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantization2);
 
-    auto addOriginal = ngraph::opset1::Add(
-        ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
+    const std::shared_ptr<Node> add = operationType == "Add" ?
+        std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
+            std::vector<element::Type>{ element::f32, element::f32 },
+            std::vector<element::Type>{},
+            ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
+        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
+            std::vector<element::Type>{ element::f32, element::f32 },
+            std::vector<element::Type>{},
+            ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
 
-    auto add = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
-        addOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, precision);
 
     const auto dequantizationOpAfter = makeDequantization(add, dequantizationAfter);
@@ -192,11 +197,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
     ngraph::ParameterVector parameters;
-    if (constInput == -1) {
+    if (constInputIndex == -1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
-    } else if (constInput == 0) {
+    } else if (constInputIndex == 0) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input2) };
-    } else if (constInput == 1) {
+    } else if (constInputIndex == 1) {
         parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
     } else {
         THROW_IE_EXCEPTION << "Unexpected constant input index";

@@ -80,8 +80,8 @@ ngraph::graph_rewrite_callback get_callback() {
         const auto output_shape = lin_op->output(0).get_partial_shape();
         const auto output_shape_rank = output_shape.rank().get_length();
 
-        const auto intInputs = !lin_op->get_input_node_shared_ptr(0)->get_element_type().is_real() &&
-                               !lin_op->get_input_node_shared_ptr(1)->get_element_type().is_real();
+        const auto intInputs = !lin_op->get_input_element_type(0).is_real() &&
+                               !lin_op->get_input_element_type(1).is_real();
 
         if (!lin_op->get_element_type().is_real() || intInputs) {
             return convert_to_eltwise<T>(lin_op,
