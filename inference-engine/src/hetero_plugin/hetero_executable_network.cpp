@@ -23,6 +23,7 @@
 #include <array>
 #include <cstdint>
 
+#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
@@ -35,6 +36,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace InferenceEngine;
 using namespace details;
@@ -140,41 +142,6 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
     };
 
     saveGraphToDot(network, stream, split_color);
-}
-
-
-void dumpGraph(InferenceEngine::ICNNNetwork&                                network,
-               const std::vector<std::shared_ptr<ngraph::Function>>&  subFunctions,
-               std::ostream&                                                stream) {
-    static const std::array<const char *, 9> colors{{"#FFC405",
-                                                     "#20F608",
-                                                     "#F1F290",
-                                                     "#C405FF",
-                                                     "#BCFF05",
-                                                     "#05FFC4",
-                                                     "#FFC405",
-                                                     "#5A5DF0",
-                                                     "#FF2E05"}};
-    auto split_color = [&](const CNNLayerPtr layer,
-                           ordered_properties &printed_properties,
-                           ordered_properties &node_properties) {
-        for (size_t i = 0; i < subFunctions.size(); i++) {
-            for (auto&& node : subFunctions[i]->get_ordered_ops()) {
-                if (node->get_friendly_name() == layer->name) {
-                    node_properties.emplace_back(
-                            "fillcolor",
-                            colors[i % colors.size()]);
-                    printed_properties.insert(printed_properties.begin(),
-                                              std::pair<std::string, std::string>("subgraph#", std::to_string(i)));
-                    printed_properties.insert(printed_properties.begin(),
-                                              std::pair<std::string, std::string>("device", layer->affinity));
-                    return;
-                }
-            }
-        }
-    };
-
-    saveGraphToDot(const_cast<InferenceEngine::ICNNNetwork&>(network), stream, split_color);
 }
 
 }   // namespace
@@ -354,16 +321,14 @@ using NodeMap = std::unordered_map<ngraph::Node*, T>;
 
 void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& network_) {
     auto function = network_.getFunction();
-    auto networkPtr = cloneNetwork(network_);
-    auto& network = *networkPtr;
+    auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
 #ifndef NDEBUG
     dumpDotFile  = true;
 #endif
-
     QueryNetworkResult queryNetworkResult;
-    auto orderedOps = function->get_ordered_ops();
+    auto orderedOps = clonedFunction->get_ordered_ops();
     bool allEmpty = true;
     // Get user defined affinity
     for (auto&& node : orderedOps) {
@@ -396,7 +361,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     };
 
     // Set results, constants and parameters affinity
-    for (auto&& node : function->get_ops()) {
+    for (auto&& node : clonedFunction->get_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
             if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
                 auto& nodeWithAffinityName = ngraph::op::is_output(node)
@@ -420,16 +385,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         auto itAffinity = queryNetworkResult.supportedLayersMap.find(node->get_friendly_name());
         if (itAffinity != queryNetworkResult.supportedLayersMap.end()) {
             affinities[node.get()] = itAffinity->second;
-            if (dumpDotFile) {
-                devices.insert(itAffinity->second);
-                convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-                for (details::CNNNetworkIterator el(convertedNetwork.get()); el != details::CNNNetworkIterator(); el++) {
-                    CNNLayer::Ptr layer = *el;
-                    if (CaselessEq<std::string>()(layer->name, node->get_friendly_name())) {
-                        layer->affinity = itAffinity->second;
-                    }
-                }
-            }
+            devices.emplace(itAffinity->second);
         } else if (allEmpty) {
             THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
@@ -446,10 +402,45 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         }
     }
 
+    static const std::array<const char*, 14> colors = {
+        "aliceblue",
+        "antiquewhite4",
+        "aquamarine4",
+        "azure4",
+        "bisque3",
+        "blue1",
+        "brown",
+        "burlywood",
+        "cadetblue",
+        "chartreuse",
+        "chocolate",
+        "coral",
+        "cornflowerblue",
+        "cornsilk4",
+    };
+
     if (dumpDotFile) {
-        std::ofstream ofstream{"hetero_affinity_" + _name + ".dot"};
-        saveGraphToDot(*convertedNetwork, ofstream, HeteroLayerColorer{{devices.begin(), devices.end()}});
+        ngraph::pass::VisualizeTree{"hetero_affinity_" + _name + ".dot",
+            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+                auto nodeDevice = queryNetworkResult.supportedLayersMap.at(node.get_friendly_name());
+                int colorIndex = 0;
+                for (auto&& device : devices) {
+                    if (device == nodeDevice) {
+                        attributes.push_back(std::string {"fillcolor="} + colors[colorIndex % colors.size()] + " style=filled");
+                        auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
+                            return str.find("label") != std::string::npos;
+                        });
+                        auto label = "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                        IE_ASSERT(itLabel != attributes.end());
+                        itLabel->pop_back();
+                        (*itLabel) += label;
+                        break;
+                    }
+                    colorIndex++;
+                }
+            }}.run_on_function(ngraph::clone_function(*function));
     }
+
 
     NodeMap<InputSet> nodeInputDependencies;
     NodeSet graphInputNodes;
@@ -641,7 +632,9 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     } while (!allSubgraphs.empty());
 
     InputsDataMap externalInputsData;
-    network.getInputsInfo(externalInputsData);
+    network_.getInputsInfo(externalInputsData);
+    OutputsDataMap externalOutputsData;
+    network_.getOutputsInfo(externalOutputsData);
     networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
@@ -661,7 +654,6 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
                 itClonedInput->second->setPrecision(externalInput.second->getPrecision());
             }
         }
-
         isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
                                             std::end(subgraph._parameters),
                                             [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
@@ -670,8 +662,24 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
         ++id;
     }
     if (dumpDotFile) {
-        std::ofstream ofstream{"hetero_subgraphs_" + _name + ".dot"};
-        dumpGraph(*convertedNetwork, subFunctions, ofstream);
+        ngraph::pass::VisualizeTree{"hetero_subgraphs_" + _name + ".dot",
+            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+                for (size_t i = 0; i < subFunctions.size(); i++) {
+                    for (auto&& nodeInSubfunction : subFunctions[i]->get_ops()) {
+                        if (nodeInSubfunction->get_friendly_name() == node.get_friendly_name()) {
+                            attributes.push_back(std::string {"fillcolor="} + colors[i % colors.size()] + " style=filled");
+                            auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
+                                return str.find("label") != std::string::npos;
+                            });
+                            auto label = "\\nsubgraph=" + std::to_string(i) + "\\n"
+                                       + "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                            IE_ASSERT(itLabel != attributes.end());
+                            itLabel->pop_back();
+                            (*itLabel) += label;
+                        }
+                    }
+                }
+            }}.run_on_function(ngraph::clone_function(*function));
     }
     for (auto&& network : networks) {
         auto cfg = _config;

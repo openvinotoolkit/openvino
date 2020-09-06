@@ -30,11 +30,39 @@ namespace ngraph
     {
         namespace util
         {
+            enum class LSTMWeightsFormat
+            {
+                FICO, // IE
+                ICOF, // PyTorch
+                IFCO, // DNNL, TF, MxNet
+                IFOC, // Caffe
+                IOFC, // ONNX
+            };
+
+            ///
+            /// \brief      Change data format of provided node.
+            ///
+            /// \param[in]  node  The input node to be permuted.
+            ///
+            ///
+            /// \param[in]  from_format  Original node weights format.
+            ///
+            ///
+            /// \param[in]  to_format  Weights format to convert to.
+            ///
+            /// \return     Node representing reshaped tensor according to `to_format` weights
+            /// format.
+            ///
+            std::shared_ptr<Node> NGRAPH_API
+                convert_lstm_node_format(const Output<Node>& node,
+                                         LSTMWeightsFormat from_format,
+                                         LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO);
+
             /// \brief      Base class for all recurrent network cells.
             ///
             /// \note       It holds all common attributes.
             ///
-            class NGRAPH_API RNNCellBase
+            class NGRAPH_API RNNCellBase : public Op
             {
             public:
                 ///
@@ -50,7 +78,8 @@ namespace ngraph
                 /// \param[in]  activations_beta   The vector of beta parameters for activation
                 ///                                functions in order respective to activation list.
                 ///
-                RNNCellBase(std::size_t hidden_size,
+                RNNCellBase(const OutputVector& args,
+                            std::size_t hidden_size,
                             float clip,
                             const std::vector<std::string>& activations,
                             const std::vector<float>& activations_alpha,

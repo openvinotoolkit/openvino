@@ -291,21 +291,6 @@ namespace ngraph
     } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::v0::InterpolateAttrs> : public VisitorAdapter
-    {
-    public:
-        AttributeAdapter(op::v0::InterpolateAttrs& ref);
-
-        virtual bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::InterpolateAttrs>",
-                                                    0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        op::v0::InterpolateAttrs& m_ref;
-    };
-
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type);
 
@@ -397,19 +382,5 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{
             "AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::v4::Interpolate::InterpolateAttrs> : public VisitorAdapter
-    {
-    public:
-        AttributeAdapter(op::v4::Interpolate::InterpolateAttrs& ref);
-
-        virtual bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v4::Interpolate::InterpolateAttrs>", 4};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        op::v4::Interpolate::InterpolateAttrs& m_ref;
     };
 } // namespace ngraph

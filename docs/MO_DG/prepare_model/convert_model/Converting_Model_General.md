@@ -127,9 +127,6 @@ Framework-agnostic parameters:
                         value, for example: "node_name->True". It will be
                         DEPRECATED in future releases. Use --input option to
                         specify a value for freezing.
-  --generate_deprecated_IR_V7
-                        Force to generate old deprecated IR V7 with layers
-                        from old IR specification.
   --static_shape        Enables IR generation for fixed input shape (folding
                         `ShapeOf` operations and shape-calculating sub-graphs
                         to `Constant`). Changing model input shape using

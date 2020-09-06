@@ -1085,14 +1085,14 @@ IE_CPU.builder_opset1_collapse_dyn_shape
 # IE_CPU.interpolate_down_scales_const_linear
 
 # GRUCell operation has a form that is not supported
-IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_activations
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_rev_clip
-IE_CPU.onnx_model_gru_reverse
-IE_CPU.onnx_model_gru_fwd_bias_initial_h
-IE_CPU.onnx_model_gru_bidirectional
-IE_CPU.onnx_model_gru_fwd_linear_before_reset
+onnx_model_gru_defaults_fwd
+onnx_model_gru_fwd_activations
+onnx_model_gru_fwd_mixed_seq_len
+onnx_model_gru_rev_clip
+onnx_model_gru_reverse
+onnx_model_gru_fwd_bias_initial_h
+onnx_model_gru_bidirectional
+onnx_model_gru_fwd_linear_before_reset
 
 # Not implemented Interpolate-4:
 IE_CPU.onnx_model_resize10_import_only
