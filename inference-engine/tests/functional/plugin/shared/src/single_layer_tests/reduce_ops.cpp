@@ -80,6 +80,28 @@ void ReduceOpsLayerTest::SetUp() {
 
 TEST_P(ReduceOpsLayerTest, CompareWithRefs) {
     Run();
-};
+}
+
+InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    auto axis_vec = std::get<0>(GetParam());
+    IE_ASSERT(axis_vec.size() == 1);
+
+    auto axis = axis_vec[0];
+    auto td = info.getTensorDesc();
+    auto dims = td.getDims();
+
+    // Slice of tensor through axis is {1, 0, 0, ....}, the mean value is 1/slice_size
+    auto raw_values = std::vector<float>(dims[axis], 0);
+    raw_values[0] = 1;
+
+    auto blob = make_blob_with_precision(td);
+    blob->allocate();
+    CommonTestUtils::fill_data_with_broadcast(blob, axis, raw_values);
+    return blob;
+}
+
+TEST_P(ReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

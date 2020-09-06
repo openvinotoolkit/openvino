@@ -152,4 +152,20 @@ INSTANTIATE_TEST_CASE_P(
         params_ReductionTypes,
         ReduceOpsLayerTest::getTestCaseName
 );
+
+INSTANTIATE_TEST_CASE_P(
+        Reduce,
+        ReduceOpsLayerWithSpecificInputTest,
+        testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}, {1}}),
+                testing::Values(opTypes[1]),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(InferenceEngine::Precision::FP32,
+                                InferenceEngine::Precision::I32),
+                testing::Values(std::vector<size_t> {2, 10}),
+                testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ReduceOpsLayerWithSpecificInputTest::getTestCaseName
+);
+
 }  // namespace
