@@ -130,7 +130,7 @@ Framework-agnostic parameters:
   --static_shape        Enables IR generation for fixed input shape (folding
                         `ShapeOf` operations and shape-calculating sub-graphs
                         to `Constant`). Changing model input shape using
-                        Inference Engine API in runtime may fail for such an IR.
+                        the Inference Engine API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.

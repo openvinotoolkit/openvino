@@ -320,10 +320,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-                                   'Inference Engine API in runtime may fail for such an IR.',
+                                   'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
-                              help='Option usage is ignored. Expected behavior is enabled by default.',
+                              help='The option is ignored. Expected behavior is enabled by default.',
                               action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
