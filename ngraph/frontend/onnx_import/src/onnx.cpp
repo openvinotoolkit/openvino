@@ -86,8 +86,7 @@ namespace ngraph
                     auto it = std::find(ops_to_fixup.begin(), ops_to_fixup.end(), node.op_type());
                     if (it != ops_to_fixup.end())
                     {
-                        const auto& domain = node.domain();
-                        if (domain.empty() || domain == "ai.onnx")
+                        if (!node.has_domain() || node.domain() == "ai.onnx")
                         {
                             node.set_domain(OPENVINO_ONNX_DOMAIN);
                         }
