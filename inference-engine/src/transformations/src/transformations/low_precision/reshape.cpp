@@ -63,12 +63,10 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
                 for (int i = newReshapeConstValues.size() - 1; i >= 0; --i) {
                     if (newOperationConstantShape.size() <= i) {
                         newReshapeConstValues[i] = 1;
-                    }
-                    else if (newOperationConstantShape[i] == 1ul) {
+                    } else if (newOperationConstantShape[i] == 1ul) {
                         // not used dimension
                         newReshapeConstValues[i] = 1;
-                    }
-                    else {
+                    } else {
                         break;
                     }
                 }
