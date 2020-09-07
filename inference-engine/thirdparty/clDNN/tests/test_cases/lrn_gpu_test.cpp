@@ -125,6 +125,55 @@ TEST(lrn_fp32_gpu, basic2) {
     }
 }
 
+TEST(lrn_fp16_gpu, basic1) {
+    //  input : 1x16x1x1
+    //  Output : 1x16x1x1
+    const auto& engine = get_test_engine();
+
+    const size_t b = 1;
+    const size_t f = 16;
+    const size_t y = 1;
+    const size_t x = 1;
+
+    auto input = memory::allocate(engine, { data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
+    std::vector<half_t> inputVals(b * f * y * x);
+    std::generate(inputVals.begin(), inputVals.end(), []() {
+        static float n = 0;
+        return half_t(n++);
+    });
+
+    set_values(input, inputVals);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    uint32_t size = 5;
+    float k = 0.5f;
+    float alpha = 9.9e-05f;
+    float beta = 1.f;
+    topology.add(lrn("lrn", "input", size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("lrn").get_memory();
+    auto output_ptr = output.pointer<uint16_t>();
+
+    std::vector<float> expected_results = {
+        0.f, 1.99889f, 3.99525f, 5.98696f,
+        7.97159f, 9.94682f, 11.9104f, 13.86f,
+        15.7936f, 17.709f, 19.6041f, 21.4769f,
+        23.3257f, 25.1485f, 27.2091f, 29.3151f
+    };
+
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+    }
+}
+
 TEST(lrn_fp32_gpu, basic3) {
     //  input : 2x16x4x4
     //  Output : 2x16x4x4
