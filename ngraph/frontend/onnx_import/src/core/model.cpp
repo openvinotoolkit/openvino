@@ -37,9 +37,8 @@ namespace ngraph
             // unknown or invalid.
             for (const auto& id : m_model_proto->opset_import())
             {
-                m_opset.emplace(id.domain(),
-                                OperatorsBridge::get_operator_set(
-                                    (id.domain() == "ai.onnx" ? "" : id.domain()), id.version()));
+                auto domain = id.has_domain() ? id.domain() : "";
+                m_opset.emplace(domain, OperatorsBridge::get_operator_set(domain, id.version()));
             }
             // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
             // implies the operator set that is defined as part of the ONNX specification.
