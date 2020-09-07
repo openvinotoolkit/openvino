@@ -45,21 +45,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto& inDims = getParentEdgeAt(0)->getDims();
-    memory::format fmt = memory::format::any;
-    if (inDims.ndims() == 1) {
-        fmt = memory::format::x;
-    } else if (inDims.ndims() == 2) {
-        fmt = memory::format::nc;
-    } else if (inDims.ndims() == 3) {
-        fmt = memory::format::tnc;
-    } else if (inDims.ndims() == 4) {
-        fmt = memory::format::nchw;
-    } else if (inDims.ndims() == 5) {
-        fmt = memory::format::ncdhw;
-    }
-    if (fmt == memory::format::any) {
-        THROW_IE_EXCEPTION << "Tile " << getName() << " supports only 2D, 4D and 5D dimensions!";
-    }
+    memory::format fmt = MKLDNNMemory::GetPlainFormat(inDims);
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
