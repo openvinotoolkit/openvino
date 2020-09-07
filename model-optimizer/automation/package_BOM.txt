@@ -872,7 +872,6 @@ mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
 mo/middle/passes/leaky_relu.py
-mo/middle/passes/mean_scale_values.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py

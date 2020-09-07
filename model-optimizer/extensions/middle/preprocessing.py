@@ -16,27 +16,10 @@
 from extensions.middle.LeakyReluPattern import LeakyReLU
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph
-from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
 from mo.utils.utils import refer_to_faq_msg
-
-
-class Preprocessing(MiddleReplacementPattern):
-    enabled = True
-    force_clean_up = True
-
-    def run_after(self):
-        return [LeakyReLU]
-
-    def run_before(self):
-        return [PostMiddleStart]
-
-    def find_and_replace_pattern(self, graph: Graph):
-        argv = graph.graph['cmd_params']
-        if argv.move_to_preprocess:
-            move_scaleshift_to_preprocess(graph)
 
 
 class CaffeMeanFileProcessing(MiddleReplacementPattern):
@@ -45,7 +28,7 @@ class CaffeMeanFileProcessing(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'caffe']
 
     def run_after(self):
-        return [Preprocessing]
+        return [LeakyReLU]
 
     def run_before(self):
         return [PostMiddleStart]
