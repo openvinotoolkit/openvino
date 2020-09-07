@@ -41,9 +41,7 @@ protected:
 
         const auto axes = std::make_shared<ngraph::opset3::Constant>(
                 ngraph::element::i64, ngraph::Shape{squeezeAxes.size()}, squeezeAxes);
-        const auto squeeze = std::make_shared<ngraph::opset3::Squeeze>(inputSubgraph, axes);
-
-        return squeeze;
+        return std::make_shared<ngraph::opset3::Squeeze>(inputSubgraph, axes);
     }
 };
 
@@ -53,7 +51,7 @@ TEST_P(DSR_Squeeze, CompareWithReference) {
 
 INSTANTIATE_TEST_CASE_P(DynamicSqueeze, DSR_Squeeze,
     ::testing::Combine(
-        ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
+        ::testing::Values(ngraph::element::f16, ngraph::element::i32),
         ::testing::Values(
                 // input_shape, squeeze_axis
                 SqueezeTestCase{DataShapeWithUpperBound{{1, 1, 1000}, {1, 1, 1500}}, AxisVector{-2}},
