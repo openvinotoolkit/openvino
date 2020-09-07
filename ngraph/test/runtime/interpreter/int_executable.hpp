@@ -59,6 +59,8 @@
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
@@ -1256,6 +1258,20 @@ protected:
                     "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
             }
 
+            break;
+        }
+        case OP_TYPEID::GatherTree_v1:
+        {
+            reference::gather_tree(args[0]->get_data_ptr<const char>(),
+                                   args[1]->get_data_ptr<const char>(),
+                                   args[2]->get_data_ptr<const char>(),
+                                   args[3]->get_data_ptr<const char>(),
+                                   out[0]->get_data_ptr<char>(),
+                                   node.get_input_shape(0),
+                                   node.get_input_shape(1),
+                                   node.get_input_shape(2),
+                                   node.get_input_shape(3),
+                                   args[1]->get_element_type());
             break;
         }
 
