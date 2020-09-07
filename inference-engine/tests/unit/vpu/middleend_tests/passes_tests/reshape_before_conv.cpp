@@ -309,6 +309,14 @@ TEST_P(NoReshapeBeforeConvCases, NoChangesForOtherCases) {
     Validate();
 }
 
+static const std::vector<DimValues> noPatternDimsForOutput = {
+    DimValues{ {Dim::N, 1}, {Dim::C, 12}, {Dim::H, 34}, {Dim::W, 60} },
+    DimValues{ {Dim::N, 1}, {Dim::C, 11}, {Dim::H, 224}, {Dim::W, 60} },
+    DimValues{ {Dim::N, 1}, {Dim::C, 48}, {Dim::H, 34}, {Dim::W, 60} },
+    DimValues{ {Dim::N, 1}, {Dim::C, 440}, {Dim::H, 34}, {Dim::W, 60} },
+    DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 22}, {Dim::W, 48} },
+};
+
 static const std::vector<DimValues> noPatternDims = {
     DimValues{ {Dim::N, 1}, {Dim::C, 12}, {Dim::H, 34}, {Dim::W, 60} },
     DimValues{ {Dim::N, 1}, {Dim::C, 128}, {Dim::H, 8}, {Dim::W, 64} },
@@ -324,7 +332,7 @@ static const std::vector<DimValues> noPatternDims = {
 INSTANTIATE_TEST_CASE_P(
         NontargetOutputCases, NoReshapeBeforeConvCases, testing::Combine(
     testing::ValuesIn(patternInputDims),
-    testing::ValuesIn(noPatternDims)));
+    testing::ValuesIn(noPatternDimsForOutput)));
 
 INSTANTIATE_TEST_CASE_P(
         NontargetInputCases, NoReshapeBeforeConvCases, testing::Combine(
