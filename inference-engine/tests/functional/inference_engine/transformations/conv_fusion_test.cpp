@@ -89,7 +89,7 @@ private:
         ngraph::Output<ngraph::Node> const_node;
         const_node = ngraph::opset1::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         if (eltwise_type == ngraph::opset1::Add::type_info) {
-            if (eltwise_shape.size() != 1) {
+            if (eltwise_shape.size() != 1 && !eltwise_shape.empty()) {
                 const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights, const_node});
@@ -137,7 +137,8 @@ INSTANTIATE_TEST_CASE_P(ConvAddFusion, ConvFusionTests,
                         std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},       add::type_info, EltwiseShape{5, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},       add::type_info, EltwiseShape{3, 1}, false),
                         std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},       add::type_info, EltwiseShape{2, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       add::type_info, EltwiseShape{1, 1}, false)));
+                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       add::type_info, EltwiseShape{1, 1}, false),
+                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},       add::type_info, EltwiseShape{ }, false)));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{2, 1}, true),
