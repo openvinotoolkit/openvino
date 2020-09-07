@@ -123,8 +123,6 @@ def replace_resize(graph: Graph, resize: Node):
         sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
         scales_ss.out_port(0).connect(interpolate_node.in_port(2))
 
-        rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
-
         connection_of_resize_input = resize.in_port(0).get_connection()
         connection_of_resize_input.set_destination(interpolate_node.in_port(0))
 
@@ -145,8 +143,6 @@ def replace_resize(graph: Graph, resize: Node):
         scales_ss.out_port(0).connect(interpolate_node.in_port(2))
         sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
 
-        rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
-
         connection_of_resize_input = resize.in_port(0).get_connection()
         connection_of_resize_input.set_destination(interpolate_node.in_port(0))
 
@@ -156,6 +152,7 @@ def replace_resize(graph: Graph, resize: Node):
         connection_of_resize_input.get_source().connect(shape_of.in_port(0))
         connection_of_sizes.get_source().connect(cast_sizes_to_float.in_port(0))
 
+    rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
     resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
 
