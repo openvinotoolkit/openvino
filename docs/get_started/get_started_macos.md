@@ -38,19 +38,19 @@ The primary tools for deploying your models and applications are installed to th
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
 | `demo/`                                 | Demo scripts. Demonstrate pipelines for inference scenarios, automatically perform steps and print detailed output to the console. For more information, see the [Use OpenVINO: Demo Scripts](#use-openvino-demo-scripts) section.|
 | `inference_engine/`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`external\`     | Third-party dependencies and drivers.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`include\`      | Inference Engine header files. For API documentation, see the [Inference Engine API Reference](./annotated.html). |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`lib\`          | Inference Engine static libraries.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples\`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share\`        | CMake configuration files for linking with Inference Engine.|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`external/`     | Third-party dependencies and drivers.|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`include/`      | Inference Engine header files. For API documentation, see the [Inference Engine API Reference](./annotated.html). |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`lib/`          | Inference Engine static libraries.|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples/`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share/`        | CMake configuration files for linking with Inference Engine.|
 | `~intel_models/` | Symbolic link to the `intel_models` subfolder of the `open_model_zoo` folder.|
 | `model_optimizer/`                      | Model Optimizer directory. Contains configuration scripts, scripts to run the Model Optimizer and other files. See the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).|
-| `ngraph\`                               | nGraph directory. Includes the nGraph header and library files. |
+| `ngraph/`                               | nGraph directory. Includes the nGraph header and library files. |
 | `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_intel_index) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`demos\`        | Demo applications for inference scenarios. Also includes documentation and build scripts.| 
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models\` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`demos/`        | Demo applications for inference scenarios. Also includes documentation and build scripts.| 
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`models`        | Intel's trained and public models that can be obtained with Model Downloader.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`tools\`        | Model Downloader and Accuracy Checker tools. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`tools/`        | Model Downloader and Accuracy Checker tools. |
 | `tools/`                                | Contains a symbolic link to the Model Downloader folder and auxiliary tools to work with your models: Calibration tool, Benchmark and Collect Statistics tools.|
 
 </details>
@@ -524,9 +524,9 @@ You can see all the sample application’s parameters by adding the `-h` or `--h
 Use these resources to learn more about the OpenVINO™ toolkit:
 
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [Introduction to Intel® Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
-* [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-* [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
+* [Introduction to Intel® Deep Learning Deployment Toolkit](../IE_DG/Introduction.md)
+* [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
+* [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 * [Overview of OpenVINO™ Toolkit Pre-Trained Models](https://software.intel.com/en-us/openvino-toolkit/documentation/pretrained-models)
 * [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic)
