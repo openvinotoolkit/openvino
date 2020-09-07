@@ -401,7 +401,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         auto in0 = inputLayers.front();
         auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         auto scaleFactor = quantParams0->_dst_quant.scale;
-        auto scaleFactorCheck = [scaleFactor, &fp32eq](const auto& inputLayer) {
+        auto scaleFactorCheck = [scaleFactor, &fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             return fp32eq(quantParams->_dst_quant.scale, scaleFactor);
         };
@@ -413,12 +413,12 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         }
 
         // support only cases when all inputs have the same quant value
-        auto inputLayerCheck = [](const auto& inputLayer) {
+        auto inputLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto info = LayerInfo(inputLayer);
             return info.isInput();
         };
 
-        GNAPluginNS::QuantizedLayerParams* sourceQuantParams = NULL;
+        GNAPluginNS::QuantizedLayerParams* sourceQuantParams = nullptr;
         auto firstInputIt = std::find_if(inputLayers.begin(), inputLayers.end(), inputLayerCheck);
         if (firstInputIt != inputLayers.end()) {
             auto quantParamsFirst = InferenceEngine::getInjectedData<QuantizedLayerParams>(*firstInputIt);
@@ -430,13 +430,13 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 auto quantParamsSecond = InferenceEngine::getInjectedData<QuantizedLayerParams>(*inIt);
                 if (!fp32eq(quantParamsSecond->_dst_quant.scale, quantParamsFirst->_dst_quant.scale)) {
                     THROW_GNA_EXCEPTION << "Two Input layers " << (*firstInputIt)->name
-                        << "and" << (*inIt)->name << " has different scales in concat!!! \n";
+                        << "and" << (*inIt)->name << " have different scales in concat!!! \n";
                 }
             }
         }
 
         // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
-        auto sourceLayerCheck = [&fp32eq](const auto& inputLayer) {
+        auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             LayerInfo info(inputLayer);
             return (info.isInput() || !info.isActivation()) && !fp32eq(quantParams->_dst_quant.scale, 1.0f);
@@ -468,7 +468,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         }
 
         auto updatedScaleFactor = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0)->_dst_quant.scale;
-        auto equalScaleFactor = [updatedScaleFactor, &fp32eq](const auto& inputLayer) {
+        auto equalScaleFactor = [updatedScaleFactor, &fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             return fp32eq(quantParams->_dst_quant.scale, updatedScaleFactor);
         };
