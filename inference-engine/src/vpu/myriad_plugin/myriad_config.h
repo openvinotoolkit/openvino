@@ -44,6 +44,10 @@ public:
         return _forceReset;
     }
 
+    bool mockDevice() const {
+        return _mockDevice;
+    }
+
     PowerConfig powerConfig() const {
         return _powerConfig;
     }
@@ -81,6 +85,7 @@ protected:
 private:
     std::string _pluginLogFilePath;
     bool _forceReset = false;
+    bool _mockDevice = false;
     PowerConfig _powerConfig = PowerConfig::FULL;
     ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
