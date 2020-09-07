@@ -384,12 +384,16 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         VPU_LOGGER_SECTION(env.log);
 
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
-            // disable GeLU decomposition
+            // disable transformations for some cases
             const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                return std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
-                       (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) &&
-                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr())) ||
-                       std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+                const bool casesWithDynamicOrStaticUsage = std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+                                                           std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+
+                const bool casesWithOnlyDynamicUsage = (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
+                                                        std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
+                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+
+                return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
             };
 
             auto nGraphFunc = originalOrConvertNetwork->getFunction();
