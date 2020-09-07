@@ -444,6 +444,10 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 
         std::set<size_t> concatIdxToUpdate;
         auto sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
+        if (sourceLayerIt == inputLayers.end()) {
+            sourceLayerIt = inputLayers.begin();
+        }
+
         if (sourceLayerIt != inputLayers.end()) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*sourceLayerIt);
             auto scaleFactor = quantParams->_dst_quant.scale;
