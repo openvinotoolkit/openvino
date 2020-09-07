@@ -28,6 +28,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> additional_config = {
     {"GNA_COMPACT_MODE", "NO"},
     {"GNA_SCALE_FACTOR_0", "2048"},
+    {"GNA_PRECISION", "I16"},
 };
 
 INSTANTIATE_TEST_CASE_P(concat_multi_input, ConcatMultiInput,
