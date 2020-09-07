@@ -83,18 +83,16 @@ TEST_F(VPUGetMetric, smoke_ThermalStatsFromPluginWithoutLoadedNetwork) {
     ASSERT_TRUE(result.empty());
 }
 
-TEST_F(VPUGetMetric, smoke_MyriadGetAvailableDevices) {
+TEST_F(VPUGetMetric, smoke_MyriadGetFullDeviceName) {
     std::vector<std::string> availableDevices;
     ASSERT_NO_THROW(availableDevices = getAvailableDevices());
     ASSERT_TRUE(!availableDevices.empty());
 
     auto result = Parameter{};
-    auto deviceNames = std::vector<std::string>(availableDevices.size());
     for (size_t i = 0; i < availableDevices.size(); ++i) {
         const auto deviceName = "MYRIAD." + availableDevices[i];
         ASSERT_NO_THROW(result = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
-
-        deviceNames[i] = result.as<std::string>();
-        ASSERT_TRUE(deviceNames[i] != availableDevices[i]);
+        auto act_res = result.as<std::string>();
+        ASSERT_TRUE(!act_res.empty());
     }
 }
