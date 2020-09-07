@@ -21,6 +21,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "generic_ie.hpp"
 
