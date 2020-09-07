@@ -46,8 +46,8 @@ void op::GRUSequenceIE::validate_and_infer_types() {
     auto seq_lengths_pshape = get_input_partial_shape(2);
     auto wr_pshape = get_input_partial_shape(3);
     auto b_pshape = get_input_partial_shape(4);
-
     std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
+
     std::vector<std::string> in_names = {"X", "H", "seq_lenghts", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 1, 2, 1};

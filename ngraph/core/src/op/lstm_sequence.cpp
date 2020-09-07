@@ -353,7 +353,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     // Validate hidden_size value for W, R, B and P inputs
     if (merged_hidden_size.is_static())
     {
-        if (w_pshape[0].is_static())
+        if (w_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -365,7 +365,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
                 ".");
         }
 
-        if (r_pshape[0].is_static())
+        if (r_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -377,7 +377,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
                 ".");
         }
 
-        if (b_pshape[0].is_static())
+        if (b_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -389,7 +389,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
                 ".");
         }
 
-        if (p_pshape[0].is_static())
+        if (p_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -538,7 +538,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static())
     {
-        if (w_pshape[0].is_static())
+        if (w_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -550,7 +550,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
                 ".");
         }
 
-        if (r_pshape[0].is_static())
+        if (r_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
@@ -562,7 +562,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
                 ".");
         }
 
-        if (b_pshape[0].is_static())
+        if (b_pshape[1].is_static())
         {
             NODE_VALIDATION_CHECK(
                 this,
