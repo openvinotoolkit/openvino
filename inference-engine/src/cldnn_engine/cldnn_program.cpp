@@ -4844,9 +4844,9 @@ void Program::CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::
     auto selectSpecificTensor = [](const InferenceEngine::SizeVector& dims, int def = 1) {
         switch (dims.size()) {
         case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
-        case 1: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(dims[0], def));
-        case 2: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(dims[1], dims[0]));
-        case 3: return cldnn::tensor(cldnn::batch(def), cldnn::feature(dims[0]), cldnn::spatial(dims[2], dims[1]));
+        case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
+        case 2: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, def));
+        case 3: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, dims[2]));
         case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
         case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
         case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
