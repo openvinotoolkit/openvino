@@ -56,6 +56,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
         const std::shared_ptr<ngraph::Node> fakeQuantizeLayer = subgraph.quantizationLayers[i];
+
         const ngraph::Shape shape = fakeQuantizeLayer->get_output_shape(0);
         if (shape.size() < 4ul) {
             return false;
@@ -129,7 +130,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
         // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
         const float quantizationSub = outputLowValue - dataPrecision.min * dequantizationMul;
-        const float dequantizationSub = -quantizationSub * quantizationMul;
+        const float dequantizationSub = static_cast<int>(-quantizationSub * quantizationMul);
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
         dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
@@ -144,6 +145,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         for (int index = 0; index < subgraph.quantizationLayers.size(); index++) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeLayer = as_type_ptr<ngraph::opset1::FakeQuantize>(
                 subgraph.quantizationLayers[index]->shared_from_this());
+
             const QuantizationDetails& quantizationDetails = quantizationLayersDetails[index];
 
             switch (quantizedTensorAlignmentOnActivations) {
