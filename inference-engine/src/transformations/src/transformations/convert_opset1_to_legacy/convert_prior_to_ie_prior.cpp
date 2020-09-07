@@ -14,6 +14,8 @@
 #include <ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);
+
 void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
