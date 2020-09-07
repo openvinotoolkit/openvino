@@ -46,6 +46,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
@@ -77,7 +78,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/psroi.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reduce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorg_yolo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
