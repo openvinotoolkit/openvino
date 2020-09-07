@@ -44,7 +44,7 @@ TEST(type_prop, rnn_sequence_forward)
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence = make_shared<opset4::RNNSequence>(
+    const auto sequence = make_shared<op::v5::RNNSequence>(
         X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);

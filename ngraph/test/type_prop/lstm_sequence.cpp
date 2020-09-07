@@ -41,7 +41,7 @@ struct recurrent_sequence_parameters
 //
 // Create and initialize default input test tensors.
 //
-shared_ptr<op::v1::LSTMSequence>
+shared_ptr<op::v5::LSTMSequence>
     lstm_seq_tensor_initialization(const recurrent_sequence_parameters& param)
 {
     auto batch_size = param.batch_size;
@@ -65,7 +65,7 @@ shared_ptr<op::v1::LSTMSequence>
     const auto B =
         make_shared<opset4::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
 
-    const auto lstm_sequence = make_shared<op::v1::LSTMSequence>();
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>();
 
     lstm_sequence->set_argument(0, X);
     lstm_sequence->set_argument(1, initial_hidden_state);
@@ -102,7 +102,7 @@ TEST(type_prop, lstm_sequence_forward)
 
     const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto lstm_sequence = make_shared<op::v1::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -152,12 +152,12 @@ TEST(type_prop, lstm_sequence_bidirectional)
     const auto B =
         make_shared<opset4::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = op::v1::LSTMSequence::direction::BIDIRECTIONAL;
+    const auto lstm_direction = op::v5::LSTMSequence::direction::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
     const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "sigmoid"};
 
-    const auto lstm_sequence = make_shared<op::v1::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -170,7 +170,7 @@ TEST(type_prop, lstm_sequence_bidirectional)
                                                                  activations_beta,
                                                                  activations);
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
-    EXPECT_EQ(lstm_sequence->get_direction(), op::v1::LSTMSequence::direction::BIDIRECTIONAL);
+    EXPECT_EQ(lstm_sequence->get_direction(), op::v5::LSTMSequence::direction::BIDIRECTIONAL);
     EXPECT_EQ(lstm_sequence->get_activations_alpha(), activations_alpha);
     EXPECT_EQ(lstm_sequence->get_activations_beta(), activations_beta);
     EXPECT_EQ(lstm_sequence->get_activations()[0], "tanh");
