@@ -170,8 +170,8 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
     }
 }
 
-void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
-    CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>(asyncRequest);
+InferenceEngine::IInferRequest::Ptr MKLDNNExecNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 
 InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {

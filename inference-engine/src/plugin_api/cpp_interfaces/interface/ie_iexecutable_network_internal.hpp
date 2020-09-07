@@ -51,9 +51,9 @@ public:
     /**
      * @brief Create an inference request object used to infer the network
      *  Note: the returned request will have allocated input and output blobs (that can be changed later)
-     * @param req - shared_ptr for the created request
+     * @return shared_ptr for the created request
      */
-    virtual void CreateInferRequest(IInferRequest::Ptr& req) = 0;
+    virtual IInferRequest::Ptr CreateInferRequest() = 0;
 
     /**
      * @deprecated Use IExecutableNetworkInternal::Export(std::ostream& networkModel)

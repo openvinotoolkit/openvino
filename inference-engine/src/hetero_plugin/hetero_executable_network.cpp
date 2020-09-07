@@ -934,8 +934,8 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
                                                 _blobNameMap);
 }
 
-void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>(asyncRequest);
+IInferRequest::Ptr HeteroExecutableNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string &name) const {

@@ -107,7 +107,7 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     void run(Task inferTask) override;
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
     ~MultiDeviceExecutableNetwork() override;

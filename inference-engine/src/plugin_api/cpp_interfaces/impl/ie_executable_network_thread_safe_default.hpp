@@ -46,12 +46,12 @@ public:
     }
 
     /**
-     * @brief Given optional implementation of creating asynchnous inference request to avoid
+     * @brief Given optional implementation of creating asynchronous inference request to avoid
      * need for it to be implemented by plugin
-     * @param asyncRequest shared_ptr for the created asynchnous inference request
+     * @return shared_ptr for the created asynchronous inference request
      */
-    void CreateInferRequest(IInferRequest::Ptr& asyncRequest) override {
-        CreateAsyncInferRequestFromSync(asyncRequest);
+    IInferRequest::Ptr CreateInferRequest() override {
+        return CreateAsyncInferRequestFromSync();
     }
 
     /**
@@ -64,15 +64,19 @@ public:
 
 protected:
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
-    void CreateAsyncInferRequestFromSync(IInferRequest::Ptr &asyncRequest) {
+    IInferRequest::Ptr CreateAsyncInferRequestFromSync() {
+        IInferRequest::Ptr asyncRequest;
+
         auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-        auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-
+        auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(
+            syncRequestImpl, _taskExecutor, _callbackExecutor);
         asyncRequest.reset(new InferRequestBase<AsyncInferRequestType>(asyncThreadSafeImpl),
             [](IInferRequest *p) { p->Release(); });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+
+        return asyncRequest;
     }
 
     /**

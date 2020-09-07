@@ -32,9 +32,10 @@ public:
 
     /**
      * @brief      Creates an asynchronous inference request public implementation.
-     * @param      asyncRequest  The asynchronous request public implementation
+     * @return     The asynchronous request public implementation
      */
-    void CreateInferRequest(IInferRequest::Ptr& asyncRequest) override {
+    IInferRequest::Ptr CreateInferRequest() override {
+        IInferRequest::Ptr asyncRequest;
         auto asyncRequestImpl = this->CreateAsyncInferRequestImpl(_networkInputs, _networkOutputs);
         asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
@@ -42,6 +43,7 @@ public:
             p->Release();
         });
         asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
+        return asyncRequest;
     }
 
 protected:

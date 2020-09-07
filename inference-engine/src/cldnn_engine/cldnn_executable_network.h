@@ -27,7 +27,7 @@ public:
     explicit CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, RemoteContext::Ptr context, Config config);
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 

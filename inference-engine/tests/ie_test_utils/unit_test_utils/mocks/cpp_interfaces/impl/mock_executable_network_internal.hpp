@@ -26,7 +26,7 @@ class MockExecutableNetworkInternal : public ExecutableNetworkInternal {
 public:
     MOCK_METHOD1(setNetworkInputs, void(InputsDataMap));
     MOCK_METHOD1(setNetworkOutputs, void(OutputsDataMap));
-    MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
+    MOCK_METHOD0(CreateInferRequest, IInferRequest::Ptr(void));
     MOCK_METHOD1(Export, void(const std::string &));
     MOCK_METHOD0(GetExecGraphInfo, CNNNetwork(void));
     void WrapOstreamExport(std::ostream& networkModel) {

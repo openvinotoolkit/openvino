@@ -27,7 +27,7 @@ public:
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
               InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);

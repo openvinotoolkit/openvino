@@ -73,7 +73,8 @@ public:
                                                     _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override {
+        InferenceEngine::IInferRequest::Ptr asyncRequest;
         if (_device == nullptr || !_device->isBooted()) {
             THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
@@ -91,6 +92,7 @@ public:
                            asyncThreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        return asyncRequest;
     }
 
     void Export(std::ostream& model) override {

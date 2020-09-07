@@ -92,8 +92,8 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
     return ptr;
 }
 
-void CLDNNExecNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>(asyncRequest);
+IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
 InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {

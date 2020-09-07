@@ -51,7 +51,7 @@ public:
     }
 
     StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->CreateInferRequest(req));
+        TO_STATUS(req = _impl->CreateInferRequest());
     }
 
     StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {

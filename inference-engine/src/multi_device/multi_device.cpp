@@ -236,7 +236,8 @@ InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateI
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs);
 }
 
-void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
+IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
+    IInferRequest::Ptr asyncRequest;
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     auto asyncTreadSafeImpl = std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
@@ -245,6 +246,7 @@ void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncR
                                                                              _callbackExecutor);
     asyncRequest.reset(new InferRequestBase<MultiDeviceAsyncInferRequest>(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    return asyncRequest;
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
