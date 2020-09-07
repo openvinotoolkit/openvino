@@ -103,7 +103,7 @@ const Transformations& getDefaultTransformations() {
 }
 
 std::set<NodeTypeInfo> getSupportedTypes(const Transformations& transformations) {
-    auto supportedTypes = std::set<NodeTypeInfo>{};
+    std::set<NodeTypeInfo> supportedTypes{};
     for (const auto& transformation : transformations) {
         supportedTypes.insert(transformation.first);
     }

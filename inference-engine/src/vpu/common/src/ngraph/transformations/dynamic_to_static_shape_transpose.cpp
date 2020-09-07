@@ -15,6 +15,10 @@
 namespace vpu {
 
 void dynamicToStaticShapeTranspose(std::shared_ptr<ngraph::Node> target) {
+    const auto transpose = ngraph::as_type_ptr<ngraph::opset3::Transpose>(target);
+    VPU_THROW_UNLESS(transpose, "dynamicToStaticShapeTranspose transformation is not applicable for {}, it should be {} instead",
+                     target, ngraph::opset3::Transpose::type_info);
+
     const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
@@ -25,10 +29,6 @@ void dynamicToStaticShapeTranspose(std::shared_ptr<ngraph::Node> target) {
         "DynamicToStaticShape transformation for {] of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1);
 
-    const auto transpose = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(target);
-    VPU_THROW_UNLESS(transpose != nullptr,
-                     "DynamicToStaticShape transformation for '{}' expects Transpose node",
-                     target->get_friendly_name());
     const auto copied = transpose->clone_with_new_inputs(target->input_values());
     const auto shape = dsr->input(1).get_source_output();
 
