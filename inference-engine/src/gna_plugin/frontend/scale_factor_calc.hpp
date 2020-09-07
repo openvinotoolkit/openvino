@@ -309,7 +309,8 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
             case InferenceEngine::EltwiseLayer::Sub:
             case InferenceEngine::EltwiseLayer::Sum: {
                 // detect which input will be used as biases
-                if (in0->outData[0]->getPrecision().size() == 4) {
+                if (LayerInfo(in0).has32BOutput() ||
+                    (LayerInfo(in0).isNonFunctional() && LayerInfo(InferenceEngine::CNNNetPrevLayer(in0, 0)).has32BOutput())) {
                     std::swap(in0, in1);
                     std::swap(quantParams0, quantParams1);
                 }
