@@ -32,7 +32,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, quantized_conv_int32_output)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_quantized_conv_int32_output)
 {
     Shape shape_a{1, 1, 3, 4};
     Shape shape_b{1, 1, 3, 3};

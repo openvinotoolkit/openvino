@@ -135,8 +135,8 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             type = op->get_input_element_type(0);
         }
-        else if (is_type<op::Equal>(op) || is_type<op::Greater>(op) || is_type<op::GreaterEq>(op) ||
-                 is_type<op::Less>(op) || is_type<op::LessEq>(op) || is_type<op::NotEqual>(op))
+        else if (is_type<op::Equal>(op) || is_type<op::Greater>(op) || is_type<op::GreaterEqual>(op) ||
+                 is_type<op::Less>(op) || is_type<op::LessEqual>(op) || is_type<op::NotEqual>(op))
         {
             // Get the type of the second input, not the first
             // All BinaryElementwiseComparision ops have the same type for inputs
@@ -159,7 +159,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         if (!op->evaluate(op_outputs, op_inputs))
         {
             evaluate_node(op, op_outputs, op_inputs);
-//            throw std::runtime_error(std::string("Evaluate doesn't implemented for operation ") + op->get_type_name());
         }
         if (m_performance_counters_enabled)
         {

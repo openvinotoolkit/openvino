@@ -48,7 +48,7 @@ protected:
         auto mem_i = make_shared<op::v0::Constant>(type, shape, 0);
         auto mem_r = make_shared<op::v3::ReadValue>(mem_i, "id");
 
-        auto mul = make_shared<op::v0::Multiply>(mem_r, input);
+        auto mul = make_shared<op::v1::Multiply>(mem_r, input);
         auto sig = make_shared<op::v0::Sigmoid>(mul);
 
         auto fc1_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);

@@ -34,7 +34,7 @@ shared_ptr<op::Constant> fold_constant_select(const shared_ptr<op::Constant>& se
     runtime::AlignedBuffer buffer(shape_size(out_shape) * sizeof(T));
     T* data_ptr = buffer.get_ptr<T>();
 
-    if (auto select_v0 = as_type_ptr<op::v0::Select>(select))
+    if (auto select_v0 = as_type_ptr<op::v1::Select>(select))
     {
         runtime::reference::select<T>(selection->get_data_ptr<char>(),
                                       t->get_data_ptr<T>(),
@@ -65,7 +65,7 @@ void pass::ConstantFolding::construct_constant_select()
         element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
     auto f_label = make_shared<pattern::op::Label>(
         element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto select_v0_op = make_shared<op::v0::Select>(selection_label, t_label, f_label);
+    auto select_v0_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
     auto select_v1_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
 
     auto constant_select_callback = [this, selection_label, t_label, f_label](pattern::Matcher& m) {

@@ -63,6 +63,7 @@ namespace
                 true);
     }
 
+
 #define TYPE_OUT_CASE(a)                                                                           \
     case element::Type_t::a: rc = evaluate<INPUT_ET, element::Type_t::a>
 
@@ -111,6 +112,8 @@ namespace
             TYPE_CASE(i32)(arg, out);
             break;
             TYPE_CASE(i64)(arg, out);
+            break;
+            TYPE_CASE(u16)(arg, out);
             break;
             TYPE_CASE(u32)(arg, out);
             break;

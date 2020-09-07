@@ -32,7 +32,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, quantized_dot_u8u8)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_quantized__dot_u8u8)
 {
     Shape shape_a{1, 2}; // input shape
     vector<uint8_t> a_data = {2, 3};
@@ -75,7 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, quantized_dot_u8u8)
     EXPECT_EQ((vector<uint8_t>{3, 13, 23}), read_vector<uint8_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, quantized_dot_int32_output)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_quantized__dot_int32_output)
 {
     Shape shape_a{1, 2}; // input shape
     vector<uint8_t> a_data = {2, 3};

@@ -30,4 +30,5 @@ static const std::vector<ngraph::element::Type> s_known_element_types = {
     ngraph::element::from<uint8_t>(),
     ngraph::element::from<uint16_t>(),
     ngraph::element::from<uint32_t>(),
-    ngraph::element::from<uint64_t>()};
+    ngraph::element::from<uint64_t>(),
+};

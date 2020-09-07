@@ -20,7 +20,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "pass/opset1_upgrade.hpp"
+//#include "pass/opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -93,9 +93,6 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
     : m_device{device}
 {
     static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(func);
 
     for (const auto& node : func->get_ops())
     {

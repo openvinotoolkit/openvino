@@ -233,9 +233,9 @@ TEST(type_prop, eltwise_auto_bcast)
     test_binary_eltwise_numpy<op::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::GreaterEq>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Less>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::LessEq>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);

@@ -55,8 +55,8 @@ namespace ngraph
                         REAL abs_qvalue = std::fabs(qvalue);
                         REAL abs_qvalue_toward_inf =
                             std::floor(abs_qvalue + static_cast<REAL>(0.5));
-                        qvalue = (qvalue < static_cast<REAL>(0.0)) ? -abs_qvalue_toward_inf
-                                                                   : abs_qvalue_toward_inf;
+                        qvalue = (qvalue < REAL(0.0)) ? REAL(-abs_qvalue_toward_inf)
+                                                                   : REAL(abs_qvalue_toward_inf);
                     }
                     else if (round_mode == op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_ZERO)
                     {

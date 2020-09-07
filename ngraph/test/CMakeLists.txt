@@ -82,7 +82,6 @@ set(SRC
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
     op_eval/variadic_split.cpp
-    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_liveness.cpp
@@ -227,7 +226,6 @@ endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
     list(APPEND SRC
-        backend_debug_api.cpp
         builder.cpp
         backend_api.cpp)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
@@ -252,7 +250,6 @@ set(MULTI_TEST_SRC
     backend/acosh.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
-    backend/any.in.cpp
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
@@ -272,7 +269,6 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
-    backend/dot.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -307,7 +303,6 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/product.in.cpp
-    backend/quantize_dequantize.in.cpp
     backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
     backend/range.in.cpp
@@ -317,7 +312,6 @@ set(MULTI_TEST_SRC
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
     backend/relu.in.cpp
-    backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
