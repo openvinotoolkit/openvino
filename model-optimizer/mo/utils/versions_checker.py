@@ -44,17 +44,18 @@ def check_python_version():
         return 1
 
 
-def parse_versions_list(required_fw_versions, version_list, env_params):
+def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
     Python 2.x will fail with no clear message on type annotations.
 
-    Parsing requirements versions for a dependency,
+    Parsing requirements versions for a dependency and filtering out requirements that
+    satisfy environment setup such as python version.
     if environment version (python_version, etc.) is satisfied
     :param required_fw_versions: String with fw versions from requirements file
     :param version_list: List for append
-    :param env_params: a dictionary of environment variables
+    :param env_setup: a dictionary with environment setup
     :return: list of tuples of strings like (name_of_module, sign, version)
 
     Examples of required_fw_versions:
@@ -77,25 +78,23 @@ def parse_versions_list(required_fw_versions, version_list, env_params):
         splited_env_req = re.split(r"==|>=|<=|>|<", env_req)
         splited_env_req = [l.strip(',') for l in splited_env_req]
         env_marker = splited_env_req[0].strip(' ')
-        if env_marker == 'python_version' and env_marker in env_params:
-            installed_python_version = env_params['python_version']
+        if env_marker == 'python_version' and env_marker in env_setup:
+            installed_python_version = env_setup['python_version']
             env_req_version_list = []
             splited_required_versions = re.split(r",", env_req)
             for i, l in enumerate(splited_required_versions):
-                comparisons = ['==', '>=', '<=', '<', '>']
-                for comparison in comparisons:
+                for comparison in ['==', '>=', '<=', '<', '>']:
                     if comparison in l:
                         required_version = splited_env_req[i + 1].strip(' ').replace('"', '')
                         env_req_version_list.append((env_marker, comparison, required_version))
                         break
-            exit_code = 0
             not_satisfied_list = []
             for name, key, required_version in env_req_version_list:
-                exit_code = version_check(name, installed_python_version, required_version,
-                                          key, not_satisfied_list, exit_code)
+                version_check(name, installed_python_version, required_version,
+                              key, not_satisfied_list, 0)
             if len(not_satisfied_list) > 0:
                 # this python_version requirement is not satisfied to required environment
-                # and it will be skipped
+                # and requirement for a dependency will be skipped
                 return version_list
         else:
             log.error("{} is unsupported environment marker and it will be ignored".format(env_marker),
@@ -113,15 +112,14 @@ def parse_versions_list(required_fw_versions, version_list, env_params):
     else:
         splited_required_versions= re.split(r",", requirement)
         for i, l in enumerate(splited_required_versions):
-            comparisons = ['==', '>=', '<=', '<', '>']
-            for comparison in comparisons:
+            for comparison in ['==', '>=', '<=', '<', '>']:
                 if comparison in l:
                     version_list.append((splited_versions_by_conditions[0], comparison, splited_versions_by_conditions[i + 1]))
                     break
     return version_list
 
 
-def get_module_version_list_from_file(file_name, env_params):
+def get_module_version_list_from_file(file_name, env_setup):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -129,7 +127,7 @@ def get_module_version_list_from_file(file_name, env_params):
 
     Reads file with requirements
     :param file_name: Name of the requirements file
-    :param env_params: a dictionary with environment variables
+    :param env_setup: a dictionary with environment setup elements
     :return: list of tuples of strings like (name_of_module, sign, version)
 
     File content example:
@@ -143,7 +141,7 @@ def get_module_version_list_from_file(file_name, env_params):
     req_dict = list()
     with open(file_name) as f:
         for line in f:
-            req_dict = parse_versions_list(line, req_dict, env_params)
+            req_dict = parse_and_filter_versions_list(line, req_dict, env_setup)
     return req_dict
 
 
@@ -189,16 +187,21 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
 
 def get_environment_setup():
     """
-    Get environment setup such as python version
-    Checks if installed modules versions satisfy required versions in requirements file
+    Get environment setup such as Python version, TensorFlow version
     :return: a dictionary of environment variables
     """
-    env_params = dict()
+    env_setup = dict()
     python_version = "{}.{}.{}".format(sys.version_info.major,
                                        sys.version_info.minor,
                                        sys.version_info.micro)
-    env_params['python_version'] = python_version
-    return env_params
+    env_setup['python_version'] = python_version
+    try:
+        exec("import tensorflow")
+        env_setup['tensorflow'] = sys.modules["tensorflow"].__version__
+        exec("del tensorflow")
+    except (AttributeError, ImportError):
+        pass
+    return env_setup
 
 
 def check_requirements(framework=None):
@@ -213,26 +216,20 @@ def check_requirements(framework=None):
     :param framework: framework name
     :return: exit code (0 - execution successful, 1 - error)
     """
+    env_setup = get_environment_setup()
     if framework is None:
         framework_suffix = ""
     elif framework == "tf":
-        try:
-            exec("import tensorflow")
-            tf_version = sys.modules["tensorflow"].__version__
-            if tf_version < LooseVersion("2.0.0"):
-                framework_suffix = "_tf"
-            else:
-                framework_suffix = "_tf2"
-            exec("del tensorflow")
-        except (AttributeError, ImportError):
+        if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
+            framework_suffix = "_tf2"
+        else:
             framework_suffix = "_tf"
     else:
         framework_suffix = "_{}".format(framework)
 
     file_name = "requirements{}.txt".format(framework_suffix)
     requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, file_name))
-    env_params = get_environment_setup()
-    requirements_list = get_module_version_list_from_file(requirements_file, env_params)
+    requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
     not_satisfied_versions = []
     exit_code = 0
     for name, key, required_version in requirements_list:

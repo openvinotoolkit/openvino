@@ -18,7 +18,7 @@ import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
 
-from mo.utils.versions_checker import get_module_version_list_from_file, parse_versions_list
+from mo.utils.versions_checker import get_module_version_list_from_file, parse_and_filter_versions_list
 
 
 class TestingVersionsChecker(unittest.TestCase):
@@ -82,7 +82,7 @@ class TestingVersionsChecker(unittest.TestCase):
     def test_append_version_list(self):
         v1 = 'mxnet>=1.0.0,<=1.3.1'
         req_list = list()
-        parse_versions_list(v1, req_list, {})
+        parse_and_filter_versions_list(v1, req_list, {})
         ref_list = [('mxnet', '>=', '1.0.0'),
                     ('mxnet', '<=', '1.3.1')]
         for i, v in enumerate(req_list):
