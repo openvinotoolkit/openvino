@@ -252,10 +252,8 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 9, 9 }
 };
 
-// LPT to nGraph migration: temporary disabling unexpected not reproduced fails on CI:
-// https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18_i386/478/
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
