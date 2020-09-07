@@ -40,12 +40,6 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
 
-        if (as_type<ngraph::opset3::GroupConvolution>(add->get_input_node_ptr(0))
-            || as_type<ngraph::opset3::Convolution>(add->get_input_node_ptr(0))
-            || as_type<ngraph::opset3::MatMul>(add->get_input_node_ptr(0))) {
-            return false;
-        }
-
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];

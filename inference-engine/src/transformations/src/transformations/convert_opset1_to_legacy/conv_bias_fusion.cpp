@@ -84,7 +84,7 @@ ngraph::graph_rewrite_callback get_callback() {
         const int64_t channel_dim = output_pshape[1].get_length();
 
         size_t constant_size = std::accumulate(constant_shape.begin(), constant_shape.end(), 1, std::multiplies<size_t>());
-        if (constant_size != channel_dim && !constant_shape.empty()) {
+        if (constant_size != channel_dim) {
             return false;
         }
 
