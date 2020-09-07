@@ -556,7 +556,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     }
 
     std::shared_ptr<DequantizationSubtract> subtract;
-    if (dequantizationSub != 0.f) {
+    if (std::abs(dequantizationSub) > 1e-6) {
         subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));

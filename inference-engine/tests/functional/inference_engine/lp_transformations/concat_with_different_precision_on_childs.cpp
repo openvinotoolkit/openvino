@@ -212,10 +212,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-// LPT to nGraph migration: temporary disabling unexpected not reproduced fails on CI:
-// https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18_i386/641/
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     ConcatWithDifferentChildsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
