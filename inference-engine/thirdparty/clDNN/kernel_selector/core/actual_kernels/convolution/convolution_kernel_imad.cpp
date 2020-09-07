@@ -82,7 +82,6 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
 
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
 
@@ -116,8 +115,6 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
         in_fsv = 4;
     else if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
         in_fsv = 16;
-    else if (params.inputs[0].GetLayout() == DataLayout::byxf_af32)
-        in_fsv = 32;
 
     mem_consts.AddConstants({
         MakeJitConstant("_ID", RoundUp(input.Feature().v, in_fsv)),

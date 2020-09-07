@@ -95,8 +95,16 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 {
     const int fg = get_group_id(0);
     const int x = (int)get_global_id(1) * OUTPUT_X_BLOCK_SIZE;
+
+#if OUTPUT_DIMS == 4
     const int b = (int)get_global_id(2) / OUTPUT_SIZE_Y;
+    const int z = 0;
     const int y = (int)get_global_id(2) % OUTPUT_SIZE_Y;
+#elif OUTPUT_DIMS == 5
+    const int b = (int)get_global_id(2) / OUTPUT_SIZE_Y / OUTPUT_SIZE_Z;
+    const int z = (int)get_global_id(2) / OUTPUT_SIZE_Y % OUTPUT_SIZE_Z;
+    const int y = (int)get_global_id(2) % OUTPUT_SIZE_Y;
+#endif // OUTPUT_DIMS == 4
 
     const int lid = get_sub_group_local_id();
     const int group_id = get_group_id(1);
@@ -104,14 +112,15 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 
     const int x_wg_start = (group_id * GROUP_SIZE) * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int input_z = z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
     ACCUMULATOR_TYPE_VEC acc[2] = { 0 }; // 2*16 packed channels * OUTPUT_X_BLOCK_SIZE
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
 
-#if INPUT0_LAYOUT_BFYX
-    const int input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + input_y * INPUT0_Y_PITCH;
+#if INPUT0_LAYOUT_BFYX || INPUT0_LAYOUT_BFZYX
+    const int input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + input_y * INPUT0_Y_PITCH + input_z * INPUT0_Z_PITCH;
 #elif INPUT0_LAYOUT_B_FS_YX_FSV4
     const int fsv = 4;
     const int input_x_pitch = fsv;
@@ -122,7 +131,7 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
     const int input_offset = b * input_b_pitch + input_y * input_y_pitch;
 #endif
 
-    int filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * ISV * OSV;
+    int filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * ISV * OSV;
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     char4 multiplier;
     for (int i = 0; i < INPUT0_FEATURE_NUM; i++)
@@ -136,122 +145,135 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 #endif // INPUT0_FEATURE_NUM == 3
 #endif // ASYMMETRIC_DATA_QUANTIZATION
 
-    __local PACKED_IN_TYPE slm[SLM_LINE_SIZE*FILTER_SIZE_Y];
+    __local PACKED_IN_TYPE slm[SLM_LINE_SIZE*FILTER_SIZE_Y*FILTER_SIZE_Z];
 
-    for (int kh = 0; kh < FILTER_SIZE_Y ; ++kh) {
-        __local PACKED_IN_TYPE* slm_block = slm + kh*SLM_LINE_SIZE + sg*SLM_CHUNK_SIZE;
-        bool y_cross_fm = input_y + kh*DILATION_SIZE_Y < 0 || input_y + kh*DILATION_SIZE_Y >= INPUT0_SIZE_Y;
-        if (y_cross_fm) {
+    for (int kd = 0; kd < FILTER_SIZE_Z ; ++kd) {
+        bool z_cross_fm = input_z + kd*DILATION_SIZE_Z < 0 || input_z + kd*DILATION_SIZE_Z >= INPUT0_SIZE_Z;
+        for (int kh = 0; kh < FILTER_SIZE_Y ; ++kh) {
+            __local PACKED_IN_TYPE* slm_block = slm + kh*SLM_LINE_SIZE + kd*SLM_LINE_SIZE*FILTER_SIZE_Y + sg*SLM_CHUNK_SIZE;
+            bool y_cross_fm = input_y + kh*DILATION_SIZE_Y < 0 || input_y + kh*DILATION_SIZE_Y >= INPUT0_SIZE_Y;
+            if (y_cross_fm || z_cross_fm) {
 #if ASYMMETRIC_DATA_QUANTIZATION
-            for (int c = 0; c < SLM_CHUNK_SIZE; c += SUB_GROUP_SIZE) {
-                if (sg*SLM_CHUNK_SIZE + c + lid < SLM_LINE_SIZE)
-                    slm_block[c + lid] = AS_PACKED_IN_TYPE(zp);
-            }
+                for (int c = 0; c < SLM_CHUNK_SIZE; c += SUB_GROUP_SIZE) {
+                    if (sg*SLM_CHUNK_SIZE + c + lid < SLM_LINE_SIZE)
+                        slm_block[c + lid] = AS_PACKED_IN_TYPE(zp);
+                }
 #if SLM_TAIL > 0
-            if (sg == LWS1 - 1) {
-                __local PACKED_IN_TYPE* slm_block_tail = slm + kh*SLM_LINE_SIZE + LWS1*SLM_CHUNK_SIZE;
-                slm_block_tail[lid] = AS_PACKED_IN_TYPE(zp);
-            }
+                if (sg == LWS1 - 1) {
+                    __local PACKED_IN_TYPE* slm_block_tail = slm + kh*SLM_LINE_SIZE + kd*SLM_LINE_SIZE*FILTER_SIZE_Y + LWS1*SLM_CHUNK_SIZE;
+                    slm_block_tail[lid] = AS_PACKED_IN_TYPE(zp);
+                }
 #endif // SLM_TAIL > 0
 #endif // ASYMMETRIC_DATA_QUANTIZATION
-            continue;
-        }
-
-        {
-            for (int c = 0; c < SLM_CHUNK_SIZE; c += SUB_GROUP_SIZE) {
-                const int x_chunk = x_wg_start + sg*SLM_CHUNK_SIZE + c;
-                bool x_cross_fm = x_chunk + lid < 0 || x_chunk + lid >= INPUT0_SIZE_X;
-
-                if (!x_cross_fm) {
-                #if INPUT0_LAYOUT_BFYX
-                    MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
-                    __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
-                    for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
-                        src[i] = input[input_offset + i * INPUT0_FEATURE_PITCH
-                                                    + kh * DILATION_SIZE_Y * INPUT0_Y_PITCH
-                                                    + (x_chunk + lid)* INPUT0_X_PITCH];
-                    }
-                    slm_block[c + lid] = AS_PACKED_IN_TYPE(src);
-                #elif INPUT0_LAYOUT_B_FS_YX_FSV4
-                    const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
-                    PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
-                    slm_block[c + lid] = src;
-                #endif
-                } else {
-#if ASYMMETRIC_DATA_QUANTIZATION
-                    slm_block[c + lid] = AS_PACKED_IN_TYPE(zp);
-#else  // ASYMMETRIC_DATA_QUANTIZATION
-                    slm_block[c + lid] = 0;
-#endif  // ASYMMETRIC_DATA_QUANTIZATION
-                }
+                continue;
             }
+
+            {
+                for (int c = 0; c < SLM_CHUNK_SIZE; c += SUB_GROUP_SIZE) {
+                    const int x_chunk = x_wg_start + sg*SLM_CHUNK_SIZE + c;
+                    bool x_cross_fm = x_chunk + lid < 0 || x_chunk + lid >= INPUT0_SIZE_X;
+
+                    if (!x_cross_fm) {
+                    #if INPUT0_LAYOUT_BFYX || INPUT0_LAYOUT_BFZYX
+                        MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
+                        __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
+                        for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
+                            src[i] = input[input_offset + i * INPUT0_FEATURE_PITCH
+                                                        + kd * DILATION_SIZE_Z * INPUT0_Z_PITCH
+                                                        + kh * DILATION_SIZE_Y * INPUT0_Y_PITCH
+                                                        + (x_chunk + lid)* INPUT0_X_PITCH];
+                        }
+                        slm_block[c + lid] = AS_PACKED_IN_TYPE(src);
+                    #elif INPUT0_LAYOUT_B_FS_YX_FSV4
+                        const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                        PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
+                        slm_block[c + lid] = src;
+                    #endif
+                    } else {
+#if ASYMMETRIC_DATA_QUANTIZATION
+                        slm_block[c + lid] = AS_PACKED_IN_TYPE(zp);
+#else  // ASYMMETRIC_DATA_QUANTIZATION
+                        slm_block[c + lid] = 0;
+#endif  // ASYMMETRIC_DATA_QUANTIZATION
+                   }
+               }
 #if SLM_TAIL > 0
-            if (sg == LWS1 - 1) {
-                __local PACKED_IN_TYPE* slm_block_tail = slm + kh*SLM_LINE_SIZE + LWS1*SLM_CHUNK_SIZE;
-                const int x_chunk = x_wg_start + LWS1*SLM_CHUNK_SIZE;
-                bool x_cross_fm = x_chunk + lid >= INPUT0_SIZE_X;
-                if (!x_cross_fm) {
-                #if INPUT0_LAYOUT_BFYX
-                    MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
-                    __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
-                    for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
-                        src[i] = input[input_offset + i * INPUT0_FEATURE_PITCH
-                                                    + kh * DILATION_SIZE_Y * INPUT0_Y_PITCH
-                                                    + (x_chunk + lid)* INPUT0_X_PITCH];
-                    }
-                    slm_block_tail[lid] = AS_PACKED_IN_TYPE(src);
-                #elif INPUT0_LAYOUT_B_FS_YX_FSV4
-                    const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
-                    PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
-                    slm_block_tail[lid] = src;
-                #endif
-                } else {
+                if (sg == LWS1 - 1) {
+                    __local PACKED_IN_TYPE* slm_block_tail = slm + kh*SLM_LINE_SIZE + kd*SLM_LINE_SIZE*FILTER_SIZE_Y + LWS1*SLM_CHUNK_SIZE;
+                    const int x_chunk = x_wg_start + LWS1*SLM_CHUNK_SIZE;
+                    bool x_cross_fm = x_chunk + lid >= INPUT0_SIZE_X;
+                    if (!x_cross_fm) {
+                    #if INPUT0_LAYOUT_BFYX || INPUT0_LAYOUT_BFZYX
+                        MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
+                        __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
+                        for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
+                            src[i] = input[input_offset + i * INPUT0_FEATURE_PITCH
+                                                        + kd * DILATION_SIZE_Z * INPUT0_Z_PITCH
+                                                        + kh * DILATION_SIZE_Y * INPUT0_Y_PITCH
+                                                        + (x_chunk + lid)* INPUT0_X_PITCH];
+                        }
+                        slm_block_tail[lid] = AS_PACKED_IN_TYPE(src);
+                    #elif INPUT0_LAYOUT_B_FS_YX_FSV4
+                        const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                        PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
+                        slm_block_tail[lid] = src;
+                    #endif
+                    } else {
 #if ASYMMETRIC_DATA_QUANTIZATION
                     slm_block_tail[lid] = AS_PACKED_IN_TYPE(zp);
 #else  // ASYMMETRIC_DATA_QUANTIZATION
                     slm_block_tail[lid] = 0;
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
+                    }
                 }
-            }
 #endif
+            }
         }
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    __attribute__((opencl_unroll_hint(FILTER_SIZE_Y)))
-    for (int kh = 0; kh < FILTER_SIZE_Y ; ++kh) {
-        bool y_cross_fm = input_y + kh*DILATION_SIZE_Y < 0 || input_y + kh*DILATION_SIZE_Y >= INPUT0_SIZE_Y;
+    for (int kd = 0; kd < FILTER_SIZE_Z; ++kd) {
+        bool z_cross_fm = input_z + kd*DILATION_SIZE_Z < 0 || input_z + kd*DILATION_SIZE_Z >= INPUT0_SIZE_Z;
 #if !ASYMMETRIC_DATA_QUANTIZATION
-        if (y_cross_fm)
+        if (z_cross_fm)
             continue;
 #endif
-        PACKED_IN_TYPE line_cache[INPUT_LINE_SIZE];
-        for (int xb = 0; xb < INPUT_LINE_SIZE; xb++) {
-            line_cache[xb] = slm[kh*SLM_LINE_SIZE + sg*OUTPUT_X_BLOCK_SIZE*STRIDE_SIZE_X + xb];
-        }
+        __attribute__((opencl_unroll_hint(FILTER_SIZE_Y)))
+        for (int kh = 0; kh < FILTER_SIZE_Y ; ++kh) {
+            bool y_cross_fm = input_y + kh*DILATION_SIZE_Y < 0 || input_y + kh*DILATION_SIZE_Y >= INPUT0_SIZE_Y;
+#if !ASYMMETRIC_DATA_QUANTIZATION
+            if (y_cross_fm)
+                continue;
+#endif
+            PACKED_IN_TYPE line_cache[INPUT_LINE_SIZE];
+            for (int xb = 0; xb < INPUT_LINE_SIZE; xb++) {
+                line_cache[xb] = slm[kd*SLM_LINE_SIZE*FILTER_SIZE_Y + kh*SLM_LINE_SIZE + sg*OUTPUT_X_BLOCK_SIZE*STRIDE_SIZE_X + xb];
+            }
 
-        __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
-        for (uint kw = 0; kw < FILTER_SIZE_X ; ++kw) {
-            const uint f_off = filter_idx
-                             + kh * OSV * ISV * FILTER_SIZE_X
-                             + kw * OSV * ISV;
+            __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
+            for (uint kw = 0; kw < FILTER_SIZE_X ; ++kw) {
+                const uint f_off = filter_idx
+                                + kd * OSV * ISV * FILTER_SIZE_X * FILTER_SIZE_Y
+                                + kh * OSV * ISV * FILTER_SIZE_X
+                                + kw * OSV * ISV;
 
-            int weights_data0 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off)));
-            int weights_data1 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off + SUB_GROUP_SIZE*ISV)));
+                int weights_data0 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off)));
+                int weights_data1 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off + SUB_GROUP_SIZE*ISV)));
 
-            PACKED_TYPE_VEC src;
+                PACKED_TYPE_VEC src;
 
-            __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
-            for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-                // src[i] = slm[kh*SLM_LINE_SIZE + (sg*OUTPUT_X_BLOCK_SIZE + i)*STRIDE_SIZE_X + kw*DILATION_SIZE_X];
-                src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
-                acc[0][i] = IMAD(acc[0][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data0));
-                acc[1][i] = IMAD(acc[1][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data1));
+                __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
+                for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+                    // src[i] = slm[kh*SLM_LINE_SIZE + (sg*OUTPUT_X_BLOCK_SIZE + i)*STRIDE_SIZE_X + kw*DILATION_SIZE_X];
+                    src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
+                    acc[0][i] = IMAD(acc[0][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data0));
+                    acc[1][i] = IMAD(acc[1][i], AS_INPUT0_TYPE_4(src[i]), as_char4(weights_data1));
 
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-                acc_assym_weights[i] = IMAD(acc_assym_weights[i], AS_INPUT0_TYPE_4(src[i]), multiplier);
+                    acc_assym_weights[i] = IMAD(acc_assym_weights[i], AS_INPUT0_TYPE_4(src[i]), multiplier);
 #endif
+                }
             }
         }
     }
@@ -303,13 +325,21 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
 #if OUTPUT_FEATURE_NUM > 16
         for (int ofm = 0; ofm < 2; ofm++) {
+#if OUTPUT_DIMS == 4
             const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + SUB_GROUP_SIZE*ofm + lid, y, x+i);
+#elif OUTPUT_DIMS == 5
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + SUB_GROUP_SIZE*ofm + lid, z, y, x+i);
+#endif
             if (x + i < OUTPUT_SIZE_X && fg*OSV + SUB_GROUP_SIZE*ofm + lid < OUTPUT_FEATURE_NUM) {
                 output[dst_index] = dst[ofm][i];
             }
         }
 #else // OUTPUT_FEATURE_NUM > 16
+#if OUTPUT_DIMS == 4
         const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + lid, y, x+i);
+#elif OUTPUT_DIMS == 5
+        const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + lid, z, y, x+i);
+#endif
         if (x + i < OUTPUT_SIZE_X && fg*OSV + lid < OUTPUT_FEATURE_NUM) {
             output[dst_index] = dst[0][i];
         }
@@ -382,8 +412,13 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
     }
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
     if (full_x && full_f) {
+#if OUTPUT_DIMS == 4
         const uint dst_index0 = OUTPUT_GET_INDEX(b, fg*OSV, y, x);
         const uint dst_index1 = OUTPUT_GET_INDEX(b, fg*OSV+16, y, x);
+#elif OUTPUT_DIMS == 5
+        const uint dst_index0 = OUTPUT_GET_INDEX(b, fg*OSV, z, y, x);
+        const uint dst_index1 = OUTPUT_GET_INDEX(b, fg*OSV+16, z, y, x);
+#endif
         BLOCK_WRITE(output + dst_index0, dst[0]);
         BLOCK_WRITE(output + dst_index1, dst[1]);
     } else {
@@ -392,7 +427,11 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                 const bool full_it_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
                 const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV == 0 || 16*ofm + lid < OUTPUT_FEATURE_NUM % OSV;
                 if (full_it_x && full_sgl_f) {
+#if OUTPUT_DIMS == 4
                     const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + 16*ofm + lid, y, x+i);
+#elif OUTPUT_DIMS == 5
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + 16*ofm + lid, z, y, x+i);
+#endif
                     output[dst_index] = dst[ofm][i];
                 }
             }

@@ -71,7 +71,7 @@ public:
     }
 };
 
-class INFERENCE_ENGINE_API_CLASS(FormatParser): public IFormatParser {
+class FormatParser: public IFormatParser {
 public:
     explicit FormatParser(size_t version);
 

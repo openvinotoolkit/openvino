@@ -6,15 +6,16 @@
 #pragma once
 
 #include <gmock/gmock-matchers.h>
+#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
 
-class InputDataMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t *> {
+class InputDataMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t *> {
     std::vector<int16_t> refInput;
 public:
 
     explicit InputDataMatcher(const std::vector<int16_t> &_refInput) : refInput(_refInput) {}
 
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo->pLayers == nullptr) {
             *listener << "Address of the first layer descriptor is NULL";
             return false;

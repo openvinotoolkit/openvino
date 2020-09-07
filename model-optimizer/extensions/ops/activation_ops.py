@@ -115,8 +115,6 @@ class Atanh(Activation):
 
 
 class ReLU6(AttributedClamp):
-    op = 'ReLU6'
-
     def __init__(self, graph: Graph, attrs: dict):
         relu6_attrs = {'min': 0, 'max': 6}
         relu6_attrs.update(attrs)
@@ -242,6 +240,12 @@ class Mish(Activation):
     op = 'Mish'
     version = 'opset4'
     operation = staticmethod(lambda x: x * np.tanh(np.ln(np.exp(x) + 1.0)))
+
+
+class HSwish(Activation):
+    op = 'HSwish'
+    version = 'opset4'
+    operation = staticmethod(lambda x: x * np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
 
 
 class Swish(Op):

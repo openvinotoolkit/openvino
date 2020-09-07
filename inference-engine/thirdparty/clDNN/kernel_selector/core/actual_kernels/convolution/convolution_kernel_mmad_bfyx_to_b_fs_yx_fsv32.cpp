@@ -36,9 +36,11 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetSupportedKey() const 
     k.EnableInputWeightsType(WeightsType::INT8);
 
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -63,6 +65,9 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p, con
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
+
+    if (params.inputs[0].Dimentions() != params.output.Dimentions())
+        return false;
 
     if (params.inputs[0].Feature().v != 3 && params.inputs[0].Feature().v != 4)
         return false;
@@ -128,7 +133,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_m
 
 static size_t get_slm_byte_size(const convolution_params &cp, size_t lws, size_t block_size) {
     return (cp.stride.x * (lws * block_size - 1) + (cp.weights.X().v - 1) * cp.dilation.x + 1)*
-            cp.weights.Y().v * sizeof(int32_t);
+            cp.weights.Y().v * cp.weights.Z().v * sizeof(int32_t);
 }
 
 static size_t get_lws(const convolution_params &cp, size_t blocks_count, size_t block_size, size_t max_lws) {
@@ -157,7 +162,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32
     const size_t max_lws = std::max((size_t)1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
     runInfo.gws0 = Align(cp.output.Feature().v, 32) / 2;
     runInfo.gws1 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth);
-    runInfo.gws2 = cp.output.Batch().v * cp.output.Y().v;
+    runInfo.gws2 = cp.output.Batch().v * cp.output.Y().v * cp.output.Z().v;
 
     runInfo.lws0 = sub_group_size;
     runInfo.lws1 = get_lws(cp, runInfo.gws1, tuneOptions.blockWidth, max_lws);
@@ -184,8 +189,7 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
     size_t slm_tail = slm_line_size % runInfo.lws1;
     size_t slm_line_aligned = slm_chunk_size*runInfo.lws1 + Align(slm_tail, sub_group_size);
 
-    size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
-                                      input.X().v + input.X().pad.Total());
+    size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
 
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
@@ -199,14 +203,20 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        if (GetPreferredWeightsLayout(params) == WeightsLayout::os_is_yx_osv32_isv4) {
-            FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + lid)", "y", "(x+i)"}, "res0", input_dt, 1};
-            FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + lid+16)", "y", "(x+i)"}, "res1", input_dt, 1};
+        if (WeightsTensor::ChannelsCount(GetPreferredWeightsLayout(params)) == 5) {
+            FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + lid)", "z", "y", "(x+i)"}, "res0", input_dt, 1};
+            FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + lid+16)", "z", "y", "(x+i)"}, "res1", input_dt, 1};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
         } else {
-            FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + 2*lid + 0)", "y", "(x+i)"}, "res0", input_dt, 1};
-            FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + 2*lid + 1)", "y", "(x+i)"}, "res1", input_dt, 1};
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
+            if (GetPreferredWeightsLayout(params) == WeightsLayout::os_is_yx_osv32_isv4) {
+                FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + lid)", "y", "(x+i)"}, "res0", input_dt, 1};
+                FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + lid+16)", "y", "(x+i)"}, "res1", input_dt, 1};
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
+            } else {
+                FusedOpsConfiguration conf0 = {"_0", {"b", "(fg*32 + 2*lid + 0)", "y", "(x+i)"}, "res0", input_dt, 1};
+                FusedOpsConfiguration conf1 = {"_1", {"b", "(fg*32 + 2*lid + 1)", "y", "(x+i)"}, "res1", input_dt, 1};
+                jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1}));
+            }
         }
     }
 

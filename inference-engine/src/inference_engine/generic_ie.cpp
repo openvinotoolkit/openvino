@@ -129,8 +129,9 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
             }
         }
 
-        // WA: Proposal shape infer has to know number of outputs
-        if (type == "Proposal" && parameters.find("num_outputs") == parameters.end()) {
+        // WA: shape infer has to know number of outputs
+        if ((type == "Proposal" || type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
+                && parameters.find("num_outputs") == parameters.end()) {
             parameters["num_outputs"] = std::to_string(outputs.size());
         }
 

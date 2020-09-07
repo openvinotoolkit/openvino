@@ -330,8 +330,6 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 raw_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::b_fs_yx_fsv16 ||
                        layout == DataLayout::b_fs_yx_fsv32 ||
-                       layout == DataLayout::byxf_af32 ||
-                       layout == DataLayout::fs_bs_yx_bsv4_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16) {
@@ -1362,6 +1360,26 @@ JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount) {
     return jit;
 }
 
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount) {
+    JitConstants jit{
+        MakeJitConstant("CONST_LOOP_CALL(macro, idx)", "macro(idx)"),
+        MakeJitConstant("CONST_LOOP_1(macro)", "CONST_LOOP_CALL(macro, 0)")
+    };
+
+    for (uint32_t i = 2; i <= loopCount; ++i) {
+        jit.AddConstant(
+            MakeJitConstant("CONST_LOOP_" + toCodeString(i) + "(macro)",
+                            "CONST_LOOP_" + toCodeString(i - 1) + "(macro); CONST_LOOP_CALL(macro," + toCodeString(i - 1) + ")")
+        );
+    }
+
+    jit.AddConstant(
+        MakeJitConstant("CONST_LOOP(count, macro)", "CAT(CONST_LOOP_, count)(macro)")
+    );
+
+    return jit;
+}
+
 bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) const {
     if (conf.loop_axes.empty())
         return true;
@@ -1759,6 +1777,7 @@ std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
+    std::replace(input_var.begin(), input_var.end(), '.', '_');
     return input_var + "_out";
 }
 

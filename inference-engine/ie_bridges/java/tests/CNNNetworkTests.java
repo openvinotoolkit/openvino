@@ -1,4 +1,5 @@
-import org.junit.Assert;
+import static org.junit.Assert.*;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,6 +10,7 @@ import org.intel.openvino.*;
 public class CNNNetworkTests extends IETest {
     IECore core = new IECore();
 
+    @Test
     public void testInputName() {
         CNNNetwork net = core.ReadNetwork(modelXml);
         Map<String, InputInfo> inputsInfo = net.getInputsInfo();
@@ -17,6 +19,7 @@ public class CNNNetworkTests extends IETest {
         assertEquals("Input name", "data", inputName);
     }
 
+    @Test
     public void testReshape() {
         CNNNetwork net = core.ReadNetwork(modelXml);
 
@@ -27,9 +30,10 @@ public class CNNNetworkTests extends IETest {
         net.reshape(input);
         Map<String, int[]> res = net.getInputShapes();
 
-        Assert.assertArrayEquals(input.get("data"), res.get("data"));
+        assertArrayEquals(input.get("data"), res.get("data"));
     }
 
+    @Test
     public void testAddOutput() {
         CNNNetwork net = core.ReadNetwork(modelXml);
         Map<String, Data> output = net.getOutputsInfo();

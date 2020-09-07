@@ -169,6 +169,13 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     return comparison_result;
 }
 
+testing::AssertionResult
+    test::IE_Engine::compare_results_with_tolerance_as_fp(const float tolerance)
+{
+    auto comparison_result = testing::AssertionSuccess();
+    return comparison_result;
+}
+
 std::shared_ptr<Function>
     test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
 {

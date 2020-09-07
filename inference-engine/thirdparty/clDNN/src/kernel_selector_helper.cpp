@@ -126,16 +126,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_f_bsv8__af8;
         case format::bs_xs_xsv8_bsv16:
             return kernel_selector::data_layout::bs_f_bsv16__af8;
-        case format::bf8_xy16:
-            return kernel_selector::data_layout::bf8_xy16;
         case format::winograd_2x3_s1_data:
             return kernel_selector::data_layout::winograd_2x3_s1_data;
-        case format::byxf_af32:
-            return kernel_selector::data_layout::byxf_af32;
-        case format::byx8_f4:
-            return kernel_selector::data_layout::byx8_f4;
-        case format::fs_bs_yx_bsv4_fsv32:
-            return kernel_selector::data_layout::fs_bs_yx_bsv4_fsv32;
         case format::b_fs_yx_fsv4:
             return kernel_selector::data_layout::b_fs_yx_fsv4;
         case format::b_fs_yx_32fp:
@@ -185,16 +177,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_xs_xsv8_bsv8;
         case kernel_selector::data_layout::bs_f_bsv16__af8:
             return cldnn::format::bs_x_bsv16;
-        case kernel_selector::data_layout::bf8_xy16:
-            return cldnn::format::bf8_xy16;
         case kernel_selector::data_layout::winograd_2x3_s1_data:
             return cldnn::format::winograd_2x3_s1_data;
-        case kernel_selector::data_layout::byxf_af32:
-            return cldnn::format::byxf_af32;
-        case kernel_selector::data_layout::byx8_f4:
-            return cldnn::format::byx8_f4;
-        case kernel_selector::data_layout::fs_bs_yx_bsv4_fsv32:
-            return cldnn::format::fs_bs_yx_bsv4_fsv32;
         case kernel_selector::data_layout::b_fs_yx_32fp:
             return cldnn::format::b_fs_yx_32fp;
         case kernel_selector::data_layout::bfzyx:
@@ -272,6 +256,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2;
         case format::os_is_yx_osv32_isv4:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
+        case format::os_is_zyx_osv32_isv4:
+            return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
         case format::os_is_yx_osv32_isv32p:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
@@ -410,6 +396,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return format::os_is_yx_osv32_isv4_swizzled_by_2;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv4:
             return format::os_is_yx_osv32_isv4;
+        case kernel_selector::weights_layout::os_is_zyx_osv32_isv4:
+            return format::os_is_zyx_osv32_isv4;
         case kernel_selector::weights_layout::os_is_y_x8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv32p:
@@ -510,19 +498,8 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     size_t pitch = 1;
     auto new_vals = vals;
 
-    if (ks_layout == kernel_selector::Tensor::byxf_af32) {
-        new_vals[3] = align_to(vals[3], 32);
-    }
     if (ks_layout == kernel_selector::Tensor::b_fs_yx_fsv32) {
         new_vals[1] = align_to(vals[1], 32);
-    }
-    if (ks_layout == kernel_selector::Tensor::fs_bs_yx_bsv4_fsv32) {
-        new_vals[3] = align_to(vals[3], 32);
-        new_vals[2] = align_to(vals[2], 4);
-    }
-    if (ks_layout == kernel_selector::Tensor::byx8_f4) {
-        new_vals[3] = align_to(vals[3], 4);
-        new_vals[2] = align_to(vals[2], 8);
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
         new_vals[0] = align_to(vals[0], 16);

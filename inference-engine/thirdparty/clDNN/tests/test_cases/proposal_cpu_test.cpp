@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,13 +71,13 @@ const int image_z = 1;
 const std::vector<float> ratios = { 0.5f, 1.0f, 2.0f };
 const std::vector<float> scales = { 8.0f, 16.0f, 32.0f };
 
-template <typename Dtype>
+template <typename Dtype, typename ImInfoType = Dtype>
 class TestRunnerProposal
 {
     public:
         explicit TestRunnerProposal(cldnn::tensor image_info_size);
 
-        memory Run(std::vector<Dtype>& data, 
+        memory Run(std::vector<Dtype>& data,
                    std::vector<Dtype>& rois);
 
     private:
@@ -90,13 +90,13 @@ class TestRunnerProposal
         std::unique_ptr<network> _network;
 };
 
-template <typename Dtype>
-TestRunnerProposal<Dtype>::TestRunnerProposal(cldnn::tensor image_info_size) :
+template <typename Dtype, typename ImInfoType>
+TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size) :
                             _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
                             _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
-                            _image_info_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, image_info_size),
-                            _test_layer(layer_name, 
-                                        cls_scores_name, 
+                            _image_info_layout(cldnn::type_to_data_type<ImInfoType>::value, format::bfyx, image_info_size),
+                            _test_layer(layer_name,
+                                        cls_scores_name,
                                         bbox_pred_name,
                                         image_info_name,
                                         max_proposals,
@@ -108,7 +108,7 @@ TestRunnerProposal<Dtype>::TestRunnerProposal(cldnn::tensor image_info_size) :
                                         ratios,
                                         scales,
                                         padding())
-{    
+{
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));
     _topology.add(input_layout(bbox_pred_name, _bbox_pred_layout));
     _topology.add(input_layout(image_info_name, _image_info_layout));
@@ -118,26 +118,26 @@ TestRunnerProposal<Dtype>::TestRunnerProposal(cldnn::tensor image_info_size) :
     _network.reset(new network(_engine, _topology));
 }
 
-template <typename Dtype>
-memory TestRunnerProposal<Dtype>::Run(std::vector<Dtype>& cls_scores_vals,
-                                      std::vector<Dtype>& bbox_pred_vals)
+template <typename Dtype, typename ImInfoType>
+memory TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_scores_vals,
+                                                  std::vector<Dtype>& bbox_pred_vals)
 {
     memory cls_scores = memory::attach(_cls_scores_layout, cls_scores_vals.data(), cls_scores_vals.size());
     memory bbox_pred  = memory::attach(_bbox_pred_layout, bbox_pred_vals.data(), bbox_pred_vals.size());
 
-    std::vector<Dtype> image_info_vals = { (Dtype)((float)image_h - 0.0000001f), // check fp robustness of the layer
-                                           (Dtype)((float)image_w + 0.0000001f), // check fp robustness of the layer 
-                                           (Dtype)((float)image_z) };
+    std::vector<ImInfoType> image_info_vals = { (ImInfoType)((float)image_h - 0.0000001f), // check fp robustness of the layer
+                                                (ImInfoType)((float)image_w + 0.0000001f), // check fp robustness of the layer
+                                                (ImInfoType)((float)image_z) };
     memory image_info = memory::allocate(_engine, _image_info_layout);
     tests::set_values(image_info, image_info_vals);
-   
+
     _network->set_input_data(cls_scores_name, cls_scores);
     _network->set_input_data(bbox_pred_name, bbox_pred);
     _network->set_input_data(image_info_name, image_info);
 
     std::map<primitive_id, network_output> network_output = _network->execute();
     EXPECT_EQ(network_output.begin()->first, layer_name);
-    return network_output.at(layer_name).get_memory();    
+    return network_output.at(layer_name).get_memory();
 }
 
 TEST(proposal, basic) {
@@ -159,7 +159,7 @@ TEST(proposal, basic) {
 TEST(proposal, fp16) {
     std::vector<FLOAT16> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
     std::vector<FLOAT16> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
-    
+
     TestRunnerProposal<FLOAT16> t({ 1, 3, 1, 1 });
 
     const memory& output = t.Run(cls_scores, bbox_pred);
@@ -170,6 +170,40 @@ TEST(proposal, fp16) {
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
         EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+    }
+}
+
+TEST(proposal, scores_fp16_im_info_fp32) {
+    std::vector<FLOAT16> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<FLOAT16> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+
+    TestRunnerProposal<FLOAT16, float> t({ 1, 3, 1, 1 });
+
+    const memory& output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+
+    auto d = output.pointer<FLOAT16>();
+
+    for (size_t i = 0; i < proposal_ref_size; i++) {
+        FLOAT16 ref(proposal_ref[i]);
+        EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+    }
+}
+
+TEST(proposal, scores_fp32_im_info_fp16) {
+    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+
+    TestRunnerProposal<float, FLOAT16> t({ 1, 3, 1, 1 });
+
+    const memory& output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+
+    auto d = output.pointer<float>();
+
+    for (size_t i = 0; i < proposal_ref_size; i++) {
+        float ref(proposal_ref[i]);
+        EXPECT_NEAR((float)d[i], (float)ref, epsilon);
     }
 }
 

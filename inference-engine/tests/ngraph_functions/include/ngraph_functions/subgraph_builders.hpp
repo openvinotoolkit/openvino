@@ -130,7 +130,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Pre
     inShape = {N, I};
     auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
     auto LSTM_cell =
-            std::make_shared<ngraph::opset1::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+            std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(H_t, constantH, false),
                                                    std::make_shared<ngraph::opset1::Reshape>(C_t, constantH, false),
                                                    W_body,

@@ -2619,7 +2619,6 @@ INSTANTIATE_TEST_CASE_P(
                      testing::Values(std::tuple<int, int, int>(0, 0, 0)),
                      testing::Values(format::yxfb,
                                      format::bfyx,
-                                     format::byxf_af32,
                                      format::b_fs_yx_fsv4,
                                      format::b_fs_yx_fsv16,
                                      format::b_fs_yx_fsv32)),
@@ -2737,8 +2736,7 @@ INSTANTIATE_TEST_CASE_P(
                                      format::b_fs_yx_fsv16,
                                      format::fs_b_yx_fsv32,
                                      format::b_fs_yx_fsv32,
-                                     format::b_fs_yx_fsv4,
-                                     format::fs_bs_yx_bsv4_fsv32)),
+                                     format::b_fs_yx_fsv4)),
     testing::internal::DefaultParamName<pooling_random_test_params>);
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)

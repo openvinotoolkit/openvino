@@ -14,6 +14,7 @@
 #include <ngraph/op/util/op_annotations.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 
 namespace ngraph {
 namespace op {
@@ -53,6 +54,38 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
     return out_name;
 }
 
+template <typename T>
+bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
+                        const T value,
+                        T epsilon = std::numeric_limits<T>::epsilon()) {
+    if (!constant) {
+        return false;
+    }
+
+    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) ||
+                                          shape_size(constant->get_shape()) == 1;
+    if (!is_scalar_or_single_elem) {
+        return false;
+    }
+
+    if (constant->get_element_type() == ngraph::element::f16 ||
+        constant->get_element_type() == ngraph::element::f32 ||
+        constant->get_element_type() == ngraph::element::f64 ||
+        constant->get_element_type() == ngraph::element::bf16) {
+            const auto data = constant->cast_vector<T>();
+            if (std::fabs(data[0] - value) > epsilon) {
+                return false;
+            }
+        } else {
+        const auto data = constant->cast_vector<T>();
+        if (data[0] != value) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
@@ -65,6 +98,11 @@ TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> &
 TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
+
+TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
+                                                             const ngraph::Output<ngraph::Node>& apply_to);
 
 }  // namespace util
 }  // namespace op

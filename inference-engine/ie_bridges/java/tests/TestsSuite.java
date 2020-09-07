@@ -32,11 +32,14 @@ public class TestsSuite extends IETest{
             String dir =  new File(TestsSuite.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath().toString();
             
             List<Class<?>> results = findClasses(dir);
-            results.forEach(result->suite.addTest(new junit.framework.JUnit4TestAdapter(result))); 
-
+            for (Class<?> cl : results) {
+                if (cl.getName() == "ArgumentParser")
+                    continue;
+                suite.addTest(new junit.framework.JUnit4TestAdapter(cl));
+            }
         } catch (ClassNotFoundException e) {
             System.out.println("ClassNotFoundException: " + e.getMessage());
-        } catch (URISyntaxException e){
+        } catch (URISyntaxException e) {
             System.out.println("URISyntaxException: " + e.getMessage());
         }
         return suite;
@@ -53,9 +56,9 @@ public class TestsSuite extends IETest{
                     classes.add(Class.forName(name.substring(0, name.length() - ".class".length())));
                 }
             }
-        } catch(FileNotFoundException e){
+        } catch(FileNotFoundException e) {
             System.out.println("FileNotFoundException: " + e.getMessage());
-        } catch(IOException e){
+        } catch(IOException e) {
             System.out.println("IOException: " + e.getMessage());
         }
         return classes;

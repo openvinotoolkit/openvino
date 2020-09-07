@@ -123,9 +123,13 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     ie::details::CaselessEq<std::string> cmp;
 
     IE_ASSERT(inputs.size() == 3);
-    IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, outputs);
+    // TODO: implement 2nd output, see:
+    // #-37327: Several models Failed to compile layer "proposals"
+    IE_ASSERT(outputs.size() == 1 || outputs.size() == 2);
+
+    const DataVector outputs1 = { outputs[0] }; // ignore 2nd output
+    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, outputs1);
 
     stage->attrs().set<int>("feat_stride", layer->GetParamAsInt("feat_stride", 16));
     stage->attrs().set<int>("base_size", layer->GetParamAsInt("base_size", 16));

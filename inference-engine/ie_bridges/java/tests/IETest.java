@@ -1,26 +1,42 @@
-import junit.framework.TestCase;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Ignore;
+import org.junit.runner.Description;
+import org.junit.Rule;
+import org.junit.rules.TestWatcher;
 
 import java.nio.file.Paths;
-import java.lang.Class;
-import java.util.List;
 
 import org.intel.openvino.*;
 
-public class IETest extends TestCase {
+@Ignore
+public class IETest {
     String modelXml;
     String modelBin;
-    String device;
+    static String device;
 
-    public IETest(){
+    public IETest() {
         try {
             System.loadLibrary(IECore.NATIVE_LIBRARY_NAME);
         } catch (UnsatisfiedLinkError e) {
             System.err.println("Failed to load Inference Engine library\n" + e);
             System.exit(1);
         }
-
         modelXml = Paths.get(System.getenv("MODELS_PATH"), "models", "test_model", "test_model_fp32.xml").toString();
         modelBin = Paths.get(System.getenv("MODELS_PATH"), "models", "test_model", "test_model_fp32.bin").toString();
-        device = "CPU";
     }
+
+    @Rule
+    public TestWatcher watchman = new TestWatcher() {
+        @Override
+        protected void succeeded(Description description) {
+            System.out.println(description + " - OK");
+        }
+
+        @Override
+        protected void failed(Throwable e, Description description) {
+            System.out.println(description + " - FAILED");
+        }
+    };
 }

@@ -229,7 +229,9 @@ echo.
 timeout 3
 copy /Y "%ROOT_DIR%%model_name%.labels" "%ir_dir%"
 cd "%SOLUTION_DIR64%\intel64\Release"
-
+if not exist classification_sample_async.exe (
+   cd "%INTEL_OPENVINO_DIR%\inference_engine\samples\cpp\intel64\Release"
+)
 echo classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
 classification_sample_async.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -d !TARGET! !SAMPLE_OPTIONS!
 
