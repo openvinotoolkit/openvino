@@ -103,6 +103,26 @@ public:
 };
 
 const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues = {
+    // only multiply, updatePrecisions = false
+    {
+        ngraph::Shape{ 1, 4, 1, 1 },
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        true,
+        {
+            ngraph::element::f32,
+            {
+                {},
+                {},
+                {5.4f}
+            }
+        },
+        {
+            ngraph::element::f32,
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{5.4f, 5.4f, 5.4f, 5.4f}),
+            nullptr,
+            {}
+        }
+    },
     // only multiply
     {
         ngraph::Shape{ 1, 4, 1, 1 },

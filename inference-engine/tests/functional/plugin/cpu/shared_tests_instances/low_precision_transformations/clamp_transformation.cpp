@@ -19,7 +19,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };

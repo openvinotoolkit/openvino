@@ -40,12 +40,14 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     const size_t weightsSize = outputChannelsCount * inputChannelsCount / group;
     std::vector<float> weightsBuffer(weightsSize);
     std::vector<float> weightsOriginalShiftsBlobBuffer = as_type_ptr<opset1::Constant>(constant)->cast_vector<float>();
+    const size_t shiftsSize = weightsOriginalShiftsBlobBuffer.size();
     const size_t kernelsCount = inputChannelsCount / group;
 
     if (group == 1ul) {
         for (size_t outputChannel = 0ul; outputChannel < outputChannelsCount; ++outputChannel) {
             for (size_t kernel = 0ul; kernel < kernelsCount; ++kernel) {
-                const float value = (outputChannel == kernel) ? (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[outputChannel]) : 0.f;
+                const float value = (outputChannel == kernel) ?
+                    (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[shiftsSize == 1 ? 0 : outputChannel]) : 0.f;
                 weightsBuffer[kernelsCount * outputChannel + kernel] = value;
             }
         }
@@ -56,7 +58,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
             for (size_t kernel = 0ul; kernel < kernelsCount; ++kernel) {
                 const size_t outputChannelIndexInGroup = outputChannel - groupIndex * channelsInGroup;
                 const float value = (outputChannelIndexInGroup == kernel) ?
-                    (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[outputChannel]) : 0.f;
+                    (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[shiftsSize == 1 ? 0 : outputChannel]) : 0.f;
                 weightsBuffer[kernelsCount * outputChannel + kernel] = value;
             }
         }
