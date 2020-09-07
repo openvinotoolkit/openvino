@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/rnn_sequence.hpp"
+#include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
 #include <memory>
@@ -56,105 +57,95 @@ op::v5::RNNSequence::RNNSequence(const Output<Node>& X,
 
 void op::v5::RNNSequence::validate_and_infer_types()
 {
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
     element::Type arg_type = get_input_element_type(0);
     PartialShape output_shape_0{PartialShape::dynamic(4)};
     PartialShape output_shape_1{PartialShape::dynamic(3)};
 
     auto x_pshape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(
-        this, x_pshape.rank().compatible(3), "The 'X' input must be a 3D tensor.");
-    if (x_pshape.is_static())
-    {
-        size_t batch_size = get_input_partial_shape(0).get_shape()[0];
-        size_t seq_length = get_input_partial_shape(0).get_shape()[1];
-        size_t input_size = get_input_partial_shape(0).get_shape()[2];
-        size_t num_directions =
-            m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
+    auto h_state_pshape = get_input_partial_shape(1);
+    auto seq_lengths_pshape = get_input_partial_shape(2);
+    auto w_pshape = get_input_partial_shape(3);
+    auto r_pshape = get_input_partial_shape(4);
+    auto b_pshape = get_input_partial_shape(5);
 
-        output_shape_0 = Shape{batch_size, num_directions, seq_length, m_hidden_size};
-        output_shape_1 = Shape{batch_size, num_directions, m_hidden_size};
+    ngraph::op::util::validate_seq_input_rank_dimension(
+        {x_pshape, h_state_pshape, seq_lengths_pshape, w_pshape, r_pshape, b_pshape});
+    size_t batch_size = get_input_partial_shape(0).get_shape()[0];
+    size_t seq_length = get_input_partial_shape(0).get_shape()[1];
+    size_t input_size = get_input_partial_shape(0).get_shape()[2];
+    size_t num_directions = m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        auto h_state_pshape = get_input_partial_shape(1);
-        auto seq_lengths_pshape = get_input_partial_shape(2);
-        auto w_pshape = get_input_partial_shape(3);
-        auto r_pshape = get_input_partial_shape(4);
-        auto b_pshape = get_input_partial_shape(5);
+    output_shape_0 = Shape{batch_size, num_directions, seq_length, m_hidden_size};
+    output_shape_1 = Shape{batch_size, num_directions, m_hidden_size};
 
-        if (h_state_pshape.is_static())
-        {
-            auto h_state_shape = h_state_pshape.to_shape();
-            NODE_VALIDATION_CHECK(
-                this,
-                (h_state_shape == Shape{batch_size, num_directions, m_hidden_size}),
-                "Input tensor initial_hidden_state must have shape (",
-                batch_size,
-                ", ",
-                num_directions,
-                ", ",
-                m_hidden_size,
-                "). Actual shape is:",
-                h_state_shape,
-                ".");
-        }
+    auto h_state_shape = h_state_pshape.to_shape();
+    NODE_VALIDATION_CHECK(this,
+                          (h_state_shape == Shape{batch_size, num_directions, m_hidden_size}),
+                          "Input tensor initial_hidden_state must have shape (",
+                          batch_size,
+                          ", ",
+                          num_directions,
+                          ", ",
+                          m_hidden_size,
+                          "). Actual shape is:",
+                          h_state_shape,
+                          ".");
 
-        if (seq_lengths_pshape.is_static())
-        {
-            const Shape& seq_length_shape = seq_lengths_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (seq_length_shape == Shape{batch_size}),
-                                  "Input tensor sequence_lengths must have shape (",
-                                  batch_size,
-                                  "). Actual shape is:",
-                                  seq_length_shape,
-                                  ".");
-        }
+    const Shape& seq_length_shape = seq_lengths_pshape.to_shape();
+    NODE_VALIDATION_CHECK(this,
+                          (seq_length_shape == Shape{batch_size}),
+                          "Input tensor sequence_lengths must have shape (",
+                          batch_size,
+                          "). Actual shape is:",
+                          seq_length_shape,
+                          ".");
 
-        if (w_pshape.is_static())
-        {
-            auto w_shape = w_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (w_shape == Shape{num_directions, m_hidden_size, input_size}),
-                                  "Input tensor W must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  ", ",
-                                  input_size,
-                                  "). Actual shape is:",
-                                  w_shape,
-                                  ".");
-        }
+    auto w_shape = w_pshape.to_shape();
+    NODE_VALIDATION_CHECK(this,
+                          (w_shape == Shape{num_directions, m_hidden_size, input_size}),
+                          "Input tensor W must have shape (",
+                          num_directions,
+                          ", ",
+                          m_hidden_size,
+                          ", ",
+                          input_size,
+                          "). Actual shape is:",
+                          w_shape,
+                          ".");
 
-        if (r_pshape.is_static())
-        {
-            auto r_shape = r_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (r_shape == Shape{num_directions, m_hidden_size, m_hidden_size}),
-                                  "Input tensor R must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  ", ",
-                                  m_hidden_size,
-                                  "). Actual shape is:",
-                                  r_shape,
-                                  ".");
-        }
+    auto r_shape = r_pshape.to_shape();
+    NODE_VALIDATION_CHECK(this,
+                          (r_shape == Shape{num_directions, m_hidden_size, m_hidden_size}),
+                          "Input tensor R must have shape (",
+                          num_directions,
+                          ", ",
+                          m_hidden_size,
+                          ", ",
+                          m_hidden_size,
+                          "). Actual shape is:",
+                          r_shape,
+                          ".");
 
-        if (b_pshape.is_static())
-        {
-            auto b_shape = b_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (b_shape == Shape{num_directions, m_hidden_size}),
-                                  "Input tensor B must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  "). Actual shape is:",
-                                  b_shape,
-                                  ".");
-        }
-    }
+    auto b_shape = b_pshape.to_shape();
+    NODE_VALIDATION_CHECK(this,
+                          (b_shape == Shape{num_directions, m_hidden_size}),
+                          "Input tensor B must have shape (",
+                          num_directions,
+                          ", ",
+                          m_hidden_size,
+                          "). Actual shape is:",
+                          b_shape,
+                          ".");
+
     set_output_type(0, arg_type, output_shape_0);
     set_output_type(1, arg_type, output_shape_1);
 }

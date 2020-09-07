@@ -352,6 +352,13 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
     param.hidden_size = 256;
     param.et = element::f32;
 
+    auto check_dynamic_lstm = [](const shared_ptr<op::v5::LSTMSequence>& lstm) -> bool {
+        return lstm->output(0).get_partial_shape() == PartialShape::dynamic() &&
+               lstm->output(1).get_partial_shape() == PartialShape::dynamic() &&
+               lstm->output(2).get_partial_shape() == PartialShape::dynamic() &&
+               lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
+    };
+
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     auto invalid_dynamic_tensor =
         make_shared<opset4::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
@@ -362,7 +369,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
     {
         lstm_sequence = lstm_seq_tensor_initialization(param);
         lstm_sequence->set_argument(i, invalid_dynamic_tensor);
-        ASSERT_THROW(lstm_sequence->validate_and_infer_types(), ngraph::CheckFailure)
-            << "LSTMSequence node was created with invalid data.";
+        lstm_sequence->validate_and_infer_types();
+        EXPECT_EQ(check_dynamic_lstm(lstm_sequence), true);
     }
 }

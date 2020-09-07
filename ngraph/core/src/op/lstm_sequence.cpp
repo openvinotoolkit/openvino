@@ -452,6 +452,16 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
 
 void op::v5::LSTMSequence::validate_and_infer_types()
 {
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(2, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
     std::vector<ngraph::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
@@ -482,10 +492,6 @@ void op::v5::LSTMSequence::validate_and_infer_types()
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
     // Validate rank and dimension for initial_cell_state input
-    NODE_VALIDATION_CHECK(this,
-                          (ct_pshape.rank().is_static()),
-                          "LSTMSequence input tensor initial_cell_state shall have static rank.");
-
     NODE_VALIDATION_CHECK(this,
                           (ct_pshape.rank().get_length() == 3),
                           "LSTMSequence input tensor initial_cell_state shall have dimension 3D.");
