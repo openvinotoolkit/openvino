@@ -38,6 +38,11 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
+        if (stage->attrs().get<int>("kernelStrideX") != 1 ||
+            stage->attrs().get<int>("kernelStrideY") != 1) {
+            continue;
+        }
+
         const auto input = stage->input(0);
         const auto output = stage->output(0);
 
@@ -53,11 +58,6 @@ void PassImpl::run(const Model& model) {
         const auto expectedInputShape = DimValues{ {Dim::N, 1}, {Dim::C, 608}, {Dim::H, 34}, {Dim::W, 60} };
 
         if (actualInputShape != expectedInputShape) {
-            continue;
-        }
-
-        if (outputDesc.dim(Dim::W) != inputDesc.dim(Dim::W) ||
-            outputDesc.dim(Dim::H) != inputDesc.dim(Dim::H)) {
             continue;
         }
 
