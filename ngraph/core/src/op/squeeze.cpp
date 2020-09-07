@@ -155,7 +155,8 @@ namespace
         else
         {
             auto axes_shape = arg1->get_shape();
-            NGRAPH_CHECK(axes_shape.size() <= 1, "Axes to remove must be a 0/1D vector of one element.");
+            NGRAPH_CHECK(axes_shape.size() <= 1,
+                         "Axes to remove must be a 0/1D vector of one element.");
             // Get axes
             vector<int64_t> axes = read_index_vector(arg1);
             // Normalize axes
