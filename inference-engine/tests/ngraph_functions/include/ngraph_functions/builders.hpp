@@ -24,27 +24,28 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
-                                   const std::vector<T> &data, bool random = false) {
+                                   const std::vector<T> &data, bool random = false,
+                                   uint32_t upTo = 10, uint32_t startFrom = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
         case TYPE: \
             weightsNode = std::make_shared<ngraph::opset1::Constant>( \
                     type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape)) : \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom) : \
                              NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
             break;
     switch (type) {
         case ngraph::element::Type_t::bf16:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(
                     type, shape,
-                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape)) :
+                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
                     NGraphFunctions::Utils::castVector<T, ngraph::bfloat16>(data));
             break;
         case ngraph::element::Type_t::f16:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(
                     type, shape,
-                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape)) :
+                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
                     NGraphFunctions::Utils::castVector<T, ngraph::float16>(data));
             break;
         makeNode(ngraph::element::Type_t::f32);
@@ -388,6 +389,36 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
 
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);
+
+std::shared_ptr<ngraph::Node> makeLSTMCell(const OutputVector& in,
+                                           const std::vector<ngraph::Shape>& WRB,
+                                           std::size_t hidden_size,
+                                           const std::vector<std::string>& activations =
+                                           std::vector<std::string>{"sigmoid", "tanh", "tanh"},
+                                           const std::vector<float>& activations_alpha = {},
+                                           const std::vector<float>& activations_beta = {},
+                                           float clip = 0.f);
+
+std::shared_ptr<ngraph::Node> makeGRUCell(const OutputVector& in,
+                                          const std::vector<ngraph::Shape>& WRB,
+                                          std::size_t hidden_size,
+                                          const std::vector<std::string>& activations =
+                                          std::vector<std::string>{"sigmoid", "tanh"},
+                                          const std::vector<float>& activations_alpha = {},
+                                          const std::vector<float>& activations_beta = {},
+                                          float clip = 0.f,
+                                          bool linear_before_reset = false);
+
+std::shared_ptr<ngraph::Node> makeRNNCell(const OutputVector& in,
+                                          const std::vector<ngraph::Shape>& WRB,
+                                          std::size_t hidden_size,
+                                          const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},
+                                          const std::vector<float>& activations_alpha = {},
+                                          const std::vector<float>& activations_beta = {},
+                                          float clip = 0.f);
+
+std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
+                                       const std::vector<size_t>& repeats);
 
 }  // namespace builder
 }  // namespace ngraph

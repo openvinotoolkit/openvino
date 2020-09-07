@@ -429,7 +429,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
         std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
         std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
-        std::make_shared<LayerCreator<ngraph::op::v0::Interpolate>>("Interpolate"),
         std::make_shared<LayerCreator<ngraph::op::Log>>("Log"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::Less>>("Less"),
@@ -440,7 +439,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Select>>("Select"),
         std::make_shared<LayerCreator<ngraph::op::LRN>>("LRN"),
         std::make_shared<LayerCreator<ngraph::op::MVN>>("MVN"),
-        std::make_shared<LayerCreator<ngraph::op::LSTMCell>>("LSTMCell"),
+        std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
         std::make_shared<LayerCreator<ngraph::op::v1::Maximum>>("Maximum"),
         std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
@@ -911,7 +910,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Convert>::crea
 
 // LSTMCell layer
 template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LSTMCell>::createLayer(
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 6);
@@ -923,7 +922,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LSTMCell>::cre
     std::vector<float> activations_alpha = getParameters<float>(dn, "activations_alpha", {});
     std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
     float clip = GetFloatAttr(dn, "clip", 0.f);
-    return std::make_shared<ngraph::op::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
+    return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
                                                   GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
 }
@@ -1382,40 +1381,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Unsqueeze>::cr
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::Unsqueeze>(inputs[0], inputs[1]);
-}
-
-// Interpolate layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Interpolate>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::v0::InterpolateAttrs attrs;
-    for (auto& axis : getParameters<int64_t>(dn, "axes")) {
-        attrs.axes.insert(axis);
-    }
-
-    std::set<std::string> available_modes {"linear", "nearest", "cubic", "area"};
-    attrs.mode = GetStrAttr(dn, "mode");
-    if (!available_modes.count(attrs.mode)) {
-        THROW_IE_EXCEPTION << "Interpolate mode: " << attrs.mode << " is unsupported!";
-    }
-    attrs.align_corners = GetIntAttr(dn, "align_corners", 1);
-    attrs.antialias = GetIntAttr(dn, "antialias", 0);
-    for (auto& pad : getParameters<int64_t>(dn, "pads_begin")) {
-        attrs.pads_begin.push_back(pad);
-    }
-    for (auto& pad : getParameters<int64_t>(dn, "pads_end")) {
-        attrs.pads_end.push_back(pad);
-    }
-
-    return std::make_shared<ngraph::op::v0::Interpolate>(inputs[0], inputs[1], attrs);
 }
 
 // Abs layer

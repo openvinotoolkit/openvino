@@ -13,26 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
-
-bool check_shapes(const ngraph::Shape & ref_shape, const ngraph::Shape & other_shape) {
-    // Check that other_shape doesn't broadcast ref_shape
-    if (other_shape.size() > ref_shape.size()) {
-        return false;
-    }
-    auto ref_it = ref_shape.rbegin();
-    auto other_it = other_shape.rbegin();
-    // Check that other_shape dims are equal to ref_shape dims
-    // In case if other_shape rank is less than ref_shape rank
-    // we stop comparision and return true
-    while (other_it != other_shape.rend()) {
-        if (*other_it != *ref_it && *other_it != 1) {
-            return false;
-        }
-        ++other_it;
-        ++ref_it;
-    }
-    return true;
-}
+#include <transformations/utils/utils.hpp>
 
 #ifdef LPT_SUPPORT
 #include "ngraph/opsets/opset1.hpp"
@@ -90,7 +71,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (!check_shapes(expected_shape, const_shape)) {
+        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -157,7 +138,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (!check_shapes(expected_shape, const_shape)) {
+        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -219,7 +200,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         auto expected_shape = Shape(weights_rank, 1);
         expected_shape[1] = channel_dim;
 
-        if (!check_shapes(expected_shape, const_shape)) {
+        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 
@@ -281,7 +262,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         auto expected_shape = Shape(weights_rank - 1, 1);
         expected_shape[1] = G * O;
 
-        if (!check_shapes(expected_shape, const_shape)) {
+        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
             return false;
         }
 

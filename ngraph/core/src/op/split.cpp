@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "ngraph/runtime/reference/split.hpp"
 #include <numeric>
-
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
@@ -23,8 +23,6 @@
 #include "ngraph/validation_util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
@@ -196,20 +194,25 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
 
 namespace
 {
-    inline bool evaluate(const HostTensorPtr& in,
-                         const HostTensorPtr& out,
-                         const Coordinate& lower_bounds,
-                         const Coordinate& upper_bounds)
+    inline bool evaluate(const HostTensorPtr& data_tensor,
+                         const HostTensorVector& outputs,
+                         const int64_t axis,
+                         const int64_t num_splits)
     {
-        runtime::reference::slice(in->get_data_ptr<const char>(),
-                                  out->get_data_ptr<char>(),
-                                  in->get_shape(),
-                                  lower_bounds,
-                                  upper_bounds,
-                                  Strides(lower_bounds.size(), 1),
-                                  out->get_shape(),
-                                  in->get_element_type().size());
-
+        Shape output_shape = data_tensor->get_shape();
+        std::vector<char*> outputs_data(num_splits);
+        output_shape.at(axis) /= num_splits;
+        for (size_t i = 0; i < outputs.size(); ++i)
+        {
+            outputs[i]->set_shape(output_shape);
+            outputs_data[i] = outputs[i]->get_data_ptr<char>();
+        }
+        ngraph::runtime::reference::split(data_tensor->get_data_ptr<char>(),
+                                          data_tensor->get_shape(),
+                                          data_tensor->get_element_type().size(),
+                                          axis,
+                                          num_splits,
+                                          outputs_data.data());
         return true;
     }
 
@@ -236,26 +239,7 @@ namespace
             break;
         }
         axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
-
-        const auto data_shape = data_tensor->get_shape();
-        const size_t axis_dim_length = data_shape.at(axis);
-        const size_t part_length = axis_dim_length / num_splits;
-
-        Shape output_shape = data_shape;
-        output_shape.at(axis) = part_length;
-
-        std::vector<size_t> lower_bounds(data_shape.size(), 0);
-        std::vector<size_t> upper_bounds = data_shape;
-        upper_bounds.at(axis) = part_length;
-
-        for (const auto& output : outputs)
-        {
-            output->set_shape(output_shape);
-            evaluate(data_tensor, output, lower_bounds, upper_bounds);
-            lower_bounds.at(axis) += part_length;
-            upper_bounds.at(axis) += part_length;
-        }
-
+        evaluate(data_tensor, outputs, axis, num_splits);
         return true;
     }
 }

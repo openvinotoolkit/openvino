@@ -103,5 +103,16 @@ void ActivationTransformation::transform(TransformationContext& context, CNNLaye
     CNNNetworkHelper::removeLayer(context.network, scaleShift);
     context.removeLayer(*scaleShift);
 
-    addDequantizationLayer(context, *activationLayer, scales, shifts);
+    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*activationLayer);
+    for (const CNNLayerPtr& child : children) {
+        const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
+            context,
+            activationLayer,
+            child,
+            DequantizationDetails(scales, shifts));
+
+        for (const auto& dequantizationLayer : dequantizationLayers) {
+            context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        }
+    }
 }

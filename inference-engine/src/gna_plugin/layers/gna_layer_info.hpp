@@ -10,8 +10,9 @@
 #include "ie_layers.h"
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "gna-api.h"
+#include "backend/gna_types.h"
 #include "gna_permute.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 
 namespace GNAPluginNS {
