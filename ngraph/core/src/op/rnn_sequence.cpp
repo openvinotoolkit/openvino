@@ -24,14 +24,14 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::RNNSequence, "RNNSequence", 4);
+NGRAPH_RTTI_DEFINITION(op::v5::RNNSequence, "RNNSequence", 4);
 
-op::v4::RNNSequence::RNNSequence()
+op::v5::RNNSequence::RNNSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD)
 {
 }
 
-op::v4::RNNSequence::RNNSequence(const Output<Node>& X,
+op::v5::RNNSequence::RNNSequence(const Output<Node>& X,
                                  const Output<Node>& H_t,
                                  const Output<Node>& sequence_lengths,
                                  const Output<Node>& W,
@@ -43,14 +43,18 @@ op::v4::RNNSequence::RNNSequence(const Output<Node>& X,
                                  const std::vector<float>& activations_alpha,
                                  const std::vector<float>& activations_beta,
                                  float clip)
-    : Op({X, H_t, sequence_lengths, W, R, B})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, H_t, sequence_lengths, W, R, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_direction(direction)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::v4::RNNSequence::validate_and_infer_types()
+void op::v5::RNNSequence::validate_and_infer_types()
 {
     element::Type arg_type = get_input_element_type(0);
     PartialShape output_shape_0{PartialShape::dynamic(4)};
@@ -155,17 +159,17 @@ void op::v4::RNNSequence::validate_and_infer_types()
     set_output_type(1, arg_type, output_shape_1);
 }
 
-bool op::v4::RNNSequence::visit_attributes(AttributeVisitor& visitor)
+bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node>
-    op::v4::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
+    op::v5::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<op::v4::RNNSequence>(new_args.at(0),
+    return make_shared<op::v5::RNNSequence>(new_args.at(0),
                                             new_args.at(1),
                                             new_args.at(2),
                                             new_args.at(3),

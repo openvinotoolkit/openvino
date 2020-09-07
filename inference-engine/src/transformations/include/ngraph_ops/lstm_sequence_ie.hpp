@@ -15,7 +15,7 @@
 
 namespace ngraph {
 namespace op {
-class TRANSFORMATIONS_API LSTMSequenceIE : public Op, public ngraph::op::util::RNNCellBase {
+class TRANSFORMATIONS_API LSTMSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -24,10 +24,11 @@ public:
     LSTMSequenceIE(const Output <Node> &X,
                    const Output <Node> &H_t,
                    const Output <Node> &C_t,
+                   const Output <Node> &seq_lenghts,
                    const Output <Node> &WR,
                    const Output <Node> &B,
                    size_t hidden_size,
-                   ngraph::opset4::LSTMSequence::direction lstm_direction,
+                   ngraph::op::RecurrentSequenceDirection lstm_direction,
                    const std::vector<std::string> &activations,
                    const std::vector<float> &activations_alpha,
                    const std::vector<float> &activations_beta,
@@ -37,12 +38,12 @@ public:
 
     void validate_and_infer_types() override;
 
-    ngraph::opset4::LSTMSequence::direction get_direction() { return m_direction; }
+    ngraph::op::RecurrentSequenceDirection get_direction() { return m_direction; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    ngraph::opset4::LSTMSequence::direction m_direction;
+    ngraph::op::RecurrentSequenceDirection m_direction;
 };
 }  // namespace op
 }  // namespace ngraph

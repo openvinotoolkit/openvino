@@ -29,8 +29,8 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v1::LSTMSequence::type_info;
-constexpr NodeTypeInfo op::v0::LSTMSequence::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
+NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
 bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
@@ -419,18 +419,18 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }
 
-bool ngraph::op::v1::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::v1::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     if (new_args.size() == 7)
     {
-        return make_shared<op::v1::LSTMSequence>(new_args.at(0), // X
+        return make_shared<op::v5::LSTMSequence>(new_args.at(0), // X
                                                  new_args.at(1), // initial_hidden_state
                                                  new_args.at(2), // initial_cell_state
                                                  new_args.at(3), // sequence_lengths
@@ -450,7 +450,7 @@ shared_ptr<Node> op::v1::LSTMSequence::clone_with_new_inputs(const OutputVector&
     }
 }
 
-void op::v1::LSTMSequence::validate_and_infer_types()
+void op::v5::LSTMSequence::validate_and_infer_types()
 {
     std::vector<ngraph::PartialShape> input_param{};
 

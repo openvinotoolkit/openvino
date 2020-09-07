@@ -11,21 +11,21 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::LSTMSequenceIE, "LSTMSequenceIE", 1);
+NGRAPH_RTTI_DEFINITION(op::LSTMSequenceIE, "LSTMSequenceIE", 5);
 
 op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const Output<Node> &H_t,
                                    const Output<Node> &C_t,
+                                   const Output<Node> &seq_lenghts,
                                    const Output<Node> &WR,
                                    const Output<Node> &B,
                                    std::size_t hidden_size,
-                                   ngraph::opset4::LSTMSequence::direction direction,
+                                   ngraph::op::RecurrentSequenceDirection direction,
                                    const std::vector<std::string> &activations,
                                    const std::vector<float> &activations_alpha,
                                    const std::vector<float> &activations_beta,
                                    float clip)
-        : Op({X, H_t, C_t, WR, B}),
-          RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta),
+        : RNNCellBase({X, H_t, C_t, seq_lenghts, WR, B}, hidden_size, clip, activations, activations_alpha, activations_beta),
           m_direction(direction) {
     constructor_validate_and_infer_types();
 }
@@ -53,6 +53,6 @@ bool ngraph::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-            new_args.at(4), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta,
+            new_args.at(4), new_args.at(5), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta,
             m_clip);
 }

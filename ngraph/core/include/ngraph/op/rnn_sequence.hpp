@@ -27,9 +27,9 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v4
+        namespace v5
         {
-            class NGRAPH_API RNNSequence : public Op, public util::RNNCellBase
+            class NGRAPH_API RNNSequence : public util::RNNCellBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -57,7 +57,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                op::RecurrentSequenceDirection get_direction() { return m_direction; }
+                op::RecurrentSequenceDirection get_direction() const { return m_direction; }
             protected:
                 op::RecurrentSequenceDirection m_direction;
             };

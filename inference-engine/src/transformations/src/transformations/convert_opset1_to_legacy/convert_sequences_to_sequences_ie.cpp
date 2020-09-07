@@ -15,21 +15,21 @@
 #include <ngraph_ops/rnn_sequence_ie.hpp>
 
 ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
-    auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset4::LSTMSequence>();
+    auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::op::v5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto lstm_sequence = std::dynamic_pointer_cast<ngraph::opset4::LSTMSequence>(m.get_match_root());
+        auto lstm_sequence = std::dynamic_pointer_cast<ngraph::op::v5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence) {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
+        const auto& W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
                 lstm_sequence->input_value(4).get_node_shared_ptr());
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
+        const auto& R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
                 lstm_sequence->input_value(5).get_node_shared_ptr());
         if (!R) {
             return false;
@@ -47,6 +47,7 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
                 lstm_sequence->input(0).get_source_output(),  // X
                 in_1,  // initial_hidden_state
                 in_2,  // initial_cell_state
+                lstm_sequence->input(3).get_source_output(),
                 in_3,  // WR
                 in_4,  // B
                 lstm_sequence->get_hidden_size(),
@@ -54,17 +55,19 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
                 lstm_sequence->get_activations(),
                 lstm_sequence->get_activations_alpha(),
                 lstm_sequence->get_activations_beta(),
-                lstm_sequence->get_clip_threshold());
+                lstm_sequence->get_clip());
 
         auto unsqueeze_axis = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(1), unsqueeze_axis);
         auto unsqueeze_3 = std::make_shared<ngraph::opset4::Unsqueeze>(lstm_sequence_ie->output(2), unsqueeze_axis);
 
-        lstm_sequence_ie->set_friendly_name(lstm_sequence->get_friendly_name());
         ngraph::copy_runtime_info(lstm_sequence, {concat, lstm_sequence_ie, in_1, in_2, in_3, in_4, unsqueeze_1,
                                                   unsqueeze_2, unsqueeze_3});
-        ngraph::replace_node(lstm_sequence, {unsqueeze_1, unsqueeze_2, unsqueeze_3});
+        unsqueeze_1->set_friendly_name(lstm_sequence->get_friendly_name()+".0");
+        unsqueeze_2->set_friendly_name(lstm_sequence->get_friendly_name()+".1");
+        unsqueeze_3->set_friendly_name(lstm_sequence->get_friendly_name()+".2");
+        ngraph::replace_node(lstm_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0), unsqueeze_3->output(0)});
         return true;
     };
 
@@ -73,10 +76,10 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
 }
 
 ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
-    auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset4::GRUSequence>();
+    auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::op::v5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto gru_sequence = std::dynamic_pointer_cast<ngraph::opset4::GRUSequence>(m.get_match_root());
+        auto gru_sequence = std::dynamic_pointer_cast<ngraph::op::v5::GRUSequence>(m.get_match_root());
         if (!gru_sequence) {
             return false;
         }
@@ -108,6 +111,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
                 gru_sequence->input(0).get_source_output(), // X
                 in_1,  // initial_hidden_state
+                gru_sequence->input(2).get_source_output(),
                 in_3,  // WR
                 in_4,  // B
                 gru_sequence->get_hidden_size(),
@@ -122,9 +126,10 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(gru_sequence_ie->output(1), unsqueeze_axis);
 
-        gru_sequence_ie->set_friendly_name(gru_sequence->get_friendly_name());
-        ngraph::replace_node(gru_sequence, {unsqueeze_1, unsqueeze_2});
         ngraph::copy_runtime_info(gru_sequence, {concat, gru_sequence_ie, unsqueeze_1, unsqueeze_2, in_1, in_3, in_4});
+        unsqueeze_1->set_friendly_name(gru_sequence->get_friendly_name()+".0");
+        unsqueeze_2->set_friendly_name(gru_sequence->get_friendly_name()+".1");
+        ngraph::replace_node(gru_sequence, {unsqueeze_1, unsqueeze_2});
         return true;
     };
 
@@ -133,10 +138,10 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
 }
 
 ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
-    auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset4::RNNSequence>();
+    auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::op::v5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto rnn_sequence = std::dynamic_pointer_cast<ngraph::opset4::RNNSequence>(m.get_match_root());
+        auto rnn_sequence = std::dynamic_pointer_cast<ngraph::op::v5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence) {
             return false;
         }
@@ -163,6 +168,7 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         auto rnn_sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(
                 rnn_sequence->input(0).get_source_output(),  // X
                 in_1,  // initial_hidden_state
+                rnn_sequence->input_value(2),
                 in_3,  // WR
                 in_4,  // B
                 rnn_sequence->get_hidden_size(),
@@ -176,10 +182,11 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         auto unsqueeze_1 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(0), unsqueeze_axis);
         auto unsqueeze_2 = std::make_shared<ngraph::opset4::Unsqueeze>(rnn_sequence_ie->output(1), unsqueeze_axis);
 
-        rnn_sequence_ie->set_friendly_name(rnn_sequence->get_friendly_name());
         ngraph::copy_runtime_info(rnn_sequence, {concat, rnn_sequence_ie, in_1, in_3, in_4, unsqueeze_1,
                                                  unsqueeze_2});
-        ngraph::replace_node(rnn_sequence, {unsqueeze_1, unsqueeze_2});
+        unsqueeze_1->set_friendly_name(rnn_sequence->get_friendly_name()+".0");
+        unsqueeze_2->set_friendly_name(rnn_sequence->get_friendly_name()+".1");
+        ngraph::replace_node(rnn_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0)});
         return true;
     };
 
