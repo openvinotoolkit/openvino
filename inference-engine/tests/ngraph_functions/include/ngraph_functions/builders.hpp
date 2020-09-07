@@ -415,5 +415,9 @@ std::shared_ptr<ngraph::Node> makeRNNCell(const OutputVector& in,
                                           const std::vector<float>& activations_alpha = {},
                                           const std::vector<float>& activations_beta = {},
                                           float clip = 0.f);
+
+std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
+                                       const std::vector<size_t>& repeats);
+
 }  // namespace builder
 }  // namespace ngraph
