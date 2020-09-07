@@ -71,6 +71,7 @@ if [ -f /etc/lsb-release ]; then
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-bad
+        gstreamer1.0-vaapi
         ffmpeg
     )
     system_ver=$(cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2)
@@ -78,12 +79,7 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( libglib2.0-0
-                    libgstreamer1.0-0
-                    gstreamer1.0-plugins-base
-                    gstreamer1.0-plugins-good
-                    gstreamer1.0-plugins-bad
-                    gstreamer1.0-plugins-ugly
+            PKGS+=( gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
                     gstreamer1.0-doc
@@ -103,115 +99,35 @@ if [ -f /etc/lsb-release ]; then
                     libpython3.8
                 )
         elif [ "$system_ver" = "18.04" ]; then
-            PKGS+=( libglib2.0
-                    libfluidsynth1
+            PKGS+=( libfluidsynth1
                     libnettle6
                     libopenexr22
-                    python3.6
-                    libpython3.6
+                    gstreamer1.0-plugins-ugly
+                    gstreamer1.0-alsa
+                    gstreamer1.0-gtk3
                 )
         fi
-        PKGS+=( libgtk-3-0
-                flex
+        PKGS+=( flex
                 bison
-                libgmp10
                 libgsl23
                 gobject-introspection
-                libcap2
-                libcap2-bin
-                gettext
-                libgirepository-1.0-1
-                libx11-6
-                iso-codes
-                libgl1-mesa-dri
-                libgles2
                 libgl-dev
-                gir1.2-gudev-1.0
-                libtheora0
-                libcdparanoia0
-                libpango-1.0-0
-                libgbm1
-                libasound2
-                libjpeg8
-                libvisual-0.4-0
-                libxv1
-                libopus0
-                libgraphene-1.0-0
-                libvorbis0a
-                libbz2-1.0
-                libv4l-0
-                libaa1
-                libflac8
-                libgdk-pixbuf2.0-0
-                libmp3lame0
-                libcaca0
-                libdv4
-                libmpg123-0
-                libraw1394-11
-                libavc1394-0
-                libiec61883-0
-                libpulse0
-                libsoup2.4-1
-                libspeex1
                 libtag-extras1
-                libtwolame0
-                libwavpack1
-                libbluetooth3
                 libusb-1.0-0-dev
-                libass9
-                libbs2b0
-                libchromaprint1
-                liblcms2-2
-                libssh2-1
-                libdc1394-22
                 libdirectfb-1.7-7
-                libssh-4
-                libdca0
                 libfaac0
                 libfdk-aac1
-                libflite1
-                libgme0
-                libgsm1
-                libkate1
                 liblrdf0
-                libde265-0
                 libmjpegtools-dev
-                libmms0
-                libmodplug1
-                libmpcdec6
-                libneon27
-                libopenal1
-                libopenjp2-7
-                libopenmpt0
                 libopenni2-0
-                libdvdnav4
-                librtmp1
-                librsvg2-2
-                libsbc1
-                libsndfile1
-                libsoundtouch1
-                libspandsp2
-                libsrtp2-1
-                libzvbi0
-                libvo-aacenc0
-                libvo-amrwbenc0
-                libwebrtc-audio-processing1
-                libwebp6
-                libwildmidi2
-                libzbar0
-                libnice10
-                libxkbcommon0
                 libmpeg2-4
                 libopencore-amrnb0
                 libopencore-amrwb0
                 liba52-0.7.4
-                libva2
-                libxrandr2
-                libudev1
-                python3-gi
         )
     fi
     apt update
+    # shellcheck disable=SC2068
     apt install -y ${PKGS[@]}
 else
     # CentOS
