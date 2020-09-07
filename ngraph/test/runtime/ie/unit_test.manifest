@@ -63,6 +63,8 @@ onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
+onnx_top_k_opset_10_const_k
+onnx_top_k_opset_11_const_k_smallest
 
 # data [<name>] doesn't exist
 onnx_model_sum_one_input
@@ -77,12 +79,6 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
 builder_opset1_collapse_none
-
-# nGraph function's output number 0 was not found in the CNNNetwork built from it.
-onnx_model_split_equal_parts_2d
-onnx_model_split_variable_parts_2d
-onnx_top_k_opset_10_const_k
-onnx_top_k_opset_11_const_k_smallest
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
