@@ -104,8 +104,6 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
-
-    std::cout << "ReshapeTransformation::transform: DONE: " << reshape->get_friendly_name() << std::endl;
     return true;
 }
 
