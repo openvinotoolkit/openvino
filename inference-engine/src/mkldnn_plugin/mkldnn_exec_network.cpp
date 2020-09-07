@@ -171,13 +171,7 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
 }
 
 void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncRequestImpl = std::make_shared<MKLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<MKLDNNAsyncInferRequest>(asyncRequestImpl),
-                       [](IInferRequest *p) { p->Release(); });
-
-    asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
+    CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>(asyncRequest);
 }
 
 InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {

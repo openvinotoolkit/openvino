@@ -92,26 +92,8 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
     return ptr;
 }
 
-template <typename AsyncInferRequestType>
-InferRequest CreateAsyncInferRequestFromSync(IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-
-    auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-
-    asyncRequest.reset(new InferRequestBase<AsyncInferRequestType>(asyncThreadSafeImpl),
-        [](IInferRequest *p) { p->Release(); });
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-}
-
 void CLDNNExecNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-
-    auto asyncThreadSafeImpl = std::make_shared<CLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-
-    asyncRequest.reset(new InferRequestBase<CLDNNAsyncInferRequest>(asyncThreadSafeImpl), [](IInferRequest *p) { p->Release(); });
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>(asyncRequest);
 }
 
 InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {

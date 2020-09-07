@@ -935,13 +935,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
 }
 
 void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {
-    auto heteroInferRequest = std::dynamic_pointer_cast<HeteroInferRequest>(
-            CreateInferRequestImpl(_networkInputs, _networkOutputs));
-    heteroInferRequest->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncThreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(heteroInferRequest, _taskExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<HeteroAsyncInferRequest>(asyncThreadSafeImpl),
-                       [](IInferRequest *p) { p->Release(); });
-    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>(asyncRequest);
 }
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string &name) const {

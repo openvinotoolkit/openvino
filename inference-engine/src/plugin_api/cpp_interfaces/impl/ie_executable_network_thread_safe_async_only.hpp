@@ -37,10 +37,11 @@ public:
     void CreateInferRequest(IInferRequest::Ptr& asyncRequest) override {
         auto asyncRequestImpl = this->CreateAsyncInferRequestImpl(_networkInputs, _networkOutputs);
         asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+
         asyncRequest.reset(new InferRequestBase<AsyncInferRequestInternal>(asyncRequestImpl), [](IInferRequest* p) {
             p->Release();
         });
-        asyncRequestImpl->SetPublicInterfacePtr(asyncRequest);
+        asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
 protected:

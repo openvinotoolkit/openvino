@@ -51,16 +51,7 @@ public:
      * @param asyncRequest shared_ptr for the created asynchnous inference request
      */
     void CreateInferRequest(IInferRequest::Ptr& asyncRequest) override {
-        auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
-        syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-        auto asyncTreadSafeImpl =
-            std::make_shared<AsyncInferRequestThreadSafeDefault>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-        asyncRequest.reset(new InferRequestBase<AsyncInferRequestThreadSafeDefault>(asyncTreadSafeImpl),
-                           [](IInferRequest* p) {
-                               p->Release();
-                           });
-        asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
-        CreateAsyncInferRequestFromSync<AsyncInferRequestThreadSafeDefault>();
+        CreateAsyncInferRequestFromSync(asyncRequest);
     }
 
     /**
@@ -72,8 +63,8 @@ public:
     }
 
 protected:
-    template <typename AsyncInferRequestType>
-    InferRequest CreateAsyncInferRequestFromSync(IInferRequest::Ptr &asyncRequest) {
+    template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
+    void CreateAsyncInferRequestFromSync(IInferRequest::Ptr &asyncRequest) {
         auto syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
