@@ -4,17 +4,6 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <unordered_set>
-#include <algorithm>
-#include <memory>
-#include <set>
-#include <utility>
-#include <vector>
-#include <queue>
-
-#include <vpu/middleend/allocator/allocator.hpp>
-#include <vpu/compile_env.hpp>
-
 namespace vpu {
 
 namespace {
@@ -42,19 +31,24 @@ void PassImpl::run(const Model& model) {
         const auto outputData = swish->output(0);
         const auto name = swish->name();
         const auto& layer = swish->origLayer();
+
         model->removeStage(swish);
+
         const auto sigmoidOutput = model->addNewData(inputData->name() + "@sigmoid", inputData->desc());
-        _stageBuilder->addSigmoidStage(model,
-                           name + "@sigmoid",
-                           layer,
-                           {inputData},
-                           {sigmoidOutput});
-        _stageBuilder->addProdStage(model,
-                                    name + "@prod",
-                                    layer,
-                                    inputData,
-                                    sigmoidOutput,
-                                    outputData);
+
+        _stageBuilder->addSigmoidStage(
+                model,
+                name + "@sigmoid",
+                layer,
+                {inputData},
+                {sigmoidOutput});
+        _stageBuilder->addProdStage(
+                model,
+                name + "@prod",
+                layer,
+                inputData,
+                sigmoidOutput,
+                outputData);
     }
 }
 

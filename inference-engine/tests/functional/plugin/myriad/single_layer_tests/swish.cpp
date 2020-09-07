@@ -39,13 +39,10 @@ class SwishLayerTest : public testing::WithParamInterface<Parameters>,
         std::tie(inputType, inputShape, targetDevice) = GetParam();
 
         const auto params = ngraph::builder::makeParams(inputType, {inputShape});
-
         const auto paramOuts =
                 ngraph::helpers::convert2OutputVector(
                         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-
         const auto swish = std::make_shared<ngraph::opset4::Swish>(paramOuts.at(0));
-
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(swish)};
 
         function = std::make_shared<ngraph::Function>(results, params, "swish");
