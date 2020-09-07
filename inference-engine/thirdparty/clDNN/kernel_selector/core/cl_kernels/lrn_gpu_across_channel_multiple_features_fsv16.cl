@@ -41,14 +41,15 @@ KERNEL (lrn_gpu_across_channel_multiple_features_fsv16)(
     for (uint i = 0; i < LOCAL_SIZE; ++i, ++input_offset_f) {
         bool non_zero = input_offset_f >= 0 && input_offset_f < INPUT0_FEATURE_NUM;
         uint input_idx = INPUT0_GET_INDEX(batch_id, input_offset_f, y, x);
-        val[i] = (int)non_zero * TO_INPUT0_TYPE(input[input_idx]);
+        val[i] = (int)non_zero * TO_INPUT0_TYPE(ALPHA_VAL_FACTOR_DIV_BY_SIZE) * TO_INPUT0_TYPE(input[input_idx]);
         res = mad(val[i], val[i], res);
     }
     res = mad(res, TO_INPUT0_TYPE(ALPHA_DIV_BY_SIZE), TO_INPUT0_TYPE(K));
     res = native_powr(res, -TO_INPUT0_TYPE(BETA));
 
     uint output_idx = OUTPUT_GET_INDEX(batch_id, feature_id, y, x);
-    INPUT0_TYPE lrn_result = res * val[PADDING];
+    uint input_idx = INPUT0_GET_INDEX(batch_id, feature_id, y, x);
+    INPUT0_TYPE lrn_result = res * input[input_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
