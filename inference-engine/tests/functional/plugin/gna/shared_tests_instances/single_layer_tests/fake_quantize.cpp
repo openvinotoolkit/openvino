@@ -43,10 +43,12 @@ const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
 const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}};
 const std::vector<std::vector<size_t>> constShapes = {{1}};
 const std::vector<size_t> levels = {16, 255, 256};
+const std::vector<std::vector<float>> fqArgs = {{0, 10, 2, 5}, {}};
 
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
-    ::testing::ValuesIn(constShapes)
+    ::testing::ValuesIn(constShapes),
+    ::testing::ValuesIn(fqArgs)
 );
 
 INSTANTIATE_TEST_CASE_P(FakeQuantize, FakeQuantizeLayerTest,

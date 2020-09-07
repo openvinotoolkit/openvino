@@ -14,8 +14,9 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 typedef std::tuple<
-        size_t,             // levels
-        std::vector<size_t> // const inputs shape
+        size_t,              // levels
+        std::vector<size_t>, // const inputs shape
+        std::vector<float>  // fake quantize inputLow, inputHigh, outputLow, outputHigh or empty for random
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,

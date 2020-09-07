@@ -29,7 +29,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     std::tie(fqParams, netPrecision, inputShapes, targetDevice, config) = obj.param;
     size_t levels;
     std::vector<size_t> constShape;
-    std::tie(levels, constShape) = fqParams;
+    std::vector<float> fqDirectArgs;
+    std::tie(levels, constShape, fqDirectArgs) = fqParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -39,6 +40,9 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     result << "targetDevice=" << targetDevice;
     if (!config.first.empty()) {
         result << "_targetConfig=" << config.first;
+    }
+    if (!fqDirectArgs.empty()) {
+        result << "_fqArgs=" << fqDirectArgs[0] << "_" << fqDirectArgs[1] << "_" << fqDirectArgs[2] << "_" << fqDirectArgs[3];
     }
     return result.str();
 }
@@ -52,12 +56,29 @@ void FakeQuantizeLayerTest::SetUp() {
     InferenceEngine::SizeVector kernel, stride, dilation;
     size_t levels;
     std::vector<size_t> constShape;
-    std::tie(levels, constShape) = fqParams;
+    std::vector<float> fqDirectArg;
+    std::tie(levels, constShape, fqDirectArg) = fqParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape));
+    std::shared_ptr<ngraph::Node> fakeQNode;
+    if (fqDirectArg.empty()) {
+        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape);
+    } else {
+        fakeQNode = ngraph::builder::makeFakeQuantize(
+            paramOuts[0],
+            ngPrc,
+            levels,
+            constShape,
+            {fqDirectArg[0]},
+            {fqDirectArg[1]},
+            {fqDirectArg[2]},
+            {fqDirectArg[3]});
+    }
+
+
+    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");

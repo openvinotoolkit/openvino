@@ -36,6 +36,7 @@
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
+#include "runtime/gna_float_runtime.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -384,7 +385,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-        passes->registerPass<FuseMultipleIdentitiesPass>();
+        //passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
@@ -929,7 +930,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     }
 
     if (!gnadevice) {
-        dnn->Propagate();
+        auto runtime = runtime::FP(dnn);
+        runtime.infer();
         if (freeNnet != nnets.end()) {
             std::get<1>(*freeNnet) = 1;
         }

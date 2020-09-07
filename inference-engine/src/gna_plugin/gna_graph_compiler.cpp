@@ -1480,6 +1480,14 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
     }
 }
 
+void GNAGraphCompiler::FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr layer) {
+    // in FP32 mode lets use special form of activation that satisfies fakeQuantize formula
+    if (gnaFlags->sw_fp32) {
+        PWLPrimitive(layer);
+        return;
+    }
+}
+
 void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto* generic = dynamic_cast<GenericLayer*>(layer.get());
     std::string type;
@@ -1558,7 +1566,8 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"neglog", kActNegLog},
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
-        {"softsign", kActSoftSign}
+        {"softsign", kActSoftSign},
+        {"fakequantize", kActFakeQuantize}
     };
 
     auto it = supportedActivations.find(type);
@@ -1571,6 +1580,42 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
     } else {
         activation_type.args.lrelu.negative_slope = 0.0f;
+    }
+
+    if (it->second == kActFakeQuantize) {
+        // get params from const input
+        auto GetParamFromInputAsFloat = [](CNNLayerPtr input, size_t idx) {
+            if (input->insData.size() <= idx) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << "input";
+            }
+            auto iLayerData = input->insData[idx].lock();
+            if (!iLayerData) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference data weak-pointer";
+            }
+            auto iLayer = getCreatorLayer(iLayerData).lock();
+            if (!iLayer) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference creator layer weak-pointer";
+            }
+            if (!LayerInfo(iLayer).isConst()) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: expected to be of type const, but was: " << iLayer->type;
+            }
+
+            if (!iLayer->blobs.count("custom")) {
+                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot get custom blob";
+            }
+            auto data = iLayer->blobs["custom"];
+            if (data->getTensorDesc().getPrecision() != Precision::FP32) {
+                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot cast custom blob to type FP32, since it is of type: " << data->getTensorDesc().getPrecision();
+            }
+
+            return data->cbuffer().as<float*>()[0];
+        };
+
+        activation_type.args.fakeQuantize.levels = layer->GetParamAsInt("levels");
+        activation_type.args.fakeQuantize.input_low = GetParamFromInputAsFloat(layer, 1);
+        activation_type.args.fakeQuantize.input_high = GetParamFromInputAsFloat(layer, 2);
+        activation_type.args.fakeQuantize.output_low = GetParamFromInputAsFloat(layer, 3);
+        activation_type.args.fakeQuantize.output_high = GetParamFromInputAsFloat(layer, 4);
     }
 
     string actName = "unknown";
@@ -1776,7 +1821,8 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Crop"}, CREATE(CropPrimitive)},
         {{"Copy"}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
-        {{"LSTMCell"}, SKIP}
+        {{"LSTMCell"}, SKIP},
+        {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
     };
     auto it = LayersBuilder::getStorage().find(layer->type);
     if (it != LayersBuilder::getStorage().end()) {
