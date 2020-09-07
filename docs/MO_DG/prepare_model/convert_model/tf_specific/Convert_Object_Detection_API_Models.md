@@ -2,7 +2,6 @@
 
 > **NOTES**:
 > * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the Inference Engine using dedicated reshape API. Refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
-> * Starting with the 2018 R4 release, the Model Optimizer supports the `--input_shape` command line parameter for the TensorFlow\* Object Detection API topologies. Refer to the [Custom Input Shape](#tf_od_custom_input_shape) for more information.
 > * To generate IRs for SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` layers instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the Inference Engine using dedicated Inference Engine API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.  
 
 ## How to Convert a Model
