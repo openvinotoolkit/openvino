@@ -54,14 +54,6 @@ public:
         return CreateAsyncInferRequestFromSync();
     }
 
-    /**
-     * @brief Gets the executor.
-     * @return The executor.
-     */
-    ITaskExecutor::Ptr& GetExecutor() {
-        return _taskExecutor;
-    }
-
 protected:
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequest::Ptr CreateAsyncInferRequestFromSync() {
