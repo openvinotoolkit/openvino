@@ -489,7 +489,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             auto destinationQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
             destinationQuantParams->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
 
-            InferenceEngine::CNNLayerPtr  restartedLayer;
+            InferenceEngine::CNNLayerPtr restartedLayer;
             // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
             // using ufs - upper first search
             gnalog() << "[UFS] searching for quantizeable layer prior: " << concatLayer->name << ", via " << layerIdToUpdate << "\n";
