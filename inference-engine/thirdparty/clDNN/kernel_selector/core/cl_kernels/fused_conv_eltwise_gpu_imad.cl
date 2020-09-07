@@ -98,6 +98,10 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     int w[NUM_FILTERS];
     int in_addr;
 
+#if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
+    int in_start_addr = INPUT0_GET_INDEX(batch, 0, input_y, input_x + sglid);
+#endif
+
 #ifdef BLOCK_LOAD_WEIGHTS
     int weight_addr = (ofmg * CEIL_DIV(FILTER_IFM_NUM, PACK) * FILTER_SIZE_Y * FILTER_SIZE_X * SIMD_SIZE) + (g * FILTER_GROUPS_PITCH / 4);
 #else
@@ -110,7 +114,11 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     for(int kd = 0; kd < CEIL_DIV(FILTER_IFM_NUM, PACK); kd++)
     {
 #if INPUT0_LAYOUT_B_FS_YX_FSV16
+    #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
+        int feature_location = kd * PACK + g * FILTER_IFM_NUM;
+    #else
         in_addr = INPUT0_GET_INDEX(batch, (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * PACK, input_y, input_x + sglid);
+    #endif
 #else
     #ifdef BLOCK_LOAD_INPUTS
         in_addr = INPUT0_OFFSET + (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * INPUT0_FEATURE_PITCH + input_y * INPUT0_Y_PITCH + input_x;
@@ -119,10 +127,20 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     #endif
         in_addr += batch * input_size;  // adjust for batching
 #endif
+
         for(uint reg = 0; reg < IN_BLOCK_HEIGHT; reg++) {
 #if INPUT0_LAYOUT_B_FS_YX_FSV16
+        #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
+            INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &in[reg];
+            in_addr = in_start_addr + reg * INPUT0_Y_PITCH * FSV;
+            for (uint v = 0; v < PACK; v++) {
+                int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
+                input_int8_arr[v] = conv_input[in_addr + f_addr];                        
+            }
+        #else 
             in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
             in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
+         #endif       
 #else
     #ifdef BLOCK_LOAD_INPUTS
             in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read(&conv_input[in_addr]));
