@@ -474,7 +474,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         };
 
         auto layerIt = std::find_if_not(inputLayers.begin() + 1, inputLayers.end(), equalScaleFactor);
-        if (layerIt != inputLayers.end() && concatIdxToUpdate.empty()) {
+        if (layerIt != inputLayers.end()) {
             THROW_GNA_EXCEPTION << "layers entered into concat have different scale factors" << concatLayer->name;
         }
 
