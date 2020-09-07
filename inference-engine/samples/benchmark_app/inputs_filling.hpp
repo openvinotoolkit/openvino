@@ -34,4 +34,5 @@ static bool isImageInfo(const T &blob) {
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                const InferenceEngine::ConstInputsDataMap& info,
+               const InferenceEngine::ICNNNetwork::InputPartialShapes& blob_shapes,
                std::vector<InferReqWrap::Ptr> requests);

@@ -223,6 +223,12 @@ public:
         THROW_IE_EXCEPTION << "Dynamic batch is not supported";
     };
 
+    void SetShape(const char* name, const SizeVector& dims) override {
+        (void)name;
+        (void)dims;
+        THROW_IE_EXCEPTION << "Dynamic shape is not supported";
+    };
+
     /**
      * @brief Checks and executes input data pre-processing if needed.
      * @param inputs Inputs blobs to perform preprocessing on

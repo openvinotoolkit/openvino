@@ -283,6 +283,10 @@ protected:
         _syncRequest->SetBatch(batch);
     }
 
+    void SetShape_ThreadUnsafe(const char* name, const SizeVector& dims) override {
+        _syncRequest->SetShape(name, dims);
+    }
+
 private:
     /**
      * @brief Create a task with next pipeline stage.

@@ -203,7 +203,10 @@ public:
      * @return dimensions
      */
     SizeVector& getDims() {
-        return dims;
+        if (partialShape.is_static())
+            return dims;
+        else
+            THROW_IE_EXCEPTION << "Tried to call getDims for TensorDesc with dynamic shape " << partialShape;
     }
     const ngraph::PartialShape& getPartialShape() const {
         return partialShape;

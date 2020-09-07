@@ -37,8 +37,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     IE::interpreter_backend)
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-#                     POSSIBLE_PLUGINS ${TARGET_NAME})
+ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
 
 # ATTENTION: uncomment to install component

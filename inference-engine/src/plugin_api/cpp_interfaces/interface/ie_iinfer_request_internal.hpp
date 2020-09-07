@@ -83,6 +83,8 @@ public:
      * @param batch - new batch size to be used by all the following inference calls for this request.
      */
     virtual void SetBatch(int batch) = 0;
+
+    virtual void SetShape(const char* name, const SizeVector& dims) = 0;
 };
 
 }  // namespace InferenceEngine

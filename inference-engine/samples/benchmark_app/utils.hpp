@@ -12,6 +12,7 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
+InferenceEngine::ICNNNetwork::InputPartialShapes parseShapes(const std::string& shapes_string);
 bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
                   const std::string shapes_string, const InferenceEngine::InputsDataMap& input_info);
 bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,

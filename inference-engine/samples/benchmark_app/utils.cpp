@@ -125,9 +125,8 @@ bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
     return updated;
 }
 
-bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
-                  const std::string shapes_string, const InferenceEngine::InputsDataMap& input_info) {
-    bool updated = false;
+InferenceEngine::ICNNNetwork::InputPartialShapes parseShapes(const std::string& shapes_string) {
+    InferenceEngine::ICNNNetwork::InputPartialShapes result_shapes;
     std::string search_string = shapes_string;
     auto start_pos = search_string.find_first_of('[');
     while (start_pos != std::string::npos) {
@@ -140,10 +139,29 @@ bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
         for (auto& dim : split(input_shape, ',')) {
             if (dim == "?" || dim == "-1")
                 parsed_shape.push_back(ngraph::Dimension());
-            // TODO: parse intervals as [min-max]; requires to change syntax for shape enclosure from [] to {} (or something else)
+                // TODO: parse intervals as [min-max]; requires to change syntax for shape enclosure from [] to {} (or something else)
             else
                 parsed_shape.push_back(std::stoi(dim));
         }
+        result_shapes[input_name] = parsed_shape;
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || search_string.front() != ',')
+            break;
+        search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse `shape` parameter: " + shapes_string);
+    return result_shapes;
+}
+
+bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
+                  const std::string shapes_string, const InferenceEngine::InputsDataMap& input_info) {
+    bool updated = false;
+    InferenceEngine::ICNNNetwork::InputPartialShapes new_shapes = parseShapes(shapes_string);
+    for (const auto& new_shape : new_shapes) {
+        const auto& input_name = new_shape.first;
+        const auto& parsed_shape = new_shape.second;
         if (!input_name.empty()) {
             shapes[input_name] = parsed_shape;
             updated = true;
@@ -153,14 +171,7 @@ bool updateShapes(InferenceEngine::ICNNNetwork::InputPartialShapes& shapes,
             }
             updated = true;
         }
-        search_string = search_string.substr(end_pos + 1);
-        if (search_string.empty() || search_string.front() != ',')
-            break;
-        search_string = search_string.substr(1);
-        start_pos = search_string.find_first_of('[');
     }
-    if (!search_string.empty())
-        throw std::logic_error("Can't parse `shape` parameter: " + shapes_string);
     return updated;
 }
 

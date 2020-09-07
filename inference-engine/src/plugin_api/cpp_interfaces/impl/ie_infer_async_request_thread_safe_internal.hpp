@@ -131,6 +131,11 @@ public:
         SetBatch_ThreadUnsafe(batch);
     };
 
+    void SetShape(const char* name, const SizeVector& dims) override {
+        CheckBusy();
+        SetShape_ThreadUnsafe(name, dims);
+    };
+
 protected:
     /**
      * @brief Starts an asynchronous pipeline thread unsafe.
@@ -223,6 +228,8 @@ protected:
      * @param[in]  batch  The dynamic batch value
      */
     virtual void SetBatch_ThreadUnsafe(int batch) = 0;
+
+    virtual void SetShape_ThreadUnsafe(const char* name, const SizeVector& dims) = 0;
 };
 
 }  // namespace InferenceEngine

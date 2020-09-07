@@ -88,6 +88,10 @@ public:
         TO_STATUS(_impl->SetBatch(batch_size));
     }
 
+    StatusCode SetShape(const char* name, const SizeVector& dims, ResponseDesc* resp) noexcept override {
+        TO_STATUS(_impl->SetShape(name, dims));
+    }
+
 private:
     ~InferRequestBase() = default;
 };

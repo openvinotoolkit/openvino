@@ -186,18 +186,21 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                const InferenceEngine::ConstInputsDataMap& info,
+               const InferenceEngine::ICNNNetwork::InputPartialShapes& blob_shapes,
                std::vector<InferReqWrap::Ptr> requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (const ConstInputsDataMap::value_type& item : info) {
-        if (isImage(item.second)) {
+        if (item.second->getTensorDesc().getPartialShape().is_static() && isImage(item.second)) {
             input_image_sizes.push_back(std::make_pair(getTensorWidth(item.second->getTensorDesc()),
                                                        getTensorHeight(item.second->getTensorDesc())));
         }
         slog::info << "Network input '" << item.first << "' precision " << item.second->getTensorDesc().getPrecision()
                                                       << ", dimensions (" << item.second->getTensorDesc().getLayout() << "): ";
-        for (const auto& i : item.second->getTensorDesc().getDims()) {
-            slog::info << i << " ";
-        }
+
+        slog::info << item.second->getTensorDesc().getPartialShape();
+        //        for (const auto& i : item.second->getTensorDesc().getDims()) {
+        //            slog::info << i << " ";
+        //        }
         slog::info << slog::endl;
     }
 
@@ -259,6 +262,18 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
         for (const ConstInputsDataMap::value_type& item : info) {
+            // TODO: a bit not efficient
+            // TODO: no support for anonymous inputs
+            if (blob_shapes.find(item.first) != blob_shapes.end()) {
+                if (blob_shapes.at(item.first).is_static()) {
+                    requests.at(requestId)->setShape(item.first, blob_shapes.at(item.first).get_shape());
+                } else {
+                    THROW_IE_EXCEPTION << "Input " << item.first << " doesn't have static shape in -blob_shapes.";
+                }
+            } else {
+                if (item.second->getTensorDesc().getPartialShape().is_dynamic())
+                    THROW_IE_EXCEPTION << "Input " << item.first << " doesn't have static shape and -blob_shapes doesn't specify it either";
+            }
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
             if (isImage(inputBlob)) {
                 if (!imageFiles.empty()) {
