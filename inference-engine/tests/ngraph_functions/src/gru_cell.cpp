@@ -35,6 +35,5 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                                              activations, activations_alpha, activations_beta, clip, linear_before_reset);
     }
 }
-
 }  // namespace builder
 }  // namespace ngraph

@@ -389,6 +389,7 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);
 
+
 std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            const std::vector<ngraph::Shape>& constants,
                                            std::size_t hidden_size,

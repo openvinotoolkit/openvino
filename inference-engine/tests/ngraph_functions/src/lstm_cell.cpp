@@ -33,6 +33,5 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
                                                           activations_alpha, activations_beta, activations, clip);
     }
 }
-
 }  // namespace builder
 }  // namespace ngraph

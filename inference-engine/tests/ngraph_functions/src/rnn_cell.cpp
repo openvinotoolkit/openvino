@@ -33,6 +33,5 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                                              activations, activations_alpha, activations_beta, clip);
     }
 }
-
 }  // namespace builder
 }  // namespace ngraph
