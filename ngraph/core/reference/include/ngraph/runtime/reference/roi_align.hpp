@@ -16,12 +16,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/op/avg_pool.hpp"
-#include "ngraph/op/max_pool.hpp"
-#include "ngraph/op/reshape.hpp"
 #include "ngraph/op/roi_align.hpp" // for ROIAlign:PoolingMode
 #include "ngraph/shape.hpp"
 namespace ngraph
@@ -46,7 +44,6 @@ namespace ngraph
                                          const float spatial_scale,
                                          const ROIPoolingMode& pooling_mode)
             {
-                // TODO: bulk save
                 // TODO: wrap input inside some struct
                 // TODO: use tensor 2 vec
                 // TODO: tests for max pooling
@@ -71,7 +68,6 @@ namespace ngraph
                     T roi_w = fmax(x2 - x1, static_cast<T>(1));
                     auto roi_h = fmax(y2 - y1, static_cast<T>(1));
 
-                    // W and H of each bin- already relative to spatial scale
                     T bin_w = roi_w / pooled_width;
                     T bin_h = roi_h / pooled_height;
                     uint64_t sample_count_horizontal = sampling_ratio * pooled_width;
@@ -80,10 +76,9 @@ namespace ngraph
                     T sample_distance_horizontal = bin_w / static_cast<T>(sampling_ratio);
                     T sample_distance_vertical = bin_h / static_cast<T>(sampling_ratio);
 
-                    // Prepare coordinates for 4 pooling points for each of the sampling points of
-                    // every bin
                     std::vector<std::pair<uint64_t, uint64_t>> pooling_points;
                     std::vector<T> pooling_weights;
+
                     pooling_points.reserve(4 * sample_count_horizontal * sample_count_vertical);
                     pooling_weights.reserve(4 * sample_count_horizontal * sample_count_vertical);
 
@@ -103,8 +98,6 @@ namespace ngraph
                                     T sample_x = x1 + static_cast<T>(bin_horizontal) * bin_w +
                                                  sample_distance_horizontal *
                                                      (static_cast<T>(j) + static_cast<T>(0.5f));
-                                    // for each sampling point we have 4 coordinate pairs, that
-                                    // address pooled values
 
                                     if (sample_x < -1.0 || sample_x > W || sample_y < -1.0 ||
                                         sample_y > H)
@@ -178,9 +171,11 @@ namespace ngraph
                             }
                         }
                     }
+                    std::vector<T> tmp_out;
 
                     for (uint64_t channel_index = 0; channel_index < C; channel_index++)
                     {
+                        tmp_out.reserve(pooled_height * pooled_width);
                         // Go over each bin
                         uint64_t sample_index = 0;
                         for (int64_t bin_vertical = 0; bin_vertical < pooled_height; bin_vertical++)
@@ -238,15 +233,18 @@ namespace ngraph
                                 {
                                     pooled_value /= (sampling_ratio * sampling_ratio);
                                 }
-                                memcpy(&out[out_transform.index(
-                                           {static_cast<uint64_t>(roi_index),
-                                            static_cast<uint64_t>(channel_index),
-                                            static_cast<uint64_t>(bin_vertical),
-                                            static_cast<uint64_t>(bin_horizontal)})],
-                                       &pooled_value,
-                                       sizeof(T));
+                                tmp_out.push_back(pooled_value);
                             }
                         }
+
+                        std::copy(tmp_out.begin(),
+                                  tmp_out.end(),
+                                  &out[out_transform.index({static_cast<uint64_t>(roi_index),
+                                                            static_cast<uint64_t>(channel_index),
+                                                            static_cast<uint64_t>(0),
+                                                            static_cast<uint64_t>(0)})]);
+
+                        tmp_out.clear();
                     }
                 }
                 return;
