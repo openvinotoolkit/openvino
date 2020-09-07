@@ -899,7 +899,7 @@ void ReorderConcatInputsPass::run() {
                     bFinish = true;
                 }
                 }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
-                    // aborting UFS once link not need
+                    // aborting UFS once link not needed
                     return make_upstream_order(!bFinish ? from : nullptr);
                 });
 

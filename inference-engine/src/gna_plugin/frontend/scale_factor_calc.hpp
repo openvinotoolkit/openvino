@@ -170,7 +170,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                     if (!fp32eq(quantSibling->_dst_quant.scale, 1)) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
-                        InferenceEngine::CNNLayerPtr  restartedLayer;
+                        InferenceEngine::CNNLayerPtr restartedLayer;
 
                         gnalog() << "Memory layer :"<< input->name << " scale factor: " << quantSibling->_dst_quant.scale
                             << " doesn't match its outputs counterpart: " << cnnLayer->name << " scale factor: " << inputQuant->_dst_quant.scale << "\n";
