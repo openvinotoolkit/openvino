@@ -124,6 +124,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
         MakeJitConstant("OWPAD", output.X().pad.Total()),
         MakeJitConstant("OHPAD", output.Y().pad.Total()),
         MakeJitConstant("SIMD_SIZE", SIMD_SIZE),
+        MakeJitConstant("FSV", in_fsv),
     });
 
     if (params.filterSize.x != 3 || params.filterSize.y != 3) {
@@ -193,7 +194,8 @@ bool ConvolutionKernel_imad::Validate(const Params& params, const optional_param
     }
 
     auto& newParams = static_cast<const convolution_params&>(params);
-    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0)
+    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0 &&
+        newParams.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
         return false;
 
     size_t min_block_size_x = (newParams.weights.X().v - 1) * newParams.dilation.x + 1;
