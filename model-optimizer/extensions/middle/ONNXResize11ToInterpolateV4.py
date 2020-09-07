@@ -17,6 +17,7 @@
 import logging as log
 import numpy as np
 
+from extensions.ops.activation_ops import Floor
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Add, Div, Mul
 from extensions.ops.interpolate import Interpolate
@@ -113,8 +114,10 @@ def replace_resize(graph: Graph, resize: Node):
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
         cast_add_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
+        floor_node = Floor(graph, {'name': resize_name + '/Floor_'}).create_node()
         mul_node.out_port(0).connect(add_node.in_port(0))
-        add_node.out_port(0).connect(cast_add_result_to_int.in_port(0))
+        add_node.out_port(0).connect(floor_node.in_port(0))
+        floor_node.out_port(0).connect(cast_add_result_to_int.in_port(0))
         cast_add_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
         sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
         scales_ss.out_port(0).connect(interpolate_node.in_port(2))
