@@ -27,6 +27,7 @@
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
+#include <layers/gna_copy_layer.hpp>
 #include "gna_graph_tools.hpp"
 #include "gna_pass_manager.hpp"
 #include "layers/gna_layer_info.hpp"
@@ -703,7 +704,8 @@ void InsertCopyLayerPass::run() {
             };
 
             if (LayerInfo(l).isMemory()) {
-                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()) { bInsertDelayed = true;}
+                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()
+                    || LayerInfo(prevIndirectLayer).isSplit()) { bInsertDelayed = true;}
                 // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
                 for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
                     // if preceding layer is common for memory and concat
