@@ -20,7 +20,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 #
 
 set(FIRMWARE_PACKAGE_VERSION 1354)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.02.0")
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.0")
 
 #
 # CMake variables to override default firmware files
