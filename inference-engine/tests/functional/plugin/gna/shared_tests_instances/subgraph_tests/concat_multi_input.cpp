@@ -23,12 +23,11 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::U8
 };
 
 std::map<std::string, std::string> additional_config = {
     {"GNA_COMPACT_MODE", "NO"},
+    {"GNA_SCALE_FACTOR_0", "2048"},
 };
 
 INSTANTIATE_TEST_CASE_P(concat_multi_input, ConcatMultiInput,
