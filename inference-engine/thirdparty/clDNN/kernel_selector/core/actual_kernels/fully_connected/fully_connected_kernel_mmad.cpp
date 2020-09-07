@@ -19,6 +19,8 @@ namespace kernel_selector {
 
 namespace {
     static const size_t sub_group_size = 8;
+    static size_t slm_div_factor = 1;
+    static size_t work_group_size = 1;
 }  // namespace
 
 ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
@@ -68,11 +70,21 @@ bool FullyConnectedKernelMMAD::Validate(const Params& params, const optional_par
 FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params,
                                                                             int) const {
     auto runInfo = Parent::SetDefault(params);
+    const auto& input = params.inputs[0];
+    const auto& output = params.output;
 
-    const auto& out = params.output;
+    size_t feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0 ?
+                                  input.Feature().v / 32 : CeilDiv(input.Feature().v, 32);
 
-    std::vector<size_t> global = { Align(out.Feature().v, sub_group_size), out.Batch().v, 1 };
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    if (feature_blocks_count)
+        while (feature_blocks_count % (slm_div_factor * 2) == 0 && (slm_div_factor * 2 <= params.engineInfo.maxWorkGroupSize / sub_group_size))
+            slm_div_factor *= 2;
+
+    work_group_size = slm_div_factor * sub_group_size;
+
+    std::vector<size_t> global = { Align(output.Feature().v, sub_group_size) * slm_div_factor, output.Batch().v, 1 };
+    std::vector<size_t> local = { work_group_size, 1, 1 };
+    if (slm_div_factor == 1) local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
@@ -137,12 +149,32 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().pitch * 32));
     }
 
+    jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", slm_div_factor));
+
+    size_t feature_blocks_count;
+    size_t temp_unroll_factor = 9, unroll_factor, full_unroll_factor;
+
     if (input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0) {
+        feature_blocks_count = input.Feature().v / 32;
         jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", true));
-        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", input.Feature().v / 32));
     } else {
-        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", CeilDiv(input.Feature().v, 32)));
+        feature_blocks_count = CeilDiv(input.Feature().v, 32);
     }
+
+    full_unroll_factor = feature_blocks_count / slm_div_factor;
+
+    if (full_unroll_factor > 9) {
+        while (full_unroll_factor % temp_unroll_factor)
+            temp_unroll_factor--;
+        unroll_factor = temp_unroll_factor;
+    } else {
+        unroll_factor = full_unroll_factor;
+    }
+
+    jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", feature_blocks_count));
+    jit.AddConstant(MakeJitConstant("UNROLL_FACTOR", unroll_factor));
+    jit.AddConstant(MakeJitConstant("FULL_UNROLL_FACTOR", full_unroll_factor));
+    jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", work_group_size));
 
     jit.AddConstant(MakeJitConstant("MMAD_INPUT_SPATIAL_PITCH", input_x_pitch));
     jit.AddConstant(MakeJitConstant("MMAD_INPUT_X_PITCH", input_x_pitch));
@@ -158,7 +190,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", {"b", "f", "0", "0"}, "dequantized", input_dt, 1 };
+        FusedOpsConfiguration conf = { "", {"batch", "feature", "0", "0"}, "dequantized", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
@@ -180,7 +212,7 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
                                                     options,
                                                     input.GetLayout(),
                                                     w_layout,
-                                                    FORCE_PRIORITY_9,
+                                                    FORCE_PRIORITY_7,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
