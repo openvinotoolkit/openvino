@@ -82,7 +82,7 @@ class AOTBehaviorTests : public BehaviorPluginTest {
 
         try
         {
-            ret = core.ImportNetwork("local_tmp.fw", GetParam().device, { {KEY_LOG_LEVEL, LOG_DEBUG} } );
+            ret = core.ImportNetwork("local_tmp.fw", GetParam().device);
         }
         catch (InferenceEngine::details::InferenceEngineException ex)
         {

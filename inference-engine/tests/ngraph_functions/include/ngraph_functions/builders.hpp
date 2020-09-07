@@ -389,5 +389,31 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
 std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>& data,
                                                      double epsilon);
 
+std::shared_ptr<ngraph::Node> makeLSTMCell(const OutputVector& in,
+                                           const std::vector<ngraph::Shape>& WRB,
+                                           std::size_t hidden_size,
+                                           const std::vector<std::string>& activations =
+                                           std::vector<std::string>{"sigmoid", "tanh", "tanh"},
+                                           const std::vector<float>& activations_alpha = {},
+                                           const std::vector<float>& activations_beta = {},
+                                           float clip = 0.f);
+
+std::shared_ptr<ngraph::Node> makeGRUCell(const OutputVector& in,
+                                          const std::vector<ngraph::Shape>& WRB,
+                                          std::size_t hidden_size,
+                                          const std::vector<std::string>& activations =
+                                          std::vector<std::string>{"sigmoid", "tanh"},
+                                          const std::vector<float>& activations_alpha = {},
+                                          const std::vector<float>& activations_beta = {},
+                                          float clip = 0.f,
+                                          bool linear_before_reset = false);
+
+std::shared_ptr<ngraph::Node> makeRNNCell(const OutputVector& in,
+                                          const std::vector<ngraph::Shape>& WRB,
+                                          std::size_t hidden_size,
+                                          const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},
+                                          const std::vector<float>& activations_alpha = {},
+                                          const std::vector<float>& activations_beta = {},
+                                          float clip = 0.f);
 }  // namespace builder
 }  // namespace ngraph
