@@ -107,8 +107,9 @@ def replace_resize(graph: Graph, resize: Node):
                                            {1: float_array([1.0e-5])},
                                            {'name': resize_name + '/Add_'})
 
+    input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+
     if num_of_inputs == 3:
-        input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
         cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul_'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
@@ -133,8 +134,8 @@ def replace_resize(graph: Graph, resize: Node):
         connection_of_resize_input.get_source().connect(shape_of.in_port(0))
         connection_of_scales.get_source().connect(mul_node.in_port(1))
     else:
-        cast_shape_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
-        cast_sizes_to_float = Cast(graph, {'dst_type': np.float32}).create_node()
+        cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
+        cast_sizes_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
         div_node = Div(graph, {'name': resize_name + '/Div_'}).create_node()
         cast_sizes_to_float.out_port(0).connect(div_node.in_port(0))
         cast_shape_to_float.out_port(0).connect(div_node.in_port(1))

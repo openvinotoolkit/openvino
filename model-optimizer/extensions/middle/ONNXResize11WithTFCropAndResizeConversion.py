@@ -40,6 +40,8 @@ def replace_resize_with_tf_crop_and_resize(graph: Graph, resize: Node):
         return
 
     roi = resize.in_port(1).data.get_value()
+    assert roi is not None, "The input 'roi' is None for ONNXResize11 operation with name {}".format(resize_name)
+
     roi_len = len(roi)
 
     assert roi_len == 2 * input_rank, \

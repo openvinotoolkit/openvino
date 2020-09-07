@@ -236,7 +236,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
     if seq[0].get_opset() == 'opset1':
         for interp in seq:
             dims_and_scales_.extend(zip(Interpolate.get_axes(interp),
-                                        interp.in_port(1).get_connection().get_source().node.value))
+                                        interp.in_port(1).get_connection().get_source().data.get_value()))
 
         axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
@@ -245,8 +245,8 @@ def replace_sequence(seq: List[Node], graph: Graph):
     else:
         for interp in seq:
             dims_and_scales_.extend(zip(Interpolate.get_axes(interp),
-                                        interp.in_port(1).get_connection().get_source().node.value,
-                                        interp.in_port(2).get_connection().get_source().node.value))
+                                        interp.in_port(1).get_connection().get_source().data.get_value(),
+                                        interp.in_port(2).get_connection().get_source().data.get_value()))
 
         axis_to_size = sorted(dims_and_scales_, key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
