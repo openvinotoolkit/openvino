@@ -15,18 +15,19 @@
 """
 
 from extensions.ops.elementwise import Add
-from mo.front.common.replacement import FrontReplacementPattern
+from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes, rename_node
 
 
-class FakeOutputResolver(FrontReplacementPattern):
+class FakeOutputResolver(BackReplacementPattern):
     """
     This transformation removes FakeOutput nodes. If producer of FakeOutput have only one consumer (FakeOutput itself)
      the name of FakeOutput is inherited by its producer, otherwise FakeOutput is replaced with op which does nothing.
     """
     enabled = True
+    force_clean_up = True
 
     def find_and_replace_pattern(self, graph: Graph):
         for fake_output in graph.get_op_nodes(op='FakeOutput'):
@@ -46,5 +47,7 @@ class FakeOutputResolver(FrontReplacementPattern):
                 fake_output.in_port(0).get_connection().set_destination(add.in_port(0))
                 fake_output.out_port(0).get_connection().set_source(add.out_port(0))
             else:
-                graph.erase_node(fake_output)
-                rename_node(producer, name)
+                result_in_port = fake_output.out_port(0).get_destination()
+                result_in_port.disconnect()
+                fake_output.in_port(0).get_connection().set_destination(result_in_port)
+                rename_nodes([(fake_output, name + '/TBD'), (producer, name)])

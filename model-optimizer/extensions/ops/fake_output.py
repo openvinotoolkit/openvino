@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from mo.front.common.partial_infer.elemental import copy_shape_infer, copy_value
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
@@ -31,7 +31,7 @@ class FakeOutput(Op):
             'type': None,
             'version': None,
 
-            'infer': None,
+            'infer': lambda n: copy_shape_infer(n, copy_value),
 
             'type_infer': None,
 
