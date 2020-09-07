@@ -23,26 +23,53 @@
 
 using namespace ngraph;
 
+PartialShape::PartialShape()
+    : PartialShape(std::initializer_list<Dimension>{})
+{
+}
+
+PartialShape::PartialShape(std::initializer_list<Dimension> init)
+    : PartialShape(true, init)
+{
+}
+
 PartialShape::PartialShape(const std::vector<Dimension::value_type>& dimensions)
     : m_rank_is_static(true)
+    , m_dimensions(dimensions.begin(), dimensions.end())
 {
-    std::transform(dimensions.cbegin(),
-                   dimensions.cend(),
-                   std::back_inserter(m_dimensions),
-                   [](const Dimension::value_type& dimension) { return dimension; });
 }
 
 PartialShape::PartialShape(const Shape& shape)
-    : PartialShape(true, {})
+    : m_rank_is_static(true)
+    , m_shape_type(ShapeType::SHAPE_IS_STATIC)
+    , m_dimensions(shape.begin(), shape.end())
 {
-    m_dimensions.assign(shape.begin(), shape.end());
+}
+
+PartialShape::PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions)
+    : m_rank_is_static(rank_is_static)
+    , m_dimensions(dimensions)
+{
+}
+
+PartialShape::PartialShape(const std::vector<Dimension>& dimensions)
+    : m_rank_is_static(true)
+    , m_dimensions(dimensions)
+{
 }
 
 bool ngraph::PartialShape::is_static() const
 {
-    return m_rank_is_static && std::all_of(m_dimensions.begin(),
-                                           m_dimensions.end(),
-                                           [](const Dimension& d) { return d.is_static(); });
+    if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN)
+    {
+        m_shape_type =
+            m_rank_is_static && std::all_of(m_dimensions.begin(),
+                                            m_dimensions.end(),
+                                            [](const Dimension& d) { return d.is_static(); })
+                ? ShapeType::SHAPE_IS_STATIC
+                : ShapeType::SHAPE_IS_DYNAMIC;
+    }
+    return m_shape_type == ShapeType::SHAPE_IS_STATIC;
 }
 
 bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const
@@ -282,6 +309,7 @@ bool PartialShape::merge_rank(Rank r)
     {
         m_rank_is_static = true;
         m_dimensions = std::vector<Dimension>(r.get_length(), Dimension::dynamic());
+        m_shape_type = ShapeType::SHAPE_IS_UNKNOWN;
         return true;
     }
     else
@@ -297,13 +325,13 @@ Shape PartialShape::to_shape() const
         throw std::invalid_argument("to_shape was called on a dynamic shape.");
     }
 
-    std::vector<size_t> dimensions_to_shape(m_dimensions.size());
+    std::vector<size_t> shape_dimensions(m_dimensions.size());
     std::transform(m_dimensions.begin(),
                    m_dimensions.end(),
-                   dimensions_to_shape.begin(),
+                   shape_dimensions.begin(),
                    [](const Dimension& d) { return d.get_length(); });
 
-    return Shape(dimensions_to_shape.begin(), dimensions_to_shape.end());
+    return shape_dimensions;
 }
 
 bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src)
@@ -444,6 +472,8 @@ Dimension& PartialShape::operator[](size_t i)
     {
         throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
     }
+    m_shape_type =
+        ShapeType::SHAPE_IS_UNKNOWN; // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
 
