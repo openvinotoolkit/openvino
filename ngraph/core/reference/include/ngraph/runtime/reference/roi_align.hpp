@@ -70,12 +70,11 @@ namespace ngraph
                     // W and H of each bin- already relative to spatial scale
                     T bin_w = roi_w / pooled_width;
                     T bin_h = roi_h / pooled_height;
-
                     auto sample_count_horizontal = sampling_ratio * pooled_width;
                     auto sample_count_vertical = sampling_ratio * pooled_height;
 
-                    T sample_distance_horizontal = bin_w / static_cast<T>(sampling_ratio + 1);
-                    T sample_distance_vertical = bin_h / static_cast<T>(sampling_ratio + 1);
+                    T sample_distance_horizontal = bin_w / static_cast<T>(sampling_ratio);
+                    T sample_distance_vertical = bin_h / static_cast<T>(sampling_ratio);
 
                     // Prepare coordinates for 4 pooling points for each of the sampling points of
                     // every bin
@@ -89,23 +88,25 @@ namespace ngraph
                         for (int64_t bin_horizontal = 0; bin_horizontal < pooled_width;
                              bin_horizontal++)
                         {
+                            std::cout << "bin [" << bin_vertical << " ," << bin_horizontal
+                                      << "] is [" << x1 + bin_horizontal * bin_w << ", "
+                                      << y1 + bin_vertical * bin_h << "] to ["
+                                      << x1 + (bin_horizontal + 1) * bin_w << ", "
+                                      << y1 + (bin_vertical + 1) * bin_h << "]" << std::endl;
                             for (int64_t i = 0; i < sampling_ratio; i++)
                             {
-                                T sample_y = y1 + bin_vertical * bin_h +
-                                                sample_distance_vertical *
-                                                    ((static_cast<T>(i)) + static_cast<T>(1.0f));
+                                T sample_y = y1 + bin_h * bin_vertical +
+                                             sample_distance_vertical *
+                                                 (static_cast<T>(i) + static_cast<T>(0.5f));
 
                                 for (int64_t j = 0; j < sampling_ratio; j++)
                                 {
-                                    T sample_x =
-                                        x1 + bin_horizontal * bin_w +
-                                        sample_distance_horizontal *
-                                            ((static_cast<T>(j)) + static_cast<T>(1.0f));
+                                    T sample_x = x1 + static_cast<T>(bin_horizontal) * bin_w +
+                                                 sample_distance_horizontal *
+                                                     ((static_cast<T>(j)) + static_cast<T>(0.5f));
                                     // for each sampling point we have 4 coordinate pairs, that
                                     // address pooled values
-                                    std::cout << "bin [" << bin_vertical << " ," << bin_horizontal
-                                              << "] sample [" << i << ", " << j << "] at ["
-                                              << sample_y << ", " << sample_x << "]" << std::endl;
+
                                     if (sample_x < -1.0 || sample_x > W || sample_y < -1.0 ||
                                         sample_y > H)
                                     {
@@ -155,8 +156,8 @@ namespace ngraph
                                         sample_x_high = sample_x_low + 1;
                                     }
 
-                                    T ly = sample_y - sample_y_low;
-                                    T lx = sample_x - sample_x_low;
+                                    T ly = sample_y - static_cast<T>(sample_y_low);
+                                    T lx = sample_x - static_cast<T>(sample_x_low);
                                     T hy = static_cast<T>(1.) - ly;
                                     T hx = static_cast<T>(1.) - lx;
 
@@ -165,10 +166,15 @@ namespace ngraph
                                     pooling_points.push_back({sample_y_high, sample_x_low});
                                     pooling_points.push_back({sample_y_high, sample_x_high});
 
-                                    pooling_weights.push_back(hy * hx);
-                                    pooling_weights.push_back(hy * lx);
-                                    pooling_weights.push_back(ly * hx);
-                                    pooling_weights.push_back(ly * lx);
+                                    T w1 = hy * hx;
+                                    T w2 = hy * lx;
+                                    T w3 = ly * hx;
+                                    T w4 = ly * lx;
+
+                                    pooling_weights.push_back(w1);
+                                    pooling_weights.push_back(w2);
+                                    pooling_weights.push_back(w3);
+                                    pooling_weights.push_back(w4);
                                 }
                             }
                         }
@@ -212,6 +218,7 @@ namespace ngraph
                                          channel_index,
                                          pooling_points[sample_index + 3].first,
                                          pooling_points[sample_index + 3].second})];
+
                                     auto sample_value = pooling_weights[sample_index] * s1 +
                                                         pooling_weights[sample_index + 1] * s2 +
                                                         pooling_weights[sample_index + 2] * s3 +
@@ -224,16 +231,20 @@ namespace ngraph
                                                                                    : pooled_value;
                                         break;
                                     }
+                                    case ROIPoolingMode::AVG:
                                     default:
                                     {
-                                        pooled_value +=
-                                            sample_value / (sampling_ratio * sampling_ratio);
+                                        pooled_value += sample_value;
                                     }
                                     }
                                     // TODO: when this works, save all output for a single bin at
                                     // one time
                                 }
-                                std::cout << static_cast<float>(pooled_value) << " ";
+                                if (pooling_mode == ROIPoolingMode::AVG)
+                                {
+                                    pooled_value /= (sampling_ratio * sampling_ratio);
+                                }
+                                std::cout << static_cast<T>(pooled_value) << std::endl;
                                 memcpy(&out[out_transform.index(
                                            {static_cast<uint64_t>(roi_index),
                                             static_cast<uint64_t>(channel_index),
