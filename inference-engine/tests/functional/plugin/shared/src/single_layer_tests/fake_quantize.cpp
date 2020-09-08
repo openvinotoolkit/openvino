@@ -18,6 +18,12 @@
 
 #include "single_layer_tests/fake_quantize.hpp"
 
+#define RANDOMIZE 1
+/**
+ * redefine this seed to reproduce issue with given seed that can be read from gtest logs
+ */
+#define BASE_SEED 740809191
+
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
@@ -30,7 +36,7 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     size_t levels;
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
-    std::tie(levels, constShape, fqDirectArgs) = fqParams;
+    std::tie(levels, constShape, fqDirectArgs, std::ignore) = fqParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -57,7 +63,13 @@ void FakeQuantizeLayerTest::SetUp() {
     size_t levels;
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArg;
-    std::tie(levels, constShape, fqDirectArg) = fqParams;
+    std::vector<float> inputArg;
+    std::tie(levels, constShape, fqDirectArg, inputArg) = fqParams;
+    if (inputArg.size() == 3) {
+        inputDataMin = inputArg[0];
+        inputDataMax = inputArg[1];
+        inputDataResolution = inputArg[2];
+    }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -84,9 +96,37 @@ void FakeQuantizeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
 
     configuration = config.second;
+    seed = BASE_SEED;
+}
+
+InferenceEngine::Blob::Ptr FakeQuantizeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution, seed);
 }
 
 TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
+    auto isRandomize = seed == RANDOMIZE;
+    auto updateSeed = [this, isRandomize]() {
+        if (isRandomize) {
+            seed = std::chrono::system_clock::now().time_since_epoch().count();
+            std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
+              << "random seed = " << seed << std::endl;
+        } else {
+            std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
+                      << "seed = " << seed << std::endl;
+        }
+    };
+    updateSeed();
     Run();
+
+    if (!isRandomize) {
+        return;
+    }
+
+    size_t nIterations = (inputDataMax - inputDataMin) / inputDataResolution;
+    for (; nIterations != 0; nIterations--) {
+        updateSeed();
+        Infer();
+        Validate();
+    }
 }
 }  // namespace LayerTestsDefinitions
