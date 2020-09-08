@@ -28,11 +28,20 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 
 
 /**
+* @brief Function calls `runPipeline` with mandatory time tracking of full run
+*/
+int _runPipeline() {
+    SCOPED_TIMER(full_run);
+    return runPipeline(FLAGS_m, FLAGS_d);
+}
+
+
+/**
 * @brief Main entry point
 */
 int main(int argc, char **argv) {
     if (!parseAndCheckCommandLine(argc, argv))
         return -1;
 
-    return runPipeline(FLAGS_m, FLAGS_d);
+    return _runPipeline();
 }
