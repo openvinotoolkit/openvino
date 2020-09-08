@@ -117,7 +117,6 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
                    << std::to_string(device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
