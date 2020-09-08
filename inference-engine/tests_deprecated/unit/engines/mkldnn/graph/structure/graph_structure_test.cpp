@@ -6489,6 +6489,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2 }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("output");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6512,7 +6513,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
 
     inputBlobs["input"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, inpSize,
         InferenceEngine::TensorDesc::getLayoutByDims(inpSize) }, &inpData[0]);
-    outputBlobs["concat"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
+    outputBlobs["output"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
         InferenceEngine::TensorDesc::getLayoutByDims(outSize) }, &outData[0]);
 
     MKLDNNGraphTestClass graph;
@@ -6523,9 +6524,9 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
                                  0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38,
                                  0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57};
 
-    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["concat"]->getTensorDesc(), refDst.data());
+    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["output"]->getTensorDesc(), refDst.data());
 
-    compare(*outputBlobs["concat"], *dstOut);
+    compare(*outputBlobs["output"], *dstOut);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
@@ -6537,6 +6538,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, input, input }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("output");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6561,7 +6563,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
 
     inputBlobs["input"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, inpSize,
         InferenceEngine::TensorDesc::getLayoutByDims(inpSize) }, &inpData[0]);
-    outputBlobs["concat"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
+    outputBlobs["output"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
         InferenceEngine::TensorDesc::getLayoutByDims(outSize) }, &outData[0]);
 
 
@@ -6573,9 +6575,9 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
                                  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
                                  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,};
 
-    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["concat"]->getTensorDesc(), refDst.data());
+    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["output"]->getTensorDesc(), refDst.data());
 
-    compare(*outputBlobs["concat"], *dstOut);
+    compare(*outputBlobs["output"], *dstOut);
 }
 
 
@@ -6659,6 +6661,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
         auto concat = std::make_shared<ngraph::op::Concat>(ngraph::OutputVector { input, conv1, conv2, conv3 }, 1);
         concat->set_friendly_name("concat");
         auto result = std::make_shared<ngraph::op::Result>(concat);
+        result->set_friendly_name("output");
 
         ngraph::ResultVector results { result };
         ngraph::ParameterVector params { input };
@@ -6682,7 +6685,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
 
     inputBlobs["input"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, inpSize,
         InferenceEngine::TensorDesc::getLayoutByDims(inpSize) }, &inpData[0]);
-    outputBlobs["concat"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
+    outputBlobs["output"] = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, outSize,
         InferenceEngine::TensorDesc::getLayoutByDims(outSize) }, &outData[0]);
 
 
@@ -6695,7 +6698,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
                                  0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57,
                                  0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19};
 
-    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["concat"]->getTensorDesc(), refDst.data());
+    InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["output"]->getTensorDesc(), refDst.data());
 
-    compare(*outputBlobs["concat"], *dstOut);
+    compare(*outputBlobs["output"], *dstOut);
 }
