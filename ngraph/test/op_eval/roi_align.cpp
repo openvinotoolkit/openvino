@@ -99,7 +99,76 @@ TEST(op_eval, roi_align_avg_pool)
     for (size_t i = 0; i < expected_vec.size(); i++)
         EXPECT_NEAR(result_data[i], expected_vec[i], 0.001);
 }
+TEST(op_eval, roi_align_max_pool)
+{
+    const int N = 1;
+    const int C = 3;
+    const int H = 5;
+    const int W = 5;
+    const int num_rois = 5;
+    const int pooled_height = 3;
+    const int pooled_width = 4;
+    const auto data_shape = Shape{N, C, H, W};
+    const auto rois_shape = Shape{num_rois, 4};
 
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+
+    auto roi_align = make_shared<op::v3::ROIAlign>(
+        data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f / 16.0f, "max");
+
+    auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
+
+    std::vector<float> data_vec{0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12.,
+                                13., 14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.,
+                                26., 27., 28., 29., 30., 31., 32., 33., 34., 35., 36., 37., 38.,
+                                39., 40., 41., 42., 43., 44., 45., 46., 47., 48., 49., 50., 51.,
+                                52., 53., 54., 55., 56., 57., 58., 59., 60., 61., 62., 63., 64.,
+                                65., 66., 67., 68., 69., 70., 71., 72., 73., 74.};
+
+    std::vector<float> rois_vec{7.,   5.,  7.,  5., -15., -15., -15., -15., -10., 21.,
+                                -10., 21., 13., 8., 13.,  8.,   -14., 19.,  -14., 19.};
+
+    std::vector<int64_t> batch_indices_vec{0, 0, 0, 0, 0};
+
+    auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result},
+                            {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                             make_host_tensor<element::Type_t::f32>(rois_shape, rois_vec),
+                             make_host_tensor<element::Type_t::i64>(Shape{num_rois})}));
+
+    std::vector<float> expected_vec{
+        2.10938f,  2.95313f, 3.375f,   2.53125f,  3.35938f, 4.70313f, 5.375f,   4.03125f, 3.51563f,
+        4.92188f,  5.625f,   4.21875f, 10.8984f,  15.2578f, 17.4375f, 13.0781f, 17.3568f, 24.2995f,
+        27.7708f,  20.8281f, 18.1641f, 25.4297f,  29.0625f, 21.7969f, 19.6875f, 27.5625f, 31.5f,
+        23.625f,   31.3542f, 43.8958f, 50.1667f,  37.625f,  32.8125f, 45.9375f, 52.5f,    39.375f,
+        0.f,       0.f,      0.f,      0.f,       0.f,      0.f,      0.f,      0.f,      0.f,
+        0.f,       0.f,      0.f,      25.f,      25.f,     25.f,     25.f,     25.f,     25.f,
+        25.f,      25.f,     25.f,     25.f,      25.f,     25.f,     50.f,     50.f,     50.f,
+        50.f,      50.f,     50.f,     50.f,      50.f,     50.f,     50.f,     50.f,     50.f,
+        5.625f,    5.625f,   5.625f,   4.57031f,  8.95833f, 8.95833f, 8.95833f, 7.27865f, 9.375f,
+        9.375f,    9.375f,   7.61719f, 19.6875f,  19.6875f, 19.6875f, 15.9961f, 31.3542f, 31.3542f,
+        31.3542f,  25.4753f, 32.8125f, 32.8125f,  32.8125f, 26.6602f, 33.75f,   33.75f,   33.75f,
+        27.4219f,  53.75f,   53.75f,   53.75f,    43.6719f, 56.25f,   56.25f,   56.25f,   45.7031f,
+        4.5f,      3.9375f,  2.8125f,  3.9375f,   5.5f,     4.8125f,  3.4375f,  4.8125f,  4.58333f,
+        4.01042f,  2.86458f, 3.9375f,  23.25f,    20.3438f, 14.5313f, 18.f,     28.4167f, 24.86458f,
+        17.76042f, 22.f,     23.25f,   20.3437f,  14.5312f, 18.f,     42.f,     36.75f,   26.25f,
+        32.0625f,  51.3333f, 44.9167f, 32.08333f, 39.1875f, 42.f,     36.75f,   26.25f,   32.0625f,
+        4.375f,    4.375f,   4.375f,   4.375f,    7.70833f, 7.70833f, 7.70833f, 7.70833f, 9.375f,
+        9.375f,    9.375f,   9.375f,   21.875f,   21.875f,  21.875f,  21.875f,  26.9792f, 26.9792f,
+        26.9792f,  26.9792f, 32.8125f, 32.8125f,  32.8125f, 32.8125f, 40.1042f, 40.1042f, 40.1042f,
+        40.1042f,  46.25f,   46.25f,   46.25f,    46.25f,   56.25f,   56.25f,   56.25f,   56.25f};
+    const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
+
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_shape(), expected_shape);
+
+    auto result_data = read_vector<float>(result);
+    for (size_t i = 0; i < expected_vec.size(); i++)
+        EXPECT_NEAR(result_data[i], expected_vec[i], 0.001);
+}
 TEST(op_eval, roi_align_simple)
 {
     const int N = 1;

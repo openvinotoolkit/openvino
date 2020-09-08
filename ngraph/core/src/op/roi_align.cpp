@@ -18,6 +18,7 @@
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/roi_align.hpp"
+#include "util.hpp" // for host_tensor_2_vector
 
 using namespace std;
 using namespace ngraph;
@@ -62,11 +63,18 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types()
 {
-    // TODO: add check for the same input type for inputs 0 and 1
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
         "The data type for input and ROIs is expected to be a floating point type. Got: ",
+        get_input_element_type(0),
+        " and: ",
+        get_input_element_type(1));
+
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_element_type(0) == get_input_element_type(1),
+        "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
         get_input_element_type(0),
         " and: ",
         get_input_element_type(1));
@@ -205,46 +213,12 @@ namespace
                             const float spatial_scale,
                             const op::v3::ROIAlign::PoolingMode& pooling_mode)
     {
-        // TODO: when cast_vector is ready replace this switch with appropriate call
-        // TODO: when implementation is ready think about wraping all parameters in some struct
         auto feature_maps = args[0];
         auto rois = args[1];
         auto batch_indices = args[2];
 
-        std::vector<int64_t> batch_indices_vec_scaled_up;
-
-        switch (batch_indices->get_element_type())
-        {
-        case element::Type_t::i8:
-        {
-            auto p = batch_indices->get_data_ptr<element::Type_t::i8>();
-            batch_indices_vec_scaled_up =
-                std::vector<int64_t>(p, p + batch_indices->get_element_count());
-            break;
-        }
-        case element::Type_t::i16:
-        {
-            auto p = batch_indices->get_data_ptr<element::Type_t::i16>();
-            batch_indices_vec_scaled_up =
-                std::vector<int64_t>(p, p + batch_indices->get_element_count());
-            break;
-        }
-        case element::Type_t::i32:
-        {
-            auto p = batch_indices->get_data_ptr<element::Type_t::i32>();
-            batch_indices_vec_scaled_up =
-                std::vector<int64_t>(p, p + batch_indices->get_element_count());
-            break;
-        }
-        case element::Type_t::i64:
-        {
-            auto p = batch_indices->get_data_ptr<element::Type_t::i64>();
-            batch_indices_vec_scaled_up =
-                std::vector<int64_t>(p, p + batch_indices->get_element_count());
-            break;
-        }
-        default: NGRAPH_UNREACHABLE("unsupported element type");
-        }
+        std::vector<int64_t> batch_indices_vec_scaled_up =
+            host_tensor_2_vector<int64_t>(batch_indices);
 
         switch (feature_maps->get_element_type())
         {
@@ -252,7 +226,7 @@ namespace
         {
             runtime::reference::roi_align<bfloat16>(feature_maps->get_data_ptr<bfloat16>(),
                                                     rois->get_data_ptr<bfloat16>(),
-                                                    batch_indices->get_data_ptr<int64_t>(),
+                                                    batch_indices_vec_scaled_up.data(),
                                                     out->get_data_ptr<bfloat16>(),
                                                     feature_maps->get_shape(),
                                                     rois->get_shape(),
@@ -269,7 +243,7 @@ namespace
         {
             runtime::reference::roi_align<float16>(feature_maps->get_data_ptr<float16>(),
                                                    rois->get_data_ptr<float16>(),
-                                                   batch_indices->get_data_ptr<int64_t>(),
+                                                   batch_indices_vec_scaled_up.data(),
                                                    out->get_data_ptr<float16>(),
                                                    feature_maps->get_shape(),
                                                    rois->get_shape(),
@@ -286,7 +260,7 @@ namespace
         {
             runtime::reference::roi_align<float>(feature_maps->get_data_ptr<float>(),
                                                  rois->get_data_ptr<float>(),
-                                                 batch_indices->get_data_ptr<int64_t>(),
+                                                 batch_indices_vec_scaled_up.data(),
                                                  out->get_data_ptr<float>(),
                                                  feature_maps->get_shape(),
                                                  rois->get_shape(),
@@ -303,7 +277,7 @@ namespace
         {
             runtime::reference::roi_align<double>(feature_maps->get_data_ptr<double>(),
                                                   rois->get_data_ptr<double>(),
-                                                  batch_indices->get_data_ptr<int64_t>(),
+                                                  batch_indices_vec_scaled_up.data(),
                                                   out->get_data_ptr<double>(),
                                                   feature_maps->get_shape(),
                                                   rois->get_shape(),
@@ -326,9 +300,6 @@ namespace
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NODE_VALIDATION_CHECK(
-        this, inputs.size() >= 3, "Not enough input arguments for ROI align operator.");
-
     return evaluate_roi_align(
         inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }
