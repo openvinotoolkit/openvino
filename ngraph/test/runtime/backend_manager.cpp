@@ -160,12 +160,10 @@ DL_HANDLE runtime::BackendManager::open_shared_library(string type)
     string my_directory =
         file_util::get_directory(Backend::get_backend_shared_library_search_directory());
     string library_path = file_util::path_join(my_directory, library_name);
-#ifdef _WIN32
-    /*
+#if defined _WIN32 && (!defined(WINAPI_FAMILY) || WINAPI_PARTITION_DESKTOP)
     SetDllDirectory((LPCSTR)my_directory.c_str());
     handle = LoadLibrary(library_path.c_str());
-    */
-#else
+#elif defined(__APPLE__) || defined(__linux__)
     DLERROR(); // Clear any pending errors
     handle = dlopen(library_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
 #endif

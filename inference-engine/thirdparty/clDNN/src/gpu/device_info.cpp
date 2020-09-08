@@ -27,19 +27,16 @@
 #include <utility>
 
 #ifdef _WIN32
-# ifdef WINAPI_FAMILY
-#  error "Windows Store platform is not supported"
-# endif
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
-# include <SetupAPI.h>
-# include <devguid.h>
-# include <cstring>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <SetupAPI.h>
+#include <devguid.h>
+#include <cstring>
 #else
-# include <unistd.h>
-# include <limits.h>
-# include <link.h>
-# include <dlfcn.h>
+#include <unistd.h>
+#include <limits.h>
+#include <link.h>
+#include <dlfcn.h>
 #endif
 
 namespace cldnn {
@@ -55,7 +52,6 @@ int driver_dev_id()
 
 #ifdef _WIN32
     {
-        /*
         HDEVINFO device_info_set = SetupDiGetClassDevsA(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
         if (device_info_set == INVALID_HANDLE_VALUE)
             return 0;
@@ -83,7 +79,6 @@ int driver_dev_id()
         if (device_info_set) {
             SetupDiDestroyDeviceInfoList(device_info_set);
         }
-        */
     }
 #elif defined(__linux__)
     {

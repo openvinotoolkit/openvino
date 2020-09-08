@@ -15,9 +15,12 @@
 //*****************************************************************************
 
 #ifdef _WIN32
-#include <windows.h>
+# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+# endif
+# include <windows.h>
 #elif defined(__linux) || defined(__APPLE__)
-#include <dlfcn.h>
+# include <dlfcn.h>
 #endif
 
 #include <sstream>
@@ -38,25 +41,23 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 static string find_my_pathname()
 {
 #ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
-#ifdef _WIN32
+# if defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_PARTITION_DESKTOP)
     WCHAR wpath[MAX_PATH];
-    /*
     HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
-    */
     wstring ws(wpath);
     string path(ws.begin(), ws.end());
     replace(path.begin(), path.end(), '\\', '/');
     path = file_util::get_directory(path);
     path += "/";
     return path;
-#elif defined(__linux) || defined(__APPLE__)
+# elif defined(__linux) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
     return dl_info.dli_fname;
-#endif
+# endif
 #else
-    return "";
+    return {};
 #endif
 }
 

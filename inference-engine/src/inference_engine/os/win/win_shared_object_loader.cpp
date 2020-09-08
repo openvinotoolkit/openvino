@@ -48,9 +48,8 @@
 //  WINAPI_FAMILY_SYSTEM - FAIL
 //
 
-#ifdef WINAPI_FAMILY
-# undef WINAPI_FAMILY
-# define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
+#if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
 #endif
 
 #include <direct.h>
@@ -70,16 +69,20 @@ private:
     // path was set to "" or NULL so reset it to "" to keep
     // aplication safe.
     void ExcludeCurrentDirectory() {
-         // if (GetDllDirectoryA(0, NULL) <= 1) {
-             SetDllDirectoryA("");
-         // }
+#ifndef WINAPI_FAMILY
+        if (GetDllDirectoryA(0, NULL) <= 1) {
+            SetDllDirectoryA("");
+        }
+#endif
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     void ExcludeCurrentDirectoryW() {
-        //  if (GetDllDirectoryW(0, NULL) <= 1) {
+#ifndef WINAPI_FAMILY
+        if (GetDllDirectoryW(0, NULL) <= 1) {
             SetDllDirectoryW(L"");
-        //  }
+        }
+#endif
     }
 #endif
 

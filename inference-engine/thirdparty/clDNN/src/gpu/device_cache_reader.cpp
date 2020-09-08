@@ -42,15 +42,12 @@ namespace {
 std::shared_ptr<kernel_selector::TuningCache> get_cache_from_file(std::string tuning_cache_path) {
     if (tuning_cache_path.compare("cache.json") == 0) {
 #ifdef _WIN32
-        CHAR path[MAX_PATH];
+        char path[MAX_PATH];
         HMODULE hm = NULL;
-        (void)hm;
-        /*
         GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
             (LPCSTR)&get_cache_from_file,
             &hm);
-        GetModuleFileName(hm, (LPSTR)path, sizeof(path));
-        */
+        GetModuleFileName(hm, path, sizeof(path));
         std::string bin_path(path);
         tuning_cache_path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
 #else
