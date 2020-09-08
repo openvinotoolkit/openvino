@@ -109,7 +109,6 @@ Framework-agnostic parameters:
   --disable_gfusing     Turn off fusing of grouped convolutions
   --enable_concat_optimization
                         Turn on Concat optimization.
-  --move_to_preprocess  Move mean values to IR preprocess section
   --extensions EXTENSIONS
                         Directory or a comma separated list of directories
                         with extensions. To disable all extensions including
@@ -127,9 +126,6 @@ Framework-agnostic parameters:
                         value, for example: "node_name->True". It will be
                         DEPRECATED in future releases. Use --input option to
                         specify a value for freezing.
-  --generate_deprecated_IR_V7
-                        Force to generate old deprecated IR V7 with layers
-                        from old IR specification.
   --static_shape        Enables `ShapeOf` operation with all children folding to `Constant`.
                         This option makes model not reshapable in Inference Engine
   --disable_weights_compression

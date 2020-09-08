@@ -67,6 +67,7 @@ void ClampTransformation::validateNGraph() {
     std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
     ASSERT_FALSE(parent == nullptr);
     const std::string typeName = parent->get_type_name();
+
     if (params.updatePrecisions) {
         if (!param.dequantizationAfter.empty()) {
             EXPECT_EQ("ScaleShiftIE", typeName);

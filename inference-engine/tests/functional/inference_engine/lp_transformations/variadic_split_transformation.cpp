@@ -406,7 +406,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
             }
         }
     },
-     // without Convert
+    // without Convert
     {
         ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, std::vector<size_t>{ 2, 2 },
         LayerTransformation::createParamsI8I8(),

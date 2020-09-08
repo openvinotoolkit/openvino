@@ -32,6 +32,7 @@ struct Config {
                enableDynamicBatch(false),
                enableInt8(true),
                nv12_two_inputs(false),
+               enable_fp16_for_quantized_models(true),
                queuePriority(cldnn::priority_mode_types::disabled),
                queueThrottle(cldnn::throttle_mode_types::disabled),
                max_dynamic_batch(1),
@@ -55,6 +56,7 @@ struct Config {
     bool enableInt8;
     LptVersion lptVersion = LptVersion::nGraph;
     bool nv12_two_inputs;
+    bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;

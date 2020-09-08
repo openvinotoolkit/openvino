@@ -42,8 +42,10 @@
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
+#include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
+#include <nodes/mkldnn_interpolate_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 
@@ -122,6 +124,19 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
         { "ScatterNDUpdate", ScatterNDUpdate},
+        { "Interpolate", Interpolate},
+        { "ReduceAnd", ReduceAnd},
+        { "ReduceL1", ReduceL1},
+        { "ReduceL2", ReduceL2},
+        { "ReduceLogSum", ReduceLogSum},
+        { "ReduceLogSumExp", ReduceLogSumExp},
+        { "ReduceMax", ReduceMax},
+        { "ReduceMean", ReduceMean},
+        { "ReduceMin", ReduceMin},
+        { "ReduceOr", ReduceOr},
+        { "ReduceProd", ReduceProd},
+        { "ReduceSum", ReduceSum},
+        { "ReduceSumSquare", ReduceSumSquare},
 };
 
 Type TypeFromName(const std::string type) {
