@@ -93,6 +93,7 @@ public:
     // Model common adaptation
     //
 
+    Pass::Ptr decomposeSwish();
     Pass::Ptr eliminateConstConcat();
     Pass::Ptr splitGroupedConv();
     Pass::Ptr splitConv3DInto2D();
