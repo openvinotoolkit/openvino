@@ -18,7 +18,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/prior_box.hpp"
+#include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
 
 namespace ngraph
 {
@@ -26,21 +26,27 @@ namespace ngraph
     {
         namespace op
         {
+            namespace detail
+            {
+                namespace
+                {
+                    std::shared_ptr<default_opset::StridedSlice>
+                        make_slice(std::shared_ptr<ngraph::Node> node, int64_t start, int64_t end)
+                    {
+                        return std::make_shared<default_opset::StridedSlice>(
+                            node,
+                            std::make_shared<default_opset::Constant>(
+                                element::i64, Shape{1}, std::vector<int64_t>{start}),
+                            std::make_shared<default_opset::Constant>(
+                                element::i64, Shape{1}, std::vector<int64_t>{end}),
+                            std::vector<int64_t>{0},  // begin mask
+                            std::vector<int64_t>{0}); // end mask
+                    }
+                }
+            } // detail
+
             namespace set_1
             {
-                static std::shared_ptr<default_opset::StridedSlice>
-                    make_slice(std::shared_ptr<ngraph::Node> node, int64_t start, int64_t end)
-                {
-                    return std::make_shared<default_opset::StridedSlice>(
-                        node,
-                        std::make_shared<default_opset::Constant>(
-                            element::i64, Shape{1}, std::vector<int64_t>{start}),
-                        std::make_shared<default_opset::Constant>(
-                            element::i64, Shape{1}, std::vector<int64_t>{end}),
-                        std::vector<int64_t>{0},  // begin mask
-                        std::vector<int64_t>{0}); // end mask
-                }
-
                 OutputVector prior_box(const Node& node)
                 {
                     auto inputs = node.get_ng_inputs();
@@ -48,8 +54,8 @@ namespace ngraph
 
                     auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
                     auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
-                    auto output_shape_slice = make_slice(output_shape, 2, 4);
-                    auto image_shape_slice = make_slice(image_shape, 2, 4);
+                    auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
+                    auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
                     ngraph::op::PriorBoxAttrs attrs;
                     attrs.min_size = node.get_attribute_value<std::vector<float>>("min_size", {});

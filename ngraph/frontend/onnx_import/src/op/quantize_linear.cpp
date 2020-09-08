@@ -203,8 +203,7 @@ namespace ngraph
 
                     int64_t default_axis = 1;
                     if (x_shape.rank().is_static())
-                        default_axis = std::min<int64_t>(
-                            1, static_cast<int64_t>(x_shape.rank().get_length()) - 1);
+                        default_axis = std::min<int64_t>(1, x_shape.rank().get_length() - 1);
                     int64_t axis{node.get_attribute_value<int64_t>("axis", default_axis)};
                     axis = normalize_axis(node.get_description(), axis, x_shape.rank());
 

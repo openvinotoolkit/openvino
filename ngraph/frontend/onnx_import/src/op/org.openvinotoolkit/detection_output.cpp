@@ -18,7 +18,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/detection_output.hpp"
+#include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
 
 namespace ngraph
 {

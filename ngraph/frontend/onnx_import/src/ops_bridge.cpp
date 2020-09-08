@@ -49,7 +49,6 @@
 #include "onnx_import/op/cum_sum.hpp"
 #include "onnx_import/op/depth_to_space.hpp"
 #include "onnx_import/op/dequantize_linear.hpp"
-#include "onnx_import/op/detection_output.hpp"
 #include "onnx_import/op/div.hpp"
 #include "onnx_import/op/dropout.hpp"
 #include "onnx_import/op/elu.hpp"
@@ -58,7 +57,6 @@
 #include "onnx_import/op/exp.hpp"
 #include "onnx_import/op/expand.hpp"
 #include "onnx_import/op/eye_like.hpp"
-#include "onnx_import/op/fake_quantize.hpp"
 #include "onnx_import/op/flatten.hpp"
 #include "onnx_import/op/floor.hpp"
 #include "onnx_import/op/gather.hpp"
@@ -94,14 +92,12 @@
 #include "onnx_import/op/neg.hpp"
 #include "onnx_import/op/non_max_suppression.hpp"
 #include "onnx_import/op/non_zero.hpp"
-#include "onnx_import/op/normalize.hpp"
 #include "onnx_import/op/not.hpp"
 #include "onnx_import/op/onehot.hpp"
 #include "onnx_import/op/or.hpp"
 #include "onnx_import/op/pad.hpp"
 #include "onnx_import/op/pow.hpp"
 #include "onnx_import/op/prelu.hpp"
-#include "onnx_import/op/prior_box.hpp"
 #include "onnx_import/op/qlinear_matmul.hpp"
 // #include "onnx_import/op/quant_conv.hpp"
 #include "onnx_import/op/quantize_linear.hpp"
@@ -146,6 +142,11 @@
 #include "onnx_import/op/where.hpp"
 #include "onnx_import/op/xor.hpp"
 #include "onnx_import/ops_bridge.hpp"
+
+#include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
+#include "onnx_import/op/org.openvinotoolkit/fake_quantize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
 
 namespace ngraph
 {

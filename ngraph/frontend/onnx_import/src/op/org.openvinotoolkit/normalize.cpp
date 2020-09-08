@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/normalize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/utils/common.hpp"
