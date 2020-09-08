@@ -422,15 +422,12 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         auto firstInputIt = std::find_if(inputLayers.begin(), inputLayers.end(), inputLayerCheck);
         if (firstInputIt != inputLayers.end()) {
             auto quantParamsFirst = InferenceEngine::getInjectedData<QuantizedLayerParams>(*firstInputIt);
-            for (auto inIt = inputLayers.begin(); inIt != inputLayers.end(); ++inIt) {
-                if (inIt == firstInputIt) {
-                    continue;
-                }
-
-                auto quantParamsSecond = InferenceEngine::getInjectedData<QuantizedLayerParams>(*inIt);
+            auto nextInputIt = firstInputIt + 1;
+            while ((nextInputIt = std::find_if(nextInputIt, inputLayers.end(), inputLayerCheck)) != inputLayers.end()) {
+                auto quantParamsSecond = InferenceEngine::getInjectedData<QuantizedLayerParams>(*nextInputIt);
                 if (!fp32eq(quantParamsSecond->_dst_quant.scale, quantParamsFirst->_dst_quant.scale)) {
                     THROW_GNA_EXCEPTION << "Two Input layers " << (*firstInputIt)->name
-                        << "and" << (*inIt)->name << " have different scales in concat!!! \n";
+                        << " and " << (*nextInputIt)->name << " have different scales in concat!!! \n";
                 }
             }
         }
