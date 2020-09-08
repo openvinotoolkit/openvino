@@ -28,19 +28,19 @@ namespace ngraph
         {
             using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
             template <typename T>
-            static inline void roi_align(const T* feature_maps,
-                                         const T* rois,
-                                         const int64_t* batch_indices,
-                                         T* out,
-                                         const Shape& feature_maps_shape,
-                                         const Shape& rois_shape,
-                                         const Shape& batch_indices_shape,
-                                         const Shape& out_shape,
-                                         const int pooled_height,
-                                         const int pooled_width,
-                                         const int sampling_ratio,
-                                         const float spatial_scale,
-                                         const ROIPoolingMode& pooling_mode)
+            void roi_align(const T* feature_maps,
+                           const T* rois,
+                           const int64_t* batch_indices,
+                           T* out,
+                           const Shape& feature_maps_shape,
+                           const Shape& rois_shape,
+                           const Shape& batch_indices_shape,
+                           const Shape& out_shape,
+                           const int pooled_height,
+                           const int pooled_width,
+                           const int sampling_ratio,
+                           const float spatial_scale,
+                           const ROIPoolingMode& pooling_mode)
             {
                 auto C = feature_maps_shape[1];
                 auto feature_map_height = feature_maps_shape[2];
@@ -200,18 +200,11 @@ namespace ngraph
                                     {
                                     case ROIPoolingMode::MAX:
                                     {
-                                        // onnxruntime`s version
                                         T sample_value =
                                             std::max({pooling_weights[sample_index] * s1,
                                                       pooling_weights[sample_index + 1] * s2,
                                                       pooling_weights[sample_index + 2] * s3,
                                                       pooling_weights[sample_index + 3] * s4});
-
-                                        // the correct (?) one
-                                        // T sample_value = pooling_weights[sample_index] * s1 +
-                                        //                  pooling_weights[sample_index + 1] * s2 +
-                                        //                  pooling_weights[sample_index + 2] * s3 +
-                                        //                  pooling_weights[sample_index + 3] * s4;
 
                                         pooled_value = sample_value > pooled_value ? sample_value
                                                                                    : pooled_value;
