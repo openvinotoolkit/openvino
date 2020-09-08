@@ -1,0 +1,63 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "low_precision_transformations/mat_mul_with_optimized_constant_fake_quantize_transformation.hpp"
+
+#include <memory>
+#include <tuple>
+#include <vector>
+#include <string>
+
+#include <ie_core.hpp>
+
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
+#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ngraph_functions/low_precision_transformations/mat_mul_with_optimized_constant_fake_quantize_function.hpp"
+
+namespace LayerTestsDefinitions {
+
+std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseName(
+    testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams> obj) {
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShape;
+    std::string targetDevice;
+    InferenceEngine::details::LayerTransformation::Params params;
+    MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
+
+    std::tie(netPrecision, inputShape, targetDevice, param) = obj.param;
+
+    std::ostringstream result;
+    result << netPrecision.name() << "_" <<
+        CommonTestUtils::vec2str(inputShape) << "_" <<
+        targetDevice << "_"  <<
+        param.fqOnData << "_" <<
+        param.fqOnWeights;
+    return result.str();
+}
+
+void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
+    threshold = 0.01f;
+
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::details::LayerTransformation::Params params;
+    MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
+    std::tie(netPrecision, inputShape, targetDevice, param) = this->GetParam();
+    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+    function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
+        precision,
+        inputShape,
+        param.fqOnData,
+        param.fqOnWeights);
+}
+
+TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, CompareWithRefImpl) {
+    Run();
+};
+
+}  // namespace LayerTestsDefinitions
