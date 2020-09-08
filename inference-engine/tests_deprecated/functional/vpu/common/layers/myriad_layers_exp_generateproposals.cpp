@@ -4,7 +4,8 @@
 
 #include "myriad_layers_exp_generateproposals_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsExpGenerateProposals_smoke,
+//#-38589
+INSTANTIATE_TEST_CASE_P(DISABLED_accuracy, myriadLayersTestsExpGenerateProposals_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_ExpGenerateProposalsLayerScores),
         ::testing::ValuesIn(s_ExpGenerateProposalsLayerImInfo),
