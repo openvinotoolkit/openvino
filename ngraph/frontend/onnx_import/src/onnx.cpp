@@ -73,7 +73,7 @@ namespace ngraph
 
             } // namespace error
 
-            static const std::vector<std::string> ops_to_fixup = {
+            static const std::vector<std::string> legacy_ops_to_fixup = {
                 "FakeQuantize", "DetectionOutput", "Normalize", "PriorBox"};
 
             // There are some models with custom OPs (list above) that has the default domain set.
@@ -83,8 +83,9 @@ namespace ngraph
             {
                 for (auto& node : *graph_proto->mutable_node())
                 {
-                    auto it = std::find(ops_to_fixup.begin(), ops_to_fixup.end(), node.op_type());
-                    if (it != ops_to_fixup.end())
+                    auto it = std::find(
+                        legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
+                    if (it != legacy_ops_to_fixup.end())
                     {
                         if (!node.has_domain() || node.domain() == "ai.onnx")
                         {

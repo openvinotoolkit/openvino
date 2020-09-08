@@ -35,9 +35,9 @@ namespace ngraph
                     {
                         return std::make_shared<default_opset::StridedSlice>(
                             node,
-                            std::make_shared<default_opset::Constant>(
+                            default_opset::Constant::create(
                                 element::i64, Shape{1}, std::vector<int64_t>{start}),
-                            std::make_shared<default_opset::Constant>(
+                            default_opset::Constant::create(
                                 element::i64, Shape{1}, std::vector<int64_t>{end}),
                             std::vector<int64_t>{0},  // begin mask
                             std::vector<int64_t>{0}); // end mask
@@ -74,7 +74,7 @@ namespace ngraph
                         node.get_attribute_value<std::vector<float>>("fixed_size", {});
                     attrs.density = node.get_attribute_value<std::vector<float>>("density", {});
 
-                    auto axes = std::make_shared<default_opset::Constant>(
+                    auto axes = default_opset::Constant::create(
                         element::i64, Shape{1}, std::vector<int64_t>{0});
 
                     return {std::make_shared<default_opset::Unsqueeze>(

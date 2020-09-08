@@ -8,6 +8,11 @@ graph {
     output: "y"
     name: "node1"
     op_type: "QuantizeLinear"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
   }
   name: "test"
   input {

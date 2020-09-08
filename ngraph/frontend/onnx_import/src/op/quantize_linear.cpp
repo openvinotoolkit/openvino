@@ -201,10 +201,7 @@ namespace ngraph
 
                     const auto& x_shape = x->get_output_partial_shape(0);
 
-                    int64_t default_axis = 1;
-                    if (x_shape.rank().is_static())
-                        default_axis = std::min<int64_t>(1, x_shape.rank().get_length() - 1);
-                    int64_t axis{node.get_attribute_value<int64_t>("axis", default_axis)};
+                    int64_t axis{node.get_attribute_value<int64_t>("axis", 1)};
                     axis = normalize_axis(node.get_description(), axis, x_shape.rank());
 
                     const auto& y_scale_shape = y_scale->get_output_partial_shape(0);
