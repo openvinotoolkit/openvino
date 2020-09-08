@@ -142,6 +142,16 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::LSTMCell::validate_and_infer_types()
 {
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
+
     std::vector<ngraph::PartialShape> input_param{};
 
     auto merged_batch_size = Dimension::dynamic();
@@ -436,6 +446,15 @@ bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::LSTMCell::validate_and_infer_types()
 {
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;
@@ -447,11 +466,6 @@ void op::v4::LSTMCell::validate_and_infer_types()
     const auto& w_pshape = get_input_partial_shape(3);
     const auto& r_pshape = get_input_partial_shape(4);
     const auto& b_pshape = get_input_partial_shape(5);
-
-    // Validate rank and dimension for initial_cell_state input
-    NODE_VALIDATION_CHECK(this,
-                          (ct_pshape.rank().is_static()),
-                          "LSTMCell input tensor initial_cell_state shall have static rank.");
 
     NODE_VALIDATION_CHECK(this,
                           (ct_pshape.rank().get_length() == 2),
