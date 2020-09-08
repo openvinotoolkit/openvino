@@ -357,6 +357,7 @@ namespace ngraph
                                         {"i16", element::Type_t::i16},
                                         {"i32", element::Type_t::i32},
                                         {"i64", element::Type_t::i64},
+                                        {"u1", element::Type_t::u1},
                                         {"u8", element::Type_t::u8},
                                         {"u16", element::Type_t::u16},
                                         {"u32", element::Type_t::u32},
