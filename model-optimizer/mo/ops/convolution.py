@@ -20,7 +20,6 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, float_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer
-from mo.front.extractor import spatial_getter
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
@@ -72,6 +71,11 @@ class Convolution(Op):
             Verified to be applicable for both Caffe and ONNX.
         '''
         spatial_val_wo_stride = input_spatial_shape + pad_spatial_shape - kernel_extent
+
+        if np.any(spatial_val_wo_stride < 0):
+            raise Error("Data after padding has dimension less than window size. " +
+                        "Possible reason of error in incorrect input_shape")
+
         float_spatial_val_wo_stride = float_array(spatial_val_wo_stride)
         return float_spatial_val_wo_stride / stride_spatial_shape + 1
 
