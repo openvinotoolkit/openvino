@@ -374,11 +374,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 #endif
             std::unordered_set<std::string> opName;
             for (const auto &result : specialized_ngraph_function->get_results()) {
-                #if 0
-                addOutput(result->input_value(0));
-                #else
                 addOutput(result);
-                #endif
             }
 
             for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
