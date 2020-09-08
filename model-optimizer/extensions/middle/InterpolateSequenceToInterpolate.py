@@ -21,9 +21,8 @@ from typing import List
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.utils.error import Error
 
 
@@ -255,9 +254,8 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
     fst_interp_node = seq[0]
     last_interp_node = seq[-1]
-    fst_interp_node_name = fst_interp_node.name
+    last_interp_node_name = last_interp_node.soft_get('name', last_interp_node.id)
     attributes = get_interpolate_attributes(fst_interp_node)
-    attributes['name'] = fst_interp_node_name + '/Interpolate_'
 
     opset = fst_interp_node.get_opset()
     if opset == 'opset1':
@@ -278,6 +276,8 @@ def replace_sequence(seq: List[Node], graph: Graph):
         fst_interp_connection.set_destination(interp_node.in_port(0))
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
+
+    rename_nodes([(last_interp_node, last_interp_node_name + '/delete_'), (interp_node, last_interp_node_name)])
 
 
 class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
