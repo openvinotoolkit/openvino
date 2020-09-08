@@ -412,7 +412,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             return true;
         }
 
-        // support only cases when all inputs have the same quant value
+        // check if all inputs have the same quant value
         auto inputLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto info = LayerInfo(inputLayer);
             return info.isInput();
@@ -432,19 +432,26 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             }
         }
 
-        // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
+        // find a source quant value
+        // - 1st candidate - non-activation layer with non-1 scale factor
+        // - 2nd candidate - 1st layer with non-1 scale factor
         auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             LayerInfo info(inputLayer);
-            return (info.isInput() || !info.isActivation()) && !fp32eq(quantParams->_dst_quant.scale, 1.0f);
+            return !info.isActivation() && !fp32eq(quantParams->_dst_quant.scale, 1.0f);
         };
 
-        std::set<size_t> concatIdxToUpdate;
         auto sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
         if (sourceLayerIt == inputLayers.end()) {
-            sourceLayerIt = inputLayers.begin();
+            auto nonDefaultScaleFactor = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
+                return !fp32eq(quantParams->_dst_quant.scale, 1.0f);
+            };
+
+            sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), nonDefaultScaleFactor);
         }
 
+        std::set<size_t> concatIdxToUpdate;
         if (sourceLayerIt != inputLayers.end()) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*sourceLayerIt);
             auto scaleFactor = quantParams->_dst_quant.scale;
@@ -456,7 +463,12 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     continue;
                 }
 
-                if (fp32eq(quantParamsIn->_dst_quant.scale, 1.0f) || LayerInfo(*it).isActivation()) {
+                // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
+                if (fp32eq(quantParamsIn->_dst_quant.scale, 1.0f)) {
+                    quantParamsIn->_weights_quant = quantParams->_dst_quant;
+                    quantParamsIn->_dst_quant = quantParams->_dst_quant;
+                }
+                else {
                     quantParamsIn->_weights_quant = quantParams->_dst_quant;
                     quantParamsIn->_dst_quant = quantParams->_dst_quant;
                     concatIdxToUpdate.insert(std::distance(inputLayers.begin(), it));
