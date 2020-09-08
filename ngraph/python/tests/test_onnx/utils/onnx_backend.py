@@ -58,7 +58,7 @@ class OpenVinoOnnxBackend(Backend):
             import_onnx_model(model)
             return True
         except Exception:
-            return False
+            raise
 
     @classmethod
     def prepare(
