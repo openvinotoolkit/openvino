@@ -7,7 +7,7 @@ This script runs TimeTests executable several times to aggregate
 collected statistics.
 """
 
-import statistics as Statistics
+import statistics
 from pathlib import Path
 import tempfile
 import subprocess
@@ -47,62 +47,60 @@ def run_cmd(args: list, log=None, verbose=True):
     return proc.returncode, ''.join(output)
 
 
-def read_statistics(statistics_path, statistics: dir):
+def read_stats(stats_path, stats: dict):
     """Read statistics from a file and extend provided statistics"""
-    with open(statistics_path, "r") as file:
+    with open(stats_path, "r") as file:
         parsed_data = yaml.load(file, Loader=yaml.FullLoader)
-    return dict((step_name, statistics.get(step_name, []) + [duration])
+    return dict((step_name, stats.get(step_name, []) + [duration])
                 for step_name, duration in parsed_data.items())
 
 
-def aggregate_statistics(statistics: dir):
+def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
-    return {step_name: {"avg": Statistics.mean(duration_list),
-                        "stdev": Statistics.stdev(duration_list)}
-            for step_name, duration_list in statistics.items()}
+    return {step_name: {"avg": statistics.mean(duration_list),
+                        "stdev": statistics.stdev(duration_list)}
+            for step_name, duration_list in stats.items()}
 
 
-def write_aggregated_stats(statistics_path, statistics: dir):
+def write_aggregated_stats(stats_path, stats: dict):
     """Write aggregated statistics to a file in YAML format"""
-    with open(statistics_path, "w") as file:
-        yaml.dump(statistics, file)
+    with open(stats_path, "w") as file:
+        yaml.dump(stats, file)
 
 
-def run_executable(executable: Path, model: Path, device, niter, log=None):
+def prepare_executable_cmd(args: dict):
+    """Generate common part of cmd from arguments to execute"""
+    return [str(args["executable"].resolve()),
+            "-m", str(args["model"].resolve()),
+            "-d", args["device"]]
+
+
+def run_executable(args: dict, stats_dir: Path, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
     if log is None:
         log = logging.getLogger('run_executable')
 
-    cmd_common = [str(executable.resolve()),
-                  "-m", str(model.resolve()),
-                  "-d", device]
+    cmd_common = prepare_executable_cmd(args)
 
     # Create folder to save statistics files
-    statistics_dir = (Path(".") / "statistics_dir").absolute()
-    statistics_dir.mkdir(parents=True, exist_ok=True)
+    stats_dir.mkdir(parents=True, exist_ok=True)
 
     # Run executable and collect statistics
-    statistics = {}
-    for run_iter in range(niter):
-        statistics_path = statistics_dir / Path(tempfile.NamedTemporaryFile().name).stem
-        log.info("Statistics file path of #{} iteration: {}".format(run_iter, statistics_path))
-        retcode, msg = run_cmd(cmd_common + ["-s", str(statistics_path)], log=log)
+    stats = {}
+    for run_iter in range(args["niter"]):
+        _, stats_path = tempfile.mkstemp(dir=stats_dir, text=True)
+        log.info("Statistics file path of #{} iteration: {}".format(run_iter, stats_path))
+        retcode, msg = run_cmd(cmd_common + ["-s", str(stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
-                      "Statistics aggregation is skipped.".format(executable, retcode, msg))
+                      "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
 
-        statistics = read_statistics(statistics_path, statistics)
+        stats = read_stats(stats_path, stats)
 
     # Aggregate results
-    aggregated_stats = aggregate_statistics(statistics)
-
-    # Save aggregated results to a file
-    aggr_stats_path = statistics_dir / "aggregated_stats_{}.yml".format(
-        Path(tempfile.NamedTemporaryFile().name).stem)
-    write_aggregated_stats(aggr_stats_path, aggregated_stats)
-    log.info("Aggregated statistics saved to a file: '{}'".format(aggr_stats_path))
+    aggregated_stats = aggregate_stats(stats)
 
     return 0, aggregated_stats
 
@@ -136,6 +134,15 @@ def cli_parser():
 
 if __name__ == "__main__":
     args = cli_parser()
+
     logging.basicConfig(format="[ %(levelname)s ] %(message)s", level=logging.DEBUG, stream=sys.stdout)
-    exit_code, _ = run_executable(args.executable, args.model, args.device, args.niter, log=logging)
+
+    stats_dir = (Path(".") / "statistics_dir").absolute()
+    exit_code, aggr_stats = run_executable(dict(args._get_kwargs()), stats_dir=stats_dir, log=logging)
+
+    # Save aggregated results to a file
+    _, aggr_stats_path = tempfile.mkstemp(prefix="aggregated_stats_", suffix=".yml", dir=stats_dir, text=True)
+    write_aggregated_stats(aggr_stats_path, aggr_stats)
+    logging.info("Aggregated statistics saved to a file: '{}'".format(aggr_stats_path))
+
     sys.exit(exit_code)
