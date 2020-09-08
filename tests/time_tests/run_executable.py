@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+# Copyright (C) 2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+"""
+This script runs TimeTests executable several times to aggregate
+collected statistics.
+"""
+
+import statistics
+from pathlib import Path
+import tempfile
+import subprocess
+import logging
+import argparse
+import sys
+import yaml
+
+
+def run_cmd(args: list, log=None, verbose=True):
+    """ Run command
+    """
+    if log is None:
+        log = logging.getLogger('run_cmd')
+    log_out = log.info if verbose else log.debug
+
+    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-format-interpolation
+
+    proc = subprocess.Popen(args,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            encoding='utf-8',
+                            universal_newlines=True)
+    output = []
+    for line in iter(proc.stdout.readline, ''):
+        log_out(line.strip('\n'))
+        output.append(line)
+        if line or proc.poll() is None:
+            continue
+        break
+    outs = proc.communicate()[0]
+
+    if outs:
+        log_out(outs.strip('\n'))
+        output.append(outs)
+    log.info('========== Completed. Exit code: %d', proc.returncode)
+    return proc.returncode, ''.join(output)
+
+
+def read_stats(stats_path, stats: dict):
+    """Read statistics from a file and extend provided statistics"""
+    with open(stats_path, "r") as file:
+        parsed_data = yaml.load(file, Loader=yaml.FullLoader)
+    return dict((step_name, stats.get(step_name, []) + [duration])
+                for step_name, duration in parsed_data.items())
+
+
+def aggregate_stats(stats: dict):
+    """Aggregate provided statistics"""
+    return {step_name: {"avg": statistics.mean(duration_list),
+                        "stdev": statistics.stdev(duration_list)}
+            for step_name, duration_list in stats.items()}
+
+
+def write_aggregated_stats(stats_path, stats: dict):
+    """Write aggregated statistics to a file in YAML format"""
+    with open(stats_path, "w") as file:
+        yaml.dump(stats, file)
+
+
+def prepare_executable_cmd(args: dict):
+    """Generate common part of cmd from arguments to execute"""
+    return [str(args["executable"].resolve()),
+            "-m", str(args["model"].resolve()),
+            "-d", args["device"]]
+
+
+def run_executable(args: dict, stats_dir: Path, log=None):
+    """Run provided executable several times and aggregate collected statistics"""
+
+    if log is None:
+        log = logging.getLogger('run_executable')
+
+    cmd_common = prepare_executable_cmd(args)
+
+    # Create folder to save statistics files
+    stats_dir.mkdir(parents=True, exist_ok=True)
+
+    # Run executable and collect statistics
+    stats = {}
+    for run_iter in range(args["niter"]):
+        _, stats_path = tempfile.mkstemp(dir=stats_dir, text=True)
+        log.info("Statistics file path of #{} iteration: {}".format(run_iter, stats_path))
+        retcode, msg = run_cmd(cmd_common + ["-s", str(stats_path)], log=log)
+        if retcode != 0:
+            log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
+                      "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
+            return retcode, {}
+
+        stats = read_stats(stats_path, stats)
+
+    # Aggregate results
+    aggregated_stats = aggregate_stats(stats)
+
+    return 0, aggregated_stats
+
+
+def cli_parser():
+    """parse command-line arguments"""
+    parser = argparse.ArgumentParser(description='Run TimeTests executable')
+    parser.add_argument('executable',
+                        type=Path,
+                        help='binary to execute')
+    parser.add_argument('-m',
+                        required=True,
+                        dest="model",
+                        type=Path,
+                        help='path to an .xml/.onnx/.prototxt file with a trained model or'
+                             ' to a .blob files with a trained compiled model')
+    parser.add_argument('-d',
+                        required=True,
+                        dest="device",
+                        type=str,
+                        help='target device to infer on')
+    parser.add_argument('-niter',
+                        default=3,
+                        type=int,
+                        help='number of times to execute binary to aggregate statistics of')
+
+    args = parser.parse_args()
+
+    return args
+
+
+if __name__ == "__main__":
+    args = cli_parser()
+
+    logging.basicConfig(format="[ %(levelname)s ] %(message)s", level=logging.DEBUG, stream=sys.stdout)
+
+    stats_dir = (Path(".") / "statistics_dir").absolute()
+    exit_code, aggr_stats = run_executable(dict(args._get_kwargs()), stats_dir=stats_dir, log=logging)
+
+    # Save aggregated results to a file
+    _, aggr_stats_path = tempfile.mkstemp(prefix="aggregated_stats_", suffix=".yml", dir=stats_dir, text=True)
+    write_aggregated_stats(aggr_stats_path, aggr_stats)
+    logging.info("Aggregated statistics saved to a file: '{}'".format(aggr_stats_path))
+
+    sys.exit(exit_code)
