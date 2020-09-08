@@ -47,8 +47,7 @@ namespace ngraph
             class NGRAPH_API LSTMSequence : public util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LSTMSequence", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 LSTMSequence() = default;
 
                 using direction = RecurrentSequenceDirection;
@@ -102,11 +101,11 @@ namespace ngraph
                                       const std::int64_t hidden_size,
                                       const direction lstm_direction,
                                       LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
-                                      const std::vector<float> activations_alpha = {},
-                                      const std::vector<float> activations_beta = {},
-                                      const std::vector<std::string> activations = {"sigmoid",
-                                                                                    "tanh",
-                                                                                    "tanh"},
+                                      const std::vector<float>& activations_alpha = {},
+                                      const std::vector<float>& activations_beta = {},
+                                      const std::vector<std::string>& activations = {"sigmoid",
+                                                                                     "tanh",
+                                                                                     "tanh"},
                                       const float clip_threshold = 0,
                                       const bool input_forget = false)
                     : LSTMSequence(
@@ -186,7 +185,7 @@ namespace ngraph
             };
         }
 
-        namespace v1
+        namespace v5
         {
             ///
             /// \brief      Class for lstm sequence node.
@@ -200,8 +199,7 @@ namespace ngraph
             class NGRAPH_API LSTMSequence : public util::RNNCellBase
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LSTMSequence", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 LSTMSequence() = default;
 
                 using direction = RecurrentSequenceDirection;
@@ -216,11 +214,11 @@ namespace ngraph
                                       const Output<Node>& B,
                                       const std::int64_t hidden_size,
                                       const direction lstm_direction,
-                                      const std::vector<float> activations_alpha = {},
-                                      const std::vector<float> activations_beta = {},
-                                      const std::vector<std::string> activations = {"sigmoid",
-                                                                                    "tanh",
-                                                                                    "tanh"},
+                                      const std::vector<float>& activations_alpha = {},
+                                      const std::vector<float>& activations_beta = {},
+                                      const std::vector<std::string>& activations = {"sigmoid",
+                                                                                     "tanh",
+                                                                                     "tanh"},
                                       const float clip = 0.f)
                     : RNNCellBase(
                           {X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B},
@@ -237,7 +235,7 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 direction get_direction() const { return m_direction; }

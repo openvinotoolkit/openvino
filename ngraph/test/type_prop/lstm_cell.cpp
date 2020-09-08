@@ -290,46 +290,46 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank)
     auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
+    auto check_dynamic_lstm = [](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
+        return lstm->output(0).get_partial_shape() == PartialShape::dynamic() &&
+               lstm->output(1).get_partial_shape() == PartialShape::dynamic() &&
+               lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
+    };
+
     // Invalid dynamic rank for W tensor.
     W = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    auto lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 
     // Invalid dynamic rank for X tensor.
     W = make_shared<opset4::Parameter>(element::f32,
                                        PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 
     // Invalid dynamic rank for H_t tensor.
     X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 
     // Invalid dynamic rank for C_t tensor.
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     C_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 
     // Invalid dynamic rank for R tensor.
     C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 
     // Invalid dynamic rank for B tensor.
     R = make_shared<opset4::Parameter>(element::f32,
                                        PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "LSTMCell node was created with invalid data.";
+    lstm = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
+    EXPECT_EQ(check_dynamic_lstm(lstm), true);
 }

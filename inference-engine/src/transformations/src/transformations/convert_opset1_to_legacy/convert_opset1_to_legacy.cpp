@@ -32,6 +32,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/convert_subtract.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp>
@@ -157,6 +158,9 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
     anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
 
     // List of final conversion transformations that must to be executed

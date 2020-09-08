@@ -85,6 +85,7 @@
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/runtime/reference/sequences.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
@@ -758,6 +759,82 @@ protected:
                                          rnn_cell->get_clip());
             break;
         }
+        case OP_TYPEID::LSTMSequence:
+        case OP_TYPEID::LSTMSequence_v5:
+        {
+            auto lstm_seq = static_cast<const op::v5::LSTMSequence*>(&node);
+            runtime::reference::lstm_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                 args[0]->get_shape(),
+                                                 args[1]->get_data_ptr<char>(),
+                                                 args[1]->get_shape(),
+                                                 args[2]->get_data_ptr<char>(),
+                                                 args[2]->get_shape(),
+                                                 args[3]->get_data_ptr<char>(),
+                                                 args[3]->get_shape(),
+                                                 args[4]->get_data_ptr<char>(),
+                                                 args[4]->get_shape(),
+                                                 args[5]->get_data_ptr<char>(),
+                                                 args[5]->get_shape(),
+                                                 args[6]->get_data_ptr<char>(),
+                                                 args[6]->get_shape(),
+                                                 out[0]->get_data_ptr<char>(),
+                                                 out[1]->get_data_ptr<char>(),
+                                                 out[2]->get_data_ptr<char>(),
+                                                 lstm_seq->get_activations()[0],
+                                                 lstm_seq->get_activations()[1],
+                                                 lstm_seq->get_activations()[2],
+                                                 lstm_seq->get_clip(),
+                                                 lstm_seq->get_direction());
+            break;
+        }
+        case OP_TYPEID::GRUSequence_v5:
+        {
+            auto gru_seq = static_cast<const op::v5::GRUSequence*>(&node);
+            runtime::reference::gru_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                gru_seq->get_activations()[0],
+                                                gru_seq->get_activations()[1],
+                                                gru_seq->get_clip(),
+                                                gru_seq->get_direction(),
+                                                gru_seq->get_linear_before_reset()
+
+                                                    );
+            break;
+        }
+        case OP_TYPEID::RNNSequence_v5:
+        {
+            auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
+            runtime::reference::rnn_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                rnn_seq->get_activations()[0],
+                                                rnn_seq->get_clip(),
+                                                rnn_seq->get_direction());
+            break;
+        }
         case OP_TYPEID::Log:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1285,7 +1362,6 @@ protected:
         case OP_TYPEID::GroupConvolutionBackpropData:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
-        case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:

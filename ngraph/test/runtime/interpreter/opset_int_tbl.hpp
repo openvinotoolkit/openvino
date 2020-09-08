@@ -48,3 +48,9 @@ NGRAPH_OP(ScatterUpdate, op::v3)
 NGRAPH_OP(CTCLoss, op::v4)
 NGRAPH_OP(LSTMCell, op::v4)
 #undef ID_SUFFIX
+
+#define ID_SUFFIX(NAME) NAME##_v5
+NGRAPH_OP(LSTMSequence, op::v5)
+NGRAPH_OP(GRUSequence, op::v5)
+NGRAPH_OP(RNNSequence, op::v5)
+#undef ID_SUFFIX

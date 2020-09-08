@@ -223,37 +223,36 @@ TEST(type_prop, rnn_cell_invalid_input_dynamic_rank)
     auto R = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     auto H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
+    auto check_dynamic_rnn = [](const shared_ptr<opset4::RNNCell>& rnn) -> bool {
+        return rnn->output(0).get_partial_shape() == PartialShape::dynamic() &&
+               rnn->output(0).get_element_type() == rnn->input(0).get_element_type();
+    };
     // Invalid dynamic rank for W tensor.
     auto W = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "RNNCell node was created with invalid data.";
+    auto rnn_w = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_rnn(rnn_w), true);
 
     // Invalid dynamic rank for X tensor.
     W = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
     X = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "RNNCell node was created with invalid data.";
+    auto rnn_x = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_rnn(rnn_x), true);
 
     // Invalid dynamic rank for H_t tensor.
     X = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, input_size});
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "RNNCell node was created with invalid data.";
+    auto rnn_h = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_rnn(rnn_h), true);
 
     // Invalid dynamic rank for R tensor.
     H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
     R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "RNNCell node was created with invalid data.";
+    auto rnn_r = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_rnn(rnn_r), true);
 
     // Invalid dynamic rank for B tensor.
     R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "RNNCell node was created with invalid data.";
+    auto rnn_b = make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size);
+    EXPECT_EQ(check_dynamic_rnn(rnn_b), true);
 }
