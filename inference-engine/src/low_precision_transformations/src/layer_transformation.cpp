@@ -254,12 +254,15 @@ void LayerTransformation::addDequantizationLayer(
 
     const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
     for (const CNNLayerPtr& child : children) {
-        const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+        const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
             context,
             std::make_shared<CNNLayer>(layer),
             child,
             DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount));
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
+
+        for (const auto& dequantizationLayer : dequantizationLayers) {
+            context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        }
     }
 
     OutputsDataMap outputs;
@@ -269,13 +272,16 @@ void LayerTransformation::addDequantizationLayer(
         const std::string dequantizationLayerName = layer.name;
         CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPostfix);
 
-        const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+        const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
             context,
             std::make_shared<CNNLayer>(layer),
             nullptr,
             DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount),
             dequantizationLayerName);
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
+
+        for (const auto& dequantizationLayer : dequantizationLayers) {
+            context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        }
     }
 }
 
