@@ -87,7 +87,8 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     };
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     SizeVector dims;
-    if (output.get_partial_shape().is_static()) {
+    const auto& partial_shape = output.get_partial_shape();
+    if (partial_shape.is_static()) {
         dims = output.get_shape();
     }
     for (const auto& dim : dims) {
@@ -95,14 +96,18 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
     }
 
+    // TODO: works for static rank only, fix it
+    auto rank = partial_shape.rank().get_length();
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(dims.size(), origLayout) ? origLayout : TensorDesc::getLayoutByDims(dims);
-        ptr->reshape(dims, layout);
+        const auto layout = isCompatible(
+                rank, origLayout) ?
+                        origLayout : TensorDesc::getLayoutByDims(SizeVector(rank)); // ugly WA, TODO: modify getLyaoutByDims
+        ptr->reshape(partial_shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByDims(dims);
+        const auto layout = TensorDesc::getLayoutByDims(SizeVector(rank));
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, {precision, partial_shape, layout}));
     }
 }
 

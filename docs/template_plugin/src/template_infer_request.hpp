@@ -46,6 +46,10 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
+    void SetShape(const char* name, const InferenceEngine::SizeVector& dims) override {
+        _realShapes[name] = dims;
+    };
+
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();
@@ -71,6 +75,8 @@ private:
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>>   _inputTensors;
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>>   _outputTensors;
     std::shared_ptr<ngraph::runtime::Executable>            _executable;
+
+    std::map<std::string, InferenceEngine::SizeVector>      _realShapes;
 };
 // ! [infer_request:header]
 

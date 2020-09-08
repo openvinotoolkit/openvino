@@ -75,6 +75,10 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
                          BlobMap& networkBlobMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision) {
     for (auto&& blobData : blobDataMap) {
+        if (blobData.second->getTensorDesc().getPartialShape().is_dynamic()) {
+            // Cannot pre-allocate blob for a tensor with unknown dimensions
+            continue;
+        }
         auto& dims = blobData.second->getTensorDesc().getDims();
         auto& precision = blobData.second->getTensorDesc().getPrecision();
         auto layout = blobData.second->getTensorDesc().getLayout();
