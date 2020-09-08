@@ -1125,6 +1125,12 @@ IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 IE_CPU.onnx_model_rnn_bidirectional_const
 
+# RNN/LSTM Cells should be converted to IE representation
+IE_CPU.lstm_cell__zero_bias_peepholes
+IE_CPU.rnn_cell__no_bias
+IE_CPU.rnn_cell__bias_clip
+IE_CPU.rnn_cell__activation_function
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

@@ -243,7 +243,7 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
                             7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
     test_case.run();
 }
-// TODO: enable normilizeL2 tests after normilizeL2 reference implementation
+// TODO: enable normalizeL2 tests after normalizeL2 reference implementation
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
     Shape data_shape{1, 2, 3, 4};
@@ -1163,7 +1163,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
     test_case.run();
 }
 
-// TODO: enable (RNN|LSTM|GRU)Cell tests after grn operation reference implementation
+//TODO: Issue: 37514
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_4d)
 {
     const Shape data_shape{1, 2, 3, 4};
@@ -1334,7 +1334,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
     EXPECT_THROW(make_shared<op::Squeeze>(data_param, axes_param), CheckFailure);
 }
 
-// TODO: enable squad diff tests after squared diff op reference implementation
+// TODO: Issue: 37534
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
 {
     const auto x1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
@@ -1403,7 +1403,7 @@ NGRAPH_TEST(${BACKEND_NAME}, split_var_len_parts)
     test_case.run();
 }
 
-NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__zero_bias_peepholes)
+NGRAPH_TEST(${BACKEND_NAME}, lstm_cell__zero_bias_peepholes)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1478,7 +1478,8 @@ NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__zero_bias_peepholes)
     ct_test_case.run();
 }
 
-NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes)
+// Peerholes unsupported in Ngraph
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1565,7 +1566,7 @@ NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes)
     ct_test_case.run();
 }
 
-NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forget)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forget)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1663,7 +1664,8 @@ NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forg
     ct_test_case.run();
 }
 
-NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
+// Hard Sigmoid is unsupprted
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1764,6 +1766,7 @@ NGRAPH_TEST($${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
     ct_test_case.run();
 }
 
+// TODO: Issue: 37511
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize)
 {
     const Shape data_shape{1, 2, 3, 4};
@@ -1939,7 +1942,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_pdpd)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__no_bias)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__no_bias)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1988,7 +1991,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__no_bias)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__bias_clip)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__bias_clip)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2050,7 +2053,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__bias_clip)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__activation_function)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__activation_function)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2112,7 +2115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_rnn_cell__activation_function)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_gru_cell_bias_clip)
+NGRAPH_TEST(${BACKEND_NAME}, gru_cell_bias_clip)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2185,7 +2188,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_gru_cell_bias_clip)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_gru_cell_linear_before_reset)
+NGRAPH_TEST(${BACKEND_NAME}, gru_cell_linear_before_reset)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2257,7 +2260,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_gru_cell_linear_before_reset)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_gru_cell_activation_function)
+NGRAPH_TEST(${BACKEND_NAME}, gru_cell_activation_function)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
