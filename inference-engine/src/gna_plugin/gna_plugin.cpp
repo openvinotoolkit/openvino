@@ -994,7 +994,8 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC) {
+        if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
+            || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::NHWC) {
             // TODO: rotate can be incorporated with exporting - used only in unit tests so far
             // TODO: restore:
 //        if (orientation_out != kDnnInterleavedOrientation) {
@@ -1010,56 +1011,67 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 //                           dims[0],
 //                           dims[dims.size() - 1]);
 //        }
+            auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+            auto batchSize = exportOutputDims[0];
+            auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
+                : exportOutputDims[exportOutputDims.size() - 1]
+                  * exportOutputDims[exportOutputDims.size() - 2]
+                  * exportOutputDims[exportOutputDims.size() - 3];
+
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
                          outputDesc.orientation,
-                         exportOutputDims[0],
-                         exportOutputDims[exportOutputDims.size() - 2],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
+                         batchSize,
+                         batchSize,
+                         elementsPerBatch,
+                         elementsPerBatch,
+                         elementsPerBatch,
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
+
+            if (gnadevice) {
+#ifdef PLOT
+                FILE* f = nullptr;
+                static int num_infers = 0;
+                {
+                    f = fopen("ex_scores.txt", "w");
+                }
+                num_infers++;
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fprintf(f, "\n\n");
+                }
+#endif
+                ConvertToFloat(outputBlob->buffer(),
+                    outputBlob->buffer(),
+                    elementsPerBatch,
+                    batchSize,
+                    outputDesc.scale_factor);
+#ifdef PLOT
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fclose(f);
+                }
+#endif
+            }
+        } else {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC, Layout::CN, Layout::NCHW or Layout::NHWC. But was "
+                << outputBlob->getTensorDesc().getLayout();
         }
 
-        if (gnadevice) {
-#ifdef PLOT
-        FILE *f = nullptr;
-        static int num_infers = 0;
-        {
-            f = fopen("ex_scores.txt", "w");
-        }
-        num_infers++;
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fprintf(f, "\n\n");
-            }
-#endif
-            ConvertToFloat(outputBlob->buffer(),
-                           outputBlob->buffer(),
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 1],
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 2],
-                           outputDesc.scale_factor);
-#ifdef PLOT
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fclose(f);
-            }
-#endif
-        }
         output_idx++;
     }
     return true;
