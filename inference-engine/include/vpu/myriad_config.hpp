@@ -24,6 +24,8 @@ namespace InferenceEngine {
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 
+DECLARE_VPU_CONFIG(MYRIAD_MOCK_DEVICE);
+
 /**
  * @brief This option allows to specify device memory type.
  */
