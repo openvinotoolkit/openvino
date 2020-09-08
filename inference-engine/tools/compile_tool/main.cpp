@@ -113,9 +113,6 @@ static bool parseCommandLine(int *argc, char ***argv, InferenceEngine::Core& ie)
 
     if (std::string::npos != FLAGS_d.find("MYRIAD")) {
         std::vector<std::string> myriadDeviceIds = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
-        if (myriadDeviceIds.empty()) {
-            throw std::runtime_error{"No available MYRIAD devices"};
-        }
     }
 
     if (1 < *argc) {
@@ -150,6 +147,10 @@ static std::map<std::string, std::string> parseConfig(const std::string& configN
 
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
+
+    IE_SUPPRESS_DEPRECATED_START
+        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = "VPU_MYRIAD_2480";
+    IE_SUPPRESS_DEPRECATED_END
 
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
         config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
