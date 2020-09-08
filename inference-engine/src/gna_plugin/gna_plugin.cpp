@@ -699,54 +699,35 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
     if (withConv) {
-        for (auto &layer : sortedNet) {
-            for (int i = 0; CNNNetHasPrevLayer(layer.get(), i); i++) {
-                auto prevLayer = CNNNetPrevLayer(layer.get(), i);
-                if (!skippedLayers.count(prevLayer->name)) {
-                    if (CNNNetHasPrevLayer(prevLayer.get())) {
-                        continue;
-                    }
+        for (auto &inputLayer : sortedNet) {
+            if (!LayerInfo(inputLayer).isInput()) {
+                continue;
+            }
+            auto doesntHaveGnaMapping = [this] (CNNLayerPtr l) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(l);
+                return dnnLayer == nullptr;
+            };
 
-                    // we are in the one of input layers
-                    if (LayerInfo(prevLayer).isMemory()) {
-                        continue;
-                    }
-                }
+            auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
 
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(layer);
-                string inputName = prevLayer->name;
-                std::vector<string> inputs;
-                if (skippedLayers.count(prevLayer->name)) {
-                    inputs = skippedLayers[prevLayer->name];
-                } else {
-                    inputs.push_back(inputName);
-                }
-
+            for (auto &nextLayer : nextLayers) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
-                    // storing input name for skipped layer
-                    if (skippedLayers[inputName].size() == 0) {
-                        skippedLayers[layer->name].push_back(inputName);
-                    } else {
-                        skippedLayers[layer->name] = skippedLayers[inputName];
-                    }
-                    continue;
+                    THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
                 }
-
                 // input orientation might be already initialized, thus verify that it matches
-                for (auto input : inputs) {
-                    if (!inputsDesc->orientation_in.count(input)) {
-                        inputsDesc->orientation_in[input] = dnnLayer->orientation_in;
-                    } else {
-                        if (inputsDesc->orientation_in[input] != dnnLayer->orientation_in) {
-                            THROW_GNA_EXCEPTION << "orientation for input layer: " << input << "cannot be calculated";
-                        }
+                if (!inputsDesc->orientation_in.count(inputLayer->name)) {
+                    inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
+                } else {
+                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in) {
+                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << "cannot be calculated";
                     }
                 }
             }
         }
     } else {
-        for (auto& inputLayer : inputLayers) {
+        for (auto &inputLayer : inputLayers) {
             inputsDesc->orientation_in[inputLayer->name] = kDnnInterleavedOrientation;
         }
     }
