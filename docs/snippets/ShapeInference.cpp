@@ -1,7 +1,13 @@
 #include <inference_engine.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+
 
 int main() {
 using namespace InferenceEngine;
+using namespace cv;
+int batch_size = 1;
 //! [part0]
     InferenceEngine::Core core;
     // ------------- 0. Read IR and image ----------------------------------------------
@@ -27,7 +33,7 @@ using namespace InferenceEngine;
     network.reshape(input_shapes);
     // ---------------------------------------------------------------------------------
 
-    ...
+    //...
 
     // ------------- 4. Loading model to the device ------------------------------------
     std::string device = "CPU";

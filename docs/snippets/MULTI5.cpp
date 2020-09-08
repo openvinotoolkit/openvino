@@ -1,10 +1,14 @@
 #include <inference_engine.hpp>
-#include <multi/multi_device_config.hpp>
+#include <multi-device/multi_device_config.hpp>
 
 
 int main() {
 using namespace InferenceEngine;
+std::string device_name = "MULTI:HDDL,GPU";
+const std::map< std::string, std::string > full_config = {};
 //! [part5]
+Core ie; 
+CNNNetwork cnnNetwork = ie.ReadNetwork("sample.xml");
 // 'device_name' can be "MULTI:HDDL,GPU" to configure the multi-device to use HDDL and GPU
 ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device_name, full_config);
 // new metric allows to query the optimal number of requests:

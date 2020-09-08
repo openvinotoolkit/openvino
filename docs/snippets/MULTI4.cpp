@@ -1,12 +1,15 @@
 #include <inference_engine.hpp>
-#include <multi/multi_device_config.hpp>
+#include <multi-device/multi_device_config.hpp>
 
 
 int main() {
 using namespace InferenceEngine;
+const std::map<std::string, std::string> hddl_config  = { { PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES } };
+const std::map<std::string, std::string> gpu_config = { { PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES } };
 //! [part4]
 // configure the HDDL device first
 Core ie; 
+CNNNetwork cnnNetwork = ie.ReadNetwork("sample.xml");
 ie.SetConfig(hddl_config, "HDDL"); 
 // configure the GPU device
 ie.SetConfig(gpu_config, "GPU"); 

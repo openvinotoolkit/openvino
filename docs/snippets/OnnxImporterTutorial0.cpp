@@ -1,4 +1,8 @@
 #include <inference_engine.hpp>
+#include <ngraph/ngraph.hpp>
+#include "onnx/onnx-ml.pb.h"
+#include <iostream>
+#include <set>
 
 int main() {
 using namespace InferenceEngine;

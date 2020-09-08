@@ -1,4 +1,5 @@
 #include <inference_engine.hpp>
+#include <opencv2/core/core.hpp>
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 
@@ -17,7 +18,7 @@ InferenceEngine::SizeVector dims_src = {
 	};
 TensorDesc desc(InferenceEngine::Precision::U8, dims_src, InferenceEngine::NHWC);
 InferenceEngine::TBlob<uint8_t>::Ptr p = InferenceEngine::make_shared_blob<uint8_t>( desc, (uint8_t*)frame.data, frame.step[0] * frame.rows);
-inferRequest.SetBlob(“input”, p);
+inferRequest.SetBlob("input", p);
 inferRequest.Infer();
 // …
 // similarly, you can wrap the output tensor (let’s assume it is FP32)

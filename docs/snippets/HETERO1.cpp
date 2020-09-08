@@ -1,11 +1,15 @@
 #include <inference_engine.hpp>
-
+#include <ngraph/ngraph.hpp>
+#include <ngraph/function.hpp>
+#include "hetero/hetero_plugin_config.hpp"
 
 int main() {
 using namespace InferenceEngine;
+using namespace ngraph;
 //! [part1]
-InferenceEngine::Core core
-auto network = core.ReadNetwork("Model.xml");
+InferenceEngine::Core core;
+auto network = core.ReadNetwork("sample.xml");
+auto function = network.getFunction();
 
 // This example demonstrates how to perform default affinity initialization and then
 // correct affinity manually for some layers

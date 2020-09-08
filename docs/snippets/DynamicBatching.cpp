@@ -1,14 +1,18 @@
 #include <inference_engine.hpp>
+#include <vector>
 
 int main() {
 using namespace InferenceEngine;
+int FLAGS_bl = 1;
+auto imagesData = std::vector<std::string>(2);
+auto imagesData2 = std::vector<std::string>(4);
 //! [part0]
 int dynBatchLimit = FLAGS_bl;	//take dynamic batch limit from command line option
 
 
 // Read network model
 Core core;
-CNNNetwork network = core.ReadNetwork(modelFileName, weightFileName);
+CNNNetwork network = core.ReadNetwork("sample.xml");
 
 
 // enable dynamic batching and prepare for setting max batch limit

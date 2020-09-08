@@ -1,11 +1,12 @@
 #include <inference_engine.hpp>
-#include <multi/multi_device_config.hpp>
+#include <multi-device/multi_device_config.hpp>
 
 
 int main() {
 using namespace InferenceEngine;
 //! [part1]
     Core ie; 
+    auto network = ie.ReadNetwork("sample.xml");
     ExecutableNetwork exec = ie.LoadNetwork(network, "MULTI:HDDL,GPU", {});
     //...
     exec.SetConfig({{"MULTI_DEVICE_PRIORITIES", "GPU,HDDL"}});

@@ -14,17 +14,16 @@ InferenceEngine::InputsDataMap input_info(network.getInputsInfo());
 auto executable_network = ie.LoadNetwork(network, "GPU");
 auto infer_request = executable_network.CreateInferRequest();
 
-for (auto & item : inputInfo) {
-	std::string input_name = item->first;
+for (auto & item : input_info) {
+	std::string input_name = item.first;
 	auto input = infer_request.GetBlob(input_name);
 	/** Lock/Fill input tensor with data **/
-		   unsigned char* data =
-	input->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
+	unsigned char* data = input->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
 // 	...
 }
 
 
-infer_request->Infer();
+infer_request.Infer();
 //! [part6]
 return 0;
 }
