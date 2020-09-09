@@ -53,12 +53,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
-            // TODO: NetworkHelper::cleanRuntimeInfo
-            auto& rt = dequantization.subtract->get_rt_info();
-            auto it = rt.find("DEQUANTIZATION");
-            if (it != rt.end()) {
-                rt.erase(it);
-            }
+            std::shared_ptr<ngraph::Node> layer = dequantization.subtract;
+            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
 
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
             if (optimizedSubtract == nullptr) {

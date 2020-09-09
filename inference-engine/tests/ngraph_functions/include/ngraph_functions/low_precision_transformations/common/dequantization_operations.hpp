@@ -27,16 +27,17 @@ public:
     class Subtract {
     public:
         Subtract();
-        Subtract(const float value);
-        Subtract(const std::vector<float>& values);
-        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision);
-        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape);
+        Subtract(const float value, const bool addDeqAttr = true);
+        Subtract(const std::vector<float>& values, const bool addDeqAttr = true);
+        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const bool addDeqAttr = true);
+        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape, const bool addDeqAttr = true);
         bool empty() const noexcept;
 
         std::vector<float> values;
         ngraph::element::Type outPrecision;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
+        bool addDequantizationAttribute;
     private:
         bool isEmpty;
     };

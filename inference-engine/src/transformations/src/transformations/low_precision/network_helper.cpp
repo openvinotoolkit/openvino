@@ -222,6 +222,14 @@ void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::sha
     }
 }
 
+void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
+    auto& rt_info = layer->get_rt_info();
+    auto attributeIter = rt_info.find("DEQUANTIZATION");
+    if (rt_info.find("DEQUANTIZATION") != rt_info.end()) {
+        rt_info.erase(attributeIter);
+    }
+}
+
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
     return constant->get_all_data_elements_bitwise_identical();
 }
@@ -264,6 +272,7 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
                     std::make_shared<opset1::Multiply>(
                             multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index()),
                             newConst->output(0));
+            copy_runtime_info(multiply, newMultiply);
             replace_node(nextMultiply, newMultiply);
             return newMultiply;
         }
