@@ -94,37 +94,33 @@ TEST_P(FQMulFusion, ExpectFusion) {
 };
 
 namespace {
+    const std::vector<ngraph::Shape> mul_constant_shapes = {ngraph::Shape{64, 1, 1, 1},
+                                                            ngraph::Shape{1, 3, 1, 1},
+                                                            ngraph::Shape{},
+                                                            ngraph::Shape{1}};
 INSTANTIATE_TEST_CASE_P(ScalarFQParams, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
-                                           ::testing::ValuesIn({ngraph::Shape{64, 1, 1, 1},
-                                                                ngraph::Shape{},
-                                                                ngraph::Shape{1}})));
+                                           ::testing::ValuesIn(mul_constant_shapes)));
 
 INSTANTIATE_TEST_CASE_P(FQOutputs1D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1}),
-                                           ::testing::ValuesIn({ngraph::Shape{64, 1, 1, 1},
-                                                                ngraph::Shape{},
-                                                                ngraph::Shape{1}})));
+                                           ::testing::ValuesIn(mul_constant_shapes)));
 
 INSTANTIATE_TEST_CASE_P(FQInputs1D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{}),
-                                           ::testing::ValuesIn({ngraph::Shape{64, 1, 1, 1},
-                                                                ngraph::Shape{},
-                                                                ngraph::Shape{1}})));
+                                           ::testing::ValuesIn(mul_constant_shapes)));
 
 INSTANTIATE_TEST_CASE_P(FQInputsOutputs1D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1}),
-                                           ::testing::ValuesIn({ngraph::Shape{64, 1, 1, 1},
-                                                                ngraph::Shape{},
-                                                                ngraph::Shape{1}})));
+                                           ::testing::ValuesIn(mul_constant_shapes)));
 } // namespace
 
 } // namespace LayerTestsDefinitions
