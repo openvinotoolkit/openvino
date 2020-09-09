@@ -32,5 +32,11 @@ def test_run(instance, executable, niter, omz, mo, out_dir, no_venv):
     else:
         model_path = instance["model"]["path"]
 
-    retcode, aggr_stats = run_executable(executable, model_path, instance["device"]["name"], niter, log=logging)
+    exe_args = {
+        "executable": executable,
+        "model": model_path,
+        "device": instance["device"]["name"],
+        "niter": niter
+    }
+    retcode, aggr_stats = run_executable(exe_args, log=logging)
     assert retcode == 0, "Something went wrong"     # TODO: update
