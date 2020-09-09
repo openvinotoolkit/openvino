@@ -703,14 +703,10 @@ void InsertCopyLayerPass::run() {
             if (LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
             if (bInsert) {
-                if (LayerInfo(prevIndirectLayer).isCrop()) {
-                    auto cropLayer = LayerInfo(prevIndirectLayer).as<CropLayer *>();
-                    size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-                    if (ALIGN(cropOffset, 8) != cropOffset) {
-                        // The crop will be replaced by affine.
-                        // Copy layer insertion is not required
-                        continue;
-                    }
+                if (LayerInfo(prevIndirectLayer).isCropAffined()) {
+                    // The crop will be replaced by affine.
+                    // Copy layer insertion is not required
+                    continue;
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
                 InsertCopyLayer(prevLayer, l, i, getPassManager());
@@ -788,8 +784,9 @@ void InsertConcatAligningFilterPass::run() {
                 size_t num_rows_out = num_rows_padded + num_rows_in;
 
                 // encodes offset to beginning of split layer input
+                size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
                 concatAligningFilter->params["output_offset"] =
-                        std::to_string((aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4));
+                        std::to_string(bytesOffset);
 
                 // for padded rows we cannot use copy layer - TBD how to implement
                 concatAligningFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
@@ -843,84 +840,92 @@ void ReorderConcatInputsPass::run() {
     }
     int numOfLinkLayers = 0;
 
-    for (auto & l : *pLayers) {
-        // 1st stage locate concat align filter
+    for (auto& l : *pLayers) {
+        // 1st stage locate concat
         LayerInfo info(l);
-        if (!info.isConcatAlignFilter()) {
+        if (!info.isConcat()) {
             continue;
         }
 
-        // 2rd locating concat
-        if (l->outData.size() != 1) {
-            THROW_GNA_EXCEPTION << "no concat layer after concat aligning layer" << l->name;
-        }
-        auto nextLayers = getInputTo(l->outData.front());
-
-        if (nextLayers.size() != 1) {
-            THROW_GNA_EXCEPTION << "Invalid concat connection in align filter : " << l->name;
-        }
-        auto concat = nextLayers.begin()->second;
-        if (!LayerInfo(concat).isConcat()) {
-            THROW_GNA_EXCEPTION << "no concat layer after concat-aligning layer" << l->name << ", but was: " << concat->type;
-        }
-        // 3stage locate first input in concat
-        if (concat->insData.size() < 2) {
-            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << concat->name;
-        }
-        auto inputsToConcatFirst = CNNNetGetPrevLayersSkip(concat, [](CNNLayerPtr origin){
-            return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
-        }, 0);
-
-        if (inputsToConcatFirst.empty()) {
-            THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << l;
+        // 2nd stage locate first input in concat
+        if (l->insData.size() < 2) {
+            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << l->name;
         }
 
-        auto firstInputToConcat = inputsToConcatFirst.front().first;
-
-        // concat has first input of concat align filter - dont need to reorder it
-        if (firstInputToConcat == l) {
-            continue;
-        }
-
-        bool bFinish = false;
-        // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
-        // using ufs - upper first search
-        gnalog() << "[UFS] searching for: "<< firstInputToConcat->name << "\n";
-
-        CNNNetDFS(l, [&l, &firstInputToConcat, &bFinish](CNNLayerPtr layer) {
-            gnalog() << "[UFS] from : "<< l->name <<" reached: " << layer->name << "\n";
-            // found that direct input to concat is a indirect parent of align filter - so no link required
-            if (layer.get() == firstInputToConcat.get() || LayerInfo(firstInputToConcat).isInput()) {
-                gnalog() << "[UFS] copy layer insertion needed\n";
-                bFinish = true;
+        auto concatLayer = info.as<ConcatLayer*>();
+        auto getLayerByIndex = [&concatLayer](int idx) {
+            auto input = concatLayer->insData[idx];
+            auto lockedInput = input.lock();
+            if (!lockedInput) {
+                THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
             }
-        }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
-            // aborting UFS once link not need
-            return make_upstream_order(!bFinish ? from : nullptr);
-        });
+            return lockedInput;
+        };
 
-        auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
+        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto concatInput = getLayerByIndex(input_idx);
+            auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
-        auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({linkName, "link", Precision::FP32}));
+            LayerInfo infoConcatInput(currConcatLayer);
+            if (!infoConcatInput.isConcatAlignFilter()) {
+                continue;
+            }
 
-        auto link = quantized ?
-                    InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
-                    linkWithoutQuant;
+            auto inputsToConcatPrev = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin) {
+                return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
+                }, input_idx - 1);
+
+            if (inputsToConcatPrev.empty()) {
+                THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << currConcatLayer;
+            }
+
+            auto prevInputToConcat = inputsToConcatPrev.front().first;
+
+            // concat has first input of concat align filter - dont need to reorder it
+            if (prevInputToConcat == currConcatLayer) {
+                continue;
+            }
+
+            bool bFinish = false;
+            // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
+            // using ufs - upper first search
+            gnalog() << "[UFS] searching for: " << prevInputToConcat->name << "\n";
+
+            CNNNetDFS(currConcatLayer, [&currConcatLayer, &prevInputToConcat, &bFinish](CNNLayerPtr layer) {
+                gnalog() << "[UFS] from : " << currConcatLayer->name << " reached: " << layer->name << "\n";
+                // found that direct input to concat is a indirect parent of align filter - so no link required
+                if (layer.get() == prevInputToConcat.get() || LayerInfo(prevInputToConcat).isInput()) {
+                    gnalog() << "[UFS] copy layer insertion needed\n";
+                    bFinish = true;
+                }
+                }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS once link not needed
+                    return make_upstream_order(!bFinish ? from : nullptr);
+                });
+
+            auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
+
+            auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({ linkName, "link", Precision::FP32 }));
+
+            auto link = quantized ?
+                InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
+                linkWithoutQuant;
 
 
-        auto linkOutData = std::make_shared<Data>(linkName,
-                                              TensorDesc(Precision::FP32,
-                                                         SizeVector({1}),
-                                                         Layout::C));
-        getCreatorLayer(linkOutData) = link;
+            auto linkOutData = std::make_shared<Data>(linkName,
+                TensorDesc(Precision::FP32,
+                    SizeVector({ 1 }),
+                    Layout::C));
+            getCreatorLayer(linkOutData) = link;
 
-        link->outData.push_back(linkOutData);
-        link->insData.push_back(l->outData.front());
+            link->outData.push_back(linkOutData);
+            link->insData.push_back(currConcatLayer->outData.front());
 
-        getInputTo(linkOutData)[firstInputToConcat->name + ".via.link"] = firstInputToConcat;
-        firstInputToConcat->insData.push_back(linkOutData);
+            getInputTo(linkOutData)[prevInputToConcat->name + ".via.link"] = prevInputToConcat;
+            prevInputToConcat->insData.push_back(linkOutData);
 
-        getInputTo(l->outData.front())[linkName] = link;
+            getInputTo(currConcatLayer->outData.front())[linkName] = link;
+        }
     }
 }
 
