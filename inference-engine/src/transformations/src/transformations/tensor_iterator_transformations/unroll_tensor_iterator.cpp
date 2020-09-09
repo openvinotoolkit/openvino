@@ -181,6 +181,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             }
         }
 
+        std::cout << "UNROLL PASS!!!" << std::endl;
         return true;
     };
 

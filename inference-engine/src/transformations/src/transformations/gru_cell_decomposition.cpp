@@ -96,6 +96,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         ngraph::copy_runtime_info(gru_cell, {Xt_W, Ht_R, axis_0, Xt_W_zrh, R_zrh, Ht_R_zrh, biases_zrh,
                                              add_z_1, add_z_2, add_r_1, add_r_2, h_t, one, sub, mul_1, mul_2, out_H});
         ngraph::replace_node(gru_cell, out_H);
+        std::cout << "GRU Cell DECOMPOSITION" << std::endl;
         return true;
     };
 

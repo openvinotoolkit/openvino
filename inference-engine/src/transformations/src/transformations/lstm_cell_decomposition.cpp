@@ -77,6 +77,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
                                               f_t, i_t, c_t, o_t});
         ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
+        std::cout << "LSTM Cell DECOMPOSITION" << std::endl;
         return true;
     };
 

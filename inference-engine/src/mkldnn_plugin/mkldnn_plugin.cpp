@@ -29,6 +29,10 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/gru_cell_decomposition.hpp>
+#include <transformations/rnn_cell_decomposition.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -42,6 +46,7 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+
 
 #endif
 #endif
@@ -92,6 +97,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -118,6 +126,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     // Apply all transformations to TensorIterator body
     ngraph::pass::Manager ti_manager;
     ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
     ti_manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);

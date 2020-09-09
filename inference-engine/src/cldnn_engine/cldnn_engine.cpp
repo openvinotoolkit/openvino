@@ -33,6 +33,9 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/gru_cell_decomposition.hpp>
+#include <transformations/rnn_cell_decomposition.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -127,6 +130,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+        manager.register_pass<ngraph::pass::RNNCellDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
