@@ -143,7 +143,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto axis_out = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(1), axis_out);
-        auto out_2 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(1), axis_out);
+        auto out_2 = std::make_shared<ngraph::opset4::Squeeze>(sequence->output(2), axis_out);
 
         std::shared_ptr<Node> out = out_0;
         if (slice_axis == 0) {

@@ -16,8 +16,8 @@ namespace {
     std::vector<size_t> batch{1, 10};
     std::vector<size_t> hidden_size{1, 10};
     std::vector<size_t> input_size{10};
-    std::vector<std::vector<std::string>> activations = {{"relu", "tanh"}, {"tanh", "sigmoid"}, {"sigmoid", "tanh"},
-                                                         {"tanh", "relu"}};
+    std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh"}};
+    //{"relu", "tanh"}, {"tanh", "sigmoid"}, {"tanh", "relu"}
     std::vector<bool> linear_before_reset = {true, false};
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
@@ -42,7 +42,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(GRUSequenceCommonClip, GRUSequenceTest,
+/*    INSTANTIATE_TEST_CASE_P(GRUSequenceCommonClip, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
@@ -54,6 +54,6 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                            GRUSequenceTest::getTestCaseName);
+                            GRUSequenceTest::getTestCaseName);*/
 
 }  // namespace

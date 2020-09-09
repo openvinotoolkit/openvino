@@ -16,9 +16,9 @@ namespace {
     std::vector<size_t> batch{1, 10};
     std::vector<size_t> hidden_size{1, 10};
     std::vector<size_t> input_size{10};
-    std::vector<std::vector<std::string>> activations = {{"relu", "sigmoid", "tanh"}, {"sigmoid", "tanh", "tanh"},
-                                                         {"tanh", "relu", "sigmoid"}, {"sigmoid", "sigmoid", "sigmoid"},
-                                                         {"tanh", "tanh", "tanh"}, {"relu", "relu", "relu"}};
+    std::vector<std::vector<std::string>> activations = { {"sigmoid", "tanh", "tanh"} };
+    // {"relu", "sigmoid", "tanh"}, {"tanh", "relu", "sigmoid"}, {"sigmoid", "sigmoid", "sigmoid"},
+    // {"tanh", "tanh", "tanh"}, {"relu", "relu", "relu"}
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
     std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
@@ -41,7 +41,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
+/*    INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
@@ -52,6 +52,6 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                            LSTMSequenceTest::getTestCaseName);
+                            LSTMSequenceTest::getTestCaseName);*/
 
 }  // namespace

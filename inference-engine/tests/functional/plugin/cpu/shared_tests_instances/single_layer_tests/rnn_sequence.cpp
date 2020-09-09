@@ -39,7 +39,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(RNNSequenceCommonClip, RNNSequenceTest,
+/*    INSTANTIATE_TEST_CASE_P(RNNSequenceCommonClip, RNNSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
@@ -50,6 +50,6 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                            RNNSequenceTest::getTestCaseName);
+                            RNNSequenceTest::getTestCaseName);*/
 
 }  // namespace
