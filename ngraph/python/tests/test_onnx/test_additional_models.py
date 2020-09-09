@@ -45,6 +45,7 @@ tolerance_map = {
     "pointilism": {"atol": 0.001, "rtol": 0.001},
     "rain_princess": {"atol": 0.001, "rtol": 0.001},
     "udnie": {"atol": 0.001, "rtol": 0.001},
+    "candy": {"atol": 0.003, "rtol": 0.003},
 }
 
 zoo_models = []
