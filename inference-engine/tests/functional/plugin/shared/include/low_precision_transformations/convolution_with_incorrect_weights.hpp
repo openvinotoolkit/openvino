@@ -21,10 +21,10 @@ public:
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
     ConvolutionWIthIncorrectWeightsParam
 > ConvolutionWIthIncorrectWeightsParams;

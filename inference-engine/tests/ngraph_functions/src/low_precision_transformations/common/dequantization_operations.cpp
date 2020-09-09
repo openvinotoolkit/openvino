@@ -29,36 +29,43 @@ DequantizationOperations::Subtract::Subtract() :
     constantShapeIsDefined(false)
 {}
 
-DequantizationOperations::Subtract::Subtract(const float value) :
+DequantizationOperations::Subtract::Subtract(const float value, const bool addDeqAttr) :
     isEmpty(false),
     values({ value }),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDeqAttr) {
 }
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values) :
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const bool addDeqAttr) :
     isEmpty(values.empty()),
     values(values),
     outPrecision(ngraph::element::undefined),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDeqAttr) {
 }
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values,
+    const ngraph::element::Type outPrecision,
+    const bool addDeqAttr) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
-    constantShapeIsDefined(false) {
+    constantShapeIsDefined(false),
+    addDequantizationAttribute(addDeqAttr) {
 }
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
-    const ngraph::Shape& constantShape) :
+    const ngraph::Shape& constantShape,
+    const bool addDeqAttr) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
-    constantShapeIsDefined(true) {
+    constantShapeIsDefined(true),
+    addDequantizationAttribute(addDeqAttr) {
 }
 
 bool DequantizationOperations::Subtract::empty() const noexcept {

@@ -21,16 +21,16 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) <<
         (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
         (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
         (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
@@ -40,19 +40,18 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testi
 void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
     threshold = 0.1f;
 
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
         inputShape,
-        precision,
+        netPrecision,
         param.fakeQuantizeOnWeights,
         param.fakeQuantizeOnData,
         param.isCorrect);

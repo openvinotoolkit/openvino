@@ -21,16 +21,16 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) <<
         param.fakeQuantizeOnData <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -39,18 +39,17 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
 void ConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
-        precision,
+        netPrecision,
         inputShape,
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
@@ -58,19 +57,22 @@ void ConvolutionTransformation::SetUp() {
 
     if (version == LptVersion::cnnNetwork) {
         validate();
+    } else {
+        validateNGraph();
     }
 }
 
 void ConvolutionTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const auto precision = toCNNNetwork(netPrecision);
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -88,15 +90,36 @@ void ConvolutionTransformation::validate() {
             checkPrecisions(
                 *layer,
                 { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-                { getDeviceInternalPrecision(netPrecision) },
+                { getDeviceInternalPrecision(precision) },
                 param.asymmetricQuantizationOnData,
                 param.asymmetricQuantizationOnWeights);
         } else {
-            checkPrecisions(*layer, netPrecision);
+            checkPrecisions(*layer, precision);
         }
     }
 
     IE_SUPPRESS_DEPRECATED_END
+}
+
+void ConvolutionTransformation::validateNGraph() {
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    ConvolutionTransformationParam param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+
+    auto transformed = transformNGraph(params);
+    ngraph::pass::VisualizeTree("C://models//Convolution//conv.after").run_on_function(transformed);
+    EXPECT_EQ(1ul, transformed->get_output_size());
+    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
+
+    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
+    ASSERT_FALSE(parent == nullptr);
+    const std::string typeName = parent->get_type_name();
+
+    ASSERT_TRUE(typeName == "PowerIE" || typeName == "ConvolutionIE");
 }
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {

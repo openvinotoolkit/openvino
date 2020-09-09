@@ -11,13 +11,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    // InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
@@ -44,21 +45,21 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false
     },
-    // {
+    //{
     //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 1.f }, { 25.5f } },
     //    true,
     //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
     //    false
-    // },
-    // {
+    //},
+    //{
     //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
     //    false,
     //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.f }, { 12.7f } },
     //    true
-    // }
+    //}
 };
 
-const std::vector<InferenceEngine::SizeVector> shapes = {
+const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };

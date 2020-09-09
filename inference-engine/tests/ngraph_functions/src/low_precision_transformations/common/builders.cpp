@@ -55,6 +55,9 @@ std::shared_ptr<Node> makeDequantization(
             subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(parent, subtractConst);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
+        if (!dequantizationOperations.subtract.addDequantizationAttribute) {
+            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(subtract);
+        }
         parent = subtract;
     }
 
