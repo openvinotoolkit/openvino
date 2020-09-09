@@ -54,15 +54,20 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
-        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{1}, {ti->get_num_iterations()});
         auto pattern_map = matcher.get_pattern_map();
 
         auto params = func->get_parameters();
         std::vector<std::shared_ptr<ngraph::opset4::TensorIterator::InputDescription>> ordered_in_descs(3);
         int64_t stride = 0, slice_axis = 0;
+        size_t batch_size = 0;
         for (const auto& input_desc : ti->get_input_descriptions()) {
             auto param = params[input_desc->m_body_parameter_index];
             if (param == pattern_map[data]) {
+                // to get batch size value
+                if (param->get_partial_shape().is_dynamic()) {
+                    return false;
+                }
+                batch_size = param->get_shape()[0];
                 auto slice_input
                         = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(input_desc);
                 if (!slice_input)
@@ -101,6 +106,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             }
         }
 
+        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
         if (!(slice_axis == 0 || slice_axis == 1)) {
             return false;
         }
@@ -205,15 +211,20 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
-        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{1}, {ti->get_num_iterations()});
         auto pattern_map = matcher.get_pattern_map();
 
         auto params = func->get_parameters();
         std::vector<std::shared_ptr<ngraph::opset4::TensorIterator::InputDescription>> ordered_in_descs(3);
         int64_t stride = 0, slice_axis = 0;
+        size_t batch_size = 0;
         for (const auto& input_desc : ti->get_input_descriptions()) {
             auto param = params[input_desc->m_body_parameter_index];
             if (param == pattern_map[data]) {
+                // to get batch size value
+                if (param->get_partial_shape().is_dynamic()) {
+                    return false;
+                }
+                batch_size = param->get_shape()[0];
                 auto slice_input
                         = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(input_desc);
                 if (!slice_input)
@@ -230,6 +241,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
             }
         }
 
+        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
         if (!(slice_axis == 0 || slice_axis == 1)) {
             return false;
         }
@@ -352,15 +364,20 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
-        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{1}, {ti->get_num_iterations()});
         auto pattern_map = matcher.get_pattern_map();
 
         auto params = func->get_parameters();
         std::vector<std::shared_ptr<ngraph::opset4::TensorIterator::InputDescription>> ordered_in_descs(3);
         int64_t stride = 0, slice_axis = 0;
+        size_t batch_size = 0;
         for (const auto& input_desc : ti->get_input_descriptions()) {
             auto param = params[input_desc->m_body_parameter_index];
             if (param == pattern_map[data]) {
+                // to get batch size value
+                if (param->get_partial_shape().is_dynamic()) {
+                    return false;
+                }
+                batch_size = param->get_shape()[0];
                 auto slice_input
                         = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(input_desc);
                 if (!slice_input)
@@ -377,6 +394,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
             }
         }
 
+        auto seq_lengths = ngraph::opset4::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
         if (!(slice_axis == 0 || slice_axis == 1)) {
             return false;
         }
