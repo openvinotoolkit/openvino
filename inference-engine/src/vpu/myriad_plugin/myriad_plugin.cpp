@@ -165,12 +165,28 @@ void Engine::QueryNetwork(
 
         unsupported.clear();
 
+        std::function<void(std::shared_ptr<ngraph::Node>)> markParentSplitAsUnsupported = [&markParentSplitAsUnsupported, &supported, &splitNames]
+                                                                                          (const std::shared_ptr<ngraph::Node>& split) {
+            const auto inputs = split->inputs();
+            for (const auto& input : inputs) {
+                const auto& parentName = input.get_source_output().get_node()->get_friendly_name();
+                if (contains(supported, parentName) &&
+                    contains(splitNames, parentName)) {
+                    markParentSplitAsUnsupported(input.get_source_output().get_node_shared_ptr());
+                }
+            }
+            const auto& name = split->get_friendly_name();
+            if (contains(supported, name)) {
+                supported.erase(name);
+            }
+        };
+
         for (const auto& split : splits) {
             // We will mark split as a supported only if all consumers is supported
             bool is_supported = true;
             const auto outputs = split->outputs();
             for (const auto& output : outputs) {
-                for (const auto &consumer : output.get_target_inputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
                     const auto& name = consumer.get_node()->get_friendly_name();
                     if (!contains(supported, name) &&
                         !contains(concatNames, name) &&
@@ -182,6 +198,9 @@ void Engine::QueryNetwork(
             }
             if (is_supported) {
                 supported.emplace(split->get_friendly_name());
+            } else {
+                // If Split is not supported and it's parent is also Split, mark parent as unsupported
+                markParentSplitAsUnsupported(split);
             }
         }
 
@@ -219,10 +238,8 @@ void Engine::QueryNetwork(
             }
         }
 
-        for (auto& layerName : supported) {
-            if (!contains(unsupported, layerName)) {
-                res.supportedLayersMap.emplace(layerName, GetName());
-            }
+        for (const auto& layerName : supported) {
+            res.supportedLayersMap.emplace(layerName, GetName());
         }
     } else {
         const auto log = std::make_shared<Logger>(
