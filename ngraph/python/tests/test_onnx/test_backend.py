@@ -23,7 +23,7 @@ import logging
 
 import onnx.backend.test
 
-from tests.test_onnx.utils import OpenVinoOnnxBackend
+from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 from tests import (BACKEND_NAME,
                    xfail_issue_33540,
                    xfail_issue_34314,
@@ -96,14 +96,14 @@ def expect_fail(test_case_path, xfail):  # type: (str) -> None
         logging.getLogger().warning("Could not mark test as XFAIL, not found: %s", test_case_path)
 
 
-OpenVinoOnnxBackend.backend_name = BACKEND_NAME
+OpenVinoTestBackend.backend_name = BACKEND_NAME
 
 # This is a pytest magic variable to load extra plugins
 # Uncomment the line below to enable the ONNX compatibility report
 # pytest_plugins = "onnx.backend.test.report",
 
 # import all test cases at global scope to make them visible to python.unittest
-backend_test = onnx.backend.test.BackendTest(OpenVinoOnnxBackend, __name__)
+backend_test = onnx.backend.test.BackendTest(OpenVinoTestBackend, __name__)
 
 skip_tests_general = [
     # Big model tests (see test_zoo_models.py):
