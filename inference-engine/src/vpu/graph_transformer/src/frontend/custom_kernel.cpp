@@ -2,20 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/frontend/custom_kernel.hpp>
-#include <xml_parse_utils.h>
 #include <caseless.hpp>
+#include <vpu/frontend/ShaveElfMetadataParser.h>
+#include <vpu/frontend/custom_kernel.hpp>
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/extra.hpp>
+#include <xml_parse_utils.h>
 
 namespace vpu {
 
+VPU_PACKED(Elf32Shdr {
+    uint32_t shName;
+    uint32_t pad0[3];
+    uint32_t shOffset;
+    uint32_t shSize;
+    uint32_t pad1[4];
+};)
+
 VPU_PACKED(Elf32Ehdr {
-    uint8_t  offs1[28];
-    uint32_t ePhoff;        // Program header offset
-    uint32_t eShoff;        // Section header offset
-    uint8_t  offs2[12];
-    uint16_t eShnum;        // Number of sections
-    uint16_t offs3;
+    uint32_t pad0[7];
+    uint32_t ePhoff;
+    uint32_t eShoff;
+    uint32_t pad1[3];
+    uint16_t eShnum;
+    uint16_t eShstrndx;
 };)
 
 VPU_PACKED(Elf32Section {
@@ -95,111 +105,66 @@ std::pair<const Elf32Section*, const Elf32Section*> findSymbolTable(
     return std::make_pair(strShdr, symShdr);
 }
 
-SmallVector<std::string> deduceKernelParameters(
-        const char* ELFData,
-        uint32_t kernelAddress) {
-    IE_ASSERT(ELFData != nullptr);
-    const auto cmp = ie::details::CaselessEq<std::string>{};
+SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int kernelId) {
+    const auto kernelDesc = parser.get_kernel(kernelId);
+    IE_ASSERT(kernelDesc != nullptr);
+    // Number of elements we get from parser is always greater by one
+    const auto argCount = kernelDesc->arg_count - 1;
 
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
+    auto arguments = SmallVector<std::string>{};
+    arguments.reserve(argCount);
+    for (size_t i = 0; i < argCount; i++) {
+        const auto arg = parser.get_argument(kernelDesc, i);
+        VPU_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
 
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    const char* kernelArgStrings = nullptr;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
-            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
-            break;
+        // skip hoisted buffers
+        if (arg->flags & md_arg_flags_generated_prepost) {
+            continue;
         }
-    }
-    IE_ASSERT(kernelArgStrings != nullptr);
 
-    SmallVector<std::string> parameters;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
-            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
-            auto numKernels = *reinterpret_cast<const int*>(ptr);
-
-            auto metaOffset = sizeof(int);
-            for (int k = 0; k < numKernels; k++) {
-                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
-
-                if (kHdr->address-phdr->pVaddr == kernelAddress) {
-                    auto aHdr = reinterpret_cast<const KernelArgHdr*>(
-                        reinterpret_cast<const char*>(&(kHdr->argOffset)) + sizeof(kHdr->argOffset) + kHdr->argOffset);
-
-                    auto numArgs = reinterpret_cast<const int*>(aHdr)[-1];
-                    for (int n = 0; n < numArgs; n++, aHdr++) {
-                        parameters.push_back(kernelArgStrings + aHdr->stringOffset);
-                    }
-
-                    break;
-                }
-
-                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
-            }
-        }
+        const auto argName = parser.get_name(arg);
+        arguments.emplace_back(argName);
     }
 
-    return parameters;
+    return arguments;
 }
 
-int32_t getKernelId(
-        const char* ELFData,
-        uint32_t kernelAddress) {
-    IE_ASSERT(ELFData != nullptr);
-    const auto cmp = ie::details::CaselessEq<std::string>{};
+static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
+    IE_ASSERT(elf_data);
+    IE_ASSERT(section_name);
 
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
+    const auto *ehdr = reinterpret_cast<const Elf32Ehdr *>(elf_data);
+    IE_ASSERT(0 != ehdr->eShoff);
+    IE_ASSERT(0 != ehdr->ePhoff);
 
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
+    // Pointer to the first section header
+    const Elf32Shdr *shdr = reinterpret_cast<const Elf32Shdr *>(elf_data + ehdr->eShoff);
 
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
+    // Pointer to section header string table header
+    const Elf32Shdr *strShdr = &shdr[ehdr->eShstrndx];
 
-    const char* kernelArgStrings = nullptr;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
-            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
-            break;
-        }
+    // We couldn't find sections for the symbol string names and for the symbols
+    // entries
+    if (!strShdr) {
+        return nullptr;
     }
-    IE_ASSERT(kernelArgStrings != nullptr);
 
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
-            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
-            auto numKernels = *reinterpret_cast<const int*>(ptr);
+    // The string at index 0, which corresponds to the first byte, is a null
+    // character
+    const char *firstStr = reinterpret_cast<const char *>(elf_data + strShdr->shOffset);
 
-            auto metaOffset = sizeof(int);
-            for (int k = 0; k < numKernels; k++) {
-                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
+    // Find the section with the custom SHAVEComputeAorta data
+    for (uint16_t i = 0; i < ehdr->eShnum; i++) {
+        const char *currentSectionName = firstStr + shdr[i].shName;
 
-                if (kHdr->address-phdr->pVaddr == kernelAddress) {
-                    return k;
-                }
-
-                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
-            }
+        if (0 == strcmp(currentSectionName, section_name)) {
+            return shdr + i;
         }
     }
 
-    return -1;
+    // If we reached this point, it means that there wasn't a section with
+    // the name we were looking for
+    return nullptr;
 }
 
 uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
@@ -230,8 +195,9 @@ uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
 CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
     _maxShaves = XMLParseUtils::GetIntAttr(kernel, "max-shaves", 0);
 
+    std::string fileName;
     for (auto source = kernel.child("Source"); !source.empty(); source = source.next_sibling("Source")) {
-        auto fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
+        fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
 
         std::ifstream inputFile(fileName, std::ios::binary);
         if (!inputFile.is_open()) {
@@ -244,9 +210,30 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     }
 
     const auto kernelEntryName = XMLParseUtils::GetStrAttr(kernel, "entry");
-    const auto kernelEntry = getKernelEntry(&_kernelBinary[0], kernelEntryName);
-    _parameters = deduceKernelParameters(&_kernelBinary[0], kernelEntry);
-    _kernelId = getKernelId(&_kernelBinary[0], kernelEntry);
+
+    const auto elf = reinterpret_cast<const uint8_t*>(_kernelBinary.data());
+    const Elf32Shdr *neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
+    VPU_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
+
+    const uint8_t *neoMetadata = elf + neoMetadataShdr->shOffset;
+    const size_t neoMetadataSize = neoMetadataShdr->shSize;
+
+    const Elf32Shdr *neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
+    VPU_THROW_UNLESS(neoMetadataStrShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
+
+    const char *neoMetadataStr = reinterpret_cast<const char *>(elf + neoMetadataStrShdr->shOffset);
+    const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
+
+    const auto parser = md_parser_t{neoMetadata, neoMetadataSize, neoMetadataStr, neoMetadataStrSize};
+    _kernelId = parser.get_kernel_id(kernelEntryName);
+    VPU_THROW_UNLESS(_kernelId != -1, "Failed to find kernel with name `%l`", kernelEntryName);
+
+    VPU_THROW_UNLESS(parser.get_kernel_count() == 1,
+                     "Failed to load kernel binary '%l'\n"
+                     "\tReason: binary should contain only one kernel, but contains %l",
+                     fileName, parser.get_kernel_count());
+
+    _parameters = deduceKernelParameters(parser, _kernelId);
 
     processParametersNode(kernel);
     processWorkSizesNode(kernel);

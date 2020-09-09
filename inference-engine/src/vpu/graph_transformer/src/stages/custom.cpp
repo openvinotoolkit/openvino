@@ -136,7 +136,7 @@ private:
             case CustomParamType::OutputBuffer:
             case CustomParamType::Data: {
                 VPU_THROW_UNLESS(ports.find(kp) != ports.end(),
-                    "XML specification for %s layer has no definition for %s parameter. Layer name: %s",
+                    "XML specification for %s layer has no definition for '%s' parameter. Layer name: %s",
                     origLayer()->type, kp, origLayer()->name);
 
                 int id = ports.find(kp)->second;
