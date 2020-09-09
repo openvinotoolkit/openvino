@@ -63,8 +63,6 @@ public:
     void SetUp() override {
         const UnsqueezeTransformationTestValues testValues = GetParam();
 
-
-
         actualFunction = ngraph::builder::subgraph::UnsqueezeFunction::getOriginal(
             testValues.inputShape,
             testValues.axes,

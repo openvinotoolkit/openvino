@@ -62,8 +62,6 @@ class SqueezeTransformation : public LayerTransformation, public testing::WithPa
 public:
     void SetUp() override {
         const SqueezeTransformationTestValues testValues = GetParam();
-        
-
 
         actualFunction = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
             testValues.inputShape,
