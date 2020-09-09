@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include <utility>
+#include <primitive_attr.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -41,12 +42,12 @@ public:
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); }
-    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); }
-    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); }
-    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); }
-    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); }
-    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); }
+    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
+    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
+    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
+    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
+    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
+    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
@@ -73,6 +74,15 @@ private:
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    // mkldnn style post ops data representation
+    bool isPostOpDataInitialized = false;
+    mkldnn::impl::shifts_t<float> cropLowData;
+    mkldnn::impl::shifts_t<float> cropHighData;
+    mkldnn::impl::scales_t inputScaleData;
+    mkldnn::impl::shifts_t<float> inputShiftData;
+    mkldnn::impl::scales_t outputScaleData;
+    mkldnn::impl::shifts_t<float> outputShiftData;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;

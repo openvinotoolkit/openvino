@@ -525,7 +525,17 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
-    ops.append_quantization(quantizeAlgorithm , cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift);
+    if (!isPostOpDataInitialized) {
+        isPostOpDataInitialized = true;
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
+
+    ops.append_quantization(quantizeAlgorithm, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }
 
 bool MKLDNNQuantizeNode::created() const {
