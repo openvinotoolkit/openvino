@@ -37,15 +37,16 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     std::shared_ptr<ngraph::Node> branch1Last;
     {
         // branch with limitation precision operation (Convolution)
-        std::shared_ptr<ngraph::Node> pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
+        std::shared_ptr<ngraph::Node> branch1Operation = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
             std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset1::MaxPool>(
                 fakeQuantize,
                 Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
                 op::RoundingType::FLOOR)) :
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::AvgPool>>(
-                fakeQuantize,
-                Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
-                op::RoundingType::FLOOR);
+            std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+                opset1::PRelu(
+                    fakeQuantize,
+                    std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
+                element::f32);
 
         const size_t inputChannelsCount = inputShape[1];
         const size_t outputChannelsCount = 2 * inputShape[1];
@@ -56,7 +57,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
             std::vector<float>(outputChannelsCount * inputChannelsCount, 1.f));
 
         std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::opset1::Convolution>(
-            pooling,
+            branch1Operation,
             values.fakeQuantizeOnWeights.empty() ?
                 weights->output(0) :
                 ngraph::builder::makeFakeQuantize(
@@ -79,10 +80,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     std::shared_ptr<ngraph::Node> branch2Last;
     {
         // just another branch
-        branch2Last = std::make_shared<ngraph::opset1::AvgPool>(
+        branch2Last = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
             fakeQuantize,
-            Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
-            op::RoundingType::FLOOR);
+            std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
@@ -112,10 +112,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
             op::RoundingType::FLOOR)) :
-        std::make_shared<op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+        std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
             fakeQuantize,
-            Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
-            op::RoundingType::FLOOR);
+            std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
@@ -152,13 +151,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
 
     // just another branch
-    std::shared_ptr<ngraph::opset1::AvgPool> branch2Pooling = std::make_shared<op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
         fakeQuantize,
-        Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
-        op::RoundingType::FLOOR);
+        std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 
     const std::shared_ptr<ngraph::Node> branch2Multiply = std::make_shared<ngraph::opset1::Multiply>(
-        branch2Pooling,
+        branch2PRelu,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape({}), std::vector<float>({0.01f})));
 
     if (values.fakeQuantizeOnDataOutPrecision != precision) {
@@ -181,7 +179,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
                 ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(weights, ngraph::element::i8));
         }
 
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch2Pooling, precision);
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch2PRelu, precision);
     }
 
 

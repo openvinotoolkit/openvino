@@ -46,6 +46,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
+    if (!updatePrecisions &&
+        dequantization.data.get_element_type() != element::i8 &&
+        dequantization.data.get_element_type() != element::u8) {
+        return false;
+    }
+
     convolution = separateInStandaloneBranch(convolution);
     dequantization = NetworkHelper::getDequantization(convolution);
 
