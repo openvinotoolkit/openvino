@@ -139,7 +139,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 #ifdef LPT_SUPPORT
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
             ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) &&
-                (output_shape_rank != 1 || output_shape_rank > 4))) {
+            (output_shape_rank == 1 || output_shape_rank > 4))) {
             return false;
         }
 #else
