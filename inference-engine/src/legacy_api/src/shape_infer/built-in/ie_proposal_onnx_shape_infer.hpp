@@ -29,8 +29,7 @@ public:
         cnnLayer.type = _type;
         validate(&cnnLayer, inBlobs, params, blobs);
 
-        size_t post_nms_count = static_cast<size_t>(cnnLayer.GetParamAsInt("post_nms_count"));
-
+        auto post_nms_count = cnnLayer.GetParamAsUInt("post_nms_count");
         outShapes.push_back({post_nms_count, 4});
         outShapes.push_back({post_nms_count, });
     }

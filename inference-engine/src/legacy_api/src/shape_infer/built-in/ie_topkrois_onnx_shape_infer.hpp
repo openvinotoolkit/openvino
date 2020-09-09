@@ -32,7 +32,7 @@ public:
         cnnLayer.type = _type;
         validate(&cnnLayer, inBlobs, params, blobs);
 
-        const bool max_rois = cnnLayer.GetParamAsInt("max_rois");
+        const auto max_rois = cnnLayer.GetParamAsUInt("max_rois");
         outShapes.push_back({max_rois, 4});
     }
 };
