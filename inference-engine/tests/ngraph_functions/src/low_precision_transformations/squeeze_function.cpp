@@ -25,8 +25,7 @@ std::shared_ptr<ngraph::Function> SqueezeFunction::getOriginal(
 
     const auto squeeze = std::make_shared<ngraph::opset1::Squeeze>(
         dequantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)
-     );
+        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
 
     squeeze->set_friendly_name("output");
 
