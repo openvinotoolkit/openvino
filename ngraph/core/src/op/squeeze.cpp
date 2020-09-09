@@ -143,7 +143,7 @@ namespace
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
         runtime::reference::copy(
-            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
+            arg0->get_data_ptr<char>(), out->get_data_ptr<char>(), shape_size(out->get_shape()), sizeof(ET));
         return true;
     }
 

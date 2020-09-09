@@ -66,8 +66,8 @@ template<typename NET>
 void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::ApplyUnrollPasses");
 
-/*    //NetPass::CombineRNNSeq(net);
-*//*    bool ti_proc_ok = NetPass::UnrollRNN_if(net, [] (const RNNCellBase &rnn) -> bool {
+/*    NetPass::CombineRNNSeq(net);
+    bool ti_proc_ok = NetPass::UnrollRNN_if(net, [] (const RNNCellBase &rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
         if ((rnn.cellType == RNNCellBase::GRU || rnn.cellType == RNNCellBase::GRU_LBR) &&

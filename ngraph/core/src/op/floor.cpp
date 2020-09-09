@@ -58,7 +58,7 @@ namespace
     template <element::Type_t ET>
     inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
-        runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::copy(arg0->get_data_ptr<char>(), out->get_data_ptr<char>(), count, sizeof(ET));
         return true;
     }
 

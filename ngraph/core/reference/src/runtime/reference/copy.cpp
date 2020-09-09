@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
+#include <cstring>
 
-#include <cstddef>
+#include "ngraph/runtime/reference/copy.hpp"
 
 namespace ngraph
 {
@@ -24,7 +24,10 @@ namespace ngraph
     {
         namespace reference
         {
-            void copy(const char* arg, char* out, size_t count, size_t el_size);
+            void copy(const char* arg, char* out, size_t count, size_t el_size)
+            {
+                std::memcpy(out, arg, count * el_size);
+            }
         }
     }
 }
