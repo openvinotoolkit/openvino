@@ -3,6 +3,7 @@
 //
 
 #include "cli.h"
+#include "statistics_writer.h"
 #include "../ftti_pipeline/ftti_pipeline.h"
 
 #include <iostream>
@@ -22,6 +23,9 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 
     if (FLAGS_d.empty())
         throw std::logic_error("Device is required but not set. Please set -d option.");
+
+    if (FLAGS_s.empty())
+        throw std::logic_error("Statistics file path is required but not set. Please set -s option.");
 
     return true;
 }
@@ -43,5 +47,6 @@ int main(int argc, char **argv) {
     if (!parseAndCheckCommandLine(argc, argv))
         return -1;
 
+    StatisticsWriter::Instance().setFile(FLAGS_s);
     return _runPipeline();
 }

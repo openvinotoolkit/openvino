@@ -21,6 +21,9 @@ static const char target_device_message[] = "Required. Specify a target device t
 "Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI plugin. " \
 "The application looks for a suitable plugin for the specified device.";
 
+/// @brief message for statistics path argument
+static const char statistics_path_message[] = "Required. Path to a file to write statistics.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -35,6 +38,10 @@ DEFINE_string(m, "", model_message);
 /// It is a required parameter
 DEFINE_string(d, "", target_device_message);
 
+/// @brief Define parameter for set path to a file to write statistics <br>
+/// It is a required parameter
+DEFINE_string(s, "", statistics_path_message);
+
 /**
 * @brief This function show a help message
 */
@@ -46,4 +53,5 @@ static void showUsage() {
     std::cout << "    -h, --help                " << help_message << std::endl;
     std::cout << "    -m \"<path>\"               " << model_message << std::endl;
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
+    std::cout << "    -s \"<path>\"               " << statistics_path_message << std::endl;
 }

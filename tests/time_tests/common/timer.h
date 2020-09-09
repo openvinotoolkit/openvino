@@ -5,10 +5,11 @@
 #pragma once
 
 #include <string>
-#include <map>
 #include <chrono>
 #include <fstream>
 #include <memory>
+
+#include "statistics_writer.h"
 
 using time_point = std::chrono::high_resolution_clock::time_point;
 
@@ -38,7 +39,7 @@ public:
     ~Timer(){
         float duration = std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - start_time).count();
-        std::cout << name << ":" << duration << "\n"; // TODO: replace with writer
+        StatisticsWriter::Instance().write({name, duration});
     }
 };
 
