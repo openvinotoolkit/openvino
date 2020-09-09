@@ -124,6 +124,14 @@ void MKLDNNQuantizeNode::init() {
             THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
     }
 
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
+        if (prec != Precision::FP32)
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+    }
+
     auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto inputLowData = inputLowBlob->buffer().as<float*>();
 
