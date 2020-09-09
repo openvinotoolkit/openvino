@@ -58,7 +58,7 @@ class OpenVinoOnnxBackend(Backend):
             import_onnx_model(model)
             return True
         except Exception:
-            raise
+            return False
 
     @classmethod
     def prepare(
@@ -127,6 +127,18 @@ class OpenVinoOnnxBackend(Backend):
         """
         return device != "CUDA"
 
+    
+class OpenVinoTestBackend(OpenVinoOnnxBackend):
+    @classmethod
+    def is_compatible(
+        cls,
+        model,  # type: onnx.ModelProto
+        device="CPU",  # type: Text
+        **kwargs  # type: Any
+    ):  # type: (...) -> bool
+        # Return whether the model is compatible with the backend.
+        import_onnx_model(model)
+        return True
 
 prepare = OpenVinoOnnxBackend.prepare
 run_model = OpenVinoOnnxBackend.run_model
