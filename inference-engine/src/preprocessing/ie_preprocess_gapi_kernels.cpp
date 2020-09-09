@@ -2247,25 +2247,27 @@ GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
     static const int Window = 1;
 
     static void run(const cv::gapi::fluid::View& src, int depth, cv::gapi::fluid::Buffer& dst) {
-        GAPI_Assert(src.meta().depth == CV_16U || src.meta().depth == CV_32F);
-        GAPI_Assert(dst.meta().depth == CV_32F || dst.meta().depth == CV_16U);
+        GAPI_Assert(src.meta().depth == CV_8U || src.meta().depth == CV_32F || src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_8U || dst.meta().depth == CV_32F || dst.meta().depth == CV_16U);
         GAPI_Assert(src.meta().chan == 1);
         GAPI_Assert(dst.meta().chan == 1);
         GAPI_Assert(src.length() == dst.length());
 
-        constexpr unsigned supported_types_n = 2;
+        constexpr unsigned supported_types_n = 3;
         using p_f = void (*)( const uint8_t* src,  uint8_t* dst, const int width);
         using table_string_t = std::array<p_f, supported_types_n>;
 
         constexpr std::array<table_string_t, supported_types_n> func_table = {
-                table_string_t{convert_precision<uint16_t, uint16_t>, convert_precision<uint16_t, float>},
-                table_string_t{convert_precision<float,    uint16_t>, convert_precision<float,    float>}
+                table_string_t{convert_precision<uint16_t, uint16_t>, convert_precision<uint16_t, float>, convert_precision<uint16_t, uint8_t>},
+                table_string_t{convert_precision<float,    uint16_t>, convert_precision<float,    float>, convert_precision<float,    uint8_t>},
+                table_string_t{convert_precision<uint8_t,  uint16_t>, convert_precision<uint8_t,  float>, convert_precision<uint8_t,  uint8_t>}
         };
 
         auto depth_to_index = [](int depth){
             switch (depth) {
                 case  CV_16U: return 0;
                 case  CV_32F: return 1;
+                case  CV_8U:  return 2;
                 default: GAPI_Assert(!"not supported depth"); return -1;
             }
         };
