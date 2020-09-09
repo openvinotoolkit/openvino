@@ -93,7 +93,7 @@ class TestActivationOp(unittest.TestCase):
         exp_shape = np.array([227, 227, 227, 227])
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
-        exp_value = np.array([0.31326166, 0.69314718, 1.3132616, 20.0])
+        exp_value = np.array([0.3132617, 0.6931472, 1.3132617, 20.0], dtype=np.float32)
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):
@@ -123,7 +123,7 @@ class TestActivationOp(unittest.TestCase):
         exp_shape = np.array([227, 227, 227, 227])
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
-        exp_value = np.array([-0.30340144, 0.0, 0.86509836, 20.0])
+        exp_value = np.array([-0.3034014, 0.0, 0.8650984, 20.0], dtype=np.float32)
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):
