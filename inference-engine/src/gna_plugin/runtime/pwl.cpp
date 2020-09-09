@@ -1062,7 +1062,7 @@ void PwlApply32(intel_dnn_component_t *component,
                         ptr_out[i * num_columns + j] = output_high;
                     } else {
                         ptr_out[i * num_columns + j]
-                            = round((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low;
+                            = nearbyint((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low;
                     }
                 }
             }

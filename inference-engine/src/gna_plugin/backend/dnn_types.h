@@ -46,8 +46,8 @@ struct DnnActivation {
         struct {
             int32_t levels;
             float input_low;
-            float output_low;
             float input_high;
+            float output_low;
             float output_high;
         } fakeQuantize;
         struct {

@@ -1130,6 +1130,35 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     out_file << "<num_bytes_per_slope> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_intercept> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_offset> " << std::dec << sizeof(int32_t) << "\n";
+                    switch (func_id) {
+                        case kActRelu:
+                        case kActLeakyRelu:
+                            out_file << "<lrelu.negative_slope> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.lrelu.negative_slope << "\n";
+                            break;
+                        case kActPow :
+                            out_file << "<pow.exponent> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.exponent << "\n";
+                            out_file << "<pow.scale> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.scale << "\n";
+                            out_file << "<pow.offset> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.offset << "\n";
+                            break;
+                        case kActFakeQuantize :
+                            out_file << "<fakeQuantize.levels> " <<
+                                std::dec << component[i].op.pwl.func_id.args.fakeQuantize.levels << "\n";
+                            out_file << "<fakeQuantize.input_low> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_low << "\n";
+                            out_file << "<fakeQuantize.input_high> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_high << "\n";
+                            out_file << "<fakeQuantize.output_low> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_low << "\n";
+                            out_file << "<fakeQuantize.output_high> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_high << "\n";
+                            break;
+                        default:
+                            break;
+                    }
                     if (logging_precision == kDnnFloat) {
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                         out_file << "<num_segments> " << std::dec << 0 << "\n";
