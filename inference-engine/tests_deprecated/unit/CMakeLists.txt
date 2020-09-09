@@ -59,7 +59,6 @@ if (ENABLE_MKL_DNN)
     file(GLOB
             MKLDNN_TESTS
             engines/mkldnn/*.cpp
-            engines/mkldnn/normalizer/*.cpp
             engines/mkldnn/graph/layers/extensions/*.cpp
             engines/mkldnn/graph/layers/internal/*.cpp
             engines/mkldnn/graph/structure/*.cpp
