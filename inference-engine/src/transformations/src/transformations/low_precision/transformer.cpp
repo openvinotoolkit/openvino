@@ -362,6 +362,8 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
             pass.run_on_function(network);
         }
     }
+
+    network->validate_nodes_and_infer_types();
 }
 
 std::vector<element::Type> LowPrecisionTransformer::precisionIntersection(
