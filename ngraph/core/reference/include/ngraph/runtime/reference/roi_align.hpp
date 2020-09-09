@@ -51,7 +51,7 @@ namespace ngraph
                 CoordinateTransform rois_transform(rois_shape);
                 CoordinateTransform out_transform(out_shape);
 
-                for (uint roi_index = 0; roi_index < num_rois; roi_index++)
+                for (unsigned int roi_index = 0; roi_index < num_rois; roi_index++)
                 {
                     // Get ROI`s corners
                     T x1 = rois[rois_transform.index({roi_index, 0})] * spatial_scale;
@@ -70,7 +70,7 @@ namespace ngraph
                     T sample_distance_x = bin_width / static_cast<T>(sampling_ratio);
                     T sample_distance_y = bin_height / static_cast<T>(sampling_ratio);
 
-                    std::vector<std::pair<uint64_t, uint64_t>> pooling_points;
+                    std::vector<std::pair<unsigned int, unsigned int>> pooling_points;
                     std::vector<T> pooling_weights;
 
                     pooling_points.reserve(4 * num_samples_in_bin * pooled_height * pooled_width);
@@ -78,11 +78,11 @@ namespace ngraph
 
                     // Save the sample coords and weights as they will be identical across all
                     // channels
-                    for (uint y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                    for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                     {
-                        for (uint x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                        for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                         {
-                            for (uint y_sample_ind = 0; y_sample_ind < sampling_ratio;
+                            for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio;
                                  y_sample_ind++)
                             {
                                 T sample_y = y1 + static_cast<T>(y_bin_ind) * bin_height +
@@ -108,10 +108,10 @@ namespace ngraph
                                     sample_x = std::max(sample_x, T{0});
                                     sample_y = std::max(sample_y, T{0});
 
-                                    auto sample_y_low = static_cast<uint64_t>(sample_y);
-                                    auto sample_x_low = static_cast<uint64_t>(sample_x);
-                                    uint64_t sample_y_high;
-                                    uint64_t sample_x_high;
+                                    auto sample_y_low = static_cast<unsigned int>(sample_y);
+                                    auto sample_x_low = static_cast<unsigned int>(sample_x);
+                                    unsigned int sample_y_high;
+                                    unsigned int sample_x_high;
 
                                     if (sample_y_low >= feature_map_height - 1)
                                     {
@@ -154,38 +154,39 @@ namespace ngraph
 
                     std::vector<T> tmp_out;
 
-                    for (uint channel_index = 0; channel_index < C; channel_index++)
+                    for (unsigned int channel_index = 0; channel_index < C; channel_index++)
                     {
                         tmp_out.reserve(pooled_height * pooled_width);
-                        uint sample_index = 0;
-                        for (uint y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
+                        unsigned int sample_index = 0;
+                        for (unsigned int y_bin_ind = 0; y_bin_ind < pooled_height; y_bin_ind++)
                         {
-                            for (uint x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
+                            for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                             {
                                 T pooled_value = 0;
-                                for (uint bin_sample_ind = 0; bin_sample_ind < num_samples_in_bin;
+                                for (unsigned int bin_sample_ind = 0;
+                                     bin_sample_ind < num_samples_in_bin;
                                      bin_sample_ind++)
                                 {
                                     // the four parts are values of the four closest surrounding
                                     // neighbours of considered sample, then basing on all sampled
                                     // values in bin we calculate pooled value
                                     auto sample_part_1 = feature_maps[feature_maps_transform.index(
-                                        {static_cast<uint64_t>(batch_indices[roi_index]),
+                                        {static_cast<unsigned int>(batch_indices[roi_index]),
                                          channel_index,
                                          pooling_points[sample_index].first,
                                          pooling_points[sample_index].second})];
                                     auto sample_part_2 = feature_maps[feature_maps_transform.index(
-                                        {static_cast<uint64_t>(batch_indices[roi_index]),
+                                        {static_cast<unsigned int>(batch_indices[roi_index]),
                                          channel_index,
                                          pooling_points[sample_index + 1].first,
                                          pooling_points[sample_index + 1].second})];
                                     auto sample_part_3 = feature_maps[feature_maps_transform.index(
-                                        {static_cast<uint64_t>(batch_indices[roi_index]),
+                                        {static_cast<unsigned int>(batch_indices[roi_index]),
                                          channel_index,
                                          pooling_points[sample_index + 2].first,
                                          pooling_points[sample_index + 2].second})];
                                     auto sample_part_4 = feature_maps[feature_maps_transform.index(
-                                        {static_cast<uint64_t>(batch_indices[roi_index]),
+                                        {static_cast<unsigned int>(batch_indices[roi_index]),
                                          channel_index,
                                          pooling_points[sample_index + 3].first,
                                          pooling_points[sample_index + 3].second})];
@@ -221,11 +222,11 @@ namespace ngraph
                             }
                         }
                         // save the calculations for all bins across this channel
-                        uint64_t output_channel_offset =
-                            out_transform.index({static_cast<uint64_t>(roi_index),
-                                                 static_cast<uint64_t>(channel_index),
-                                                 static_cast<uint64_t>(0),
-                                                 static_cast<uint64_t>(0)});
+                        auto output_channel_offset =
+                            out_transform.index({static_cast<unsigned int>(roi_index),
+                                                 static_cast<unsigned int>(channel_index),
+                                                 static_cast<unsigned int>(0),
+                                                 static_cast<unsigned int>(0)});
                         std::copy(tmp_out.begin(), tmp_out.end(), out + output_channel_offset);
 
                         tmp_out.clear();
