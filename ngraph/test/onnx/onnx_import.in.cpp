@@ -2471,7 +2471,7 @@ NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, detection_output)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/detection_output.prototxt"));
@@ -2502,7 +2502,7 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output)
     test_case.run(tolerance_bits);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, prior_box)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.prototxt"));
@@ -2527,7 +2527,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prior_box)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.prototxt"));

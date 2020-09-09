@@ -3,6 +3,7 @@ producer_name: "nGraph ONNX Importer"
 graph {
   name: "test"
   node {
+    domain: "org.openvinotoolkit"
     input: "A"
     input: "B"
     output: "out"
