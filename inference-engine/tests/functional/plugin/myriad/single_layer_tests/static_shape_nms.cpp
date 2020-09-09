@@ -98,7 +98,8 @@ std::vector<StaticShapeNMSParam> NMSParams = {
         std::make_tuple(1, 10, 5, 10, 0., 0.),
         std::make_tuple(2, 100, 5, 10, 0., 0.),
         std::make_tuple(3, 10, 5, 2, 0.5, 0.),
-        std::make_tuple(1, 1000, 1, 2000, 0.5, 0.)
+        std::make_tuple(1, 1000, 1, 2000, 0.5, 0.),
+        std::make_tuple(1, 8200, 1, 8200, 0.5, 0.),
 };
 
 std::vector<InferenceEngine::Precision> NMSPrecisions = {

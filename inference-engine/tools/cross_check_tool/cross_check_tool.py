@@ -17,6 +17,13 @@ except Exception as e:
     print("The following error happened while importing Python API module:\n[ {} ] {}".format(exception_type, e))
     sys.exit(1)
 
+try:
+    import ngraph as ng
+except Exception as e:
+    exception_type = type(e).name
+    print("The following error happened while importing nGraph module:\n[ {} ] {}".format(exception_type, e))
+    sys.exit(1)
+
 from utils import get_config_dictionary, get_layers_list, print_output_layers, input_processing, \
     accuracy_metrics, validate_args, build_parser, set_logger, find_out_cct_mode, print_all_over_the_net_metrics, \
     update_global_accuracy_matrics, blob_counters, performance_metrics, manage_user_outputs_with_mapping, \
@@ -75,9 +82,9 @@ def get_net_copy_with_output(model: str, output: str, core: IECore):
 
 @error_handling('getting model layers info')
 def get_model_info(net: IENetwork):
-    layers = net.layers
-    precision = layers[list(layers.keys())[0]].out_data[0].precision
-    return layers, net.input_info, net.outputs, precision
+    func = ng.function_from_cnn(net)
+    ops = func.get_ops()
+    return ops, net.input_info, net.outputs
 
 
 ###
@@ -135,8 +142,8 @@ def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out
 def one_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs, precision = get_model_info(net)
-    log.info('{}:{} vs {}:{}'.format(args.device, precision, args.reference_device, precision))
+    net_layers, net_inputs, net_outputs = get_model_info(net)
+    log.info('{} vs {}'.format(args.device, args.reference_device))
     log.info('The same IR on both devices: {}'.format(args.model))
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
     print_input_layers(net_inputs)
@@ -173,10 +180,10 @@ def two_ir_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     ref_core = get_plugin(args.reference_device, args.l, args.reference_config)
     net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs, precision = get_model_info(net)
+    net_layers, net_inputs, net_outputs = get_model_info(net)
     ref_net = get_net(model=args.reference_model, core=ref_core)
-    ref_net_layers, ref_net_inputs, ref_net_outputs, ref_precision = get_model_info(ref_net)
-    log.info('{}:{} vs {}:{}'.format(args.device, precision, args.reference_device, ref_precision))
+    ref_net_layers, ref_net_inputs, ref_net_outputs = get_model_info(ref_net)
+    log.info('{} vs {}'.format(args.device, args.reference_device))
     log.info('IR for {} : {}'.format(args.device, args.model))
     log.info('IR for {} : {}'.format(args.reference_device, args.reference_model))
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
@@ -207,7 +214,8 @@ def two_ir_mode(args):
         if out_layer not in results:
             continue
         out_blob, pc = results[out_layer]
-        ref_results = infer(net=ref_net_copy, core=ref_core, device=args.reference_device, inputs=ref_inputs, output=[ref_out_layer])
+        ref_results = infer(net=ref_net_copy, core=ref_core, device=args.reference_device,
+                            inputs=ref_inputs, output=[ref_out_layer])
         ref_out_blob, ref_pc = ref_results[ref_out_layer]
         if ref_out_layer not in ref_results:
             continue
@@ -222,7 +230,9 @@ def two_ir_mode(args):
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     net = get_net(model=args.model, core=core)
-    out_layers = get_layers_list(net.layers, net.input_info, net.outputs, args.layers)
+    func = ng.function_from_cnn(net)
+    ops = func.get_ops()
+    out_layers = get_layers_list(ops, net.input_info, net.outputs, args.layers)
     inputs = input_processing(args.model, net.input_info, args.input)
     dump_dict = {}
     for out_layer in out_layers:
@@ -241,7 +251,7 @@ def load_mode(args):
     log.info('IR for {} : {}'.format(args.device, args.model))
     log.info('Loading blob from {}'.format(args.load))
     net = get_net(model=args.model, core=core)
-    net_layers, net_inputs, net_outputs, precision = get_model_info(net)
+    net_layers, net_inputs, net_outputs = get_model_info(net)
     out_layers = get_layers_list(net_layers, net_inputs, net_outputs, args.layers)
     print_input_layers(net_inputs)
     print_output_layers(out_layers)

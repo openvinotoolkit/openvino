@@ -105,7 +105,14 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             shape = np.append(shape, 1)
 
         mul_val = np.array(value)
-        value = np.reshape(value, shape)
+        # If the value fails to reshape to the provided shape, skip fusing.
+        # This can happen in case of group != 1 of the convolution.
+        try:
+            value = np.reshape(value, shape)
+        except ValueError:
+            log.error("Cannot fuse const from {} to {}. Reshape failed. Skipping.".format(
+                node.soft_get('name', node.id),fuse_node.soft_get('name', fuse_node.id)), extra={'is_warning': True})
+            return False
 
         # Weights multiplication
         mul_name = node.name + '_copy'

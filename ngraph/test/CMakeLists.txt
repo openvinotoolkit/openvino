@@ -129,6 +129,7 @@ set(SRC
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
     type_prop/gru_cell.cpp
+    type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
@@ -160,6 +161,7 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/rnn_cell.cpp
+    type_prop/rnn_sequence.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
@@ -392,9 +394,11 @@ if(NGRAPH_ADDRESS_SANITIZER)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
-target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph)
-target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
+target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        ngraph
+                                        ngraph::builder
+                                        ngraph_backend
+                                        libgtest)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

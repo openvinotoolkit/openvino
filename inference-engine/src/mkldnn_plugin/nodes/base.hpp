@@ -102,7 +102,7 @@ protected:
             const bool isInt8 = (data->getPrecision() == Precision::I8 || data->getPrecision() == Precision::U8);
 
             if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
-                if (data_dims.size() < 4 && data_dims.size() > 5)
+                if (data_dims.size() < 4 || data_dims.size() > 5)
                     THROW_IE_EXCEPTION << "Inapplicable blocking layout."
                         << "Tensor should be 4D or 5D.";
 

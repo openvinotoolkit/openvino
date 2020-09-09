@@ -214,14 +214,14 @@ FluidI420toRGBComputation::FluidI420toRGBComputation(test::Mat inMat_y, test::Ma
                                })
 {}
 
-FluidU16ToF32Computation::FluidU16ToF32Computation(test::Mat inMatU16, test::Mat outMatF32)
-    : FluidComputation(new Priv{ []()-> cv::GComputation {
-                                    cv::GMat in_U16;
-                                    cv::GMat outf32 = InferenceEngine::gapi::U16toF32::on(in_U16);
-                                    return cv::GComputation(cv::GIn(in_U16), cv::GOut(outf32));
+ConvertDepthComputation::ConvertDepthComputation(test::Mat inMat, test::Mat outMat,  int depth)
+    : FluidComputation(new Priv{ [depth]()-> cv::GComputation {
+                                    cv::GMat in;
+                                    cv::GMat out = InferenceEngine::gapi::ConvertDepth::on(in, depth);
+                                    return cv::GComputation(cv::GIn(in), cv::GOut(out));
                                  }()
-                               , {to_own(inMatU16)}
-                               , {to_own(outMatF32)}
+                               , {to_own(inMat)}
+                               , {to_own(outMat)}
                                })
 {}
 

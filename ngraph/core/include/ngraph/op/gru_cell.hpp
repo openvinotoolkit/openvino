@@ -26,8 +26,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -42,7 +40,7 @@ namespace ngraph
             ///
             ///             Note this class represents only single *cell* and not whole GRU *layer*.
             ///
-            class NGRAPH_API GRUCell : public util::FusedOp, public util::RNNCellBase
+            class NGRAPH_API GRUCell : public util::RNNCellBase
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GRUCell", 3};
@@ -151,8 +149,6 @@ namespace ngraph
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void pre_validate_and_infer_types() override;
-                virtual OutputVector decompose_op() const override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -180,8 +176,5 @@ namespace ngraph
                 bool m_linear_before_reset;
             };
         }
-        using v3::GRUCell;
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

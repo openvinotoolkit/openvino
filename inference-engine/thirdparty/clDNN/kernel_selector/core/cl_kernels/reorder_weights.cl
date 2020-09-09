@@ -167,6 +167,8 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_OSV32_ISV4
     return GET_FILTER_OS_IS_YX_OSV32_ISV4_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_ZYX_OSV32_ISV4
+    return GET_FILTER_OS_IS_ZYX_OSV32_ISV4_INDEX(OUTPUT, o, i, z, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4
     return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4

@@ -130,6 +130,15 @@ void prepare_padding::run(program_impl& p) {
             continue;
         }
 
+        // convolution have only one input primitive
+        auto prev_prim_output_layout = conv_input_node.get_output_layout();
+
+        // For 3d convolution padding is needed only for int8 case
+        // FP16/32 kernels can work w/o physical padding
+        if (prev_prim_output_layout.format == cldnn::format::b_fs_zyx_fsv16 &&
+            prev_prim_output_layout.data_type != data_types::i8 && prev_prim_output_layout.data_type != data_types::u8)
+            continue;
+
         // We shoudn't apply any padding to nodes which are marked as outputs
         if (conv_input_node.is_output())
             continue;
@@ -139,9 +148,6 @@ void prepare_padding::run(program_impl& p) {
         auto filter_prim = filter_node.get_primitive();
 
         layout filter_layout = filter_node.get_output_layout();
-
-        // convolution have only one input primitive
-        auto prev_prim_output_layout = conv_input_node.get_output_layout();
 
         // Compute initial required paddings for primitive used as input for convolution.
         auto input_offset = conv->input_offset;

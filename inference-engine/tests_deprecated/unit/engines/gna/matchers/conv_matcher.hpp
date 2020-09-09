@@ -4,22 +4,22 @@
 
 #pragma once
 
-#include"gna-api.h"
+#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
 #include "frontend/quantization.h"
 
-class ConvoluionLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class ConvoluionLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;
     int matchQuantity;
  public:
     ConvoluionLayerMatcher(bool matchInserted, int matchQuantity) : matchInserted(matchInserted), matchQuantity(matchQuantity) {}
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         for(int i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_CONVOLUTIONAL) continue;
 
-            auto conv = (intel_convolutional_layer_t*)foo->pLayers[i].pLayerStruct;
+            auto conv = (gna_convolutional_layer_t*)foo->pLayers[i].pLayerStruct;
 
             return matchInserted;
         }
