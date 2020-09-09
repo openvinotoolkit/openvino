@@ -245,7 +245,8 @@ namespace
             output->set_shape(output_shape);
             evaluate(data_tensor, output, lower_bounds, upper_bounds);
             lower_bounds.at(axis) = upper_bounds.at(axis);
-            upper_bounds.at(axis) += split_lengths[split_pos];
+            if (split_pos < split_lengths.size())
+                upper_bounds.at(axis) += split_lengths[split_pos];
         }
 
         return true;
