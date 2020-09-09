@@ -159,7 +159,8 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
 #define ELTWISE_SUM MulAddConversionTests::get_eltwise_add_reference
 #define ELTWISE_PROD MulAddConversionTests::get_eltwise_mul_reference
 
-INSTANTIATE_TEST_CASE_P(MulAddToScaleShift, MulAddConversionTests, testing::Combine(
+// LPT_SUPPORT: temporary disabled
+INSTANTIATE_TEST_CASE_P(DISABLED_MulAddToScaleShift, MulAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
