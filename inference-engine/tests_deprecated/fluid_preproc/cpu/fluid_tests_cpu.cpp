@@ -171,8 +171,8 @@ INSTANTIATE_TEST_CASE_P(I420toRGBTestFluid, I420toRGBTestGAPI,
                                 Values(0)));
 
 INSTANTIATE_TEST_CASE_P(ConvertDepthFluid, ConvertDepthTestGAPI,
-                        Combine(Values(CV_16U, CV_32F),
-                                Values(CV_32F, CV_16U),
+                        Combine(Values(CV_16U, CV_32F, CV_8U),
+                                Values(CV_32F, CV_16U, CV_8U),
                                 Values(cv::Size(3840, 2160),
                                        cv::Size(1920, 1080),
                                        cv::Size(1280,  720),
