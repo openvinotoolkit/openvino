@@ -77,7 +77,7 @@ class TestActivationOp(unittest.TestCase):
                             ],
                             {
                                 'node_1': {
-                                    'value': np.array([-1.0, 0.0, 1.0, 20.0], dtype=np.float32)
+                                    'value': np.array([-1.0, 0.0, 1.0, 20.0])
                                 },
                                 'activation_node': {
                                     'op': 'SoftPlus',
@@ -93,7 +93,7 @@ class TestActivationOp(unittest.TestCase):
         exp_shape = np.array([4])
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
-        exp_value = np.array([0.3132617, 0.6931472, 1.3132616, 20.0], dtype=np.float32)
+        exp_value = np.array([0.3132617, 0.6931472, 1.3132617, 20.0])
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):
@@ -107,7 +107,7 @@ class TestActivationOp(unittest.TestCase):
                             ],
                             {
                                 'node_1': {
-                                    'value': np.array([-1.0, 0.0, 1.0, 20.0], dtype=np.float32)
+                                    'value': np.array([-1.0, 0.0, 1.0, 20.0])
                                 },
                                 'activation_node': {
                                     'op': 'Mish',
@@ -123,7 +123,7 @@ class TestActivationOp(unittest.TestCase):
         exp_shape = np.array([4])
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
-        exp_value = np.array([-0.3034014, 0.0, 0.86509836, 20.0], dtype=np.float32)
+        exp_value = np.array([-0.30340146, 0.0, 0.8650984, 20.0])
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):
