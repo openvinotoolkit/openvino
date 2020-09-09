@@ -126,7 +126,7 @@ void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 
-    for (const auto &input : cnnNetwork.getInputsInfo()) {
+    for (const auto &input : executableNetwork.GetInputsInfo()) {
         const auto &info = input.second;
         auto blob = GenerateInput(*info);
         inferRequest.SetBlob(info->name(), blob);
@@ -134,7 +134,7 @@ void LayerTestsCommon::Infer() {
     }
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
         configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(batchSize);
     }
     inferRequest.Infer();
@@ -160,8 +160,13 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         std::copy(buffer, buffer + inputSize, referenceInput.data());
     }
 
-    const auto &actualOutputs = GetOutputs();
-    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[0]->getTensorDesc().getPrecision());
+    auto ieOutPrc = outPrc;
+    if (outPrc == InferenceEngine::Precision::UNSPECIFIED) {
+        const auto &actualOutputs = GetOutputs();
+        ieOutPrc = actualOutputs[0]->getTensorDesc().getPrecision();
+    }
+
+    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc);
     std::vector<std::vector<std::uint8_t>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
@@ -195,7 +200,7 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
 
 std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
     auto outputs = std::vector<InferenceEngine::Blob::Ptr>{};
-    for (const auto &output : cnnNetwork.getOutputsInfo()) {
+    for (const auto &output : executableNetwork.GetOutputsInfo()) {
         const auto &name = output.first;
         outputs.push_back(inferRequest.GetBlob(name));
     }
