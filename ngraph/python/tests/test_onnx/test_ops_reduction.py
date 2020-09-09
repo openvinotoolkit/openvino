@@ -18,7 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35925, xfail_issue_36437
+from tests import xfail_issue_35925
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
@@ -268,7 +268,6 @@ def test_reduce_sum_square_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@xfail_issue_36437
 def test_reduce_argmin():
     def argmin(ndarray, axis, keepdims=False):
         res = np.argmin(ndarray, axis=axis)
@@ -292,7 +291,6 @@ def test_reduce_argmin():
     )
 
 
-@xfail_issue_36437
 def test_reduce_argmax():
     def argmax(ndarray, axis, keepdims=False):
         res = np.argmax(ndarray, axis=axis)

@@ -7,10 +7,6 @@
 #include <memory>
 #include <numeric>
 
-#include "ngraph/builder/matmul_factory.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/reshape.hpp"
-
 using namespace std;
 using namespace ngraph;
 

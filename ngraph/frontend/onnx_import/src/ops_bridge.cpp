@@ -113,7 +113,7 @@
 #include "onnx_import/op/roi_align.hpp"
 #include "onnx_import/op/round.hpp"
 #include "onnx_import/op/scatter_elements.hpp"
-// #include "onnx_import/op/scatter_nd.hpp"
+#include "onnx_import/op/scatter_nd.hpp"
 #include "onnx_import/op/selu.hpp"
 #include "onnx_import/op/shape.hpp"
 #include "onnx_import/op/shrink.hpp"
@@ -310,7 +310,7 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
-            REGISTER_OPERATOR("Loop", 1, loop);
+            // REGISTER_OPERATOR("Loop", 1, loop); // Loop operator disabled for the 2021.1 release
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
@@ -363,7 +363,7 @@ namespace ngraph
             REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
-            // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
+            REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
             REGISTER_OPERATOR("Selu", 1, selu);
             REGISTER_OPERATOR("Shape", 1, shape);
             REGISTER_OPERATOR("Shrink", 1, shrink);

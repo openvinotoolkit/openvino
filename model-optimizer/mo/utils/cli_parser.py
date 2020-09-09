@@ -283,7 +283,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help="Directory or a comma separated list of directories with extensions. To disable all "
@@ -614,7 +614,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    tf_group = parser.add_argument_group('ONNX*-specific parameters')
+    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     return parser
 

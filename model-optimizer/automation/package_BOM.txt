@@ -19,6 +19,7 @@ extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
+extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
@@ -120,7 +121,6 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
-extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
@@ -561,6 +561,7 @@ extensions/middle/ReverseTransposeNormalization.py
 extensions/middle/ReverseV2ToReverseSequence.py
 extensions/middle/RNNSequenceNormalizeToIE.py
 extensions/middle/ScaleInput.py
+extensions/middle/SequenceLengthToMask.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
@@ -871,7 +872,6 @@ mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
 mo/middle/passes/leaky_relu.py
-mo/middle/passes/mean_scale_values.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py

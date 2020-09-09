@@ -25,7 +25,7 @@ std::shared_ptr<Node> makeEmbeddingBagPackedSum(
 
     std::shared_ptr<Node> embBag;
     if (with_weights) {
-        auto weightsNode = makeConstant(dataType, i_shape, {}, true);
+        auto weightsNode = makeConstant<float>(dataType, i_shape, {}, true);
 
         embBag = std::make_shared<opset3::EmbeddingBagPackedSum>(
             embTableNode, indicesNode, weightsNode);

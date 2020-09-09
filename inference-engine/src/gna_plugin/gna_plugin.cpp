@@ -368,6 +368,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
+        passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
         passes->registerPass<InsertConcatAligningFilterPass>();
@@ -687,7 +688,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     }
 
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
-    std::unordered_map<string, string> skippedLayers;
+    std::unordered_map<string, std::vector<string>> skippedLayers;
 
     bool withConv = false;
     for (auto &layer : sortedNet) {
@@ -698,45 +699,35 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
     if (withConv) {
-        for (auto &layer : sortedNet) {
-            for (int i = 0; CNNNetHasPrevLayer(layer.get(), i); i++) {
-                auto prevLayer = CNNNetPrevLayer(layer.get(), i);
-                if (!skippedLayers.count(prevLayer->name)) {
-                    if (CNNNetHasPrevLayer(prevLayer.get())) {
-                        continue;
-                    }
+        for (auto &inputLayer : sortedNet) {
+            if (!LayerInfo(inputLayer).isInput()) {
+                continue;
+            }
+            auto doesntHaveGnaMapping = [this] (CNNLayerPtr l) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(l);
+                return dnnLayer == nullptr;
+            };
 
-                    // we are in the one of input layers
-                    if (LayerInfo(prevLayer).isMemory()) {
-                        continue;
-                    }
-                }
+            auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
 
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(layer);
-                string inputName = prevLayer->name;
-                if (skippedLayers.count(prevLayer->name)) {
-                    inputName = skippedLayers[prevLayer->name];
-                }
-
+            for (auto &nextLayer : nextLayers) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
-                    // storing input name for skipped layer
-                    skippedLayers[layer->name] = inputName;
-                    continue;
+                    THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
                 }
-
                 // input orientation might be already initialized, thus verify that it matches
-                if (!inputsDesc->orientation_in.count(inputName)) {
-                    inputsDesc->orientation_in[inputName] = dnnLayer->orientation_in;
+                if (!inputsDesc->orientation_in.count(inputLayer->name)) {
+                    inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
                 } else {
-                    if (inputsDesc->orientation_in[inputName] != dnnLayer->orientation_in) {
-                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputName << "cannot be calculated";
+                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in) {
+                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << "cannot be calculated";
                     }
                 }
             }
         }
     } else {
-        for (auto& inputLayer : inputLayers) {
+        for (auto &inputLayer : inputLayers) {
             inputsDesc->orientation_in[inputLayer->name] = kDnnInterleavedOrientation;
         }
     }
@@ -1003,7 +994,8 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC) {
+        if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
+            || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::NHWC) {
             // TODO: rotate can be incorporated with exporting - used only in unit tests so far
             // TODO: restore:
 //        if (orientation_out != kDnnInterleavedOrientation) {
@@ -1019,56 +1011,67 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 //                           dims[0],
 //                           dims[dims.size() - 1]);
 //        }
+            auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+            auto batchSize = exportOutputDims[0];
+            auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
+                : exportOutputDims[exportOutputDims.size() - 1]
+                  * exportOutputDims[exportOutputDims.size() - 2]
+                  * exportOutputDims[exportOutputDims.size() - 3];
+
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
                          outputDesc.orientation,
-                         exportOutputDims[0],
-                         exportOutputDims[exportOutputDims.size() - 2],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
+                         batchSize,
+                         batchSize,
+                         elementsPerBatch,
+                         elementsPerBatch,
+                         elementsPerBatch,
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
+
+            if (gnadevice) {
+#ifdef PLOT
+                FILE* f = nullptr;
+                static int num_infers = 0;
+                {
+                    f = fopen("ex_scores.txt", "w");
+                }
+                num_infers++;
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fprintf(f, "\n\n");
+                }
+#endif
+                ConvertToFloat(outputBlob->buffer(),
+                    outputBlob->buffer(),
+                    elementsPerBatch,
+                    batchSize,
+                    outputDesc.scale_factor);
+#ifdef PLOT
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fclose(f);
+                }
+#endif
+            }
+        } else {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC, Layout::CN, Layout::NCHW or Layout::NHWC. But was "
+                << outputBlob->getTensorDesc().getLayout();
         }
 
-        if (gnadevice) {
-#ifdef PLOT
-        FILE *f = nullptr;
-        static int num_infers = 0;
-        {
-            f = fopen("ex_scores.txt", "w");
-        }
-        num_infers++;
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fprintf(f, "\n\n");
-            }
-#endif
-            ConvertToFloat(outputBlob->buffer(),
-                           outputBlob->buffer(),
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 1],
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 2],
-                           outputDesc.scale_factor);
-#ifdef PLOT
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fclose(f);
-            }
-#endif
-        }
         output_idx++;
     }
     return true;
