@@ -104,7 +104,10 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<bool> updatePrecisions = { true, false };
+const std::vector<bool> updatePrecisions = {
+    true,
+    false
+};
 
 const std::vector<GroupConvolutionTransformationTestParams> testParams = {
     // group convolution, tensor quantization, with zero point

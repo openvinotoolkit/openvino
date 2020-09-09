@@ -30,7 +30,20 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+    if (pooling->get_friendly_name() == "InceptionV4/Logits/AvgPool_1a/AvgPool") {
+        int a = 3;
+    }
+    const auto children = pooling->get_output_target_inputs(0);
+    bool updatePrecision = false;
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : children) {
+        if (!is_type<opset1::FakeQuantize>(child.get_node()->shared_from_this())) {
+            updatePrecision = true;
+            break;
+        }
+    }
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
     return true;
 }
 
@@ -45,6 +58,12 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    const auto children = layer->get_output_target_inputs(0);
+    for (const auto& child : children) {
+        if (!is_type<opset1::FakeQuantize>(child.get_node()->shared_from_this())) {
+            return true;
+        }
+    }
     return false;
 }
 

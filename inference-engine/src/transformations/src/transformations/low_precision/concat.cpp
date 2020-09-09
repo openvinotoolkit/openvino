@@ -338,6 +338,10 @@ void ConcatTransformation::addDequantizationLayers(
                         // TODO: the second place (first is FQ decomposition) where dequantization operations are inserted
                         const std::shared_ptr<ngraph::Node> destination = child.shared_from_this();
 
+                        if (layer->get_friendly_name() == "InceptionV4/InceptionV4/Mixed_7d/concat") {
+                            int a = 3;
+                        }
+
                         if (!convertNodes.empty()) {
                             const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
                             std::shared_ptr<ngraph::Node> convert =

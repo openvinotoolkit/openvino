@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/low_precision/avg_pool.hpp>
+#include <transformations/low_precision/prelu.hpp>
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/low_precision/fake_quantize.hpp>
 #include <transformations/low_precision/max_pool.hpp>
@@ -90,12 +90,10 @@ public:
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.fakeQuantizeOnWeights
             });
-
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
+        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::AvgPool>(params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
         transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.transform(actualFunction);
 
@@ -138,7 +136,10 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<bool> updatePrecisions = { true, false };
+const std::vector<bool> updatePrecisions = {
+    true,
+    false
+};
 
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQuantizeTransformationTestValues = {
     {

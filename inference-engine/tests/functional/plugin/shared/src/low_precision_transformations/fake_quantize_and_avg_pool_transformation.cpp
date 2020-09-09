@@ -29,6 +29,7 @@ std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(testing::TestP
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
+    threshold = 0.5f;
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;

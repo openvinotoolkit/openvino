@@ -35,7 +35,7 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
 }
 
 bool PReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {
-    return true;
+    return false;
 }
 
 bool PReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {

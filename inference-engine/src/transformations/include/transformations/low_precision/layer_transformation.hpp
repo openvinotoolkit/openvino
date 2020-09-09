@@ -34,8 +34,8 @@
  *****************************************************/
 // #define LPT_ORIGINAL_MODEL_PATH "/localdisk/orig.model"
 // #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/transformed.model"
-// #define LPT_PRINT_DEQUANTIZATION_INFO
-// #define LPT_DISPLAY_PRECISION
+#define LPT_PRINT_DEQUANTIZATION_INFO
+#define LPT_DISPLAY_PRECISION
 
 namespace ngraph {
 namespace pass {
