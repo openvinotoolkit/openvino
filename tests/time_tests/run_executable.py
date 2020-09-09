@@ -89,14 +89,15 @@ def run_executable(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = run_cmd(cmd_common + ["-s", str(stats_path)], log=log)
+        tmp_stats_file = tempfile.NamedTemporaryFile()
+        retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_file.name)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
             return retcode, {}
 
-        stats = read_stats(stats_path, stats)
+        stats = read_stats(tmp_stats_file.name, stats)
+        tmp_stats_file.close()
 
     # Aggregate results
     aggregated_stats = aggregate_stats(stats)
