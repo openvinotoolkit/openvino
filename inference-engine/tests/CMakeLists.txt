@@ -21,3 +21,7 @@ endif()
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
+
+if (NOT WIN32 AND (ENABLE_SANITIZER OR ENABLE_THREAD_SANITIZER))
+    add_subdirectory(sanitizer/dlclose_hook)
+endif()
