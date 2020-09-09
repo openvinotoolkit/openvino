@@ -47,10 +47,10 @@ namespace ngraph
                                  data_shape[1].get_length());
 
                     const auto scale_const =
-                        default_opset::Constant::create(element::f32, Shape{}, {scale});
+                        default_opset::Constant::create(data.get_element_type(), Shape{}, {scale});
 
-                    const auto bias_const =
-                        default_opset::Constant::create(element::f32, {1, bias.size(), 1, 1}, bias);
+                    const auto bias_const = default_opset::Constant::create(
+                        data.get_element_type(), {1, bias.size(), 1, 1}, bias);
 
                     const auto scaler = std::make_shared<default_opset::Add>(
                         std::make_shared<default_opset::Multiply>(data, scale_const), bias_const);
