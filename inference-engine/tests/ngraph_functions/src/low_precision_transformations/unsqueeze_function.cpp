@@ -25,8 +25,7 @@ namespace subgraph {
 
     const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
         dequantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes)
-     );
+        std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ axes.size() }, axes));
 
     unsqueeze->set_friendly_name("output");
 
