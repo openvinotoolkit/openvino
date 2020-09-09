@@ -7,6 +7,8 @@ This script runs TimeTests executable several times to aggregate
 collected statistics.
 """
 
+# pylint: disable=redefined-outer-name
+
 import statistics
 from pathlib import Path
 import tempfile
@@ -14,6 +16,7 @@ import subprocess
 import logging
 import argparse
 import sys
+from pprint import pprint
 import yaml
 
 
@@ -24,7 +27,7 @@ def run_cmd(args: list, log=None, verbose=True):
         log = logging.getLogger('run_cmd')
     log_out = log.info if verbose else log.debug
 
-    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-format-interpolation
+    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-fstring-interpolation
 
     proc = subprocess.Popen(args,
                             stdout=subprocess.PIPE,
@@ -75,7 +78,7 @@ def prepare_executable_cmd(args: dict):
             "-d", args["device"]]
 
 
-def run_executable(args: dict, stats_dir: Path, log=None):
+def run_executable(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
     if log is None:
@@ -83,14 +86,10 @@ def run_executable(args: dict, stats_dir: Path, log=None):
 
     cmd_common = prepare_executable_cmd(args)
 
-    # Create folder to save statistics files
-    stats_dir.mkdir(parents=True, exist_ok=True)
-
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        _, stats_path = tempfile.mkstemp(dir=stats_dir, text=True)
-        log.info("Statistics file path of #{} iteration: {}".format(run_iter, stats_path))
+        stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = run_cmd(cmd_common + ["-s", str(stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
@@ -126,6 +125,10 @@ def cli_parser():
                         default=3,
                         type=int,
                         help='number of times to execute binary to aggregate statistics of')
+    parser.add_argument('-s',
+                        dest="stats_path",
+                        type=Path,
+                        help='path to a file to save aggregated statistics')
 
     args = parser.parse_args()
 
@@ -135,14 +138,18 @@ def cli_parser():
 if __name__ == "__main__":
     args = cli_parser()
 
-    logging.basicConfig(format="[ %(levelname)s ] %(message)s", level=logging.DEBUG, stream=sys.stdout)
+    logging.basicConfig(format="[ %(levelname)s ] %(message)s",
+                        level=logging.DEBUG, stream=sys.stdout)
 
-    stats_dir = (Path(".") / "statistics_dir").absolute()
-    exit_code, aggr_stats = run_executable(dict(args._get_kwargs()), stats_dir=stats_dir, log=logging)
+    exit_code, aggr_stats = run_executable(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
-    # Save aggregated results to a file
-    _, aggr_stats_path = tempfile.mkstemp(prefix="aggregated_stats_", suffix=".yml", dir=stats_dir, text=True)
-    write_aggregated_stats(aggr_stats_path, aggr_stats)
-    logging.info("Aggregated statistics saved to a file: '{}'".format(aggr_stats_path))
+    if args.stats_path:
+        # Save aggregated results to a file
+        write_aggregated_stats(args.stats_path, aggr_stats)
+        logging.info("Aggregated statistics saved to a file: '{}'".format(
+            args.stats_path.resolve()))
+    else:
+        logging.info("Aggregated statistics:")
+        pprint(aggr_stats)
 
     sys.exit(exit_code)
