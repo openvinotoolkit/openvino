@@ -1,8 +1,8 @@
+import org.intel.openvino.*;
+
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import org.intel.openvino.*;
 
 public class InferRequestsQueue {
     public InferRequestsQueue(ExecutableNetwork net, int nireq) {
@@ -12,17 +12,17 @@ public class InferRequestsQueue {
         }
         resetTimes();
     }
-  
+
     void resetTimes() {
         startTime = Long.MAX_VALUE;
         endTime = Long.MIN_VALUE;
         latencies.clear();
     }
-        
+
     double getDurationInMilliseconds() {
-        return (double)(endTime - startTime) * 1e-6;
+        return (double) (endTime - startTime) * 1e-6;
     }
-        
+
     void putIdleRequest(int id, double latency) {
         latencies.add(latency);
         idleIds.add(id);
@@ -32,7 +32,7 @@ public class InferRequestsQueue {
             foo.notify();
         }
     }
-        
+
     InferReqWrap getIdleRequest() {
         try {
             InferReqWrap request = requests.get(idleIds.take());
@@ -43,11 +43,11 @@ public class InferRequestsQueue {
         }
         return null;
     }
-        
+
     void waitAll() {
         synchronized (foo) {
             try {
-                while(idleIds.size() != requests.size()) {
+                while (idleIds.size() != requests.size()) {
                     foo.wait();
                 }
             } catch (InterruptedException e) {
@@ -55,16 +55,16 @@ public class InferRequestsQueue {
             }
         }
     }
-        
+
     Vector<Double> getLatencies() {
         return latencies;
     }
-        
+
     Vector<InferReqWrap> requests = new Vector<InferReqWrap>();
     private BlockingQueue<Integer> idleIds = new LinkedBlockingQueue<Integer>();
     private long startTime;
     private long endTime;
-    Vector<Double> latencies = new Vector<Double>();    
+    Vector<Double> latencies = new Vector<Double>();
 
     Object foo = new Object();
 }
