@@ -24,6 +24,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <limits>
 
 #if defined(__GNUC__) && (__GNUC__ <= 5)
 #include <cmath>
@@ -38,12 +39,20 @@ template<> inline short saturate_cast(int x) { return (std::min)(SHRT_MAX, (std:
 template<> inline short saturate_cast(float x) { return saturate_cast<short>(static_cast<int>(std::rint(x))); }
 template<> inline float saturate_cast(float x) { return x; }
 template<> inline short saturate_cast(short x) { return x; }
+
 template<> inline uint16_t saturate_cast(uint16_t x) { return x; }
 template<> inline float    saturate_cast(uint16_t x) { return x; }
+
 template<> inline uint16_t saturate_cast(int x) { return (std::min)(USHRT_MAX, (std::max)(0, x)); }
 template<> inline uint16_t saturate_cast(float x)    { return saturate_cast<uint16_t>(static_cast<int>(std::rint(x))); }
-template<> inline uchar saturate_cast<uchar>(int v) { return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0); }
+template<> inline uchar saturate_cast<uchar>(int v)  { return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0); }
 
+template<> inline uint16_t saturate_cast(uint8_t x) { return x; }
+template<> inline float    saturate_cast(uint8_t x) { return x; }
+template<> inline uint8_t  saturate_cast(uint8_t x) { return x; }
+
+template<> inline uint8_t saturate_cast(uint16_t x) { using lim = std::numeric_limits<uint8_t>; return std::min(static_cast<uint16_t>(lim::max()), std::max(static_cast<uint16_t>(lim::min()), x));}
+template<> inline uint8_t saturate_cast(float x)    { return saturate_cast<uint8_t>(static_cast<int>(std::rint(x))); }
 //------------------------------------------------------------------------------
 
 constexpr static const int ONE = 1 << 15;
