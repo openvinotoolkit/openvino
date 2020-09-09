@@ -28,13 +28,13 @@ public class InferRequest extends IEWrapper {
         return StatusCode.valueOf(Wait(nativeObj, waitMode.getValue()));
     }
 
-    public void SetCompletionCallback(Runnable runnable){
+    public void SetCompletionCallback(Runnable runnable) {
         SetCompletionCallback(nativeObj, runnable);
     }
 
     public Map<String, InferenceEngineProfileInfo> GetPerformanceCounts() {
         return GetPerformanceCounts(nativeObj);
-    } 
+    }
 
     /*----------------------------------- native methods -----------------------------------*/
     private static native void Infer(long addr);
