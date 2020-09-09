@@ -191,7 +191,7 @@ function(add_vpu_compile_custom_kernels)
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X8X}/lib"
                     "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X8X}/bin"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X8X}/bin"
-                ${VPU_CLC_MA2X8X_COMMAND} --strip-binary-header ${cl_file} -o ${out_file}
+                ${VPU_CLC_MA2X8X_COMMAND} --strip-binary-header -w ${cl_file} -o ${out_file}
             MAIN_DEPENDENCY ${cl_file}
             DEPENDS ${VPU_CLC_MA2X8X_COMMAND}
             COMMENT "[VPU] Compile ${cl_file}"
