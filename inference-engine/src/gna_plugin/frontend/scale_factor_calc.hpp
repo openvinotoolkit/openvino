@@ -464,12 +464,9 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 }
 
                 // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
-                if (fp32eq(quantParamsIn->_dst_quant.scale, 1.0f)) {
-                    quantParamsIn->_weights_quant = quantParams->_dst_quant;
-                    quantParamsIn->_dst_quant = quantParams->_dst_quant;
-                } else {
-                    quantParamsIn->_weights_quant = quantParams->_dst_quant;
-                    quantParamsIn->_dst_quant = quantParams->_dst_quant;
+                quantParamsIn->_weights_quant = quantParams->_dst_quant;
+                quantParamsIn->_dst_quant = quantParams->_dst_quant;
+                if (!fp32eq(quantParamsIn->_dst_quant.scale, 1.0f)) {
                     concatIdxToUpdate.insert(std::distance(inputLayers.begin(), it));
                 }
             }
