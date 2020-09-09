@@ -8,7 +8,8 @@
 
 **Detailed description**
 
-GatherTree operation implements the same algorithm as GatherTree operation in TensorFlow. Please see complete documentation [here](https://www.tensorflow.org/versions/r1.12/api_docs/python/tf/contrib/seq2seq/gather_tree?hl=en).
+GatherTree operation implements the same algorithm as GatherTree operation in TensorFlow. For a given beam, past the time step containing the first decoded `end_token` all values are filled in with `end_token`.
+Please see complete documentation [here](https://www.tensorflow.org/addons/api_docs/python/tfa/seq2seq/gather_tree).
 
 Pseudo code:
 
@@ -18,11 +19,19 @@ for batch in range(BATCH_SIZE):
         max_sequence_in_beam = min(MAX_TIME, max_seq_len[batch])
 
         parent = parent_idx[max_sequence_in_beam - 1, batch, beam]
-
+        
         for level in reversed(range(max_sequence_in_beam - 1)):
             final_idx[level, batch, beam] = step_idx[level, batch, parent]
 
             parent = parent_idx[level, batch, parent]
+
+for batch in range(BATCH_SIZE):
+    for beam in range(BEAM_WIDTH):
+        for level in range(MAX_TIME):
+            if final_idx[level, batch, beam] == end_token:
+                for i in range(level+1, MAX_TIME):
+                    final_idx[i, batch, beam] = end_token
+                break
 ```
 
 Element data types for all input tensors should match each other.
