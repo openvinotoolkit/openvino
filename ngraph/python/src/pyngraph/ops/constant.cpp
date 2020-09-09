@@ -149,7 +149,7 @@ void regclass_pyngraph_op_Constant(py::module m)
         {
             return _cast_vector<int64_t>(self);
         }
-        else if (element_type == ngraph::element::u8)
+        else if (element_type == ngraph::element::u8 || element_type == ngraph::element::u1)
         {
             return _cast_vector<uint8_t>(self);
         }
@@ -206,7 +206,7 @@ void regclass_pyngraph_op_Constant(py::module m)
         {
             return _get_buffer_info<int64_t>(self);
         }
-        else if (element_type == ngraph::element::u8)
+        else if (element_type == ngraph::element::u8 || element_type == ngraph::element::u1)
         {
             return _get_buffer_info<uint8_t>(self);
         }
