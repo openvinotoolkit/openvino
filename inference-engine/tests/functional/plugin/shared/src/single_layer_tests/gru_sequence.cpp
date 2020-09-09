@@ -87,7 +87,6 @@ namespace LayerTestsDefinitions {
         if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             ngraph::pass::Manager m;
             m.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            m.set_callback([](const std::shared_ptr<const ngraph::Node>&) -> bool { return true; });
             m.run_passes(function);
         }
     }
