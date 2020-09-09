@@ -106,7 +106,7 @@ int driver_dev_id()
     auto id_itr = result.begin();
     while (id_itr != result.end()) {
         if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end())
-            result.erase(id_itr);
+            id_itr = result.erase(id_itr);
         else
             id_itr++;
     }
