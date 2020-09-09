@@ -80,6 +80,7 @@ void GRUCellTest::SetUp() {
     if (should_decompose) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::GRUCellDecomposition>();
+        m.set_callback([](const std::shared_ptr<const ngraph::Node>&) -> bool { return true; });
         m.run_passes(function);
     }
 }

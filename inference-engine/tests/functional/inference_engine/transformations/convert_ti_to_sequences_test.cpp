@@ -70,6 +70,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+        m.set_callback([](const std::shared_ptr<const Node>&) -> bool { return true; });
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -155,6 +156,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+        m.set_callback([](const std::shared_ptr<const Node>&) -> bool { return true; });
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -237,6 +239,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+        m.set_callback([](const std::shared_ptr<const Node>&) -> bool { return true; });
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
