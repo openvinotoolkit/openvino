@@ -50,14 +50,24 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
   ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
     auto pattern_map = m.get_pattern_value_map();
-    const auto fq_node = pattern_map[fq_node_p].get_node_shared_ptr();
+
+    const auto fq_node = std::dynamic_pointer_cast<ngraph::opset4::FakeQuantize>(
+        pattern_map[fq_node_p].get_node_shared_ptr());
     const auto output_low_const = pattern_map[fq_output_low_p].get_node_shared_ptr();
     const auto output_high_const = pattern_map[fq_output_high_p].get_node_shared_ptr();
+    const auto mul_node = pattern_map[mul_node_p].get_node_shared_ptr();
+    const auto mul_constant = pattern_map[mul_constant_p].get_node_shared_ptr();
+
+    auto fq_data_shape = fq_node->input_value(0).get_partial_shape();
+    const bool mul_constant_matches_fq_data = PartialShape::broadcast_merge_into(
+        fq_data_shape, mul_constant->get_output_partial_shape(0), fq_node->get_auto_broadcast());
+
+    if (!mul_constant_matches_fq_data) {
+      return false;
+    }
 
     try {
       // create two copies of the original Mul node and use them to multiply the FQ out_* constants
-      const auto mul_node = pattern_map[mul_node_p].get_node_shared_ptr();
-      const auto mul_constant = pattern_map[mul_constant_p].get_node_shared_ptr();
       // the following 2 lines might throw a validation error if the mul_constant's shape
       // does not match the shape of of the output_*_const - in this case we can't modify the graph
       const auto multiplied_out_low = mul_node->clone_with_new_inputs({output_low_const, mul_constant});
