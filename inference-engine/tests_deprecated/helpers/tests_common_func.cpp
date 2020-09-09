@@ -255,7 +255,7 @@ bool TestsCommonFunc::compareTop(
 #endif
 
         for (size_t i = 0; i < blob.size(); ++i) {
-            if (abs(ref_top[i].second - buffer[i]) > threshold) {
+            if (std::abs(ref_top[i].second - buffer[i]) > threshold) {
                 return false;
             }
         }

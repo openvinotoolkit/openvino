@@ -51,7 +51,7 @@ public:
     static float getMaxAbsValue(const float* data, size_t size) {
         float maxVal = 0.f;
         for (size_t i = 0; i < size; i++) {
-            if (fabs(data[i] > maxVal)) {
+            if (fabs(data[i]) > maxVal) {
                 maxVal = fabs(data[i]);
             }
         }
