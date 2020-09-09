@@ -65,9 +65,14 @@ void MathExpression::parse(const std::string& expression) {
         // parse number
         if (std::isdigit(*it)) {
             size_t len = 0;
+            // parse number and use its length
             const auto value = std::stof(&*it, &len);
+            (void) value;
+            // copy sub string that represents a number
+            auto substring = std::string{it, it + len};
 
-            _parsedTokens.emplace_back(TokenType::Value, ValueType{value}, "");
+            auto token = Token{TokenType::Value, ValueType{substring}, ""};
+            _parsedTokens.push_back(std::move(token));
 
             std::advance(it, len - 1);
             continue;
@@ -84,6 +89,7 @@ void MathExpression::parse(const std::string& expression) {
                 tokenStack.push(token);
                 continue;
             }
+
             if (_vars.find(token) != _vars.end()) {
                 _parsedTokens.emplace_back(TokenType::Value, ValueType{_vars.at(token)}, "");
                 continue;
