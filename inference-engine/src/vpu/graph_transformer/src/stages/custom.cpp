@@ -135,7 +135,7 @@ private:
             case CustomParamType::InputBuffer:
             case CustomParamType::OutputBuffer:
             case CustomParamType::Data: {
-                const auto kpIt = ports.find(kp);
+                const auto& kpIt = ports.find(kp);
                 VPU_THROW_UNLESS(kpIt != ports.end(),
                     "XML specification for %s layer has no definition for '%s' parameter. Layer name: %s",
                     origLayer()->type, kp, origLayer()->name);
