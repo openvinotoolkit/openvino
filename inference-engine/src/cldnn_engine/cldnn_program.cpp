@@ -512,7 +512,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         }
     }
 
-    NetPass::CombineRNNSeq(network);
+    //NetPass::CombineRNNSeq(network);
 /*    for (int i = 0; i < 2; i++) {
         NetPass::UnrollTI(network);
         NetPass::UnrollRNN_if(network, [](const RNNCellBase &rnn) -> bool {

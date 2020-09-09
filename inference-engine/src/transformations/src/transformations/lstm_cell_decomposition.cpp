@@ -14,9 +14,9 @@
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto lstm_cell = ngraph::pattern::wrap_type<opset4::LSTMCell>();
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
-        if (!lstm_cell) {
+        if (!lstm_cell || !m_transformation_callback(lstm_cell)) {
             return false;
         }
         const Output<Node>& X = lstm_cell->input_value(0);

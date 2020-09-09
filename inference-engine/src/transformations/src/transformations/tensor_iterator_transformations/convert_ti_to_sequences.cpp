@@ -21,7 +21,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
-        if (!ti)
+        if (!ti || !m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -161,6 +161,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             new_nodes.push_back(in_0.get_node_shared_ptr());
         }
         copy_runtime_info(ti, new_nodes);
+        std::cout << "CONVERT TI TO LSTM SEQ" << std::endl;
         return true;
     };
 
@@ -173,7 +174,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
-        if (!ti)
+        if (!ti || !m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -307,6 +308,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
             new_nodes.push_back(in_0);
         }
         copy_runtime_info(ti, as_node_vector(new_nodes));
+        std::cout << "CONVERT TI TO RNN SEQ" << std::endl;
         return true;
     };
 
@@ -319,7 +321,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset4::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
-        if (!ti)
+        if (!ti || !m_transformation_callback(ti))
             return false;
 
         // create pattern
@@ -454,6 +456,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
             new_nodes.push_back(in_0);
         }
         copy_runtime_info(ti, as_node_vector(new_nodes));
+        std::cout << "CONVERT TI TO GRU SEQ" << std::endl;
         return true;
     };
 

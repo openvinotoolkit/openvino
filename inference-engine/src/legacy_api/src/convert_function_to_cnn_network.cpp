@@ -853,10 +853,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             // for which the input with index 1 is also dynamic
             size_t inputID = 1;
             if (::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
-                             ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer) ||
-                             ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
-                    ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer) ||
-                    ::ngraph::as_type_ptr<::ngraph::op::RNNSequenceIE>(consumerLayer)) {
+                ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer) ||
+                ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
+                ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer) ||
+                ::ngraph::as_type_ptr<::ngraph::op::RNNSequenceIE>(consumerLayer)) {
                 inputID = 2;
             } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMSequenceIE>(consumerLayer)) {
                 inputID = 3;
