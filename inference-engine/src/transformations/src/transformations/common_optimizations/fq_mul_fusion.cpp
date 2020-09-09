@@ -54,24 +54,30 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto output_low_const = pattern_map[fq_output_low_p].get_node_shared_ptr();
     const auto output_high_const = pattern_map[fq_output_high_p].get_node_shared_ptr();
 
-    // create two copies of the original Mul node and use them to multiply the FQ out_* constants
-    const auto mul_node = pattern_map[mul_node_p].get_node_shared_ptr();
-    const auto mul_constant = pattern_map[mul_constant_p].get_node_shared_ptr();
-    const auto multiplied_out_low = mul_node->clone_with_new_inputs({output_low_const, mul_constant});
-    const auto multiplied_out_high = mul_node->clone_with_new_inputs({output_high_const, mul_constant});
+    try {
+      // create two copies of the original Mul node and use them to multiply the FQ out_* constants
+      const auto mul_node = pattern_map[mul_node_p].get_node_shared_ptr();
+      const auto mul_constant = pattern_map[mul_constant_p].get_node_shared_ptr();
+      // the following 2 lines might throw a validation error if the mul_constant's shape
+      // does not match the shape of of the output_*_const - in this case we can't modify the graph
+      const auto multiplied_out_low = mul_node->clone_with_new_inputs({output_low_const, mul_constant});
+      const auto multiplied_out_high = mul_node->clone_with_new_inputs({output_high_const, mul_constant});
 
-    // attach the new Mul nodes to the third and fourth input of the FQ node
-    auto fq_out_low_input = fq_node->input(3);
-    fq_out_low_input.replace_source_output(multiplied_out_low->output(0));
-    auto fq_out_high_input = fq_node->input(4);
-    fq_out_high_input.replace_source_output(multiplied_out_high->output(0));
+      // attach the new Mul nodes to the third and fourth input of the FQ node
+      const auto fq_out_low_input = fq_node->input(3);
+      fq_out_low_input.replace_source_output(multiplied_out_low->output(0));
+      const auto fq_out_high_input = fq_node->input(4);
+      fq_out_high_input.replace_source_output(multiplied_out_high->output(0));
 
-    // attach the output of FQ node to the output of the original Mul node
-    // (this removes the original Mul node from the graph)
-    const auto mul_node_out = mul_node->output(0);
-    const auto fq_node_out = fq_node->output(0);
-    const auto mul_node_target_input = *(mul_node_out.get_target_inputs().begin());
-    mul_node_target_input.replace_source_output(fq_node_out);
+      // attach the output of FQ node to the output of the original Mul node
+      // (this removes the original Mul node from the graph)
+      const auto mul_node_out = mul_node->output(0);
+      const auto fq_node_out = fq_node->output(0);
+      const auto mul_node_target_input = *(mul_node_out.get_target_inputs().begin());
+      mul_node_target_input.replace_source_output(fq_node_out);
+    } catch(const ngraph::NodeValidationFailure&) {
+      return false;
+    }
 
     return true;
   };
