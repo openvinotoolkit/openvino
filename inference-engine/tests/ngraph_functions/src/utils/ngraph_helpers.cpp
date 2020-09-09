@@ -211,9 +211,8 @@ void CompareFunctions(const Function& actual, const Function& expected) {
     std::queue<ComparingNodesPair> nodes;
     nodes.emplace(actualResult, expectedResult);
     while (!nodes.empty()) {
-        const auto& checkingNodes = nodes.front();
-        const auto& actualNode    = checkingNodes.first;
-        const auto& expectedNode  = checkingNodes.second;
+        const auto actualNode   = nodes.front().first;
+        const auto expectedNode = nodes.front().second;
         nodes.pop();
 
         CompareNodes(*actualNode, *expectedNode);
