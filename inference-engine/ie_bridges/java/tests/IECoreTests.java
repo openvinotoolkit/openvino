@@ -1,14 +1,14 @@
 import static org.junit.Assert.*;
-import org.junit.Test;
 
 import org.intel.openvino.*;
+import org.junit.Test;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class IECoreTests extends IETest {
     IECore core = new IECore();
-    
+
     @Test
     public void testReadNetwork() {
         CNNNetwork net = core.ReadNetwork(modelXml, modelBin);
@@ -57,7 +57,7 @@ public class IECoreTests extends IETest {
 
         Map<String, String> testMap = new HashMap<String, String>();
 
-        //When specifying key values as raw strings, omit the KEY_ prefix
+        // When specifying key values as raw strings, omit the KEY_ prefix
         testMap.put("CPU_BIND_THREAD", "YES");
         testMap.put("CPU_THREADS_NUM", "1");
 
@@ -75,6 +75,8 @@ public class IECoreTests extends IETest {
         } catch (Exception e) {
             exceptionMessage = e.getMessage();
         }
-        assertTrue(exceptionMessage.contains("Device with \"DEVISE\" name is not registered in the InferenceEngine"));
+        assertTrue(
+                exceptionMessage.contains(
+                        "Device with \"DEVISE\" name is not registered in the InferenceEngine"));
     }
 }

@@ -1,5 +1,5 @@
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class ArgumentParser {
     private Map<String, String> input;
@@ -25,8 +25,8 @@ public class ArgumentParser {
     }
 
     public void parseArgs(String[] args) {
-        try{
-            for(int i = 0; i < args.length; i++) {
+        try {
+            for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
                 if (arg.equals("--help") | arg.equals("-h")) {
                     printHelp();
@@ -40,7 +40,7 @@ public class ArgumentParser {
                     }
                 }
             }
-        } catch(ArrayIndexOutOfBoundsException e) {
+        } catch (ArrayIndexOutOfBoundsException e) {
             System.out.println("Error: Incorrect number of arguments");
             System.exit(0);
         }

@@ -1,6 +1,6 @@
 package org.intel.openvino;
 
-public class PreProcessInfo extends IEWrapper{
+public class PreProcessInfo extends IEWrapper {
 
     public PreProcessInfo(long addr) {
         super(addr);

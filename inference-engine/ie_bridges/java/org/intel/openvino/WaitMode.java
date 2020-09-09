@@ -1,7 +1,8 @@
 package org.intel.openvino;
 
 public enum WaitMode {
-    RESULT_READY(-1), STATUS_ONLY(0);
+    RESULT_READY(-1),
+    STATUS_ONLY(0);
 
     private int value;
 

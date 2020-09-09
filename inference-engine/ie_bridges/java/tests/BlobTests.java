@@ -1,10 +1,9 @@
+import org.intel.openvino.*;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.intel.openvino.*;
-
 public class BlobTests extends IETest {
-    
+
     @Test
     public void testGetBlob() {
         int[] dimsArr = {1, 3, 200, 200};

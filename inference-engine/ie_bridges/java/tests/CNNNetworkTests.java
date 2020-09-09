@@ -1,11 +1,11 @@
 import static org.junit.Assert.*;
+
+import org.intel.openvino.*;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.intel.openvino.*;
 
 public class CNNNetworkTests extends IETest {
     IECore core = new IECore();
@@ -37,13 +37,12 @@ public class CNNNetworkTests extends IETest {
     public void testAddOutput() {
         CNNNetwork net = core.ReadNetwork(modelXml);
         Map<String, Data> output = net.getOutputsInfo();
-        
+
         assertEquals("Input size", 1, output.size());
-        
+
         net.addOutput("19/WithoutBiases");
         output = net.getOutputsInfo();
 
         assertEquals("Input size", 2, output.size());
     }
-
 }
