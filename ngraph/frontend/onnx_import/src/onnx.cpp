@@ -87,7 +87,8 @@ namespace ngraph
                         legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
                     if (it != legacy_ops_to_fixup.end())
                     {
-                        if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx")
+                        if (!node.has_domain() || node.domain().empty() ||
+                            node.domain() == "ai.onnx")
                         {
                             node.set_domain(OPENVINO_ONNX_DOMAIN);
                         }
