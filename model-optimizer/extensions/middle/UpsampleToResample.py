@@ -102,8 +102,6 @@ class UpsampleToResample(MiddleReplacementPattern):
             begin_value = int64_array([get_depth_dim(layout, input_shape_rank)])
             factor_value = np.array([depth_scale, height_scale, width_scale])
 
-
-
         ss = create_op_with_const_inputs(graph, StridedSlice,
                                          {1: begin_value,
                                           2: int64_array([get_width_dim(layout, input_shape_rank) + 1]),

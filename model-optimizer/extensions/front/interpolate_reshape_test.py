@@ -29,7 +29,8 @@ nodes = {
     **valued_const_with_data('out_shape', np.array([60, 160])),
 
     **regular_op_with_shaped_data('interpolate', [1, 3, 60, 160],
-                                  {'type': 'Interpolate', 'axes': int64_array([2, 3]), 'op': 'Interpolate'}),
+                                  {'type': 'Interpolate', 'axes': int64_array([2, 3]), 'op': 'Interpolate',
+                                   'version': 'opset1'}),
     **regular_op_with_shaped_data('identity_00', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
     **regular_op_with_shaped_data('identity_01', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
 

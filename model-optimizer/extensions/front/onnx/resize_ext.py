@@ -15,10 +15,10 @@
 """
 
 from extensions.ops.upsample import UpsampleOp
+from extensions.ops.ONNXResize11 import ONNXResize11Op
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
 from mo.graph.graph import Node
-from mo.utils.error import Error
 
 
 class ResizeExtractor(FrontExtractorOp):
@@ -29,7 +29,19 @@ class ResizeExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         onnx_opset_version = get_onnx_opset_version(node)
         if onnx_opset_version is not None and onnx_opset_version >= 11:
-            raise Error("ONNX Resize operation from opset {} is not supported.".format(onnx_opset_version))
-        mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
-        UpsampleOp.update_node_stat(node, {'mode': mode})
+            mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
+            transformation_mode = onnx_attr(node,
+                                            'coordinate_transformation_mode',
+                                            's',
+                                            default=b'half_pixel').decode()
+            nearest_mode = onnx_attr(node, 'nearest_mode', 's', default=b'round_prefer_floor').decode()
+            cubic_coeff_a = onnx_attr(node, 'cubic_coeff_a', 'f', default=-0.75)
+            attrs = {
+                'mode': mode, 'coordinate_transformation_mode': transformation_mode,
+                'nearest_mode': nearest_mode, 'cube_coeff': cubic_coeff_a
+            }
+            ONNXResize11Op.update_node_stat(node, attrs)
+        else:
+            mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
+            UpsampleOp.update_node_stat(node, {'mode': mode})
         return cls.enabled
