@@ -22,7 +22,7 @@
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-#define BASE_SEED 740809191
+#define BASE_SEED RANDOMIZE
 
 namespace LayerTestsDefinitions {
 
