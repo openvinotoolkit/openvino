@@ -441,6 +441,18 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             return !info.isActivation() && !fp32eq(quantParams->_dst_quant.scale, 1.0f);
         };
 
+        static std::map<std::string, size_t> restarted_counter;
+        auto restartedCountIt = restarted_counter.find(concatLayer->name);
+        if (restartedCountIt == restarted_counter.end()) {
+            auto pos = restarted_counter.insert({ "concatLayer->name", 0 });
+            restartedCountIt = pos.first;
+        }
+
+        if (restartedCountIt->second % 2 == 1) {
+            std::reverse(inputLayers.begin(), inputLayers.end());
+        }
+        ++restartedCountIt->second;
+
         auto sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
         if (sourceLayerIt == inputLayers.end()) {
             auto nonDefaultScaleFactor = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
@@ -463,13 +475,13 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     continue;
                 }
 
-                quantParamsIn->_weights_quant = quantParams->_dst_quant;
-                quantParamsIn->_dst_quant = quantParams->_dst_quant;
-
                 // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
-                if (!fp32eq(quantParamsIn->_dst_quant.scale, 1.0f)) {
+                if (!fp32eq(quantParamsIn->_dst_quant.scale, 1.0f) && !LayerInfo(*it).isActivation()) {
                     concatIdxToUpdate.insert(std::distance(inputLayers.begin(), it));
                 }
+
+                quantParamsIn->_weights_quant = quantParams->_dst_quant;
+                quantParamsIn->_dst_quant = quantParams->_dst_quant;
             }
         }
 
