@@ -34,6 +34,7 @@ if len(MODELS_ROOT_DIR) == 0:
 
 tolerance_map = {
     "arcface_lresnet100e_opset8": {"atol": 0.001, "rtol": 0.001},
+    "fp16_inception_v1": {"atol": 0.001, "rtol": 0.001},
     "mobilenet_opset7": {"atol": 0.001, "rtol": 0.001},
     "resnet50_v2_opset7": {"atol": 0.001, "rtol": 0.001},
     "test_mobilenetv2-1.0": {"atol": 0.001, "rtol": 0.001},
