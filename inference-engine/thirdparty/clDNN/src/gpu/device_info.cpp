@@ -117,15 +117,20 @@ int driver_dev_id()
         return result.back();
 }
 
-bool get_imad_support(const cl::Device& device) {
+static device_type get_device_type(const cl::Device& device) {
+    auto unified_mem = device.getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
+
+    return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
+}
+
+static bool get_imad_support(const cl::Device& device) {
     std::string dev_name = device.getInfo<CL_DEVICE_NAME>();
 
     if (dev_name.find("Gen12") != std::string::npos ||
         dev_name.find("Xe") != std::string::npos)
         return true;
 
-    auto flag = device.getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-    if (flag != 0) {
+    if (get_device_type(device) == device_type::integrated_gpu) {
         const std::vector<int> imad_ids = {
             0x9A40, 0x9A49, 0x9A59, 0x9AD9,
             0x9A60, 0x9A68, 0x9A70, 0x9A78,
@@ -189,6 +194,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
 device_info_internal::device_info_internal(const cl::Device& device) {
     dev_name = device.getInfo<CL_DEVICE_NAME>();
     driver_version = device.getInfo<CL_DRIVER_VERSION>();
+    dev_type = get_device_type(device);
 
     compute_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
@@ -220,7 +226,6 @@ device_info_internal::device_info_internal(const cl::Device& device) {
     supports_imad = get_imad_support(device);
     supports_immad = false;
 
-    dev_type = static_cast<uint32_t>(device.getInfo<CL_DEVICE_TYPE>());
     vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
 
     supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;

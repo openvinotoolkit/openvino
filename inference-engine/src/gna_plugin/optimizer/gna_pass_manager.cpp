@@ -1290,9 +1290,11 @@ void FuseMultipleIdentitiesPass::run() {
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             continue;
         gnalog() << "CNNNetPrevLayer skip non functional from :: " << l->name;
-        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr ptr) {
+        auto isFunctional = [](CNNLayerPtr ptr) {
             return !LayerInfo(ptr).isNonFunctional();
-        });
+        };
+
+        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, isFunctional);
         prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
                                                prevLayersReached.end(),
                                                [] (const std::pair<CNNLayerPtr, int> & candidate) {

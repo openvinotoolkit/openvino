@@ -350,6 +350,22 @@ Stage StageBuilder::addSumStage(
         {output});
 }
 
+Stage StageBuilder::addProdStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input0,
+        const Data& input1,
+        const Data& output) {
+    const Data& fakeInput2 = model->addFakeData();
+    return model->addNewStage<EltwiseStage>(
+            name,
+            StageType::Prod,
+            layer,
+            {input0, input1, fakeInput2},
+            {output});
+}
+
 Stage StageBuilder::addMaxStage(
         const Model& model,
         const std::string& name,

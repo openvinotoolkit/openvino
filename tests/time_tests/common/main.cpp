@@ -32,6 +32,15 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 
 
 /**
+* @brief Function calls `runPipeline` with mandatory time tracking of full run
+*/
+int _runPipeline() {
+    SCOPED_TIMER(full_run);
+    return runPipeline(FLAGS_m, FLAGS_d);
+}
+
+
+/**
 * @brief Main entry point
 */
 int main(int argc, char **argv) {
@@ -39,5 +48,5 @@ int main(int argc, char **argv) {
         return -1;
 
     StatisticsWriter::Instance().setFile(FLAGS_s);
-    return runPipeline(FLAGS_m, FLAGS_d);
+    return _runPipeline();
 }
