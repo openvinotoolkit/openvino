@@ -12,15 +12,37 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
+};
+
+const std::vector<bool> keepDims = {
+        true,
+        false,
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
-        std::vector<size_t>{10, 20, 40},
-        std::vector<size_t>{5, 6, 10, 11},
+        std::vector<size_t>{10, 20, 30, 40},
+        std::vector<size_t>{3, 5, 7, 9},
 };
 
 const std::vector<std::vector<int>> axes = {
+        {0},
+        {1},
+        {2},
+        {3},
+        {0, 1},
         {0, 2},
+        {0, 3},
+        {1, 2},
+        {1, 3},
+        {2, 3},
+        {0, 1, 2},
+        {0, 1, 3},
+        {0, 2, 3},
+        {1, 2, 3},
+        {0, 1, 2, 3},
         {1, -1}
 };
 
@@ -45,8 +67,54 @@ const auto paramsOneAxis = testing::Combine(
         testing::ValuesIn(opTypes),
         testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
-        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::FP32),
         testing::ValuesIn(inputShapes),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+const auto params_Precisions = testing::Combine(
+        testing::Values(std::vector<int>{1, 3}),
+        testing::Values(opTypes[1]),
+        testing::ValuesIn(keepDims),
+        testing::Values(ngraph::helpers::ReductionType::Sum),
+        testing::Values(InferenceEngine::Precision::FP32,
+                        InferenceEngine::Precision::I32),
+        testing::Values(std::vector<size_t>{2, 2, 2, 2}),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+const auto params_InputShapes = testing::Combine(
+        testing::Values(std::vector<int>{0}),
+        testing::Values(opTypes[1]),
+        testing::ValuesIn(keepDims),
+        testing::Values(ngraph::helpers::ReductionType::Mean),
+        testing::Values(InferenceEngine::Precision::FP32),
+        testing::Values(std::vector<size_t>{3},
+                        std::vector<size_t>{3, 5},
+                        std::vector<size_t>{2, 4, 6},
+                        std::vector<size_t>{2, 4, 6, 8},
+                        std::vector<size_t>{2, 2, 2, 2, 2},
+                        std::vector<size_t>{2, 2, 2, 2, 2, 2}),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+const auto params_Axes = testing::Combine(
+        testing::ValuesIn(axes),
+        testing::Values(opTypes[1]),
+        testing::ValuesIn(keepDims),
+        testing::Values(ngraph::helpers::ReductionType::Mean),
+        testing::Values(InferenceEngine::Precision::FP32),
+        testing::ValuesIn(inputShapes),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+const auto params_ReductionTypes = testing::Combine(
+        testing::Values(std::vector<int>{0, 1, 3}),
+        testing::Values(opTypes[1]),
+        testing::ValuesIn(keepDims),
+        testing::ValuesIn(reductionTypes),
+        testing::Values(InferenceEngine::Precision::FP32),
+        testing::Values(std::vector<size_t>{2, 9, 2, 9}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -57,21 +125,31 @@ INSTANTIATE_TEST_CASE_P(
         ReduceOpsLayerTest::getTestCaseName
 );
 
-const auto params = testing::Combine(
-        testing::ValuesIn(axes),
-        testing::Values(opTypes[1]),
-        testing::Values(true, false),
-        testing::ValuesIn(reductionTypes),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
-);
-
 INSTANTIATE_TEST_CASE_P(
-        Reduce,
+        Reduce_Precisions,
         ReduceOpsLayerTest,
-        params,
+        params_Precisions,
         ReduceOpsLayerTest::getTestCaseName
 );
 
+INSTANTIATE_TEST_CASE_P(
+        Reduce_InputShapes,
+        ReduceOpsLayerTest,
+        params_InputShapes,
+        ReduceOpsLayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(
+        Reduce_Axes,
+        ReduceOpsLayerTest,
+        params_Axes,
+        ReduceOpsLayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(
+        Reduce_ReductionTypes,
+        ReduceOpsLayerTest,
+        params_ReductionTypes,
+        ReduceOpsLayerTest::getTestCaseName
+);
 }  // namespace
