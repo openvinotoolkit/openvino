@@ -36,11 +36,13 @@ const ConfigType configInt8 = {
  */
 const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
     {"sw_fp32", configFP32},
-    {"sw_exact_i16", configInt16},
-    {"sw_exact_i8", configInt8},
+// TODO: support FakeQuantize in integer mode
+//    {"sw_exact_i16", configInt16},
+//    {"sw_exact_i8", configInt8},
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, {3, 10, 5, 6}};
+// TODO: uncomment once fixed proper 4d import for GNA-plugin issue: 38806
+const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 1, 1}, /*{3, 10, 5, 6}*/};
 const std::vector<std::vector<size_t>> constShapes = {{1}};
 const std::vector<size_t> levels = {16, 255, 256};
 
