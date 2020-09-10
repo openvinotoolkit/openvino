@@ -27,6 +27,7 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
@@ -138,6 +139,47 @@ ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
     VPU_LOGGER_SECTION(env.log);
 
     return runCommonPasses(network);
+}
+
+bool FrontEnd::isLayerSupported(const std::string& type) {
+    return parsers.count(type) != 0;
+}
+
+ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
+        std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
+        // disable transformations for some cases
+        const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+            const bool casesWithDynamicOrStaticUsage = std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+                                                        std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+
+            const bool casesWithOnlyDynamicUsage = (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
+                                                    std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
+                    std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+
+            return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
+        };
+
+        auto nGraphFunc = network.getFunction();
+        // Disable shape inference (WA for generic operations)
+        ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+        ngraph::pass::Manager manager;
+
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.set_callback(transformationsPredicate);
+        manager.run_passes(nGraphFunc);
+
+        ngraph::pass::Manager ti_manager;
+        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+        ti_manager.run_passes(nGraphFunc);
+
+        vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
+
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+        return convertedNetwork;
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {
@@ -324,7 +366,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network) {
         { defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage); });
 }
 
-
 ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
     // NGraph -> CNN conversion may be called in 2 different moments: at
     // the beginning if conversion was forced by configuration or after detect
@@ -383,48 +424,16 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
-            // disable transformations for some cases
-            const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                const bool casesWithDynamicOrStaticUsage = std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
-                                                           std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
-
-                const bool casesWithOnlyDynamicUsage = (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
-                                                        std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
-                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
-
-                return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
-            };
-
-            auto nGraphFunc = originalOrConvertNetwork->getFunction();
-            // Disable shape inference (WA for generic operations)
-            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-            manager.set_callback(transformationsPredicate);
-            manager.run_passes(nGraphFunc);
-
-            ngraph::pass::Manager ti_manager;
-            ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-            ti_manager.run_passes(nGraphFunc);
-
-            vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
-
-            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
-            originalOrConvertNetwork = convertedNetwork.get();
-        };
-
         if (originalOrConvertNetwork->getFunction() && env.config.forceDeprecatedCnnConversion) {
-            convertNetwork();
+            convertedNetwork = convertNetwork(*originalOrConvertNetwork);
+            originalOrConvertNetwork = convertedNetwork.get();
         }
 
         detectNetworkBatch(*originalOrConvertNetwork, model);
 
         if (originalOrConvertNetwork->getFunction()) {
-            convertNetwork();
+            convertedNetwork = convertNetwork(*originalOrConvertNetwork);
+            originalOrConvertNetwork = convertedNetwork.get();
         }
 
         ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::I64, ie::Precision::I32);
