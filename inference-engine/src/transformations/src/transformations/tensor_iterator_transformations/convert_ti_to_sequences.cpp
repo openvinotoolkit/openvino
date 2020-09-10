@@ -42,16 +42,16 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto unsqueeze = std::make_shared<ngraph::opset4::Unsqueeze>(cell, axis_unsqueeze);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
-        bool flag = false;
+        bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            flag = matcher.match((res->get_input_source_output(0)));
-            if (flag)
+            match = matcher.match((res->get_input_source_output(0)));
+            if (match)
                 break;
         }
 
         // All nodes are in the TI body should be matched in pattern
-        if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
+        if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
         auto pattern_map = matcher.get_pattern_map();
@@ -198,16 +198,16 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         auto unsqueeze = std::make_shared<ngraph::opset4::Unsqueeze>(cell, axis_unsqueeze);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
-        bool flag = false;
+        bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            flag = matcher.match((res->get_input_source_output(0)));
-            if (flag)
+            match = matcher.match((res->get_input_source_output(0)));
+            if (match)
                 break;
         }
 
         // All nodes are in the TI body should be matched in pattern
-        if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
+        if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
         auto pattern_map = matcher.get_pattern_map();
@@ -350,16 +350,16 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         auto unsqueeze = std::make_shared<ngraph::opset4::Unsqueeze>(cell, axis_unsqueeze);
         ngraph::pattern::Matcher matcher(unsqueeze);
 
-        bool flag = false;
+        bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            flag = matcher.match((res->get_input_source_output(0)));
-            if (flag)
+            match = matcher.match((res->get_input_source_output(0)));
+            if (match)
                 break;
         }
 
         // All nodes are in the TI body should be matched in pattern
-        if (!flag || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
+        if (!match || (matcher.get_matched_nodes().size() + func->get_results().size()) != func->get_ops().size())
             return false;
 
         auto pattern_map = matcher.get_pattern_map();
