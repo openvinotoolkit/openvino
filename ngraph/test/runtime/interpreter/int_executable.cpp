@@ -185,6 +185,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             m_timer_map[op].start();
         }
+        std::cout << op->get_type_name() <<std::endl;
         if (!op->evaluate(op_outputs, op_inputs))
         {
             evaluate_node(op, op_outputs, op_inputs);

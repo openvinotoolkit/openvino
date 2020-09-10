@@ -37,6 +37,9 @@
 #include <ngraph/runtime/reference/dot.hpp>
 #include <ngraph/runtime/reference/replace_slice.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
+#include <ngraph/runtime/reference/rnn_cell.hpp>
+#include <ngraph/runtime/reference/lstm_cell.hpp>
+#include <ngraph/runtime/reference/gru_cell.hpp>
 #include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "reference/gelu.hpp"
@@ -171,18 +174,13 @@ namespace {
             inputs[0]->get_shape(), \
             op->is_exclusive(), \
             op->is_reverse()); \
+        break;
 
         switch (inputs[1]->get_element_type()) {
             case element::Type_t::i64: {
-                try {
-                    REF_CALL(element::Type_t::i64);
-                } catch (...) {
-                    REF_CALL(element::Type_t::i32);
-                };
-                break;
+                REF_CALL(element::Type_t::i64);
             }
             default:
-//                std::cout << inputs[1]->get_element_type() << std::endl;
                 REF_CALL(element::Type_t::i32);
         }
 #undef REF_CALL
@@ -208,9 +206,9 @@ namespace {
 
         switch (inputs[1]->get_element_type()) {
             case element::Type_t::i32:
-            REF_CALL(element::Type_t::i32);
+                REF_CALL(element::Type_t::i32);
             case element::Type_t::i64:
-            REF_CALL(element::Type_t::i64);
+                REF_CALL(element::Type_t::i64);
             default:
                 return false;
         }
@@ -236,9 +234,9 @@ namespace {
 
         switch (inputs[1]->get_element_type()) {
             case element::Type_t::i32:
-            REF_CALL(element::Type_t::i32);
+                REF_CALL(element::Type_t::i32);
             case element::Type_t::i64:
-            REF_CALL(element::Type_t::i64);
+                REF_CALL(element::Type_t::i64);
             default:
                 return false;
         }
@@ -262,9 +260,9 @@ namespace {
 
         switch (inputs[1]->get_element_type()) {
             case element::Type_t::i32:
-            REF_CALL(element::Type_t::i32);
+                REF_CALL(element::Type_t::i32);
             case element::Type_t::i64:
-            REF_CALL(element::Type_t::i64);
+                REF_CALL(element::Type_t::i64);
             default:
                 return false;
         }
@@ -496,8 +494,9 @@ namespace {
             input[0]->get_shape(),\
             op->get_batch_axis(),\
             op->get_origin_sequence_axis(),\
-            input[1]->get_data_ptr<U>()); \
-            break;
+            input[1]->get_data_ptr<U>());\
+        break;
+
         switch (input[1]->get_element_type()) {
             case element::Type_t::boolean:
             REF_CALL(element::Type_t::boolean)
@@ -627,11 +626,70 @@ namespace {
     template<element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::RNNCell> &op, const HostTensorVector &outputs,
                   const HostTensorVector &inputs) {
-//        runtime::reference::rnn_cell(inputs[0]->get_data_ptr<char>(),
-//                                outputs[0]->get_data_ptr<char>(),
-//                                inputs[0]->get_shape(),
-//                                outputs[0]->get_shape(),
-//                                op->get_reduction_axes());
+
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::rnn_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                        inputs[0]->get_shape(),
+                                        inputs[1]->get_data_ptr<ET>(),
+                                        inputs[1]->get_shape(),
+                                        inputs[2]->get_data_ptr<ET>(),
+                                        inputs[2]->get_shape(),
+                                        inputs[3]->get_data_ptr<ET>(),
+                                        inputs[3]->get_shape(),
+                                        inputs[4]->get_data_ptr<ET>(),
+                                        inputs[4]->get_shape(),
+                                        outputs[0]->get_data_ptr<ET>(),
+                                        op->get_activations().front(),
+                                        op->get_clip());
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v4::LSTMCell> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &inputs) {
+
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::lstm_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                     inputs[0]->get_shape(),
+                                     inputs[1]->get_data_ptr<ET>(),
+                                     inputs[1]->get_shape(),
+                                     inputs[2]->get_data_ptr<ET>(),
+                                     inputs[2]->get_shape(),
+                                     inputs[3]->get_data_ptr<ET>(),
+                                     inputs[3]->get_shape(),
+                                     inputs[4]->get_data_ptr<ET>(),
+                                     inputs[4]->get_shape(),
+                                     inputs[5]->get_data_ptr<ET>(),
+                                     inputs[5]->get_shape(),
+                                     outputs[0]->get_data_ptr<ET>(),
+                                     outputs[1]->get_data_ptr<ET>(),
+                                     op->get_activations()[0],
+                                     op->get_activations()[1],
+                                     op->get_activations()[2],
+                                     op->get_clip());
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::GRUCell> &op, const HostTensorVector &outputs,
+                  const HostTensorVector &inputs) {
+
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::gru_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                         inputs[0]->get_shape(),
+                                         inputs[1]->get_data_ptr<ET>(),
+                                         inputs[1]->get_shape(),
+                                         inputs[2]->get_data_ptr<ET>(),
+                                         inputs[2]->get_shape(),
+                                         inputs[3]->get_data_ptr<ET>(),
+                                         inputs[3]->get_shape(),
+                                         inputs[4]->get_data_ptr<ET>(),
+                                         inputs[4]->get_shape(),
+                                         outputs[0]->get_data_ptr<ET>(),
+                                         op->get_activations()[0],
+                                         op->get_activations()[1],
+                                         op->get_clip(),
+                                         op->get_linear_before_reset());
         return true;
     }
 
@@ -654,7 +712,13 @@ namespace {
 
     template<typename T>
     bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector &outputs, const HostTensorVector &inputs) {
-        switch (node->get_element_type()) {
+        auto element_type = node->get_output_element_type(0);
+        for (size_t i = 1; i < node->outputs().size(); i++) {
+            if (element_type != node->get_output_element_type(i)) {
+                throw std::logic_error("Output node element types is not equal");
+            }
+        }
+        switch (element_type) {
             case element::Type_t::boolean:
                 return evaluate<element::Type_t::boolean>(as_type_ptr<T>(node), outputs, inputs);;
 //            case element::Type_t::bf16:
