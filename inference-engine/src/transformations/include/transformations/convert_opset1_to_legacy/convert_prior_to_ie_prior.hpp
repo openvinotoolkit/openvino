@@ -19,9 +19,9 @@ class TRANSFORMATIONS_API ConvertPriorBox;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPriorBox: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertPriorBox : public ngraph::pass::MatcherPass {
 public:
-    ConvertPriorBox() : GraphRewrite() {
+    ConvertPriorBox() : {
         convert_prior_box();
         convert_prior_box_clustered();
     }

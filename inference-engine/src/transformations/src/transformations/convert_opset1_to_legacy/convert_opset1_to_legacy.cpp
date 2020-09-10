@@ -24,6 +24,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_sqrt_to_power_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
@@ -161,6 +162,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPriorBox>();
     anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
 
     // List of final conversion transformations that must to be executed
