@@ -18,11 +18,17 @@
 
 #include "single_layer_tests/fake_quantize.hpp"
 
-#define RANDOMIZE 1
+// seed selected using current cloc time
+#define USE_CLOCK_TIME 1
+// seed started from default value, and incremented every time using big number like 9999
+#define USE_INCREMENTAL_SEED 2
+
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-#define BASE_SEED RANDOMIZE
+// 999901
+#define BASE_SEED   819101905
+#define NGRAPH_SEED 819101905
 
 namespace LayerTestsDefinitions {
 
@@ -74,9 +80,15 @@ void FakeQuantizeLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
+    UpdateSeed();
+
     std::shared_ptr<ngraph::Node> fakeQNode;
     if (fqDirectArg.empty()) {
-        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape);
+        int32_t ngraphSeed = seed;
+        if (NGRAPH_SEED != USE_CLOCK_TIME) {
+            ngraphSeed = NGRAPH_SEED;
+        }
+        fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
         fakeQNode = ngraph::builder::makeFakeQuantize(
             paramOuts[0],
@@ -96,35 +108,35 @@ void FakeQuantizeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
 
     configuration = config.second;
-    seed = BASE_SEED;
 }
 
 InferenceEngine::Blob::Ptr FakeQuantizeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution, seed);
 }
 
+void FakeQuantizeLayerTest::UpdateSeed() {
+    if (BASE_SEED == USE_CLOCK_TIME) {
+        seed = std::chrono::system_clock::now().time_since_epoch().count();
+    } else if (BASE_SEED == USE_INCREMENTAL_SEED) {
+        seed += 9999;
+    } else {
+        seed = BASE_SEED;
+    }
+    std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
+              << "seed = " << seed << std::endl;
+}
+
 TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
-    auto isRandomize = seed == RANDOMIZE;
-    auto updateSeed = [this, isRandomize]() {
-        if (isRandomize) {
-            seed = std::chrono::system_clock::now().time_since_epoch().count();
-            std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
-              << "random seed = " << seed << std::endl;
-        } else {
-            std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
-                      << "seed = " << seed << std::endl;
-        }
-    };
-    updateSeed();
     Run();
 
-    if (!isRandomize) {
+    if (BASE_SEED != USE_CLOCK_TIME &&
+        BASE_SEED != USE_INCREMENTAL_SEED) {
         return;
     }
 
     size_t nIterations = (inputDataMax - inputDataMin) / inputDataResolution;
     for (; nIterations != 0; nIterations--) {
-        updateSeed();
+        UpdateSeed();
         Infer();
         Validate();
     }

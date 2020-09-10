@@ -77,6 +77,13 @@ protected:
             }
 
             const auto max = std::max(std::abs(res), std::abs(ref));
+            if (!(max != 0 && ((absoluteDifference / max) <= threshold))) {
+                std::cerr
+                    << "Relative comparison of values expected: " << ref << " and actual: " << res
+                    << " at index " << i << " with threshold " << threshold
+                    << " failed";
+                exit(1);
+            }
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
