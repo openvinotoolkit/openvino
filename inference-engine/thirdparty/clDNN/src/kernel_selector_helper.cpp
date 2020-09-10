@@ -343,13 +343,15 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
         case kernel_selector::weights_layout::oyxi:
             return cldnn::format::byxf;
         case kernel_selector::weights_layout::io:
-            return cldnn::format::fyxb;
+            return cldnn::format::iyxo;
         case kernel_selector::weights_layout::iyxo:
-            return cldnn::format::fyxb;
+            return cldnn::format::iyxo;
         case kernel_selector::weights_layout::yxio:
             return cldnn::format::yxfb;
         case kernel_selector::weights_layout::os_iyx_osv16:
             return cldnn::format::os_iyx_osv16;
+        case kernel_selector::weights_layout::os_is_yx_isv16_osv16:
+            return cldnn::format::os_is_yx_isv16_osv16;
         case kernel_selector::weights_layout::os_is_yx_osv16_isv16:
             return cldnn::format::os_is_yx_osv16_isv16;
         case kernel_selector::weights_layout::os_iyx_osv32:
@@ -458,8 +460,46 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_zyx_is_osv32_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32:
             return cldnn::format::g_os_zyx_is_osv32_isv32;
+        case kernel_selector::weights_layout::gs_oi_yxs_gsv4_yxsv4:
+            return cldnn::format::gs_oi_yxs_gsv4_yxsv4;
+        case kernel_selector::weights_layout::gs_oi_yxs_gsv16_yxsv4:
+            return cldnn::format::gs_oi_yxs_gsv16_yxsv4;
+        case kernel_selector::weights_layout::gs_oi_yxs_gsv32_yxsv4:
+            return cldnn::format::gs_oi_yxs_gsv32_yxsv4;
+        case kernel_selector::weights_layout::g_os_is_yx_osv16_isv4:
+            return cldnn::format::g_os_is_yx_osv16_isv4;
+        case kernel_selector::weights_layout::g_os_is_yx_isv16_osv16:
+            return cldnn::format::g_os_is_yx_isv16_osv16;
+        case kernel_selector::weights_layout::os_iyx_osv32__ai32:
+            return cldnn::format::os_iyx_osv32__ai32;
+        case kernel_selector::weights_layout::os_is_osv32_isv32_swizzled_by_4:
+            return cldnn::format::os_is_osv32_isv32_swizzled_by_4;
+        case kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32:
+            return cldnn::format::iy_xs_os_xsv2_osv16__ao32;
+        case kernel_selector::weights_layout::iy_xs_os_xsv2_osv8__ao32:
+            return cldnn::format::iy_xs_os_xsv2_osv8__ao32;
+        case kernel_selector::weights_layout::i_yxs_os_yxsv2_osv16:
+            return cldnn::format::i_yxs_os_yxsv2_osv16;
+        case kernel_selector::weights_layout::os_is_zyx_osv32_isv16:
+            return cldnn::format::os_is_zyx_osv32_isv16;
+        case kernel_selector::weights_layout::os_is_zyx_osv64_isv16:
+            return cldnn::format::os_is_zyx_osv64_isv16;
+        case kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2:
+            return cldnn::format::os_is_yx_isv8_osv16_isv2;
+        case kernel_selector::weights_layout::dlstm_dir_io:
+            return cldnn::format::lstm_weights_dio;
+        case kernel_selector::weights_layout::os_iyx_osv16_rotate_180:
+            return cldnn::format::os_iyx_osv16;
+        case kernel_selector::weights_layout::os_i_yxs_osv4_yxsv4:
+            return cldnn::format::os_i_yxs_osv4_yxsv4;
+        case kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16:
+            return cldnn::format::gi_yxs_os_yxsv2_osv16;
+        case kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32:
+            return cldnn::format::giy_xs_os_xsv2_osv8__ao32;
+        case kernel_selector::weights_layout::giy_xs_os_xsv2_osv16__ao32:
+            return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
         default:
-            return cldnn::format::bfyx;
+            throw std::invalid_argument("Unable to convert kernel selector Weights layout " + std::to_string((int)l) + " to cldnn format");
     }
 }
 
@@ -561,14 +601,18 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     const auto format = from_weights_layout(l.GetLayout());
     const auto type = from_weights_type(l.GetDType());
 
-    tensor t = {static_cast<int>(l.OFM().v),
-                static_cast<int>(l.IFM().v),
-                static_cast<int>(l.X().v),
-                static_cast<int>(l.Y().v),
-                static_cast<int>(l.LX().v),
-                static_cast<int>(l.LY().v)};
+    tensor size(1);
 
-    return layout(type, format, t);
+    size.group[0] = static_cast<int32_t>(l.G().v);
+    size.batch[0] = static_cast<int32_t>(l.OFM().v);
+    size.feature[0] = static_cast<int32_t>(l.IFM().v);
+    size.spatial[0] = static_cast<int32_t>(l.X().v);
+    size.spatial[1] = static_cast<int32_t>(l.Y().v);
+    size.spatial[2] = static_cast<int32_t>(l.Z().v);
+    size.local[0] = static_cast<int32_t>(l.LX().v);
+    size.local[1] = static_cast<int32_t>(l.LY().v);
+
+    return layout(type, format, size);
 }
 
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation) {

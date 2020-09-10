@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,25 @@ struct memory_impl : refcounted_obj<memory_impl> {
     uint32_t get_net_id() const { return _net_id; }
     void set_net(uint32_t id) { _net_id = id; }
     allocation_type get_allocation_type() const { return _type; }
+    virtual bool is_memory_reset_needed(layout l) {
+        // To avoid memory reset, output memory must meet the following requirements:
+        // - To be Weights format (Data memory can be reused by memory_pool, which can lead to errors)
+        // - To have zero paddings
+        // - To be completely filled with data
+        if (!format::is_weights_format(l.format) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
+            return true;
+        }
+
+        if (l.data_padding.lower_size() != tensor(0) || l.data_padding.upper_size() != tensor(0)) {
+            return true;
+        }
+
+        if (_bytes_count == (l.data_type == data_types::bin ? ceil_div(l.count(), 32) : l.count()) * data_type_traits::size_of(l.data_type)) {
+            return false;
+        }
+
+        return true;
+    }
 
 protected:
     engine_impl *const _engine;
