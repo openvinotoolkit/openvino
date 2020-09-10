@@ -15,8 +15,7 @@ namespace builder {
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType,
-                                             std::vector<size_t> inShape,
-                                             std::vector<float> constantsValue) {
+                                             std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::Sigmoid:
             return std::make_shared<ngraph::op::Sigmoid>(in);
@@ -28,7 +27,7 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             auto leaky_slope = std::make_shared<ngraph::op::Constant>(
                     ngraph::element::f32,
                     inShape,
-                    constantsValue);
+                    std::vector<float>{0.01f});
             return std::make_shared<ngraph::op::PRelu>(in, leaky_slope);
         }
         case ngraph::helpers::ActivationTypes::Exp:
@@ -42,7 +41,7 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
         case ngraph::helpers::ActivationTypes::Gelu:
             return std::make_shared<ngraph::op::Gelu>(in);
         case ngraph::helpers::ActivationTypes::Clamp:
-            return std::make_shared<ngraph::op::Clamp>(in, constantsValue[0], constantsValue[1]);
+            return std::make_shared<ngraph::op::Clamp>(in, -2.0, 2.0);
         case ngraph::helpers::ActivationTypes::Negative:
             return std::make_shared<ngraph::op::Negative>(in);
         case ngraph::helpers::ActivationTypes::Acos:
@@ -66,21 +65,21 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
         case ngraph::helpers::ActivationTypes::Tan:
             return std::make_shared<ngraph::op::Tan>(in);
         case ngraph::helpers::ActivationTypes::Elu:
-            return std::make_shared<ngraph::op::Elu>(in, constantsValue[0]);
+            return std::make_shared<ngraph::op::Elu>(in, 0.1);
         case ngraph::helpers::ActivationTypes::Erf:
             return std::make_shared<ngraph::op::Erf>(in);
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
             auto hard_sigmoid_alpha = std::make_shared<ngraph::op::Constant>(
-                    type, inShape, constantsValue[0]);
+                    type, inShape, 0.2f);
             auto hard_sigmoid_beta = std::make_shared<ngraph::op::Constant>(
-                    type, inShape, constantsValue[1]);
+                    type, inShape, 0.5f);
             return std::make_shared<ngraph::op::HardSigmoid>(in, hard_sigmoid_alpha, hard_sigmoid_beta);
         }
         case ngraph::helpers::ActivationTypes::Selu: {
             auto selu_alpha = std::make_shared<ngraph::op::Constant>(
-                    type, inShape, constantsValue[0]);
+                    type, inShape, 1.6732f);
             auto selu_lambda = std::make_shared<ngraph::op::Constant>(
-                    type, inShape, constantsValue[1]);
+                    type, inShape, 1.0507f);
             return std::make_shared<ngraph::op::Selu>(in, selu_alpha, selu_lambda);
         }
         case ngraph::helpers::ActivationTypes::Ceiling:
@@ -89,7 +88,7 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             auto negative_slope = std::make_shared<ngraph::op::Constant>(
                     ngraph::element::f32,
                     inShape,
-                    constantsValue);
+                    std::vector<float>{-0.01f});
             return std::make_shared<ngraph::op::PRelu>(in, negative_slope);
         }
         case ngraph::helpers::ActivationTypes::Mish:
@@ -99,7 +98,7 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
         case ngraph::helpers::ActivationTypes::SoftPlus:
             return std::make_shared<ngraph::op::v4::SoftPlus>(in);
         case ngraph::helpers::ActivationTypes::Swish: {
-            auto beta = std::make_shared<ngraph::op::Constant>(type, inShape, constantsValue[0]);
+            auto beta = std::make_shared<ngraph::op::Constant>(type, inShape, 1.0f);
             return std::make_shared<ngraph::op::v4::Swish>(in, beta);
         }
         default:

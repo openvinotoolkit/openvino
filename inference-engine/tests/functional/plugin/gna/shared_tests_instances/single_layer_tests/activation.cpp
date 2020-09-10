@@ -25,14 +25,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U8
 };
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid, {}},
-        {Tanh,    {}},
-        {Relu,    {}},
-        {Exp,     {}},
-        {Log,     {}},
-        {Sign,    {}},
-        {Abs,     {}}
+const std::vector<ActivationTypes> activationTypes = {
+        Sigmoid,
+        Tanh,
+        Relu,
+        Exp,
+        Log,
+        Sign,
+        Abs
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -42,9 +42,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+        ::testing::ValuesIn(activationTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 

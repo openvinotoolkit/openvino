@@ -74,7 +74,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
 };
 
 typedef std::tuple<
-        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
+        ngraph::helpers::ActivationTypes,
         InferenceEngine::Precision,
         std::pair<std::vector<size_t>, std::vector<size_t>>,
         std::string> activationParams;
@@ -98,12 +98,8 @@ protected:
     void SetUp() override;
 
 private:
-    void generateActivationBlob(std::vector<float> constantsValue);
-    ngraph::ParameterVector createActivationParams(
-        ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
-
-private:
-    std::vector<float> constantsValue;
+    void generateActivationBlob();
+    ngraph::ParameterVector createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
 };
 
 }  // namespace LayerTestsDefinitions

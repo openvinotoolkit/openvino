@@ -23,15 +23,14 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::string targetDevice;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, shapes, targetDevice) = obj.param;
+    ngraph::helpers::ActivationTypes activationType;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
-    result << activationNames[activationDecl.first] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;
-    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationDecl.second) << separator;
+    result << activationNames[activationType] << separator;
+    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;;
+    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -40,15 +39,10 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
 void ActivationLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
-
-    activationType = activationDecl.first;
-    auto constantsValue = activationDecl.second;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
-
+    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second);
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
 
@@ -133,29 +127,29 @@ ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph:
     }
 }
 
-void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constantsValue) {
+void ActivationParamLayerTest::generateActivationBlob() {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
             auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
-            float negativeSlope = constantsValue[0];
+            float negativeSlope = -0.01f;
             blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
             auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
-            float leakySlope = constantsValue[0];
+            float leakySlope = 0.01f;
             blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
             auto blobHardSigmoidBeta = inferRequest.GetBlob("beta");
-            float alpha = constantsValue[0], beta = constantsValue[1];
+            float alpha = 0.2f, beta = 0.5f;
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
         }
         case ngraph::helpers::ActivationTypes::Selu: {
             auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
             auto blobHardSigmoidLambda = inferRequest.GetBlob("lambda");
-            float alpha = constantsValue[0], lambda = constantsValue[1];
+            float alpha = 1.6732f, lambda = 1.0507f;
             blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
@@ -170,7 +164,7 @@ void ActivationParamLayerTest::Infer() {
     auto blobInput = inferRequest.GetBlob("Input");
     blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
 
-    generateActivationBlob(constantsValue);
+    generateActivationBlob();
 
     inferRequest.Infer();
 }
@@ -179,18 +173,12 @@ void ActivationParamLayerTest::Infer() {
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
-
-    activationType = activationDecl.first;
-    constantsValue = activationDecl.second;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     auto activationParams = createActivationParams(ngPrc);
-
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
-
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
