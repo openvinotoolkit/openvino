@@ -26,7 +26,7 @@ void dynamicToStaticShapeTranspose(std::shared_ptr<ngraph::Node> target) {
 
     const auto transposition = target->input_value(1).get_node_shared_ptr();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::opset3::Constant>(transposition),
-        "DynamicToStaticShape transformation for {] of type {} expects {} as input with index {}",
+        "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1);
 
     const auto copied = transpose->clone_with_new_inputs(target->input_values());
