@@ -217,7 +217,7 @@ namespace ngraph
                     const auto converted_sizes =
                         std::make_shared<default_opset::Convert>(sizes, ngraph::element::f32);
                     const auto divide =
-                        std::make_shared<default_opset::Divide>(sizes, shape_of_data);
+                        std::make_shared<default_opset::Divide>(converted_sizes, shape_of_data);
                     const auto eps_node = std::make_shared<default_opset::Constant>(
                         ngraph::element::f32, Shape{}, epsilon);
                     const auto scales = std::make_shared<default_opset::Add>(divide, eps_node);
@@ -262,7 +262,7 @@ namespace ngraph
                     return {
                         std::make_shared<ngraph::op::v0::Interpolate>(data, output_shape, attrs)};
                 }
-            }
+            } // namespace
 
             namespace set_11
             {
