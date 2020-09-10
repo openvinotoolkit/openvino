@@ -21,16 +21,13 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
 
+#include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
 #include "vpu/ngraph/operations/dynamic_non_max_suppression.hpp"
 
 namespace vpu {
-
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
-    stream << object.name << " ver. " << object.version;
-}
 
 namespace {
 

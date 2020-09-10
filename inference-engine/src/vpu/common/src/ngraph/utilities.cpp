@@ -60,3 +60,11 @@ std::vector<std::int64_t> evaluateTargetShape(const ngraph::Output<ngraph::Node>
     const auto shapeConstNode = std::make_shared<ngraph::opset3::Constant>(shapeTensor);
     return {shapeConstNode->cast_vector<std::int64_t>()};
 }
+
+namespace vpu {
+
+void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
+    stream << object.name << " ver. " << object.version;
+}
+
+}  // namespace vpu
