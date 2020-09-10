@@ -1047,48 +1047,53 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto scalesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
-    auto pushDesc = [&](memory::format dataFormat) {
+    auto pushDesc = [&](memory::format dataFormat, impl_desc_type implDetail) {
         config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), inputDataType, dataFormat);
         config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(TARGET_SHAPE_ID)->getDims(), targetShapeType, memory::x);
         config.inConfs[SCALES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(SCALES_ID)->getDims(), scalesType, memory::x);
         if (isAxesSpecified)
             config.inConfs[AXES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXES_ID)->getDims(), axesType, memory::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, dataFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, dataFormat});
+        supportedPrimitiveDescriptors.push_back({config, implDetail, dataFormat});
     };
 
     if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
         // blk and by_channel JIT kernel on sse42 or above machine
         if (mayiuse(cpu::sse42)) {
             if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
-                pushDesc(memory::nhwc);
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nChw16c);
+                    pushDesc(memory::nhwc, jit_avx512);
+                    pushDesc(memory::nChw16c, jit_avx512);
+                } else if (mayiuse(cpu::avx2)) {
+                    pushDesc(memory::nhwc, jit_avx2);
+                    pushDesc(memory::nChw8c, jit_avx2);
                 } else {
-                    pushDesc(memory::nChw8c);
+                    pushDesc(memory::nhwc, jit_sse42);
+                    pushDesc(memory::nChw8c, jit_sse42);
                 }
             } else if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 5 && mode == InterpolateMode::nearest) {
-                pushDesc(memory::ndhwc);
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nCdhw16c);
+                    pushDesc(memory::ndhwc, jit_avx512);
+                    pushDesc(memory::nCdhw16c, jit_avx512);
+                } else if (mayiuse(cpu::avx2)) {
+                    pushDesc(memory::ndhwc, jit_avx2);
+                    pushDesc(memory::nCdhw8c, jit_avx2);
                 } else {
-                    pushDesc(memory::nCdhw8c);
+                    pushDesc(memory::ndhwc, jit_sse42);
+                    pushDesc(memory::nCdhw8c, jit_sse42);
                 }
-            }
-            if (fusedWith.empty()) {
-                pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
             }
         }
 
         // planar for 1.ref on machine without sse42(no fuse). 2.JIT kernel for f32 && avx2(gather).(with fuse)
         if (!mayiuse(cpu::sse42))
-            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
 
         if (mayiuse(cpu::avx2) && inputPrec == Precision::FP32) {
-            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), jit_avx2);
         }
     } else if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic) {
-        pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+        pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
     }
 }
 
@@ -1721,14 +1726,14 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
 
-    // index_h * IW * srcDataSize
+    std::vector<int> index_kernel(OH + OW);
+    // index_h * IW * srcDataSize to reduce and simplify redundant compute
     for (int oh = 0; oh < OH; oh++) {
-        index_h[oh] *= IW;
-        index_h[oh] *= srcDataSize;
+        index_kernel[oh] = index_h[oh] * IW * srcDataSize;
     }
     // index_w * srcDataSize
     for (int ow = 0; ow < OW; ow++) {
-        index_w[ow] *= srcDataSize;
+        index_kernel[OH + ow] = index_w[ow] * srcDataSize;
     }
 
     parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
@@ -1738,7 +1743,7 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
         auto arg = jit_interpolate_call_args();
         arg.src = in_ptr;
         arg.dst = out_ptr;
-        arg.index = index_h;  // need index_h and index_w in kernel, it's in continous memory so one param
+        arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
         arg.oc_off = static_cast<size_t>(c);
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
         (*interpolateKernel)(&arg);
@@ -1991,7 +1996,6 @@ void MKLDNNInterpolateNode::linearInterpolation(const uint8_t *in_ptr_, uint8_t 
         }
     });
 }
-
 
 void MKLDNNInterpolateNode::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW,
                                     float fx, float fy, int OH, int OW, float a) {
