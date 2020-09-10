@@ -27,8 +27,12 @@ set(REF_IMPL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::mt)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR})

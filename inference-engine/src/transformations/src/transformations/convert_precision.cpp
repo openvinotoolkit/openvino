@@ -12,6 +12,12 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#include <tbb/parallel_for.h>
+#endif
+
+#include <immintrin.h>
+
 using namespace ngraph;
 
 bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
@@ -327,6 +333,7 @@ inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
     return static_cast<int32_t>(val);
 }
 
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
 static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
@@ -338,12 +345,49 @@ static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::C
     auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
     auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
 
-    std::vector<dst_type> final_data;
-    for (size_t i = 0; i < size; ++i) {
-        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
-    }
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, size),
+                        [&](tbb::blocked_range<size_t> range) {
+                            for (size_t i = range.begin(); i < range.end(); ++i) {
+                                dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+                            }
+                        });
+
     return new_constant;
 }
+
+template <>
+std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::Type_t::f32>(std::shared_ptr<opset4::Constant> & constant) {
+    using src_type = element_type_traits<element::Type_t::f16>::value_type;
+    using dst_type = element_type_traits<element::Type_t::f32>::value_type;
+
+    const auto * src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
+
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
+    auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+
+    // TODO: Add SSE2/FP16C/AVX check
+
+    size_t const n = size / 8;
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, n),
+                        [&](tbb::blocked_range<size_t> range) {
+                            for (size_t i = range.begin(); i < range.end(); ++i) {
+                                __m128i f16vec = _mm_loadu_si128((const __m128i*)&src_data[i * 8]); // SSE2
+                                __m256 f32vec = _mm256_cvtph_ps(f16vec);                            // FP16C
+                                _mm256_storeu_ps(&dst_data[i * 8], f32vec);                         // AVX
+                            }
+                        });
+
+    std::transform(src_data + n * 8, src_data + size, dst_data + n * 8,
+                [](src_type val) {
+                    return static_cast<dst_type>(val);
+                });
+
+    return new_constant;
+}
+
+#endif
 
 bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const std::vector<Input<Node>> & consumers) {
     if (auto constant = as_type_ptr<opset4::Constant>(node)) {

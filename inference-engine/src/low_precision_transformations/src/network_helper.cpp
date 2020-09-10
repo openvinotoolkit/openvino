@@ -1888,26 +1888,45 @@ void CNNNetworkHelper::quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetB
     auto srcPtr = srcData.get();
     auto dstPtr = &dstBuffer[0];
 
-    parallel_for4d(OC, IC, D, H, [&](size_t oc, size_t ic, size_t d, size_t h) {
-        const float inputLow = quantizationDetails.inputLowValues[isInputLowBroadcasted ? 0 : oc];
-        const float inputHigh = quantizationDetails.inputHighValues[isInputHighBroadcasted ? 0 : oc];
-        const float outputLow = quantizationDetails.outputLowValues[isOutputLowBroadcasted ? 0 : oc];
-        const float outputHigh = quantizationDetails.outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+    if (roundValues) {
+        parallel_for4d(OC, IC, D, H, [&](size_t oc, size_t ic, size_t d, size_t h) {
+            const float inputLow = quantizationDetails.inputLowValues[isInputLowBroadcasted ? 0 : oc];
+            const float inputHigh = quantizationDetails.inputHighValues[isInputHighBroadcasted ? 0 : oc];
+            const float outputLow = quantizationDetails.outputLowValues[isOutputLowBroadcasted ? 0 : oc];
+            const float outputHigh = quantizationDetails.outputHighValues[isOutputHighBroadcasted ? 0 : oc];
 
-        for (size_t w = 0; w < W; w++) {
-            const size_t idx = oc * IDHW + ic * DHW + d * H * W + h * W + w;
-
-            if (srcPtr[idx] <= inputLow) {
-                dstPtr[idx] = roundValues ? std::roundf(outputLow) : outputLow;
-            } else if (srcPtr[idx] > inputHigh) {
-                dstPtr[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
-            } else {
-                const float value = std::roundf((srcPtr[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
-                                    levels_1 * (outputHigh - outputLow) + outputLow;
-                dstPtr[idx] = roundValues ? std::roundf(value) : value;
+            for (size_t idx = oc * IDHW + ic * DHW + d * H * W + h * W, idxLast = idx + W; idx < idxLast; ++idx) {
+                if (srcPtr[idx] <= inputLow) {
+                    dstPtr[idx] = std::roundf(outputLow);
+                } else if (srcPtr[idx] > inputHigh) {
+                    dstPtr[idx] = std::roundf(outputHigh);
+                } else {
+                    const float value = std::roundf((srcPtr[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
+                                        levels_1 * (outputHigh - outputLow) + outputLow;
+                    dstPtr[idx] = std::roundf(value);
+                }
             }
-        }
-    });
+        });
+    } else {
+        parallel_for4d(OC, IC, D, H, [&](size_t oc, size_t ic, size_t d, size_t h) {
+            const float inputLow = quantizationDetails.inputLowValues[isInputLowBroadcasted ? 0 : oc];
+            const float inputHigh = quantizationDetails.inputHighValues[isInputHighBroadcasted ? 0 : oc];
+            const float outputLow = quantizationDetails.outputLowValues[isOutputLowBroadcasted ? 0 : oc];
+            const float outputHigh = quantizationDetails.outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+
+            for (size_t idx = oc * IDHW + ic * DHW + d * H * W + h * W, idxLast = idx + W; idx < idxLast; ++idx) {
+                if (srcPtr[idx] <= inputLow) {
+                    dstPtr[idx] = outputLow;
+                } else if (srcPtr[idx] > inputHigh) {
+                    dstPtr[idx] = outputHigh;
+                } else {
+                    const float value = std::roundf((srcPtr[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
+                                        levels_1 * (outputHigh - outputLow) + outputLow;
+                    dstPtr[idx] = value;
+                }
+            }
+        });
+    }
 
     fillBlobByFP32(targetBlob, dstPtr);
 }
