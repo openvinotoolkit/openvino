@@ -1163,7 +1163,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
     test_case.run();
 }
 
-//TODO: Issue: 37514
+// TODO: Issue: 37514
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_4d)
 {
     const Shape data_shape{1, 2, 3, 4};

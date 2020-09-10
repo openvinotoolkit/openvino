@@ -165,13 +165,16 @@ shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new
     return make_shared<DepthToSpace>(new_args.at(0), m_mode, m_blocksize);
 }
 
-bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
-    const auto &data = inputs[0];
-    const auto &out = outputs[0];
-    const auto &out_shape = out->get_shape();
+bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto& out = outputs[0];
+    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
-    if (data->get_partial_shape().is_dynamic()) {
+    if (data->get_partial_shape().is_dynamic())
+    {
         return false;
     }
     auto data_shape = data->get_shape();
@@ -197,44 +200,51 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
     // Finally squeeze data from respective dimensions.
     shared_ptr<Node> flat_node;
     Shape dispersed_shape{n_dim};
-    for (int i = 0; i < spatial_dims; ++i) {
+    for (int i = 0; i < spatial_dims; ++i)
+    {
         dispersed_shape.push_back(bs);
     }
-    for (int i = 0; i < spatial_dims; ++i) {
+    for (int i = 0; i < spatial_dims; ++i)
+    {
         dispersed_shape.push_back(data_shape.at(spatial_dim_index + i));
     }
     vector<size_t> axes_order{0};
-    switch (m_mode) {
-        // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2,
-        // ..., DK])
-        // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-        // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
-        // ..., DK * block_size])
-        case DepthToSpaceMode::DEPTH_FIRST: {
-            dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
-            axes_order.push_back(1);
-            for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
-                axes_order.push_back(spatial_dims + i);
-                axes_order.push_back(i);
-            }
+    switch (m_mode)
+    {
+    // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2,
+    // ..., DK])
+    // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // ..., DK * block_size])
+    case DepthToSpaceMode::DEPTH_FIRST:
+    {
+        dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
+        axes_order.push_back(1);
+        for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+        {
+            axes_order.push_back(spatial_dims + i);
+            axes_order.push_back(i);
+        }
 
-            break;
+        break;
+    }
+    // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2,
+    // ..., DK])
+    // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // ..., DK * block_size])
+    case DepthToSpaceMode::BLOCKS_FIRST:
+    default:
+    {
+        dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
+        axes_order.push_back(spatial_dims + 1);
+        for (int i = 2; i < data_shape.size(); ++i)
+        {
+            axes_order.push_back(spatial_dims + i);
+            axes_order.push_back(i - 1);
         }
-            // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2,
-            // ..., DK])
-            // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-            // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
-            // ..., DK * block_size])
-        case DepthToSpaceMode::BLOCKS_FIRST:
-        default: {
-            dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
-            axes_order.push_back(spatial_dims + 1);
-            for (int i = 2; i < data_shape.size(); ++i) {
-                axes_order.push_back(spatial_dims + i);
-                axes_order.push_back(i - 1);
-            }
-            break;
-        }
+        break;
+    }
     }
     std::vector<size_t> plain_axes_order(data_shape.size());
     std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
@@ -249,7 +259,8 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
                                  elem_size);
 
     Shape post_transpose_shape(axes_order.size());
-    for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx) {
+    for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx)
+    {
         post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
     }
     runtime::opt_kernel::reshape(dispersed_data.data(),
@@ -260,10 +271,12 @@ bool op::DepthToSpace::evaluate(const HostTensorVector &outputs, const HostTenso
                                  elem_size);
 
     Shape squeezed_shape{n_dim, c_flat};
-    for (int i = spatial_dim_index; i < data_shape.size(); ++i) {
+    for (int i = spatial_dim_index; i < data_shape.size(); ++i)
+    {
         squeezed_shape.push_back(data_shape.at(i) * bs);
     }
-    for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1; ++i) {
+    for (size_t i = plain_axes_order.size() - 1; i < post_transpose_shape.size() - 1; ++i)
+    {
         plain_axes_order.push_back(plain_axes_order[i] + 1);
     }
     runtime::opt_kernel::reshape(transposed_data.data(),

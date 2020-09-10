@@ -62,7 +62,9 @@ namespace ngraph
 
                 int64_t get_axis() const { return m_axis; }
                 int64_t get_group() const { return m_group; }
-                bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             private:
                 /// \brief Generates a shape required to permute the data
                 ///

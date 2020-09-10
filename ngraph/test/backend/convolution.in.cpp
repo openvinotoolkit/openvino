@@ -37,18 +37,10 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_outlining)
     Shape shape_b{2, 2, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 2, 2, 2};
-    auto conv1 = make_shared<op::v1::Convolution>(A,
-                                                  B,
-                                                  Strides{1, 1},
-                                                  CoordinateDiff{0, 0},
-                                                  CoordinateDiff{0, 0},
-                                                  Strides{1, 1});
-    auto conv2 = make_shared<op::v1::Convolution>(conv1,
-                                                  B,
-                                                  Strides{1, 1},
-                                                  CoordinateDiff{0, 0},
-                                                  CoordinateDiff{0, 0},
-                                                  Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(
+        A, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto conv2 = make_shared<op::v1::Convolution>(
+        conv1, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
     auto f = make_shared<Function>(conv2, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -74,12 +66,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_simple)
     Shape shape_b{2, 2, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 2, 2, 2};
-    auto conv1 = make_shared<op::v1::Convolution>(A,
-                                                  B,
-                                                  Strides{1, 1},
-                                                  CoordinateDiff{0, 0},
-                                                  CoordinateDiff{0, 0},
-                                                  Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(
+        A, B, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
     auto f = make_shared<Function>(conv1, ParameterVector{A, B});
 
@@ -106,12 +94,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convolution_simple_padding)
     Shape shape_b{1, 1, 1, 1};
     auto B = make_shared<op::Parameter>(element::f32, shape_b);
     Shape shape_r{1, 1, 5, 5};
-    auto conv1 = make_shared<op::v1::Convolution>(A,
-                                                  B,
-                                                  Strides{1, 1},
-                                                  CoordinateDiff{1, 1},
-                                                  CoordinateDiff{2, 2},
-                                                  Strides{1, 1});
+    auto conv1 = make_shared<op::v1::Convolution>(
+        A, B, Strides{1, 1}, CoordinateDiff{1, 1}, CoordinateDiff{2, 2}, Strides{1, 1});
 
     auto f = make_shared<Function>(conv1, ParameterVector{A, B});
 

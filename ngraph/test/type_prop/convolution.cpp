@@ -27,12 +27,8 @@ TEST(type_prop, conv_1d_deduce)
     // Deduce type
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{128, 3, 10});
-    auto conv = make_shared<op::v1::Convolution>(param0,
-                                                 param1,
-                                                 Strides{1},
-                                                 CoordinateDiff{0},
-                                                 CoordinateDiff{0},
-                                                 Strides{1});
+    auto conv = make_shared<op::v1::Convolution>(
+        param0, param1, Strides{1}, CoordinateDiff{0}, CoordinateDiff{0}, Strides{1});
     EXPECT_EQ(conv->get_element_type(), element::f32);
     EXPECT_EQ(conv->get_shape(), (Shape{64, 128, 91}));
 
@@ -47,8 +43,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{128, 3, 10});  // filters
-    auto param_filters = make_shared<op::Parameter>(element::f32, Shape{128, 3, 10});  // filters
+    auto param0 = make_shared<op::Parameter>(element::f32, Shape{128, 3, 10});        // filters
+    auto param_filters = make_shared<op::Parameter>(element::f32, Shape{128, 3, 10}); // filters
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 91}); // output delta
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
                                                              param0,
@@ -69,7 +65,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 }
 //
-//TEST(type_prop, conv_1d_deduce_padded)
+// TEST(type_prop, conv_1d_deduce_padded)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -91,7 +87,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_padded)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_padded)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -120,7 +116,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_strided)
+// TEST(type_prop, conv_1d_deduce_strided)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -138,7 +134,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_strided)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_strided)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -164,7 +160,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_strided_padded)
+// TEST(type_prop, conv_1d_deduce_strided_padded)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -186,7 +182,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_strided_padded)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_strided_padded)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -215,7 +211,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_strided_small_uneven)
+// TEST(type_prop, conv_1d_deduce_strided_small_uneven)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
@@ -233,7 +229,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_uneven)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_uneven)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 5};
@@ -259,7 +255,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_strided_small_even)
+// TEST(type_prop, conv_1d_deduce_strided_small_even)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 6});
@@ -277,7 +273,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_even)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_even)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 6};
@@ -303,7 +299,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_window_dilated)
+// TEST(type_prop, conv_1d_deduce_window_dilated)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -322,7 +318,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -349,7 +345,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_window_dilated_padded)
+// TEST(type_prop, conv_1d_deduce_window_dilated_padded)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -371,7 +367,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_padded)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_padded)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -400,7 +396,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_deduce_window_dilated_data_dilated_padded)
+// TEST(type_prop, conv_1d_deduce_window_dilated_data_dilated_padded)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
@@ -428,7 +424,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_data_dilated_padded)
+// TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_data_dilated_padded)
 //{
 //    // Deduce type
 //    Shape data_batch_shape{64, 3, 100};
@@ -458,7 +454,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 //}
 //
-//TEST(type_prop, conv_2d_deduce)
+// TEST(type_prop, conv_2d_deduce)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -475,7 +471,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0}));
 //}
 //
-//TEST(type_prop, conv_2d_deduce_padded)
+// TEST(type_prop, conv_2d_deduce_padded)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -497,7 +493,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{3, 4}));
 //}
 //
-//TEST(type_prop, conv_2d_deduce_padded_neg)
+// TEST(type_prop, conv_2d_deduce_padded_neg)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -519,13 +515,13 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{3, -4}));
 //}
 //
-//struct DeduceAutoPadTest
+// struct DeduceAutoPadTest
 //    : ::testing::TestWithParam<
 //          std::tuple<Shape, Shape, Strides, Strides, CoordinateDiff, CoordinateDiff>>
 //{
 //};
 //
-//TEST_P(DeduceAutoPadTest, same_lower)
+// TEST_P(DeduceAutoPadTest, same_lower)
 //{
 //    auto image_shape = std::get<0>(GetParam());
 //    image_shape.insert(image_shape.begin(), {1, 1}); // Add {N, C}
@@ -546,7 +542,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_below(), std::get<5>(GetParam()));
 //}
 //
-//INSTANTIATE_TEST_CASE_P(type_prop,
+// INSTANTIATE_TEST_CASE_P(type_prop,
 //                        DeduceAutoPadTest,
 //                        ::testing::Values(std::make_tuple(Shape{5, 6},
 //                                                          Shape{3, 4},
@@ -591,7 +587,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //                                                          CoordinateDiff{2, 1, 1},
 //                                                          CoordinateDiff{2, 1, 2})), );
 //
-//TEST(type_prop, conv_2d_deduce_strided)
+// TEST(type_prop, conv_2d_deduce_strided)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -609,7 +605,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0}));
 //}
 //
-//TEST(type_prop, conv_2d_deduce_strided_window_dilated)
+// TEST(type_prop, conv_2d_deduce_strided_window_dilated)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -628,7 +624,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0}));
 //}
 //
-//TEST(type_prop, conv_2d_deduce_strided_window_dilated_data_dilated)
+// TEST(type_prop, conv_2d_deduce_strided_window_dilated_data_dilated)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100, 150});
@@ -656,7 +652,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0}));
 //}
 //
-//TEST(type_prop, conv_2d_deduce_strided_window_dilated_small)
+// TEST(type_prop, conv_2d_deduce_strided_window_dilated_small)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8});
@@ -675,7 +671,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0}));
 //}
 //
-//TEST(type_prop, conv_3d_deduce_strided_window_dilated_small)
+// TEST(type_prop, conv_3d_deduce_strided_window_dilated_small)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
@@ -694,7 +690,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0, 0}));
 //}
 //
-//TEST(type_prop, conv_3d_deduce_strided_window_dilated_data_dilated_small)
+// TEST(type_prop, conv_3d_deduce_strided_window_dilated_data_dilated_small)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 7, 8, 10});
@@ -722,7 +718,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    EXPECT_EQ(conv->get_padding_above(), (CoordinateDiff{0, 0, 0}));
 //}
 //
-//TEST(type_prop, conv_invalid_element_type_mismatch)
+// TEST(type_prop, conv_invalid_element_type_mismatch)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{3, 3, 3, 3});
@@ -737,7 +733,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    catch (const NodeValidationFailure& error)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
-//                             std::string("Element types for data batch and filters do not match"));
+//                             std::string("Element types for data batch and filters do not
+//                             match"));
 //    }
 //    catch (...)
 //    {
@@ -745,7 +742,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_0d_input)
+// TEST(type_prop, conv_invalid_0d_input)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{});
@@ -770,7 +767,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_1d_input)
+// TEST(type_prop, conv_invalid_1d_input)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{2});
@@ -795,7 +792,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_2d_input)
+// TEST(type_prop, conv_invalid_2d_input)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{2, 6});
@@ -820,7 +817,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_0_batch_size)
+// TEST(type_prop, conv_invalid_0_batch_size)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{0, 6, 1});
@@ -842,7 +839,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_0_input_channels)
+// TEST(type_prop, conv_invalid_0_input_channels)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 0, 1});
@@ -866,7 +863,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_wrong_number_of_filter_dimensions_too_many)
+// TEST(type_prop, conv_invalid_wrong_number_of_filter_dimensions_too_many)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -880,7 +877,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //    catch (const NodeValidationFailure& error)
 //    {
-//        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
+//        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not
+//        match"));
 //    }
 //    catch (...)
 //    {
@@ -888,7 +886,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_wrong_number_of_filter_dimensions_too_few)
+// TEST(type_prop, conv_invalid_wrong_number_of_filter_dimensions_too_few)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -902,7 +900,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //    catch (const NodeValidationFailure& error)
 //    {
-//        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
+//        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not
+//        match"));
 //    }
 //    catch (...)
 //    {
@@ -910,7 +909,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_0_output_channels)
+// TEST(type_prop, conv_invalid_0_output_channels)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -932,7 +931,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_input_channel_mismatch)
+// TEST(type_prop, conv_invalid_input_channel_mismatch)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -957,7 +956,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_movement_stride_rank)
+// TEST(type_prop, conv_invalid_movement_stride_rank)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -974,8 +973,10 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
 //            std::string("Ranks for data item shape/filters shape (data batch has shape "
-//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so "
-//                        "filters spatial rank is 2), data dilation (Strides{1, 1}), padding below "
+//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so
+//                        "
+//                        "filters spatial rank is 2), data dilation (Strides{1, 1}), padding below
+//                        "
 //                        "(CoordinateDiff{0, 0}), padding above (CoordinateDiff{0, 0}), filter "
 //                        "strides (Strides{2, 3, 8}), and filter dilation (Strides{1, 1}) do not "
 //                        "match"));
@@ -986,7 +987,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_window_dilation_stride_rank)
+// TEST(type_prop, conv_invalid_window_dilation_stride_rank)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1004,8 +1005,10 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
 //            std::string("Ranks for data item shape/filters shape (data batch has shape "
-//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so "
-//                        "filters spatial rank is 2), data dilation (Strides{1, 1}), padding below "
+//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so
+//                        "
+//                        "filters spatial rank is 2), data dilation (Strides{1, 1}), padding below
+//                        "
 //                        "(CoordinateDiff{0, 0}), padding above (CoordinateDiff{0, 0}), filter "
 //                        "strides (Strides{2, 3}), and filter dilation (Strides{2, 3, 8}) do not "
 //                        "match"));
@@ -1016,7 +1019,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_data_dilation_stride_rank)
+// TEST(type_prop, conv_invalid_data_dilation_stride_rank)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1039,7 +1042,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
 //            std::string("Ranks for data item shape/filters shape (data batch has shape "
-//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so "
+//                        "{6,2,10,10}, so data item rank is 2 and filters have shape {6,2,3,3}, so
+//                        "
 //                        "filters spatial rank is 2), data dilation (Strides{2, 3, 8}), padding "
 //                        "below (CoordinateDiff{0, 0}), padding above (CoordinateDiff{0, 0}), "
 //                        "filter strides (Strides{2, 3}), and filter dilation (Strides{2, 3}) do "
@@ -1051,7 +1055,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_padding_below_rank)
+// TEST(type_prop, conv_invalid_padding_below_rank)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1085,7 +1089,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_padding_above_rank)
+// TEST(type_prop, conv_invalid_padding_above_rank)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1119,7 +1123,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_input_spatial_size_negative_after_padding)
+// TEST(type_prop, conv_invalid_input_spatial_size_negative_after_padding)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1139,7 +1143,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    catch (const NodeValidationFailure& error)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
-//                             std::string("Data shape after padding and dilation has dimension less "
+//                             std::string("Data shape after padding and dilation has dimension less
+//                             "
 //                                         "than 1 (dim: -1) at axis 0"));
 //    }
 //    catch (...)
@@ -1148,7 +1153,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_input_spatial_size_zero_after_padding)
+// TEST(type_prop, conv_invalid_input_spatial_size_zero_after_padding)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1168,7 +1173,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    catch (const NodeValidationFailure& error)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
-//                             std::string("Data shape after padding and dilation has dimension less "
+//                             std::string("Data shape after padding and dilation has dimension less
+//                             "
 //                                         "than 1 (dim: 0) at axis 0"));
 //    }
 //    catch (...)
@@ -1177,7 +1183,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_input_spatial_size_0)
+// TEST(type_prop, conv_invalid_input_spatial_size_0)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 0, 10});
@@ -1201,7 +1207,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_window_size_0)
+// TEST(type_prop, conv_invalid_window_size_0)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1225,14 +1231,15 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_window_dilation_stride_0)
+// TEST(type_prop, conv_invalid_window_dilation_stride_0)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
 //    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 3, 3});
 //    try
 //    {
-//        auto conv = make_shared<op::v0::Convolution>(param0, param1, Strides{2, 3}, Strides{2, 0});
+//        auto conv = make_shared<op::v0::Convolution>(param0, param1, Strides{2, 3}, Strides{2,
+//        0});
 //
 //        // Should have thrown, so fail if it didn't
 //        FAIL() << "Invalid input with wrong 0-length window dilation stride axis not detected";
@@ -1249,7 +1256,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_data_dilation_stride_0)
+// TEST(type_prop, conv_invalid_data_dilation_stride_0)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1279,14 +1286,15 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_dilated_window_too_large)
+// TEST(type_prop, conv_invalid_dilated_window_too_large)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
 //    auto param1 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 3, 3});
 //    try
 //    {
-//        auto conv = make_shared<op::v0::Convolution>(param0, param1, Strides{1, 1}, Strides{4, 4});
+//        auto conv = make_shared<op::v0::Convolution>(param0, param1, Strides{1, 1}, Strides{4,
+//        4});
 //
 //        // Should have thrown, so fail if it didn't
 //        FAIL() << "Invalid input with oversized dilated window not detected";
@@ -1294,7 +1302,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    catch (const NodeValidationFailure& error)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
-//                             std::string("Window after dilation has dimension (dim: 9) larger than "
+//                             std::string("Window after dilation has dimension (dim: 9) larger than
+//                             "
 //                                         "the data shape after padding (dim: 8) at axis 0"));
 //    }
 //    catch (...)
@@ -1303,7 +1312,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_invalid_movement_stride_0)
+// TEST(type_prop, conv_invalid_movement_stride_0)
 //{
 //    // Deduce type
 //    auto param0 = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
@@ -1327,7 +1336,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_ok)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_ok)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1352,7 +1361,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_strides_rank_wrong)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_strides_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1381,10 +1390,12 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
-//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data "
+//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data
+//            "
 //                        "item rank is ? and filters have shape ?, so filters spatial rank is ?), "
 //                        "data dilation (Strides{1, 1}), padding below (CoordinateDiff{0, 0}), "
-//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1, 1}), "
+//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1, 1}),
+//                        "
 //                        "and filter dilation (Strides{1, 1}) do not match"));
 //    }
 //    catch (...)
@@ -1393,7 +1404,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_strides_dim_zero)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_strides_dim_zero)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1430,7 +1441,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_dilation_rank_wrong)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_dilation_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1459,10 +1470,12 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
-//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data "
+//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data
+//            "
 //                        "item rank is ? and filters have shape ?, so filters spatial rank is ?), "
 //                        "data dilation (Strides{1, 1}), padding below (CoordinateDiff{0, 0}), "
-//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and "
+//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and
+//                        "
 //                        "filter dilation (Strides{1, 1, 1}) do not match"));
 //    }
 //    catch (...)
@@ -1471,7 +1484,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_dilation_dim_zero)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_window_dilation_dim_zero)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1508,7 +1521,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_padding_below_rank_wrong)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_padding_below_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1537,10 +1550,12 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
-//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data "
+//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data
+//            "
 //                        "item rank is ? and filters have shape ?, so filters spatial rank is ?), "
 //                        "data dilation (Strides{1, 1}), padding below (CoordinateDiff{0, 0, 0}), "
-//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and "
+//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and
+//                        "
 //                        "filter dilation (Strides{1, 1}) do not match"));
 //    }
 //    catch (...)
@@ -1549,7 +1564,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_padding_above_rank_wrong)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_padding_above_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1578,10 +1593,12 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
-//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data "
+//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data
+//            "
 //                        "item rank is ? and filters have shape ?, so filters spatial rank is ?), "
 //                        "data dilation (Strides{1, 1}), padding below (CoordinateDiff{0, 0}), "
-//                        "padding above (CoordinateDiff{0, 0, 0}), filter strides (Strides{1, 1}), "
+//                        "padding above (CoordinateDiff{0, 0, 0}), filter strides (Strides{1, 1}),
+//                        "
 //                        "and filter dilation (Strides{1, 1}) do not match"));
 //    }
 //    catch (...)
@@ -1590,7 +1607,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_data_dilation_rank_wrong)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_data_dilation_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1619,10 +1636,12 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
-//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data "
+//            std::string("Ranks for data item shape/filters shape (data batch has shape ?, so data
+//            "
 //                        "item rank is ? and filters have shape ?, so filters spatial rank is ?), "
 //                        "data dilation (Strides{1, 1, 1}), padding below (CoordinateDiff{0, 0}), "
-//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and "
+//                        "padding above (CoordinateDiff{0, 0}), filter strides (Strides{1, 1}), and
+//                        "
 //                        "filter dilation (Strides{1, 1}) do not match"));
 //    }
 //    catch (...)
@@ -1631,7 +1650,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_data_dilation_dim_zero)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_dynamic_data_dilation_dim_zero)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1668,7 +1687,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_ok)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_ok)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1693,7 +1712,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_data_batch_rank_wrong)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_data_batch_rank_wrong)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(5)};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -1723,7 +1742,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        EXPECT_HAS_SUBSTRING(
 //            error.what(),
 //            std::string("Ranks for data item shape/filters shape (data batch has shape "
-//                        "{?,?,?,?,?}, so data item rank is 3 and filters have shape ?, so filters "
+//                        "{?,?,?,?,?}, so data item rank is 3 and filters have shape ?, so filters
+//                        "
 //                        "spatial rank is ?), data dilation (Strides{1, 1}), padding below "
 //                        "(CoordinateDiff{0, 0}), padding above (CoordinateDiff{0, 0}), filter "
 //                        "strides (Strides{1, 1}), and filter dilation (Strides{1, 1}) do not "
@@ -1735,7 +1755,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_batch_size_known_ok)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_batch_size_known_ok)
 //{
 //    PartialShape data_batch_shape{
 //        64, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
@@ -1762,7 +1782,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_batch_size_known_zero)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_batch_size_known_zero)
 //{
 //    PartialShape data_batch_shape{
 //        0, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
@@ -1798,7 +1818,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_input_channel_count_known_ok)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_input_channel_count_known_ok)
 //{
 //    PartialShape data_batch_shape{
 //        Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()};
@@ -1824,7 +1844,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_input_channel_count_known_zero)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_dynamic_input_channel_count_known_zero)
 //{
 //    PartialShape data_batch_shape{
 //        Dimension::dynamic(), 0, Dimension::dynamic(), Dimension::dynamic()};
@@ -1862,7 +1882,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_output_channel_count_known_ok)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_output_channel_count_known_ok)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
 //    PartialShape filters_shape{
@@ -1889,10 +1909,11 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{Dimension::dynamic(), 32, Dimension::dynamic(), Dimension::dynamic()}));
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_output_channel_count_known_zero)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_output_channel_count_known_zero)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
-//    PartialShape filters_shape{0, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
+//    PartialShape filters_shape{0, Dimension::dynamic(), Dimension::dynamic(),
+//    Dimension::dynamic()};
 //    Strides window_movement_strides{1, 1};
 //    Strides window_dilation_strides{1, 1};
 //    CoordinateDiff padding_below{0, 0};
@@ -1924,10 +1945,11 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_input_channel_count_known_ok)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_input_channel_count_known_ok)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
-//    PartialShape filters_shape{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()};
+//    PartialShape filters_shape{Dimension::dynamic(), 4, Dimension::dynamic(),
+//    Dimension::dynamic()};
 //    Strides window_movement_strides{1, 1};
 //    Strides window_dilation_strides{1, 1};
 //    CoordinateDiff padding_below{0, 0};
@@ -1949,10 +1971,11 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_input_channel_count_known_zero)
+// TEST(type_prop, conv_partial_rank_dynamic_rank_static_dynamic_input_channel_count_known_zero)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
-//    PartialShape filters_shape{Dimension::dynamic(), 0, Dimension::dynamic(), Dimension::dynamic()};
+//    PartialShape filters_shape{Dimension::dynamic(), 0, Dimension::dynamic(),
+//    Dimension::dynamic()};
 //    Strides window_movement_strides{1, 1};
 //    Strides window_dilation_strides{1, 1};
 //    CoordinateDiff padding_below{0, 0};
@@ -1986,7 +2009,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_ok)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_ok)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(4)};
 //    PartialShape filters_shape{PartialShape::dynamic(4)};
@@ -2011,7 +2034,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_arg_ranks_mismatch)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_arg_ranks_mismatch)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic(5)};
 //    PartialShape filters_shape{PartialShape::dynamic(4)};
@@ -2048,11 +2071,13 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_input_channel_counts_known_ok)
+// TEST(type_prop,
+// conv_partial_rank_static_dynamic_rank_static_dynamic_input_channel_counts_known_ok)
 //{
 //    PartialShape data_batch_shape{
 //        Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()};
-//    PartialShape filters_shape{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()};
+//    PartialShape filters_shape{Dimension::dynamic(), 3, Dimension::dynamic(),
+//    Dimension::dynamic()};
 //    Strides window_movement_strides{1, 1};
 //    Strides window_dilation_strides{1, 1};
 //    CoordinateDiff padding_below{0, 0};
@@ -2074,7 +2099,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_input_channel_counts_mismatch)
+// TEST(type_prop,
+// conv_partial_rank_static_dynamic_rank_static_dynamic_input_channel_counts_mismatch)
 //{
 //    PartialShape data_batch_shape{
 //        Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()};
@@ -2114,7 +2140,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_known_ok)
+// TEST(type_prop, conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_known_ok)
 //{
 //    PartialShape data_batch_shape{64, 3, Dimension::dynamic(), Dimension::dynamic()};
 //    PartialShape filters_shape{100, 3, Dimension::dynamic(), Dimension::dynamic()};
@@ -2140,7 +2166,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, Dimension::dynamic(), Dimension::dynamic()}));
 //}
 //
-//TEST(type_prop,
+// TEST(type_prop,
 //     conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_ok)
 //{
 //    PartialShape data_batch_shape{64, 3, 200, Dimension::dynamic()};
@@ -2167,7 +2193,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 196, Dimension::dynamic()}));
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_filters_too_big)
 //{
@@ -2198,7 +2224,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
 //                             std::string("Window after dilation has dimension (dim: 201) larger "
-//                                         "than the data shape after padding (dim: 200) at axis 0"));
+//                                         "than the data shape after padding (dim: 200) at axis
+//                                         0"));
 //    }
 //    catch (...)
 //    {
@@ -2206,7 +2233,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_filters_not_too_big_after_padding)
 //{
@@ -2234,7 +2261,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 1, Dimension::dynamic()}));
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_filters_not_too_big_after_data_dilation)
 //{
@@ -2262,7 +2289,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 199, Dimension::dynamic()}));
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_filters_not_too_big_after_data_dilation_strided)
 //{
@@ -2290,7 +2317,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 67, Dimension::dynamic()}));
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_known_filters_too_big_after_filter_dilation)
 //{
@@ -2321,7 +2348,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
 //                             std::string("Window after dilation has dimension (dim: 201) larger "
-//                                         "than the data shape after padding (dim: 200) at axis 0"));
+//                                         "than the data shape after padding (dim: 200) at axis
+//                                         0"));
 //    }
 //    catch (...)
 //    {
@@ -2329,7 +2357,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_zero_data_batch_dim)
 //{
@@ -2368,7 +2396,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_positive_data_batch_dim_after_padding)
 //{
@@ -2396,7 +2424,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 196, Dimension::dynamic()}));
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_zero_data_batch_dim_after_padding)
 //{
@@ -2435,7 +2463,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(
+// TEST(
 //    type_prop,
 //    conv_partial_rank_static_dynamic_rank_static_dynamic_all_nonspatial_some_spatial_negative_data_batch_dim_after_padding)
 //{
@@ -2465,7 +2493,8 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    catch (const NodeValidationFailure& error)
 //    {
 //        EXPECT_HAS_SUBSTRING(error.what(),
-//                             std::string("Data shape after padding and dilation has dimension less "
+//                             std::string("Data shape after padding and dilation has dimension less
+//                             "
 //                                         "than 1 (dim: -1) at axis 1"));
 //    }
 //    catch (...)
@@ -2474,7 +2503,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, conv_partial_dynamic_et)
+// TEST(type_prop, conv_partial_dynamic_et)
 //{
 //    // For this test the exact shape parameters are kind of arbitrary---just copied and pasted
 //    // from some known-"OK" test above. We're only concerned about the element types.
@@ -2502,7 +2531,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{64, 100, 1, Dimension::dynamic()}));
 //}
 //
-//TEST(type_prop, conv_bprop_data_v1_output_partial_shape_dynamic)
+// TEST(type_prop, conv_bprop_data_v1_output_partial_shape_dynamic)
 //{
 //    Shape shape_filter{6, 3, 3, 3};
 //    auto filters = make_shared<op::Parameter>(element::f32, shape_filter);
@@ -2521,7 +2550,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv1->get_output_partial_shape(0).is_dynamic());
 //}
 //
-//TEST(type_prop, conv_bprop_data_v1_output_partial_shape_dynamic_static_rank)
+// TEST(type_prop, conv_bprop_data_v1_output_partial_shape_dynamic_static_rank)
 //{
 //    PartialShape shape_filter{20, 10, 3, 3};
 //    auto filters = make_shared<op::Parameter>(element::f32, shape_filter);
@@ -2542,7 +2571,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //        PartialShape{Dimension::dynamic(), 10, 447, 447}));
 //}
 //
-//TEST(type_prop, conv_v1_partial_rank)
+// TEST(type_prop, conv_v1_partial_rank)
 //{
 //    PartialShape data_batch_shape{PartialShape::dynamic()};
 //    PartialShape filters_shape{PartialShape::dynamic()};
@@ -2564,7 +2593,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_TRUE(conv->get_output_partial_shape(0).is_dynamic());
 //}
 //
-//TEST(type_prop, conv_v1_partial_auto_padding_same)
+// TEST(type_prop, conv_v1_partial_auto_padding_same)
 //{
 //    const PartialShape data_batch_shape{1, 1, 5, 5};
 //    const PartialShape filters_shape{1, 1, 3, 3};
@@ -2585,7 +2614,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 //}
 //
-//TEST(type_prop, conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_lower)
+// TEST(type_prop, conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_lower)
 //{
 //    const PartialShape data_batch_shape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
 //    const PartialShape filters_shape{1, 1, 3, 3};
@@ -2606,7 +2635,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 //}
 //
-//TEST(type_prop, conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_upper)
+// TEST(type_prop, conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_upper)
 //{
 //    const PartialShape data_batch_shape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
 //    const PartialShape filters_shape{1, 1, 2, 2};
@@ -2627,7 +2656,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 //}
 //
-//TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
+// TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
 //{
 //    const PartialShape data_batch_shape{1, 1, Dimension::dynamic(), 5};
 //    const PartialShape filters_shape{1, 1, 3, 3};
@@ -2649,7 +2678,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 //}
 //
-//TEST(type_prop, conv_v1_partial_data_shape_dynamic)
+// TEST(type_prop, conv_v1_partial_data_shape_dynamic)
 //{
 //    const PartialShape data_batch_shape{PartialShape::dynamic()};
 //    const PartialShape filters_shape{1, 1, 3, 3};
@@ -2670,7 +2699,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 //}
 //
-//TEST(type_prop, deformable_conv_incorrect_group)
+// TEST(type_prop, deformable_conv_incorrect_group)
 //{
 //    const PartialShape data_batch_shape{1, 3, 96, 96};
 //    const PartialShape deformable_values_shape{1, 50, 5, 5};
@@ -2719,7 +2748,7 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 //    }
 //}
 //
-//TEST(type_prop, deformable_conv_incorrect_deformable_group)
+// TEST(type_prop, deformable_conv_incorrect_deformable_group)
 //{
 //    const PartialShape data_batch_shape{1, 3, 96, 96};
 //    const PartialShape deformable_values_shape{1, 50, 5, 5};

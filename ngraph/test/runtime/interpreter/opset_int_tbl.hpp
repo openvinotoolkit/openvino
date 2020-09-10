@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#ifndef  NGRAPH_OP
+#ifndef NGRAPH_OP
 #warning "NGRAPH_OP not defined"
 #define NGRAPH_OP(x, y)
 #endif

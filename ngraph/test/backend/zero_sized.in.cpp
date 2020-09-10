@@ -33,11 +33,11 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 static const std::vector<ngraph::element::Type> base_types = {
-        ngraph::element::from<float>(),
-        ngraph::element::from<int32_t>(),
-        ngraph::element::from<int64_t>(),
-        ngraph::element::from<uint32_t>(),
-        ngraph::element::from<uint64_t>(),
+    ngraph::element::from<float>(),
+    ngraph::element::from<int32_t>(),
+    ngraph::element::from<int64_t>(),
+    ngraph::element::from<uint32_t>(),
+    ngraph::element::from<uint64_t>(),
 };
 
 template <typename OP>

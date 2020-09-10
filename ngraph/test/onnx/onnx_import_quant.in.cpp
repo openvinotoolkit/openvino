@@ -225,7 +225,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_model_dequantize_linear_1d_zero_scale
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis)
+NGRAPH_TEST(${BACKEND_NAME},
+            DISABLED_onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.prototxt"));

@@ -40,7 +40,6 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-
 NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_uint8)
 {
     Shape params_shape{3, 2};

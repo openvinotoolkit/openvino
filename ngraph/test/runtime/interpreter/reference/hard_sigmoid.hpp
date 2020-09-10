@@ -32,7 +32,6 @@ namespace ngraph
     {
         namespace reference
         {
-
             template <typename T>
             void hard_sigmoid(const T* arg,
                               const T* alpha,
@@ -45,7 +44,10 @@ namespace ngraph
                 int cnt = 0;
                 for (size_t i = 0; i < size_arg; ++i)
                 {
-                    out[i] = std::max(T(0), std::min(T(1), T(alpha[cnt % size_alpha] * arg[i] + beta[cnt % size_beta])));
+                    out[i] = std::max(
+                        T(0),
+                        std::min(T(1),
+                                 T(alpha[cnt % size_alpha] * arg[i] + beta[cnt % size_beta])));
                     cnt++;
                 }
             }

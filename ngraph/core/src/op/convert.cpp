@@ -63,7 +63,6 @@ namespace
                 true);
     }
 
-
 #define TYPE_OUT_CASE(a)                                                                           \
     case element::Type_t::a: rc = evaluate<INPUT_ET, element::Type_t::a>
 
