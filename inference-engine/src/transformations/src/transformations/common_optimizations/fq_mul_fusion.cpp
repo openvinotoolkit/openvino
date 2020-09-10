@@ -87,17 +87,16 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto new_output_limits = get_adjusted_output_range(
       output_low_const, output_high_const, mul_constant);
 
-    const auto fq_out_low_input = fq_node->input(3);
-    fq_out_low_input.replace_source_output(new_output_limits.first);
-    const auto fq_out_high_input = fq_node->input(4);
-    fq_out_high_input.replace_source_output(new_output_limits.second);
+    const auto new_fq_node = fq_node->clone_with_new_inputs({fq_node->input_value(0),
+                                                             fq_node->input_value(1),
+                                                             fq_node->input_value(2),
+                                                             new_output_limits.first,
+                                                             new_output_limits.second});
 
-    // attach the output of FQ node to the output of the original Mul node
-    // (this removes the original Mul node from the graph)
-    const auto mul_node_out = mul_node->output(0);
-    const auto fq_node_out = fq_node->output(0);
-    const auto mul_node_target_input = *(mul_node_out.get_target_inputs().begin());
-    mul_node_target_input.replace_source_output(fq_node_out);
+    replace_node(mul_node, new_fq_node);
+
+    new_fq_node->set_friendly_name(fq_node->get_friendly_name());
+    copy_runtime_info({fq_node, mul_node}, new_fq_node);
 
     return true;
   };
