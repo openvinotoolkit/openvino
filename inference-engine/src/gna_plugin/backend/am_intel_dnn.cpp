@@ -144,6 +144,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
                                                  uint32_t num_feature_maps,
                                                  uint32_t num_feature_map_rows,
                                                  uint32_t num_feature_map_columns,
+                                                 uint8_t layout,
                                                  float weight_scale_factor,
                                                  float output_scale_factor,
                                                  void *&ptr_inputs,
@@ -159,8 +160,13 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnConvolutional1dOp;
     comp.macro_operation = kDnnMacroOpNone;
-    comp.orientation_in = kDnnNonInterleavedOrientation;
-    comp.orientation_out = kDnnNonInterleavedOrientation;
+    if (layout == 2) {
+        comp.orientation_in = kDnnInterleavedOrientation;
+        comp.orientation_out = kDnnInterleavedOrientation;
+    } else {
+        comp.orientation_in = kDnnNonInterleavedOrientation;
+        comp.orientation_out = kDnnNonInterleavedOrientation;
+    }
     comp.ptr_inputs = ptr_inputs;
     comp.ptr_outputs = ptr_outputs;
     comp.op.conv1D.num_bytes_per_weight = num_bytes_per_weight;

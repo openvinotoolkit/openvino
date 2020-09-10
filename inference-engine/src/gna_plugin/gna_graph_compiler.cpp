@@ -397,17 +397,13 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         1,
         num_feature_map_rows,
         num_feature_map_columns,
+        inputs->getLayout(),
         weight_scale_factor,
         output_scale_factor,
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
         ptr_biases);
-
-    if (inputs->getLayout() == Layout::NHWC) {
-        currentComponent.orientation_in  = kDnnInterleavedOrientation;
-        currentComponent.orientation_out = kDnnInterleavedOrientation;
-    }
 
     size_t num_data_bytes_out =
         InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
