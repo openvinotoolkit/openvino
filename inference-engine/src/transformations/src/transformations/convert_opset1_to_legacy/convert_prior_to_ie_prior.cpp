@@ -35,12 +35,12 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
-        if (!unsqueeze || m_transformation_callback(unsqueeze)) {
+        if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -174,12 +174,12 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
-        if (!unsqueeze || m_transformation_callback(unsqueeze)) {
+        if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 
