@@ -53,7 +53,7 @@ __kernel void binary_convolution(
             DH * IW - IW, // src_line_stride
             0, // dst_line_stride
             IC / GC, // num planes
-            IH * IW - 3 * IW, // src plane stride
+            IH * IW - 3 * DH * IW, // src plane stride
             0, // dst plane stride
             0);
         wait_group_events(1, &e);
