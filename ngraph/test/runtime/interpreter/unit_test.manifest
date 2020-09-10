@@ -117,32 +117,15 @@ INTERPRETER.onnx_model_gatherND_float
 # Round op doesn't support some specific cases of rounding
 onnx_model_round_half_nearest_even
 
-# Unsupported op 'GRUSequence' - no longer fused op, no reference impl
-onnx_model_gru_defaults_fwd_const
-onnx_model_gru_defaults_fwd
-onnx_model_gru_fwd_activations_const
-onnx_model_gru_fwd_activations
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_rev_clip
-onnx_model_gru_reverse_const
-onnx_model_gru_reverse
-onnx_model_gru_fwd_bias_initial_h
-onnx_model_gru_bidirectional
-onnx_model_gru_fwd_linear_before_reset_const
-onnx_model_gru_fwd_linear_before_reset
-
-# Unsupported op 'RNNSequence' - no longer fused op, no reference impl
-onnx_model_rnn_defaults_fwd_const
-onnx_model_rnn_defaults_fwd
-onnx_model_rnn_fwd_activations
-onnx_model_rnn_fwd_activations_const
-onnx_model_rnn_fwd_mixed_seq_len
-onnx_model_rnn_rev_clip
-onnx_model_rnn_reverse_const
-onnx_model_rnn_reverse
-onnx_model_rnn_fwd_bias_initial_h
+### RNN/GRU Sequence
+## Segfault - bidirectional mode supported only by decomposition
 onnx_model_rnn_bidirectional
 onnx_model_rnn_bidirectional_const
+onnx_model_gru_bidirectional
+## seq_lengths are not supported
+onnx_model_rnn_fwd_mixed_seq_len
+onnx_model_gru_fwd_mixed_seq_len
+
 # Unsupported op 'LSTMSequence': not FusedOp anymore, no reference implementation yet
 onnx_model_lstm_fwd_with_clip
 onnx_model_lstm_fwd_mixed_seq
