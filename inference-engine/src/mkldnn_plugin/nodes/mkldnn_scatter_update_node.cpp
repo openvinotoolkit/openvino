@@ -289,6 +289,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
+    std::string errorPrefix = std::string("'") + getTypeStr() + "'" + " layer with name '" + getName() + "'";
     if (axisRelaxed) {
         auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
         uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetData()) +
@@ -302,8 +303,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
         }
 
         if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * - 1)) {
-            THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
-            << "' should have axis value in range [-r, r - 1], where r is the rank of input data";
+            THROW_IE_EXCEPTION << errorPrefix
+            << " should have axis value in range [-r, r - 1], where r is the rank of input data";
         }
         axis = axis < 0 ? (axis + srcRank) : axis;
 
@@ -315,8 +316,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             for (int i = start; i < end; i++) {
                 int64_t idxValue =  getIndicesValue(indicesPtr, i);
                 if (idxValue >= static_cast<int64_t>(srcDimAxis) || idxValue < 0) {
-                    THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
-                    << "' have indices value that points to non-existing output tensor element";
+                    THROW_IE_EXCEPTION << errorPrefix
+                    << " have indices value that points to non-existing output tensor element";
                 }
             }
         });
@@ -336,10 +337,13 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
                     }
                 }
             }
+            if (updateRank > expectUpdateShape.size())
+                THROW_IE_EXCEPTION << errorPrefix << " cannot update shape. New rank: "
+                    << updateRank << ", expected: " << expectUpdateShape.size();
             for (size_t ru = 0; ru < updateRank; ru++) {
                 if (updateDim[ru] != expectUpdateShape[ru]) {
-                    THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
-                    << "' do not have matched tensor shape relationship for input, indices and update";
+                    THROW_IE_EXCEPTION << errorPrefix
+                    << " do not have matched tensor shape relationship for input, indices and update";
                 }
             }
         }
@@ -370,8 +374,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             break;
         }
         default: {
-            THROW_IE_EXCEPTION << "'" << getType() << "'" << " layer with name '" << getName()
-            << "' is not supported";
+            THROW_IE_EXCEPTION << errorPrefix
+            << " is not supported";
         }
     }
 }

@@ -125,8 +125,8 @@ namespace {
         auto const &lhsBlockingDesc = lhs.getBlockingDesc();
         auto const &rhsBlockingDesc = rhs.getBlockingDesc();
 
-        bool lhsDefaultStrides, rhsDefaultStrides;
-        size_t lhsSize, rhsSize;
+        bool lhsDefaultStrides = false, rhsDefaultStrides = false;
+        size_t lhsSize = 0lu, rhsSize = 0lu;
 
         std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
         std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());

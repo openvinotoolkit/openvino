@@ -633,9 +633,15 @@ private:
         for (int i = 0; i < p.len_; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
+                if (eltwise_injectors.size() <= eltwise_inj_idx
+                        || eltwise_injectors[eltwise_inj_idx] == nullptr)
+                    assert(!"Invalid eltwise injectors.");
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
+                if (depthwise_injectors.size() <= depthwise_inj_idx
+                        || depthwise_injectors[depthwise_inj_idx] == nullptr)
+                    assert(!"Invalid depthwise injectors.");
                 mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
                 mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
@@ -644,6 +650,9 @@ private:
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
+                if (quantization_injectors.size() <= quantization_inj_idx
+                        || quantization_injectors[quantization_inj_idx] == nullptr)
+                    assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
 
