@@ -542,9 +542,11 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
 
         if (gnaFlags->sw_fp32) {
+            IE_ASSERT(quantized == nullptr);
             gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
             gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
+            IE_ASSERT(quantized != nullptr);
             auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
                 static_cast<float>(INT16_MAX)));
             auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
