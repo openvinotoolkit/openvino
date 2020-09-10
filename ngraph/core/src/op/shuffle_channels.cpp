@@ -15,13 +15,13 @@
 //*****************************************************************************
 #include <numeric>
 
-#include "ngraph/op/shuffle_channels.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/builder/reshape.hpp"
+#include "ngraph/op/shuffle_channels.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -143,44 +143,53 @@ Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const
     return res;
 }
 
-bool op::ShuffleChannels::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
+bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
+{
     const auto arg = inputs[0]->get_data_ptr<const char>();
     auto out = outputs[0]->get_data_ptr<char>();
     Shape data_shape = inputs[0]->get_shape();
-    const Shape &ds = data_shape;
+    const Shape& ds = data_shape;
     size_t elem_size = inputs[0]->get_element_type().size();
 
     Shape pre_reshape_shape(4, 1);
     size_t axis_zb = m_axis >= 0 ? m_axis : m_axis + data_shape.size();
-    for (size_t i = 0; i < axis_zb; ++i) {
+    for (size_t i = 0; i < axis_zb; ++i)
+    {
         pre_reshape_shape[0] *= ds[i];
     }
 
     pre_reshape_shape[1] = m_group;
     pre_reshape_shape[2] = ds[axis_zb] / m_group;
 
-    for (size_t i = axis_zb + 1; i < ds.size(); ++i) {
+    for (size_t i = axis_zb + 1; i < ds.size(); ++i)
+    {
         pre_reshape_shape[3] *= ds[i];
     }
     AxisVector axes_order(data_shape.size());
     std::iota(axes_order.begin(), axes_order.end(), 0);
     size_t data_size = shape_size(data_shape) * elem_size;
     std::vector<char> reshaped(data_size);
-    runtime::opt_kernel::reshape(arg, reshaped.data(), data_shape, axes_order,
-                                 pre_reshape_shape, elem_size);
+    runtime::opt_kernel::reshape(
+        arg, reshaped.data(), data_shape, axes_order, pre_reshape_shape, elem_size);
 
     Shape transpose_axes_order = {0, 2, 1, 3};
     Shape transposed_shape = pre_reshape_shape;
 
-    for (size_t i = 0; i < transpose_axes_order.size(); ++i) {
+    for (size_t i = 0; i < transpose_axes_order.size(); ++i)
+    {
         transposed_shape[i] = data_shape.at(transpose_axes_order.at(i));
     }
     auto axis_vector = AxisVector{begin(transpose_axes_order), end(transpose_axes_order)};
     std::vector<char> transposed(data_size);
-    runtime::opt_kernel::reshape(reshaped.data(), transposed.data(), pre_reshape_shape, axis_vector,
-                                 transposed_shape, elem_size);
+    runtime::opt_kernel::reshape(reshaped.data(),
+                                 transposed.data(),
+                                 pre_reshape_shape,
+                                 axis_vector,
+                                 transposed_shape,
+                                 elem_size);
 
-    runtime::opt_kernel::reshape(transposed.data(), out, transposed_shape, axes_order,
-                                 data_shape, elem_size);
+    runtime::opt_kernel::reshape(
+        transposed.data(), out, transposed_shape, axes_order, data_shape, elem_size);
     return true;
 }

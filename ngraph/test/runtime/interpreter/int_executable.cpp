@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "int_executable.hpp"
-#include "evaluates_map.hpp"
 #include "backend_manager.hpp"
+#include "evaluates_map.hpp"
 #include "ngraph/chrome_trace.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
@@ -27,39 +27,44 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
     : m_is_compiled{true}
     , m_performance_counters_enabled{enable_performance_collection}
 {
     m_function = clone_function(*function);
-    for (const auto& node : m_function->get_ordered_ops()) {
+    for (const auto& node : m_function->get_ordered_ops())
+    {
         // TODO: WA because of references mismatch for the operation
-        if (is_type<op::v1::GroupConvolutionBackpropData>(node)) {
+        if (is_type<op::v1::GroupConvolutionBackpropData>(node))
+        {
             auto gr_conv_bp_data = dynamic_pointer_cast<op::v1::GroupConvolutionBackpropData>(node);
             auto num_groups = gr_conv_bp_data->input_value(1).get_shape()[0];
-            auto split_filter_axis = std::make_shared<op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-                                                                    std::vector<uint64_t>{0});
-            auto sliced_filter = std::make_shared<op::v1::Split>(gr_conv_bp_data->input_value(1), split_filter_axis,
-                                                                 num_groups);
-            auto split_data_axis = std::make_shared<op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-                                                                  std::vector<uint64_t>{1});
-            auto sliced_data = std::make_shared<op::v1::Split>(gr_conv_bp_data->input_value(0), split_data_axis, num_groups);
+            auto split_filter_axis = std::make_shared<op::Constant>(
+                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{0});
+            auto sliced_filter = std::make_shared<op::v1::Split>(
+                gr_conv_bp_data->input_value(1), split_filter_axis, num_groups);
+            auto split_data_axis = std::make_shared<op::Constant>(
+                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{1});
+            auto sliced_data = std::make_shared<op::v1::Split>(
+                gr_conv_bp_data->input_value(0), split_data_axis, num_groups);
 
             NodeVector convs;
-            auto squeeze_filter_axis = std::make_shared<op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-                                                                    std::vector<uint64_t>{0});
-            for (size_t i = 0; i < num_groups; ++i) {
-                auto squeezed_filter = std::make_shared<op::v0::Squeeze>(sliced_filter->output(i), squeeze_filter_axis);
-                auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(sliced_data->output(i),
-                                                                              squeezed_filter,
-                                                                              gr_conv_bp_data->get_strides(),
-                                                                              gr_conv_bp_data->get_pads_begin(),
-                                                                              gr_conv_bp_data->get_pads_end(),
-                                                                              gr_conv_bp_data->get_dilations(),
-                                                                              gr_conv_bp_data->get_auto_pad(),
-                                                                              gr_conv_bp_data->get_output_padding());
+            auto squeeze_filter_axis = std::make_shared<op::Constant>(
+                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{0});
+            for (size_t i = 0; i < num_groups; ++i)
+            {
+                auto squeezed_filter = std::make_shared<op::v0::Squeeze>(sliced_filter->output(i),
+                                                                         squeeze_filter_axis);
+                auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(
+                    sliced_data->output(i),
+                    squeezed_filter,
+                    gr_conv_bp_data->get_strides(),
+                    gr_conv_bp_data->get_pads_begin(),
+                    gr_conv_bp_data->get_pads_end(),
+                    gr_conv_bp_data->get_dilations(),
+                    gr_conv_bp_data->get_auto_pad(),
+                    gr_conv_bp_data->get_output_padding());
                 convs.push_back(conv);
             }
             auto concat = std::make_shared<op::Concat>(convs, 1);
@@ -165,8 +170,9 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             type = op->get_input_element_type(0);
         }
-        else if (is_type<op::Equal>(op) || is_type<op::Greater>(op) || is_type<op::GreaterEqual>(op) ||
-                 is_type<op::Less>(op) || is_type<op::LessEqual>(op) || is_type<op::NotEqual>(op))
+        else if (is_type<op::Equal>(op) || is_type<op::Greater>(op) ||
+                 is_type<op::GreaterEqual>(op) || is_type<op::Less>(op) ||
+                 is_type<op::LessEqual>(op) || is_type<op::NotEqual>(op))
         {
             // Get the type of the second input, not the first
             // All BinaryElementwiseComparision ops have the same type for inputs
@@ -186,7 +192,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             m_timer_map[op].start();
         }
-        std::cout << op->get_type_name() <<std::endl;
+        std::cout << op->get_type_name() << std::endl;
         if (!op->evaluate(op_outputs, op_inputs))
         {
             evaluate_node(op, op_outputs, op_inputs);
@@ -335,24 +341,27 @@ vector<shared_ptr<runtime::Tensor>>
     return result_tensors;
 }
 
-bool
-runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node> &node, const HostTensorVector &outputs,
-                                                   const HostTensorVector &inputs) const {
-    auto & map = runtime::interpreter::get_evaluators_map();
+bool runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node>& node,
+                                                        const HostTensorVector& outputs,
+                                                        const HostTensorVector& inputs) const
+{
+    auto& map = runtime::interpreter::get_evaluators_map();
     auto it = map.find(node->get_type_info());
     bool res = false;
     if (it != map.end())
     {
         res = it->second(node, outputs, inputs);
-        if (!res) {
+        if (!res)
+        {
             throw ngraph_error(std::string("Running evaluate method for OP ") +
                                node->get_type_info().name + std::string(" failed!"));
         }
     }
     else
     {
-        throw unsupported_op(std::string("Interpreter backend doesn't implement evaluate method for OP ") +
-                           node->get_type_info().name);
+        throw unsupported_op(
+            std::string("Interpreter backend doesn't implement evaluate method for OP ") +
+            node->get_type_info().name);
     }
     return res;
 }

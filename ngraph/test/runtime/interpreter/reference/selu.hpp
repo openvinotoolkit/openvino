@@ -37,8 +37,9 @@ namespace ngraph
                 int cnt = 0;
                 for (size_t i = 0; i < size_arg; ++i)
                 {
-                    out[i] = arg[i] > T(0) ? T(lambda[cnt % size_lambda] * arg[i]) :
-                            T(alpha[cnt % size_alpha] * lambda[cnt % size_lambda] * (std::exp(arg[i]) - 1));
+                    out[i] = arg[i] > T(0) ? T(lambda[cnt % size_lambda] * arg[i])
+                                           : T(alpha[cnt % size_alpha] * lambda[cnt % size_lambda] *
+                                               (std::exp(arg[i]) - 1));
                     cnt++;
                 }
             }

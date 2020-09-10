@@ -24,9 +24,9 @@
 
 #include "backend.hpp"
 #include "backend_manager.hpp"
+#include "dynamic/dynamic_backend.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/util.hpp"
-#include "dynamic/dynamic_backend.hpp"
 
 using namespace std;
 using namespace ngraph;

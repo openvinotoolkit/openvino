@@ -23,8 +23,8 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -98,19 +98,22 @@ namespace ngraph
                 size_t filter_groups_stride = 0;
                 size_t channels_in_group = in_shape[in_channel_axis];
                 std::vector<std::vector<OUTPUT>> result_groups(num_groups);
-                if (num_groups > 1) {
+                if (num_groups > 1)
+                {
                     NGRAPH_CHECK(in_shape[in_channel_axis] % num_groups == 0,
-                                 "Number of input channels and number of groups must be multiplies of each other");
+                                 "Number of input channels and number of groups must be multiplies "
+                                 "of each other");
                     channels_in_group = in_shape[in_channel_axis] / num_groups;
                     group_out_shape[out_channel_axis] = filter_shape.at(filter_out_channel_axis);
                     group_in_shape[in_channel_axis] = channels_in_group;
-                    filter_group_shape = Shape(std::vector<size_t>(filter_shape.begin() + 1, filter_shape.end()));
-                    filter_groups_stride = std::accumulate(filter_shape.begin() + 1, filter_shape.end(), 1,
-                                                           std::multiplies<size_t>());
-                    // Further we will operate with filter_group_shape which doesn't have groups dimension
+                    filter_group_shape =
+                        Shape(std::vector<size_t>(filter_shape.begin() + 1, filter_shape.end()));
+                    filter_groups_stride = std::accumulate(
+                        filter_shape.begin() + 1, filter_shape.end(), 1, std::multiplies<size_t>());
+                    // Further we will operate with filter_group_shape which doesn't have groups
+                    // dimension
                     filter_out_channel_axis -= 1;
                     filter_in_channel_axis -= 1;
-
                 }
 
                 std::fesetround(FE_TONEAREST);
@@ -123,13 +126,15 @@ namespace ngraph
 
                 // At the outermost level we will walk over every out coordinate O.
                 CoordinateTransform out_transform(group_out_shape);
-                for (size_t g = 0; g < num_groups; g++) {
-                    const FILTER *filter_group_data = filter + filter_groups_stride * g;
+                for (size_t g = 0; g < num_groups; g++)
+                {
+                    const FILTER* filter_group_data = filter + filter_groups_stride * g;
                     result_groups[g].resize(shape_size(group_out_shape));
                     const size_t ch_start = channels_in_group * g;
                     const size_t ch_end = channels_in_group * (g + 1);
 
-                    for (const Coordinate &out_coord : out_transform) {
+                    for (const Coordinate& out_coord : out_transform)
+                    {
                         // Our out coordinate O will have the form:
                         //
                         //   (N,chan_out,i_1,...,i_n)
@@ -156,7 +161,8 @@ namespace ngraph
                         //   (1,l_1,...,l_n).
                         //
                         // Note that we are iterating within the *padded* and *dilated* in batch, so
-                        // further down we must check the current coordinate is in the pad or dilation
+                        // further down we must check the current coordinate is in the pad or
+                        // dilation
                         // gap.
 
                         size_t n_spatial_dimensions = group_in_shape.size() - 2;
@@ -174,7 +180,8 @@ namespace ngraph
                         in_transform_start[in_channel_axis] = 0;
                         in_transform_end[in_channel_axis] = 1;
 
-                        for (size_t i = 2; i < n_spatial_dimensions + 2; i++) {
+                        for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
+                        {
                             size_t filter_dilation_stride = filter_dilation[i - 2];
                             size_t filter_movement_stride = stride[i - 2];
                             std::ptrdiff_t below_pad = in_pad_below[i - 2];
@@ -182,8 +189,9 @@ namespace ngraph
                             size_t in_dilation_stride = in_dilation[i - 2];
 
                             in_transform_start[i] = filter_movement_stride * out_coord[i];
-                            in_transform_end[i] = in_transform_start[i] +
-                                                  (filter_group_shape[i] - 1) * filter_dilation_stride + 1;
+                            in_transform_end[i] =
+                                in_transform_start[i] +
+                                (filter_group_shape[i] - 1) * filter_dilation_stride + 1;
                             in_transform_movement_strides[i] = filter_dilation_stride;
                             in_transform_pad_below[i] = below_pad;
                             in_transform_pad_above[i] = above_pad;
@@ -191,7 +199,8 @@ namespace ngraph
                         }
 
                         AxisVector in_transform_axis_order(2 + n_spatial_dimensions);
-                        for (size_t i = 0; i < in_transform_axis_order.size(); i++) {
+                        for (size_t i = 0; i < in_transform_axis_order.size(); i++)
+                        {
                             in_transform_axis_order[i] = i;
                         }
                         CoordinateTransform in_transform(group_in_shape,
@@ -227,13 +236,14 @@ namespace ngraph
                         filter_transform_start[filter_in_channel_axis] = 0;
                         filter_transform_end[filter_in_channel_axis] = 1;
 
-                        for (size_t i = 2; i < n_spatial_dimensions + 2; i++) {
+                        for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
+                        {
                             filter_transform_start[i] = 0;
                             filter_transform_end[i] = filter_group_shape[i];
                         }
 
                         CoordinateTransform filter_transform(
-                                filter_group_shape, filter_transform_start, filter_transform_end);
+                            filter_group_shape, filter_transform_start, filter_transform_end);
 
                         // As we go, we sum up:
                         //
@@ -246,20 +256,27 @@ namespace ngraph
                         CoordinateTransform::Iterator in_it_end = in_transform.end();
                         CoordinateTransform::Iterator filter_it_end = filter_transform.end();
 
-                        size_t in_channel_stride = row_major_strides(group_in_shape).at(in_channel_axis);
+                        size_t in_channel_stride =
+                            row_major_strides(group_in_shape).at(in_channel_axis);
                         size_t filter_in_channel_stride =
-                                row_major_strides(filter_group_shape).at(filter_in_channel_axis);
+                            row_major_strides(filter_group_shape).at(filter_in_channel_axis);
                         size_t group_channel_offset = in_channel_stride * channels_in_group * g;
-                        while (in_it != in_it_end && filter_it != filter_it_end) {
-                            const Coordinate &in_coord = *in_it;
-                            if (in_transform.has_source_coordinate(in_coord)) {
+                        while (in_it != in_it_end && filter_it != filter_it_end)
+                        {
+                            const Coordinate& in_coord = *in_it;
+                            if (in_transform.has_source_coordinate(in_coord))
+                            {
                                 size_t in_idx = in_transform.index(in_coord) + group_channel_offset;
-                                const Coordinate &filter_coord = *filter_it;
+                                const Coordinate& filter_coord = *filter_it;
                                 size_t filter_idx = filter_transform.index(filter_coord);
-                                for (size_t in_channel = ch_start; in_channel < ch_end; ++in_channel) {
+                                for (size_t in_channel = ch_start; in_channel < ch_end;
+                                     ++in_channel)
+                                {
                                     ACCUMULATION in_v = static_cast<ACCUMULATION>(in[in_idx]);
-                                    ACCUMULATION f_v = static_cast<ACCUMULATION>(filter_group_data[filter_idx]);
-                                    if (is_quantized) {
+                                    ACCUMULATION f_v =
+                                        static_cast<ACCUMULATION>(filter_group_data[filter_idx]);
+                                    if (is_quantized)
+                                    {
                                         in_v = in_v - static_cast<ACCUMULATION>(*input_zero_point);
                                         f_v = f_v - static_cast<ACCUMULATION>(*filter_zero_point);
                                     }
@@ -271,26 +288,42 @@ namespace ngraph
                             ++in_it;
                             ++filter_it;
                         }
-                        if (is_quantized) {
+                        if (is_quantized)
+                        {
                             float scale = *input_scale * *filter_scale / *output_scale;
                             result_groups[g][out_transform.index(out_coord)] =
-                                    static_cast<OUTPUT>(std::round(static_cast<float>(result) * scale)) +
-                                    *output_zero_point;
-                        } else {
+                                static_cast<OUTPUT>(
+                                    std::round(static_cast<float>(result) * scale)) +
+                                *output_zero_point;
+                        }
+                        else
+                        {
                             result_groups[g][out_transform.index(out_coord)] = result;
                         }
                     }
                 }
-                if (num_groups > 1){
+                if (num_groups > 1)
+                {
                     std::vector<const char*> const_results_cpy;
                     std::vector<Shape> in_shapes;
-                    for (size_t g = 0; g < num_groups; g++){
-                        const_results_cpy.push_back(reinterpret_cast<const char *>(result_groups[g].data()));
+                    for (size_t g = 0; g < num_groups; g++)
+                    {
+                        const_results_cpy.push_back(
+                            reinterpret_cast<const char*>(result_groups[g].data()));
                         in_shapes.push_back(group_out_shape);
                     }
-                    concat(const_results_cpy, reinterpret_cast<char *>(out), in_shapes, Shape(out_shape), in_channel_axis, sizeof(OUTPUT));
-                } else {
-                    std::copy(result_groups[0].data(), result_groups[0].data() + shape_size(out_shape), out);
+                    concat(const_results_cpy,
+                           reinterpret_cast<char*>(out),
+                           in_shapes,
+                           Shape(out_shape),
+                           in_channel_axis,
+                           sizeof(OUTPUT));
+                }
+                else
+                {
+                    std::copy(result_groups[0].data(),
+                              result_groups[0].data() + shape_size(out_shape),
+                              out);
                 }
 
                 std::fesetround(old_mode);
@@ -370,7 +403,8 @@ namespace ngraph
                 std::vector<INPUT> reversed(shape_size(filter_shape));
                 AxisSet reverse_axes;
                 size_t reverse_axes_start = num_groups == 1 ? 2 : 3;
-                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i) {
+                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
+                {
                     reverse_axes.insert(i);
                 }
                 reverse(reinterpret_cast<const char*>(filter),
@@ -383,50 +417,53 @@ namespace ngraph
                 size_t filter_in_channel_axis = num_groups == 1 ? 0 : 1;
 
                 // Compute backward pad out pad bellow
-                size_t spatial_dim_count = num_groups == 1 ? static_cast<size_t>(in_shape.size()) - 2 :
-                                                             static_cast<size_t>(in_shape.size()) - 3;
+                size_t spatial_dim_count = num_groups == 1
+                                               ? static_cast<size_t>(in_shape.size()) - 2
+                                               : static_cast<size_t>(in_shape.size()) - 3;
 
                 CoordinateDiff backward_delta_out_pad_below;
                 backward_delta_out_pad_below.resize(spatial_dim_count);
 
-                for (size_t i = 0; i < spatial_dim_count; i++) {
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
                     backward_delta_out_pad_below[i] =
-                            (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
-                            forward_in_pad_bellow[i];
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
+                        forward_in_pad_bellow[i];
                 }
                 // Compute backward pad out pad above
                 CoordinateDiff backward_delta_out_pad_above;
                 backward_delta_out_pad_above.resize(spatial_dim_count);
 
-                for (size_t i = 0; i < spatial_dim_count; i++) {
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
                     backward_delta_out_pad_above[i] =
-                            (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
-                            ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
-                              forward_in_pad_above[i] -
-                              (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
-                             stride[i]) -
-                            forward_in_pad_above[i];
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
+                        ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
+                          forward_in_pad_above[i] -
+                          (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
+                         stride[i]) -
+                        forward_in_pad_above[i];
                 }
 
                 general_convolution<OUTPUT, FILTER, INPUT, ACCUMULATION>(
-                        delta_out,
-                        &reversed[0],
-                        delta_in,
-                        out_shape,
-                        filter_shape,
-                        in_shape,
-                        in_dilation,
-                        filter_dilation,
-                        backward_delta_out_pad_below,
-                        backward_delta_out_pad_above,
-                        stride,
-                        num_groups,
-                        0,
-                        1,
-                        filter_out_channel_axis,
-                        filter_in_channel_axis,
-                        0,
-                        1);
+                    delta_out,
+                    &reversed[0],
+                    delta_in,
+                    out_shape,
+                    filter_shape,
+                    in_shape,
+                    in_dilation,
+                    filter_dilation,
+                    backward_delta_out_pad_below,
+                    backward_delta_out_pad_above,
+                    stride,
+                    num_groups,
+                    0,
+                    1,
+                    filter_out_channel_axis,
+                    filter_in_channel_axis,
+                    0,
+                    1);
             }
         } // namespace reference
     }     // namespace runtime

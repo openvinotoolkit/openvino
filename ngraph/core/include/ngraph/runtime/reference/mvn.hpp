@@ -17,44 +17,62 @@
 #pragma once
 
 #include <cstddef>
-#include <ngraph/shape.hpp>
-#include <ngraph/runtime/reference/mean.hpp>
 #include <ngraph/runtime/opt_kernel/broadcast.hpp>
-#include <ngraph/runtime/reference/subtract.hpp>
+#include <ngraph/runtime/reference/mean.hpp>
 #include <ngraph/runtime/reference/multiply.hpp>
-#include <ngraph/runtime/reference/sum.hpp>
 #include <ngraph/runtime/reference/sqrt.hpp>
+#include <ngraph/runtime/reference/subtract.hpp>
+#include <ngraph/runtime/reference/sum.hpp>
+#include <ngraph/shape.hpp>
 
-namespace ngraph {
-    namespace runtime {
-        namespace reference {
-            template<typename T>
-            void mvn(const T *arg, T *out, const Shape &in_shape, bool normalize_variance, AxisSet reduction_axes,
-                     double eps) {
+namespace ngraph
+{
+    namespace runtime
+    {
+        namespace reference
+        {
+            template <typename T>
+            void mvn(const T* arg,
+                     T* out,
+                     const Shape& in_shape,
+                     bool normalize_variance,
+                     AxisSet reduction_axes,
+                     double eps)
+            {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> mean_val(shape_size(reduced_shape));
                 mean(arg, mean_val.data(), in_shape, reduction_axes, true);
                 std::vector<T> broadcast_mean_data(shape_size(in_shape));
-                broadcast(mean_val.data(), broadcast_mean_data.data(), reduced_shape, in_shape, reduction_axes);
+                broadcast(mean_val.data(),
+                          broadcast_mean_data.data(),
+                          reduced_shape,
+                          in_shape,
+                          reduction_axes);
                 subtract(arg, broadcast_mean_data.data(), out, shape_size(in_shape));
 
-                if (normalize_variance) {
+                if (normalize_variance)
+                {
                     std::vector<T> multiply_val(shape_size(in_shape));
-                    multiply(out, out, multiply_val.data(),shape_size(in_shape));
+                    multiply(out, out, multiply_val.data(), shape_size(in_shape));
                     std::vector<T> sum_val(shape_size(reduced_shape));
                     sum(multiply_val.data(), sum_val.data(), in_shape, reduction_axes, true);
                     std::vector<T> broadcast_sum(shape_size(in_shape));
-                    broadcast(sum_val.data(), broadcast_sum.data(), reduced_shape, in_shape, reduction_axes);
+                    broadcast(sum_val.data(),
+                              broadcast_sum.data(),
+                              reduced_shape,
+                              in_shape,
+                              reduction_axes);
                     T n = 1;
-                    for (auto i : reduction_axes) {
+                    for (auto i : reduction_axes)
+                    {
                         n *= in_shape[i];
                     }
-                    for (size_t i = 0; i < shape_size(in_shape); ++i) {
+                    for (size_t i = 0; i < shape_size(in_shape); ++i)
+                    {
                         out[i] /= std::sqrt(broadcast_sum[i] / n) + eps;
                     }
-
                 }
             }
-        }  // namespace reference
-    }  // namespace runtime
-}  // namespace ngraph
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
