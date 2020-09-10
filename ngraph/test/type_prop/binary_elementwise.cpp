@@ -285,50 +285,6 @@ TEST(type_prop, binary_elementwise_arithmetic_both_dynamic)
     ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_dynamic_right_static)
-{
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_dynamic)
-{
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_dynamic)
-{
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        add->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_dynamic_right_rank_static_dynamic)
-{
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        add->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
-}
-
 TEST(type_prop,
      binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_static_dynamic_result_static)
 {

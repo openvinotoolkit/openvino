@@ -29,6 +29,8 @@ set (SRC
     op/avg_pool.hpp
     op/convolution.cpp
     op/convolution.hpp
+    op/group_conv.cpp
+    op/group_conv.hpp
     pass/dyn_elimination.cpp
     pass/dyn_elimination.hpp
     pass/fused_op_decomposition.cpp
@@ -45,6 +47,8 @@ set (SRC
     pass/opset0_downgrade.hpp
     pass/opset1_downgrade.cpp
     pass/opset1_downgrade.hpp
+    pass/opset1_upgrade.cpp
+    pass/opset1_upgrade.hpp
     )
 
 add_library(ngraph_backend SHARED ${SRC})

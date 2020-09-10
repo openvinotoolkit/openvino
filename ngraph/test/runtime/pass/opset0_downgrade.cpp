@@ -96,29 +96,6 @@ namespace
     // Default is that we did nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::AvgPool> node)
-    {
-        auto const input_arg = node->input_value(0);
-        const auto ceil_mode = static_cast<bool>(node->get_rounding_type());
-        const auto include_padding_in_avg_computation = !node->get_exclude_pad();
-        const auto pad_type = node->get_auto_pad();
-        const auto padding_below = node->get_pads_begin();
-        const auto padding_above = node->get_pads_end();
-        const auto window_movement_strides = node->get_strides();
-        const auto window_shape = node->get_kernel();
-
-        auto replacement_node = make_shared<op::v0::AvgPool>(input_arg,
-                                                             window_shape,
-                                                             window_movement_strides,
-                                                             padding_below,
-                                                             padding_above,
-                                                             include_padding_in_avg_computation,
-                                                             pad_type,
-                                                             ceil_mode);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Broadcast> node)
     {
         auto arg = node->input_value(0);
@@ -260,33 +237,6 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalXor> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Xor, op::v1::LogicalXor>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::OneHot> node)
-    {
-        const auto indices = node->input_value(0);
-        const auto depth = node->input_value(1).get_node();
-        auto on_value = node->input_value(2);
-        auto off_value = node->input_value(3);
-        const auto axis = node->get_axis();
-
-        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
-        const auto output_shape = output_pshape.to_shape();
-
-        auto one_hot = std::make_shared<ngraph::op::Convert>(
-            std::make_shared<ngraph::op::OneHot>(indices, output_shape, axis),
-            on_value.get_element_type());
-
-        auto broadcasted_values = builder::numpy_broadcast_outputs({one_hot, on_value, off_value});
-        on_value = broadcasted_values[1];
-        off_value = broadcasted_values[2];
-
-        auto replacement_node = one_hot * (on_value - off_value) + off_value;
-
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMax> node)

@@ -49,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, not)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::Not>(A), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::LogicalNot>(A), ParameterVector{A});
 
     std::vector<char> a{1, 0, 1, 0};
 
@@ -63,7 +63,7 @@ NGRAPH_TEST(${BACKEND_NAME}, not_i32)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Not>(A), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::LogicalNot>(A), ParameterVector{A});
 
     std::vector<int32_t> a{1, 0, 2, 0};
 

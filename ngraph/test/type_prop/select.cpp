@@ -211,48 +211,6 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic)
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TEST(type_prop, select_partial_arg0_rank_dynamic_static_arg1_arg2_rank_dynamic_ok)
-{
-    auto param0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape{2, Dimension::dynamic(), 3});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, select_partial_arg1_rank_dynamic_static_arg0_arg2_rank_dynamic_ok)
-{
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto param1 =
-        make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, select_partial_arg2_rank_dynamic_static_arg0_arg1_rank_dynamic_ok)
-{
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 =
-        make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
 TEST(type_prop, select_partial_all_rank_static_dynamic_ok)
 {
     auto param0 = make_shared<op::Parameter>(
