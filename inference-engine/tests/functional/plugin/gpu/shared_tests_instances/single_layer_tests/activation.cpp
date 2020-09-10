@@ -16,35 +16,35 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
-        Sign,
-        Abs,
-        Gelu,
-        Clamp,
-        Negative,
-        Acos,
-        Asin,
-        Atan,
-        Cos,
-        Cosh,
-        Floor,
-        Sin,
-        Sinh,
-        Sqrt,
-        Tan,
-        Elu,
-        Erf,
-        HardSigmoid,
-        Selu,
-        Ceiling,
-        Mish,
-        HSwish,
-        SoftPlus
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sigmoid,     {}},
+        {Tanh,        {}},
+        {Relu,        {}},
+        {Exp,         {}},
+        {Log,         {}},
+        {Sign,        {}},
+        {Abs,         {}},
+        {Gelu,        {}},
+        {Clamp,       {{-2.0f, 2.0f}}},
+        {Negative,    {}},
+        {Acos,        {}},
+        {Asin,        {}},
+        {Atan,        {}},
+        {Cos,         {}},
+        {Cosh,        {}},
+        {Floor,       {}},
+        {Sin,         {}},
+        {Sinh,        {}},
+        {Sqrt,        {}},
+        {Tan,         {}},
+        {Elu,         {{0.1f}}},
+        {Erf,         {}},
+        {HardSigmoid, {{0.2f, 0.5f}}},
+        {Selu,        {{1.6732f, 1.0507f}}},
+        {Ceiling,     {}},
+        {Mish,        {}},
+        {HSwish,      {}},
+        {SoftPlus,    {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -53,9 +53,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

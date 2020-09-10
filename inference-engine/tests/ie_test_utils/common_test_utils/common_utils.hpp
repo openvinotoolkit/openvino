@@ -70,13 +70,13 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
     return getLayerByName(&icnnnetwork, layerName);
 }
 
-template <typename elementTypeVector>
-std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>>
-        combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<elementTypeVector>>>& inputShapes) {
-    std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>> resVec;
-    for (auto& inputShape : inputShapes) {
-        for (auto& item : inputShape.second) {
-            resVec.push_back({inputShape.first, item});
+template <typename master, typename slave>
+std::vector<std::pair<master, slave>> combineParams(
+    const std::map<master, std::vector<slave>>& keyValueSets) {
+    std::vector<std::pair<master, slave>> resVec;
+    for (auto& keyValues : keyValueSets) {
+        for (auto& item : keyValues.second) {
+            resVec.push_back({keyValues.first, item});
         }
     }
     return resVec;

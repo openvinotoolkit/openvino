@@ -45,7 +45,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(inputShapes)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
