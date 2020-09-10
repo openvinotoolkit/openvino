@@ -112,7 +112,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     // Multiply the thrird and fourth input instead of the output of FQ with all const inputs
     manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
