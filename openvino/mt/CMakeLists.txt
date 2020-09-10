@@ -63,3 +63,4 @@ endif()
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core)
+
