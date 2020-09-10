@@ -111,10 +111,10 @@ namespace ngraph
                             {"SAME_UPPER", ngraph::op::PadType::SAME_UPPER},
                             {"SAME_LOWER", ngraph::op::PadType::SAME_LOWER},
                             {"NOTSET", ngraph::op::PadType::NOTSET},
-                            {"", ngraph::op::PadType::NOTSET},
                         };
 
-                    const std::string& pad_str{node.get_attribute_value<std::string>("auto_pad")};
+                    const std::string& pad_str{
+                        node.get_attribute_value<std::string>("auto_pad", "NOTSET")};
                     const auto pad_val_it = auto_pad_values.find(pad_str);
                     CHECK_VALID_NODE(node,
                                      pad_val_it != auto_pad_values.end(),

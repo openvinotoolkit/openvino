@@ -46,11 +46,6 @@ namespace ngraph
                 return result;
             }
 
-            static std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto)
-            {
-                return (node_proto.domain().empty() ? "" : node_proto.domain());
-            }
-
             /// \brief      Gets the operator represented by provided node unique identificator.
             ///
             /// \param[in]  node_proto  The node protobuf representation object.
@@ -142,7 +137,7 @@ namespace ngraph
                                               node_proto);
                     // If a node from an unregistered domain is detected, try registering that
                     // domain
-                    m_model->enable_opset_domain(detail::get_node_domain(node_proto));
+                    m_model->enable_opset_domain(get_node_domain(node_proto));
                 }
             }
 

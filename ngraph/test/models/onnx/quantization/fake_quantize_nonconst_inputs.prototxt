@@ -2,6 +2,7 @@ ir_version: 7
 producer_name: "onnx-importer-test"
 graph {
   node {
+    domain: "org.openvinotoolkit"
     input: "X"
     input: "input_low"
     input: "input_high"

@@ -129,6 +129,8 @@ namespace ngraph
                                          const std::string& domain);
         };
 
+        const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+
     } // namespace onnx_import
 
 } // namespace ngraph

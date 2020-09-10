@@ -2470,3 +2470,85 @@ NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis)
     test_case.add_input<float>({1});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/detection_output.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    auto gen_vector = [](size_t size, float min, float max) -> std::vector<float> {
+        float step = (max - min) / size;
+        float next = min - step;
+
+        std::vector<float> out(size);
+        std::generate(out.begin(), out.end(), [&next, &step] { return next += step; });
+        return out;
+    };
+
+    std::vector<float> logits = gen_vector(12, -2, 2);
+    std::vector<float> class_preds = gen_vector(9, 0, 1);
+    std::vector<float> proposals = gen_vector(15 * 2, 0, 1);
+    std::vector<float> output = {0, 1, 0.777778, 0.241012,   0.260378,    0.418248,    0.499622,
+                                 0, 1, 0.444444, 0.10963,    0.146239,    0.176296,    0.228576,
+                                 0, 2, 0.888889, 0.241012,   0.260378,    0.418248,    0.499622,
+                                 0, 2, 0.555556, 0.10963,    0.146239,    0.176296,    0.228576,
+                                 0, 2, 0.222222, -0.0378917, -0.00169918, -0.00210832, 0.0387362};
+    test_case.add_input<float>(logits);
+    test_case.add_input<float>(class_preds);
+    test_case.add_input<float>(proposals);
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 7}, output);
+    int tolerance_bits = 6;
+    test_case.run(tolerance_bits);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.prototxt"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    std::vector<float> A(3 * 2 * 2);
+    std::vector<float> B(3 * 6 * 6);
+    std::vector<float> output = {
+        -2.3200002, -2.3200002,  3.6533334,  3.6533334,   -3.7053659,  -3.7053659, 5.0386992,
+        5.0386992,  -0.98666668, -2.3200002, 4.9866667,   3.6533334,   -2.3720326, -3.7053659,
+        6.3720322,  5.0386992,   -2.3200002, -0.98666668, 3.6533334,   4.9866667,  -3.7053659,
+        -2.3720326, 5.0386992,   6.3720322,  -0.98666668, -0.98666668, 4.9866667,  4.9866667,
+        -2.3720326, -2.3720326,  6.3720322,  6.3720322,   0.1,         0.1,        0.2,
+        0.2,        0.1,         0.1,        0.2,         0.2,         0.1,        0.1,
+        0.2,        0.2,         0.1,        0.1,         0.2,         0.2,        0.1,
+        0.1,        0.2,         0.2,        0.1,         0.1,         0.2,        0.2,
+        0.1,        0.1,         0.2,        0.2,         0.1,         0.1,        0.2,
+        0.2,
+    };
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 32}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> data(12);
+    std::iota(data.begin(), data.end(), 1);
+    std::vector<float> output = {
+        0.19334731,
+        0.33806169,
+        0.44846106,
+        0.53452247,
+        1.4501048,
+        1.5212777,
+        1.5696137,
+        1.6035674,
+        3.4802516,
+        3.3806169,
+        3.2887144,
+        3.2071347,
+    };
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{1, 3, 2, 2}, output);
+    test_case.run();
+}

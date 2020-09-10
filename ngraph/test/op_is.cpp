@@ -632,6 +632,15 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
+    void op_is_PriorBox()
+    {
+        op::PriorBox node;
+        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
+        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
+    }
+
     void op_is_Product()
     {
         op::Product node;

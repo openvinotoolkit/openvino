@@ -73,6 +73,7 @@
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
@@ -881,6 +882,16 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
+        case OP_TYPEID::PriorBox:
+        {
+            const op::PriorBox* pbox = static_cast<const op::PriorBox*>(&node);
+            runtime::reference::prior_box<T>(args[0]->get_data_ptr<T>(),
+                                             args[1]->get_data_ptr<T>(),
+                                             out[0]->get_data_ptr<float>(),
+                                             out[0]->get_shape(),
+                                             pbox->get_attrs());
+            break;
+        }
         case OP_TYPEID::Quantize:
         {
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
