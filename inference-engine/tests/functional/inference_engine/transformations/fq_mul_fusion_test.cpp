@@ -113,12 +113,19 @@ INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_scalar, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{})));
 
-// INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_scalar, FQMulFusion,
-//                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
-//                                            ::testing::Values(ngraph::Shape{}),
-//                                            ::testing::Values(ngraph::Shape{1}),
-//                                            ::testing::Values(ngraph::Shape{}),
-//                                            ::testing::Values(ngraph::Shape{1})));
+INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_scalar, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1})));
+
+INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_4D_NHWC, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{2, 7, 7, 3}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1}),
+                                           ::testing::Values(ngraph::Shape{2, 7, 7, 3}),
+                                           ::testing::Values(ngraph::Shape{2, 7, 7, 3})));
 
 // INSTANTIATE_TEST_CASE_P(FQOutputs1D, FQMulFusion,
 //                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
