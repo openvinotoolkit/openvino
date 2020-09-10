@@ -21,13 +21,12 @@ class TRANSFORMATIONS_API ConvertPriorBox;
 
 class ngraph::pass::ConvertPriorBox : public ngraph::pass::MatcherPass {
 public:
-    ConvertPriorBox() : {
+    ConvertPriorBox() {
         convert_prior_box();
         convert_prior_box_clustered();
     }
 
 private:
     void convert_prior_box();
-
     void convert_prior_box_clustered();
 };
