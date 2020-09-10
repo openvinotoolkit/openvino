@@ -77,20 +77,20 @@ NOTE: This step is not required for using alone nGraph Wheel, but it needed for 
 You may wish to use a virutualenv for your installation.
 
     $ virtualenv -p $(which python3) venv
-    $ source venv\bin\activate
+    $ source venv/bin/activate
     (venv) $
 
 ### Installing the wheel
 
 You may wish to use a virutualenv for your installation.
 
-    (venv) $ pip install ngraph\python\dist\ngraph_core-0.0.0-cp37-cp37m-win_amd64.whl
+    (venv) $ pip install ngraph/build/python/dist/ngraph_core-0.21.0rc0-cp37-cp37m-linux_x86_64.whl
 
 ## Running tests
 
 Unit tests require additional packages be installed:
 
-    (venv) $ cd ngraph\python
+    (venv) $ cd ngraph/python
     (venv) $ pip install -r test_requirements.txt
 
 Then run tests:
