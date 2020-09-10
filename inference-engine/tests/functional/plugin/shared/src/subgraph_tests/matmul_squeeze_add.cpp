@@ -53,7 +53,6 @@ void MatmulSqueezeAddTest::SetUp() {
             res.emplace_back(static_cast<float>(dist(gen)));
 
         return res;
-
     };
 
     InferenceEngine::Precision netPrecision;
