@@ -1057,10 +1057,6 @@ TEST_P(myriadLayersTestsBinaryConvolution_smoke, BinaryConvolution) {
     }
     _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
-    if (kernel.x == 3 && kernel.y == 3 && dilations == 2) {
-        GTEST_SKIP() << "Computing wrong after hoisting";
-    }
-
     SetInputTensor(dims);
     auto dimsOutput = dims;
     dimsOutput.h = (dims.h) / strides;
