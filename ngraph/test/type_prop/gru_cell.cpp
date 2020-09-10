@@ -231,38 +231,38 @@ TEST(type_prop, gru_cell_invalid_input_dynamic_rank)
                                         PartialShape{gates_count * hidden_size, hidden_size});
     auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
+    auto check_dynamic_gru = [](const shared_ptr<opset4::GRUCell>& gru) -> bool {
+        return gru->output(0).get_partial_shape() == PartialShape::dynamic() &&
+               gru->output(0).get_element_type() == gru->input(0).get_element_type();
+    };
+
     // Invalid dynamic rank for W tensor.
     auto W = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "GRUCell node was created with invalid data.";
+    auto gru_w = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_gru(gru_w), true);
 
     // Invalid dynamic rank for X tensor.
     W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
     X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "GRUCell node was created with invalid data.";
+    auto gru_x = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_gru(gru_x), true);
 
     // Invalid dynamic rank for H_t tensor.
     X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "GRUCell node was created with invalid data.";
+    auto gru_h = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_gru(gru_h), true);
 
     // Invalid dynamic rank for R tensor.
     H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "GRUCell node was created with invalid data.";
+    auto gru_r = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(check_dynamic_gru(gru_r), true);
 
     // Invalid dynamic rank for B tensor.
     R = make_shared<op::Parameter>(element::f32,
                                    PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
-                 ngraph::NodeValidationFailure)
-        << "GRUCell node was created with invalid data.";
+    auto gru_b = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
+    EXPECT_EQ(check_dynamic_gru(gru_b), true);
 }

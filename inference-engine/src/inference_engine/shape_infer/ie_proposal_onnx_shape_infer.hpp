@@ -23,8 +23,7 @@ public:
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
-        size_t post_nms_count = static_cast<size_t>(GetParamAsInt("post_nms_count", params));
-
+        auto post_nms_count = GetParamAsUInt("post_nms_count", params);
         outShapes.push_back({post_nms_count, 4});
         outShapes.push_back({post_nms_count, });
     }

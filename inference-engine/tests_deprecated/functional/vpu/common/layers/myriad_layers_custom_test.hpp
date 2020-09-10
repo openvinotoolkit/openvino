@@ -799,7 +799,7 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
                     </port>
                 </output>
             </layer>
-            <layer id="5" name="Quantize" precision="FP16" type="QuantizeTemporaryType">
+            <layer id="5" name="Quantize" precision="FP16" type="FakeQuantizeBin">
                 <data levels="@levels@" input_low_size="@input_low_size@" input_high_size="@input_high_size@" output_low_size="@output_low_size@" output_high_size="@output_high_size@" switch_out="@switch_out@"/>
                 <input>
                     <port id="0">
@@ -1112,7 +1112,7 @@ static std::vector<Group> s_BinaryConvolutionGroup = {
 static std::vector<Kernel> s_BinaryConvolutionKernel = {
     {{1, 1}},
     {{1, 3}},
-    {{3, 3}},
+    {{3, 3}}
 };
 static std::vector<Strides> s_BinaryConvolutionStrides = {
     1, 2
