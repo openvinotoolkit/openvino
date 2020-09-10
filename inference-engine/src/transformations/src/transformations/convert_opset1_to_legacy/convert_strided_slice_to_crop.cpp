@@ -22,9 +22,9 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
     std::vector<int64_t> end_mask = {0, 0, 0, 0};
     auto m_slice = std::make_shared<ngraph::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
-        if (!slice) {
+        if (!slice || m_transformation_callback(slice)) {
             return false;
         }
 
