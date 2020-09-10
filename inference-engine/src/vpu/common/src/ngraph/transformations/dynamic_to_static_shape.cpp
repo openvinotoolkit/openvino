@@ -41,7 +41,7 @@ bool isDynamic(const Node& node) {
     return std::any_of(outputs.cbegin(), outputs.cend(), [](const Output<const Node>& output) {
         VPU_THROW_UNLESS(output.get_partial_shape().rank() != ngraph::Rank::dynamic(),
         "DynamicToStaticShape transformation: got dynamic rank for {} with type {} while only static is supported",
-        output.get_node_shared_ptr()->get_friendly_name(), output.get_node_shared_ptr()->get_type_name());
+        output.get_node_shared_ptr()->get_friendly_name(), output.get_node_shared_ptr()->get_type_info());
 
         return output.get_partial_shape().is_dynamic();
     });
@@ -51,7 +51,7 @@ bool validateStaticShapes(const ngraph::Function& function) {
     for (const auto& node : function.get_ordered_ops()) {
         VPU_THROW_UNLESS(!isDynamic(*node),
             "DynamicToStaticShape transformation: after all the transformations there is still dynamism in the network."
-            " First met node with dynamic output: {} (type: {})", node->get_friendly_name(), node->get_type_name());
+            " First met node with dynamic output: {} (type: {})", node->get_friendly_name(), node->get_type_info());
     }
     return true;
 }

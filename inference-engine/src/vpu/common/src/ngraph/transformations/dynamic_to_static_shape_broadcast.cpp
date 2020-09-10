@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
 
 #include "vpu/ngraph/operations/static_shape_broadcast.hpp"
@@ -20,7 +21,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(broadcast,
                      "dynamicToStaticShapeBroadcast transformation is not applicable for {}, "
                      "it should be {} instead",
-                     target, ngraph::opset3::Broadcast::type_info.name);
+                     target, ngraph::opset3::Broadcast::type_info);
 
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> staticShapeBroadcast;
     if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::EXPLICIT) {
