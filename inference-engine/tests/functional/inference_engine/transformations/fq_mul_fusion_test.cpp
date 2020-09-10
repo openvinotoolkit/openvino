@@ -127,6 +127,20 @@ INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_4D_NHWC, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{2, 7, 7, 3}),
                                            ::testing::Values(ngraph::Shape{2, 7, 7, 3})));
 
+INSTANTIATE_TEST_CASE_P(FQOutputs_NHWC_C6_scalar, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 7, 7, 3}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 3}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 3})));
+
+INSTANTIATE_TEST_CASE_P(FQOutputs_NCHW_C6_scalar, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 3, 7, 7}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1, 3, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{}),
+                                           ::testing::Values(ngraph::Shape{1, 3, 1, 1})));
+
 // INSTANTIATE_TEST_CASE_P(FQOutputs1D, FQMulFusion,
 //                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
 //                                            ::testing::Values(ngraph::Shape{}),
