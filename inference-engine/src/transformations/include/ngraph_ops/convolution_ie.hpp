@@ -62,6 +62,27 @@ public:
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
 
+#ifdef LPT_SUPPORT
+    ConvolutionIE(const Output<Node>& data_batch,
+                  const Output<Node>& filters,
+                  const Strides& strides,
+                  const Strides& dilations,
+                  const CoordinateDiff& pads_begin,
+                  const CoordinateDiff& pads_end,
+                  const size_t& group = 1,
+                  const PadType& auto_pad = PadType::EXPLICIT);
+
+    ConvolutionIE(const Output<Node>& data_batch,
+                  const Output<Node>& filters,
+                  const Output<Node>& bias,
+                  const Strides& strides,
+                  const Strides& dilations,
+                  const CoordinateDiff& pads_begin,
+                  const CoordinateDiff& pads_end,
+                  const size_t& group = 1,
+                  const PadType& auto_pad = PadType::EXPLICIT);
+#endif
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;

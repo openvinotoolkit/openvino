@@ -57,6 +57,47 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
+#ifdef LPT_SUPPORT
+op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
+                                 const Output<Node>& filters,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const CoordinateDiff& pads_begin,
+                                 const CoordinateDiff& pads_end,
+                                 const size_t& group,
+                                 const PadType& auto_pad)
+        : Op({data_batch, filters})
+        , m_strides(strides)
+        , m_dilations(dilations)
+        , m_pads_begin(pads_begin)
+        , m_pads_end(pads_end)
+        , m_auto_pad(auto_pad)
+        , m_group(group)
+        , m_output_type(element::undefined) {
+    constructor_validate_and_infer_types();
+}
+
+op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
+                                 const Output<Node>& filters,
+                                 const Output<Node>& bias,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const CoordinateDiff& pads_begin,
+                                 const CoordinateDiff& pads_end,
+                                 const size_t& group,
+                                 const PadType& auto_pad)
+        : Op({data_batch, filters, bias})
+        , m_strides(strides)
+        , m_dilations(dilations)
+        , m_pads_begin(pads_begin)
+        , m_pads_end(pads_end)
+        , m_auto_pad(auto_pad)
+        , m_group(group)
+        , m_output_type(element::undefined) {
+    constructor_validate_and_infer_types();
+}
+#endif
+
 void op::ConvolutionIE::validate_and_infer_types() {
     PartialShape data_batch_shape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
