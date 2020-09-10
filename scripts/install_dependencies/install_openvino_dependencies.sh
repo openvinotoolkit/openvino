@@ -79,7 +79,8 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( gstreamer1.0-plugins-ugly
+            PKGS+=( libglib2.0-0
+                    gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
                     gstreamer1.0-doc
@@ -99,7 +100,8 @@ if [ -f /etc/lsb-release ]; then
                     libpython3.8
                 )
         elif [ "$system_ver" = "18.04" ]; then
-            PKGS+=( libfluidsynth1
+            PKGS+=( libglib2.0
+                    libfluidsynth1
                     libnettle6
                     libopenexr22
                     gstreamer1.0-plugins-ugly
