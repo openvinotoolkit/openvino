@@ -130,7 +130,7 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
         }
 
         // WA: shape infer has to know number of outputs
-        if ((type == "Proposal" || type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
+        if ((type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
                 && parameters.find("num_outputs") == parameters.end()) {
             parameters["num_outputs"] = std::to_string(outputs.size());
         }
@@ -149,6 +149,13 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
     // Extensions are not loaded when we create nGraph function
     // First call: create node
     if (initialized < 1) {
+        if ((type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
+                && outputs.size() < 2) {
+            // Add fake port
+            PortIE port;
+            port.precision = InferenceEngine::Precision::FP32;
+            outputs.emplace_back(port);
+        }
         if (outputs.size())
             set_output_size(outputs.size());
         for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
