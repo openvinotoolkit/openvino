@@ -1,3 +1,15 @@
+# LPT_SUPPORT: temporary disabling
+onnx_model_gemm_abc
+reduce_sum_keep_5d_to_scalar_int32
+et_dynamic_shape_static_validation_fails
+add_bad_arguments
+divide_bad_arguments
+multiply_bad_arguments
+subtract_bad_arguments
+or_bad_arguments
+xor_bad_arguments
+logic_arith_compare_partial_et
+
 tile_3d_small_data_rank
 tile_3d_few_repeats
 fake_quantize_pdpd
