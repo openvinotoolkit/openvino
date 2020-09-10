@@ -25,8 +25,6 @@ enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
     AVERAGE_UNPOOLING,
-    BATCH_NORM_GRAD,
-    LOOKUP_TABLE,
     CONVOLUTION,
     DECONVOLUTION,
     LRN,
@@ -38,9 +36,7 @@ enum class KernelType {
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_BN_SCALE,
     FUSED_CONV_ELTWISE,
-    TABLE_LOOKUP,
     REORDER,
     RESHAPE,
     PERMUTE,
@@ -49,27 +45,22 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MAX_UNPOOLING,
-    CONVOLUTION_GRAD_WEIGHTS,
-    SCALE_GRAD_WEIGHTS,
     MVN,
-    FULLY_CONNECTED_GRAD_INPUT,
-    FULLY_CONNECTED_GRAD_WEIGHTS,
     LSTM_GEMM,
     LSTM_ELT,
-    EMBED,
-    SOFT_MAX_LOSS_GRAD,
     BORDER,
     TILE,
     SELECT,
     BROADCAST,
     GEMM,
-    INDEX_SELECT,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
     DETECTION_OUTPUT,
     GATHER,
+    SCATTER_UPDATE,
     DEPTH_TO_SPACE,
+    BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
@@ -80,9 +71,12 @@ enum class KernelType {
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
+    SPACE_TO_BATCH,
     GRN,
     CTC_GREEDY_DECODER,
-    CUM_SUM
+    CUM_SUM,
+    EMBEDDING_BAG,
+    EXTRACT_IMAGE_PATCHES
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,8 +123,6 @@ enum class ActivationFunction {
     SQRT,
     LINEAR,
     ELU,
-    RELU_GRAD,
-    RELU_NEGATIVE_SLOPE_GRAD,
     SIN,
     ASIN,
     SINH,
@@ -151,7 +143,6 @@ enum class ActivationFunction {
     NEGATIVE,
     NOT,
     POW,
-    NONE_GRAD,
     ERF,
     HARD_SIGMOID,
     RECIPROCAL,
@@ -160,6 +151,8 @@ enum class ActivationFunction {
     SOFTPLUS,
     SOFTSIGN,
     SWISH,
+    HSWISH,
+    MISH,
     GELU
 };
 
@@ -371,6 +364,14 @@ enum class TileAxis {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DepthToSpaceMode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class DepthToSpaceMode {
+    BLOCKS_FIRST,
+    DEPTH_FIRST,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ResampleType
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class ResampleType {
@@ -481,6 +482,20 @@ enum class ContractMode {
 enum class GatherAxis {
     X,
     Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ScatterUpdateAxis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class ScatterUpdateAxis {
+    X,
+    Y,
+    Z,
+    W,
     FEATURE,
     BATCH,
 };
@@ -531,5 +546,14 @@ enum class CumSumAxis {
     W,
     FEATURE,
     BATCH
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// EmbeddingBagType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class EmbeddingBagType {
+    PACKED_SUM,
+    OFFSETS_SUM,
+    SEGMENTS_SUM
 };
 }  // namespace kernel_selector

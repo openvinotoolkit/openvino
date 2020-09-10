@@ -17,7 +17,6 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.split_normalizer import SplitNormalizer
 from extensions.ops.gather import Gather
 from extensions.ops.split import Split
 from mo.back.replacement import BackReplacementPattern
@@ -26,7 +25,6 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.graph.graph import Node
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -359,11 +357,7 @@ class DecomposeReverseChannels(BackReplacementPattern):
         axis = node.axis
         order = node.order
 
-        indices = Const(graph, {'name': name + '/reverse_order', 'value': order}).create_node()
-        axis_const = Const(graph, {'value': int64_array(axis)}).create_node()
-        gather = Gather(graph, {'name': name}).create_node()
-        gather.in_port(1).connect(indices.out_port(0))
-        gather.in_port(2).connect(axis_const.out_port(0))
+        gather = create_op_with_const_inputs(graph, Gather, {1: order, 2: int64_array(axis)}, {'name': name})
 
         node.out_port(0).get_connection().set_source(gather.out_port(0))
         node.in_port(0).get_connection().set_destination(gather.in_port(0))
@@ -408,9 +402,8 @@ class ApplyReverseChannels(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        from extensions.back.ParameterToPlaceholder import ParameterToInput
         from extensions.back.GroupedConvWeightsNormalize import GroupedConvWeightsNormalize
-        return [ParameterToInput, GroupedConvWeightsNormalize, SplitNormalizer]
+        return [GroupedConvWeightsNormalize]
 
     def find_and_replace_pattern(self, graph: Graph):
         """

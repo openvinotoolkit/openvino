@@ -18,7 +18,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockIExecutableNetwork : public IExecutableNetwork {
 public:
     MOCK_QUALIFIED_METHOD2(GetOutputsInfo, const noexcept, StatusCode(ConstOutputsDataMap  &, ResponseDesc *));
@@ -26,7 +25,6 @@ public:
     MOCK_QUALIFIED_METHOD2(CreateInferRequest, noexcept, StatusCode(IInferRequest::Ptr &, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(Export, noexcept, StatusCode(const std::string &, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(Export, noexcept, StatusCode(std::ostream &, ResponseDesc *));
-    MOCK_QUALIFIED_METHOD2(GetMappedTopology, noexcept, StatusCode(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(GetExecGraphInfo, noexcept, StatusCode(ICNNNetwork::Ptr &, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(SetConfig, noexcept, StatusCode(const std::map<std::string, Parameter> &config, ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD3(GetConfig, const noexcept, StatusCode(const std::string &name, Parameter &result, ResponseDesc *resp));
@@ -35,4 +33,3 @@ public:
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IMemoryState::Ptr &, size_t, ResponseDesc *));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
 };
-IE_SUPPRESS_DEPRECATED_END

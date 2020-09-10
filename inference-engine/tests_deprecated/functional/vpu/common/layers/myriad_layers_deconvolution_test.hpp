@@ -60,9 +60,9 @@ TEST_P(myriadLayerDeconvolution_smoke, Deconvolution) {
     }
 
     if (input_dims.n > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
     size_t out_w = stride.x * (input_dims.w - 1) + kernel.x - 2 * pad.x;
     size_t out_h = stride.y * (input_dims.h - 1) + kernel.y - 2 * pad.y;
@@ -130,9 +130,9 @@ TEST_P(myriadLayerDeconvolution_asymm_pad, Deconvolution) {
     }
 
     if (input_dims.n > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
     size_t out_w = stride.x * (input_dims.w - 1) + kernel.x - (pad.x + pad_end.x);
     size_t out_h = stride.y * (input_dims.h - 1) + kernel.y - (pad.y + pad_end.y);

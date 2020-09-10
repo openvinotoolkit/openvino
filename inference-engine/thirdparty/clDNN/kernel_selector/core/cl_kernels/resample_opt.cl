@@ -15,17 +15,18 @@
 #include "include/common.cl"
 #include "include/data_types.cl"
 #include "include/include_all.cl"
-#include "include/unit_type.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-#ifdef INPUT0_LAYOUT_FS_B_YX_FSV32
-    #define READ_FUNC(ptr, offset) CAT(UNIT_BLOCK_READ, VEC_SIZE)(ptr, offset)
-    #define WRITE_FUNC(ptr, offset, val) CAT(UNIT_BLOCK_WRITE, VEC_SIZE)(ptr, offset, val)
-#else
-    #define READ_FUNC(ptr, offset) UNIT_BLOCK_READ(ptr, offset)
-    #define WRITE_FUNC(ptr, offset, val) UNIT_BLOCK_WRITE(ptr, offset, val)
-#endif
+#define READ_FUNC(ptr, offset)          BLOCK_READN(INPUT0_TYPE, VEC_SIZE, ptr, offset)
+#define WRITE_FUNC(ptr, offset, val)    BLOCK_WRITEN(OUTPUT_TYPE, VEC_SIZE, ptr, offset, val)
+
+#define IN_VEC_TYPE                     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
+#define TO_IN_VEC_TYPE(x)               CAT(convert_, IN_VEC_TYPE)(x)
+#define ACC_VEC_TYPE                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
+#define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
+#define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
+#define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL (resample_opt)(__global INPUT0_TYPE* input,
@@ -41,11 +42,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int f_block = get_group_id(1);
     const int b = get_global_id(2);
     const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
-#ifdef INPUT0_LAYOUT_FS_B_YX_FSV32
-    typedef MAKE_VECTOR_TYPE(UNIT_TYPE, VEC_SIZE) unit_t;
-#else
-    typedef UNIT_TYPE unit_t;
-#endif
+    const uint feature_block = f_block * FEATURE_SLICE_SIZE;
+
+    typedef IN_VEC_TYPE in_vec_t;
+    typedef ACC_VEC_TYPE acc_vec_t;
 
     if (feature_num >= OUTPUT_FEATURE_NUM)
         return;
@@ -55,46 +55,36 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const int ix = floor((x + out_x) * X_RATIO);
         const int iy = floor(y * Y_RATIO);
 
-        unit_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_num, iy, ix));
+        in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
 #else
-        const UNIT_TYPE ix = TO_UNIT_TYPE(X_RATIO) * (x + out_x);
-        const UNIT_TYPE iy = TO_UNIT_TYPE(Y_RATIO) * y;
+        const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(X_RATIO) * (x + out_x);
+        const ACCUMULATOR_TYPE iy = TO_ACCUMULATOR_TYPE(Y_RATIO) * y;
 
         const int top_y_index    = (int)(floor(iy));
-        const int bottom_y_index = (int)(min(ceil(iy), TO_UNIT_TYPE(INPUT0_SIZE_Y) - 1));
+        const int bottom_y_index = min((int)ceil(iy), INPUT0_SIZE_Y - 1);
         const int left_x_index   = (int)(floor(ix));
-        const int right_x_index  = (int)(min(ceil(ix), TO_UNIT_TYPE(INPUT0_SIZE_X) - 1));
+        const int right_x_index  = min((int)ceil(ix), INPUT0_SIZE_X - 1);
 
-        const UNIT_TYPE dx = ix - left_x_index;
-        const UNIT_TYPE dy = iy - top_y_index;
+        const ACCUMULATOR_TYPE dx = ix - left_x_index;
+        const ACCUMULATOR_TYPE dy = iy - top_y_index;
 
-        const unit_t top_left     = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_num, top_y_index, left_x_index));
-        const unit_t top_right    = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_num, top_y_index, right_x_index));
-        const unit_t bottom_left  = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_num, bottom_y_index, left_x_index));
-        const unit_t bottom_right = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_num, bottom_y_index, right_x_index));
+        const in_vec_t top_left     = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, top_y_index, left_x_index));
+        const in_vec_t top_right    = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, top_y_index, right_x_index));
+        const in_vec_t bottom_left  = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, bottom_y_index, left_x_index));
+        const in_vec_t bottom_right = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, bottom_y_index, right_x_index));
 
-        const unit_t top    = top_left + (top_right - top_left) * dx;
-        const unit_t bottom = bottom_left + (bottom_right - bottom_left) * dx;
-        unit_t res = top + (bottom - top) * dy;
+        const acc_vec_t top    = TO_ACC_VEC_TYPE(top_left) + (TO_ACC_VEC_TYPE(top_right) - TO_ACC_VEC_TYPE(top_left)) * dx;
+        const acc_vec_t bottom = TO_ACC_VEC_TYPE(bottom_left) + (TO_ACC_VEC_TYPE(bottom_right) - TO_ACC_VEC_TYPE(bottom_left)) * dx;
+        acc_vec_t res = top + (bottom - top) * dy;
 #endif
 #if HAS_FUSED_OPS
         FUSED_OPS;
-        res = FUSED_OPS_RESULT;
+        OUT_VEC_TYPE out = FUSED_OPS_RESULT;
 #else
-        res = ACTIVATION(res, ACTIVATION_PARAMS);
+        OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 
-#if OUTPUT_IS_FP
-        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x)), res);
-#else
-#if VEC_SIZE > 1
-        for (uint i = 0; i < VEC_SIZE; i++)
-            output[OUTPUT_GET_INDEX(b, feature_num + i*SUB_GROUP_SIZE, y, (x + out_x))] = res[i];
-#else
-            output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = res;
-#endif
-
-#endif
+        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
     }
 }
 

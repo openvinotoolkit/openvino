@@ -11,8 +11,8 @@ using namespace InferenceEngine::gpu;
 namespace {
 
 Params params[] = {
-    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
-    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) } } },
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
 };
 
 }  // namespace
@@ -31,12 +31,11 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
         networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
     }
 
-    // TODO: uncomment after fixing *-31414
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
+    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
 
     auto ocl_instance = std::make_shared<OpenCL>();
     ie.SetConfig(config, deviceName);
@@ -47,9 +46,10 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     }, numIterations, numThreads);
 }
 
-INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params));
+INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
-                     testing::Values(20)));
+                     testing::Values(20)),
+    CoreThreadingTestsWithIterations::getTestCaseName);

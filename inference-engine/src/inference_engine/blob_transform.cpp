@@ -126,6 +126,7 @@ static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
     switch (src->getTensorDesc().getPrecision()) {
     case Precision::FP32:
     case Precision::I32:
+    case Precision::U32:
         blob_copy_4d_t<Precision::FP32>(src, dst);
         break;
 
@@ -263,6 +264,7 @@ static inline void blob_copy_5d(Blob::Ptr src, Blob::Ptr dst) {
     switch (src->getTensorDesc().getPrecision()) {
     case Precision::FP32:
     case Precision::I32:
+    case Precision::U32:
         blob_copy_5d_t<Precision::FP32>(src, dst);
         break;
 

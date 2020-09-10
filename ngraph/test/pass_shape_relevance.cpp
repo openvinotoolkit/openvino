@@ -23,7 +23,9 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/shape_relevance.hpp"
+#include "pass/shape_relevance.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace std;

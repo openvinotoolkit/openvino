@@ -20,4 +20,4 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR hetero_plugin.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade pugixml ${NGRAPH_LIBRARIES} inference_engine_transformations)

@@ -23,10 +23,11 @@ void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& _layer, co
 
     IE_ASSERT(layer->axis < input->desc().numDims());
 
-    auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
-    auto axis = perm[input->desc().numDims() - 1 - layer->axis];
+    const auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
+    const auto ieNormalizedAxis = layer->axis < 0 ? input->desc().numDims() + layer->axis : layer->axis;
+    const auto axisDim = perm[input->desc().numDims() - 1 - ieNormalizedAxis];
 
-    _stageBuilder->addGatherStage(model, layer->name, layer, inputs[0], inputs[1], outputs[0], axis);
+    _stageBuilder->addGatherStage(model, layer->name, layer, inputs[0], inputs[1], outputs[0], axisDim);
 }
 
 namespace {

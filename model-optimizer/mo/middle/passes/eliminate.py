@@ -83,16 +83,14 @@ def mark_undead_nodes(graph, undead_types: list):
 
     nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
-    # mark output nodes as undead
-    outputs = graph.get_nodes_with_attributes(op='Result')
-    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in outputs})
+    undead_types_with_result = undead_types + ['Result']
+    undead_nodes = []
+    for node in graph.get_op_nodes():
+        node_type = node.soft_get('type', node.op)
+        if node_type in undead_types_with_result:
+            undead_nodes.append(node.id)
 
-    # mark specifically defined with node type set of nodes
-    for type in undead_types:
-        node_of_specific_type = graph.get_nodes_with_attributes(type=type)
-        nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in node_of_specific_type})
-
-    undead_nodes = graph.get_nodes_with_attributes(is_undead=True)
+    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in undead_nodes})
     # propagate 'undead' attribute to children nodes of undead nodes if the node produces constant value
     for node_name in bfs_search(graph, undead_nodes):
         if graph.node[node_name]['is_undead']:
@@ -219,10 +217,11 @@ def merge_data_nodes(graph, survived, removed):
 
 
 # TODO: unit tests
-def remove_op_node_with_data_node(graph, node_to_remove):
+def remove_op_node_with_data_node(graph, node_to_remove, input_data_node=None):
     from mo.graph.graph import Node
     assert node_to_remove.kind == 'op'
-    input_data_node = node_to_remove.in_node()
+    if input_data_node is None:
+        input_data_node = node_to_remove.in_node()
     output_node = [v for _, v in graph.out_edges(node_to_remove.id)]
     assert len(output_node) == 1, "Cannot remove node producing two or more output tensors"
     output_node = Node(graph, output_node[0])

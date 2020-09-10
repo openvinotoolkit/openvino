@@ -3,6 +3,7 @@
 //
 
 #include "embedding_bag_sum.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -38,7 +39,7 @@ public:
         } else if (inputs[INDICES_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
             const UINT64* src = inputs[INDICES_IDX]->cbuffer().as<const UINT64*>();
             for (size_t i = 0lu; i < bagsNum; i++) {
-                memcpy(_indices[i].data(), src + i * batch, batch * sizeof(UINT64));
+                cpu_memcpy(_indices[i].data(), src + i * batch, batch * sizeof(UINT64));
             }
         }
     }

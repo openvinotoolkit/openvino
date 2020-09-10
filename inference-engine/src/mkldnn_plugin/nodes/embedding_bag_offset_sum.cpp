@@ -117,7 +117,6 @@ protected:
             weightsData = inputs[PER_SAMPLE_WEIGHTS_IDX]->cbuffer().as<const T*>();
 
         const auto& inDataDims = inputs[0]->getTensorDesc().getDims();
-        const size_t IN_BAGS_DEPTH = inDataDims.size() - 1;
 
         const size_t OUTPUT_BAGS_NUM = outputs[0]->getTensorDesc().getDims()[0];
 

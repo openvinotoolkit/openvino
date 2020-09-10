@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -290,6 +290,12 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         bool disable_type_conversion = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
+
+// Generates macro CONST_LOOP(count, macro), where:
+// count - should expand to integer with number of loop iterations;
+// macro - is macro name that will be expanded at each iteration with current iteration number as single argument.
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount);
+
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
 inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
@@ -353,7 +359,7 @@ public:
                            bool reuse_index = false, std::string reused_idx = "") const;
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
-    std::string GetInputVarName(size_t input_id) const;
+    std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
     std::string GetOutputVarName(std::string input_var_name) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;

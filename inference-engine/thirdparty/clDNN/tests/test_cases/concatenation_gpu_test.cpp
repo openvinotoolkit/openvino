@@ -52,6 +52,7 @@ TEST(concat_gpu, mixed_input_types) {
     auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 4, 3 } });
     auto input2 = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
     auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 4, 3 } });
+    auto input4 = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 4, 3 } });
 
     set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values<int32_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
@@ -60,20 +61,23 @@ TEST(concat_gpu, mixed_input_types) {
                          half_t(34.f), half_t(32.f), half_t(32.f),
                          half_t(33.f), half_t(34.f), half_t(33.f),
                          half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values<int64_t>(input4, { 41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 });
 
     VF<float> output_vec = {
             1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
             11.0f, 12.0f, 13.0f, 14.0f, 12.0f, 12.0f, 13.0f, 14.0f, 13.0f, 13.0f, 13.0f, 15.0f,
             21.0f, 22.0f, 23.0f, 24.0f, 22.0f, 22.0f, 23.0f, 24.0f, 23.0f, 23.0f, 23.0f, 25.0f,
-            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f };
+            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f,
+            41.0f, 42.0f, 43.0f, 44.0f, 42.0f, 42.0f, 43.0f, 44.0f, 43.0f, 43.0f, 43.0f, 45.0f };
 
     topology topology(
             input_layout("input0", input0.get_layout()),
             input_layout("input1", input1.get_layout()),
             input_layout("input2", input2.get_layout()),
             input_layout("input3", input3.get_layout()),
+            input_layout("input4", input4.get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3" },
+                          { "input0", "input1", "input2", "input3", "input4" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -84,6 +88,7 @@ TEST(concat_gpu, mixed_input_types) {
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     network.set_input_data("input3", input3);
+    network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
@@ -100,7 +105,7 @@ TEST(concat_gpu, mixed_input_types) {
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 4);
+    EXPECT_EQ(f_size, 5);
     EXPECT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
@@ -633,6 +638,10 @@ TEST_P(concat_gpu_4d_i8, b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
 }
 
+TEST_P(concat_gpu_4d_i8, b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
 INSTANTIATE_TEST_CASE_P(smoke_low_precision,
                         concat_gpu_4d_i8,
                         concat_gpu_all_params,
@@ -645,4 +654,141 @@ TEST_P(concat_gpu_4d_u8, b_fs_yx_fsv32) {
 INSTANTIATE_TEST_CASE_P(smoke_low_precision,
                         concat_gpu_4d_u8,
                         concat_gpu_all_params,
+                        concat_gpu::PrintToStringParamName);
+
+template <typename Type, typename OutputT>
+struct concat_id_conv_gpu_4d : public concat_gpu {
+public:
+
+    void test(format::type fmt) {
+        auto data_type = type_to_data_type<Type>::value;
+
+        const auto& engine = get_test_engine();
+        const size_t batch_num = testing::get<0>(GetParam());
+        const std::vector<size_t> in_features = testing::get<1>(GetParam());
+        const size_t input_y = testing::get<2>(GetParam());
+        const size_t input_x = testing::get<3>(GetParam());
+        size_t output_f = 0;
+        for (auto& f : in_features)
+            output_f += f;
+
+        topology topology;
+
+        std::vector<VVVVF<Type>> in_data;
+        std::vector<memory> in_memory;
+        std::vector<primitive_id> input_ids;
+        for (size_t i = 0; i < in_features.size(); i++) {
+            auto size = tensor(static_cast<int32_t>(batch_num),
+                               static_cast<int32_t>(in_features[i]),
+                               static_cast<int32_t>(input_x),
+                               static_cast<int32_t>(input_y));
+            auto data = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -128, 128);
+            auto in_lay = layout(data_type, fmt, size);
+            auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
+
+            for (size_t bi = 0; bi < batch_num; ++bi) {
+                for (size_t fi = 0; fi < in_features[i]; ++fi) {
+                    for (size_t yi = 0; yi < input_y; ++yi) {
+                        for (size_t xi = 0; xi < input_x; ++xi) {
+                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                            auto in_offset = in_lay.get_linear_offset(coords);
+
+                            data_flat[in_offset] = data[bi][fi][yi][xi];
+                        }
+                    }
+                }
+            }
+
+            auto in_mem = memory::allocate(engine, in_lay);
+            set_values(in_mem, data_flat);
+            in_memory.push_back(in_mem);
+
+            topology.add(input_layout("input" + std::to_string(i), in_lay));
+            in_data.emplace_back(std::move(data));
+            input_ids.push_back("input" + std::to_string(i));
+        }
+
+        topology.add(concatenation("concat", input_ids, concatenation::concatenation_axis::along_f));
+        // Add identity convolution
+        auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
+        auto weights_mem = cldnn::memory::allocate(engine, weights_lay);
+        {
+            auto weights_ptr = weights_mem.pointer<Type>();
+            for (size_t fi = 0; fi < output_f; ++fi) {
+                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
+                auto offset = weights_lay.get_linear_offset(coords);
+                weights_ptr[offset] = static_cast<Type>(1.f);
+            }
+        }
+        topology.add(data("weights", weights_mem));
+        topology.add(convolution("conv", "concat", { "weights" }));
+
+        build_options options;
+        options.set_option(build_option::optimize_data(true));
+        auto conv_forcing = implementation_desc{ fmt, std::string() };
+        options.set_option(build_option::force_implementations({ {primitive_id("conv"), conv_forcing} }));
+        network network(engine, topology, options);
+
+        for (size_t i = 0; i < in_features.size(); i++) {
+            network.set_input_data(input_ids[i], in_memory[i]);
+        }
+
+        network.execute();
+
+        auto out_mem = network.get_output("conv").get_memory();
+        auto out_ptr = out_mem.pointer<OutputT>();
+
+        for (size_t bi = 0; bi < batch_num; bi++) {
+            size_t f_sum = 0;
+            for (size_t in_i = 0; in_i < in_features.size(); in_i++) {
+                for (size_t fi = 0; fi < in_features[in_i]; fi++) {
+                    for (size_t yi = 0; yi < input_y; yi++) {
+                        for (size_t xi = 0; xi < input_x; xi++) {
+                            auto output_coords = tensor(batch(bi), feature(f_sum + fi), spatial(xi, yi, 0, 0));
+                            auto output_offset = out_mem.get_layout().get_linear_offset(output_coords);
+
+                            auto ref_val = in_data[in_i][bi][fi][yi][xi];
+                            auto actual_val = static_cast<Type>(out_ptr[output_offset]);
+                            EXPECT_EQ(ref_val, actual_val)
+                                << " b=" << bi << ", f=" << f_sum + fi << "(input " << in_i << "), y=" << yi << ", x=" << xi;
+                        }
+                    }
+                }
+                f_sum += in_features[in_i];
+            }
+        }
+    }
+};
+
+using concat_id_conv_gpu_4d_f16 = concat_id_conv_gpu_4d<FLOAT16, FLOAT16>;
+using concat_id_conv_gpu_4d_i8 = concat_id_conv_gpu_4d<int8_t, float>;
+
+TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+                        concat_id_conv_gpu_4d_f16,
+                        ::testing::Values(
+                            TestParamType_concat(2, { 2, 32 }, 2, 1),
+                            TestParamType_concat(2, { 31, 64 }, 2, 2),
+                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1),
+                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2),
+                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2)
+                        ),
+                        concat_gpu::PrintToStringParamName);
+
+TEST_P(concat_id_conv_gpu_4d_i8, input_order_opt_b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+                        concat_id_conv_gpu_4d_i8,
+                        ::testing::Values(
+                            TestParamType_concat(2, { 2, 32 }, 2, 1),
+                            TestParamType_concat(2, { 31, 64 }, 2, 2),
+                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1),
+                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2),
+                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2)
+                        ),
                         concat_gpu::PrintToStringParamName);

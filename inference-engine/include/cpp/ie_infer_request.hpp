@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
+#include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
-#include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
 

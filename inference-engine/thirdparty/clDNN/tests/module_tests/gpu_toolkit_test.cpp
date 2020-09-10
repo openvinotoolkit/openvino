@@ -89,7 +89,7 @@ private:
             if (err != CL_SUCCESS) {
                 throw std::runtime_error("clGetPlatformInfo error " + std::to_string(err));
             }
-            
+
             std::vector<char> tmp(infoSize);
 
             err = clGetPlatformInfo(id, CL_PLATFORM_VENDOR, infoSize, tmp.data(), NULL);
@@ -114,7 +114,7 @@ private:
     }
 };
 
-TEST(gpu_engine, user_context)
+TEST(gpu_engine, DISABLED_user_context)
 {
     user_gpu_toolkit gpu_toolkit;
     cl_context user_context = gpu_toolkit.get_gpu_context();

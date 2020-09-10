@@ -24,7 +24,6 @@ using testing::SetArgReferee;
 // TODO: add tests for the next methods:
 //  1. void Export(const std::string& modelFileName)
 //  2. void Export(std::ostream& networkModel)
-//  3. void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology)
 //  4. CNNNetwork GetExecGraphInfo()
 //  5. void SetConfig(const std::map<std::string, Parameter>& config)
 //  6. Parameter GetConfig(const std::string& name) const

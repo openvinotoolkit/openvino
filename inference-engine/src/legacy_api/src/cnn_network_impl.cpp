@@ -2,25 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cnn_network_impl.hpp"
-
-#include <ie_common.h>
-#include <math.h>
-
+#include <cmath>
 #include <cassert>
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
 #include <unordered_set>
 
 #include "debug.h"
-#include "graph_tools.hpp"
-#include "ie_profiling.hpp"
-#include "network_serializer.h"
-#include "details/ie_cnn_network_tools.h"
+#include "exec_graph_info.hpp"
+#include <ngraph/graph_util.hpp>
+#include <ie_common.h>
+
+#include "generic_ie.hpp"
+#include "cnn_network_ngraph_impl.hpp"
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
+
+#include "legacy/convert_function_to_cnn_network.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
+#include "network_serializer_v7.hpp"
+#include <shape_infer/ie_reshaper.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -48,7 +57,7 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
                 THROW_IE_EXCEPTION << "input data is absent";
             }
 
-            const CNNLayerWeakPtr parentWeak = insData->getCreatorLayer();
+            const CNNLayerWeakPtr parentWeak = getCreatorLayer(insData);
             const CNNLayerPtr parent = parentWeak.lock();
             if (parent == nullptr) {
                 THROW_IE_EXCEPTION << "parentLayer is absent";
@@ -76,7 +85,29 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
 
 ICNNNetwork::~ICNNNetwork() {}
 
-CNNNetworkImpl::CNNNetworkImpl(): _stats(new CNNNetworkStatsImpl()) {}
+CNNNetworkImpl::CNNNetworkImpl() {}
+
+CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
+    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
+    IE_ASSERT(ngraphImplPtr != nullptr);
+    IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
+    // Disable shape inference (WA for generic operations)
+    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
+
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::CommonOptimizations>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.run_passes(graph);
+
+    ::ngraph::pass::Manager ti_manager;
+    ti_manager.register_pass<::ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.run_passes(graph);
+
+    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
+}
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
@@ -92,7 +123,7 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     if (!res) {
         for (const auto& data : _data) {
             if (!data.second) continue;
-            for (auto& input : data.second->getInputTo()) {
+            for (auto& input : getInputTo(data.second)) {
                 if (!input.second) continue;
                 input.second.reset();
             }
@@ -149,7 +180,7 @@ void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::stri
 
     bool wasUpdatedInput = false;
     for (auto inputDataIt = _inputData.begin(); inputDataIt != _inputData.end(); ++inputDataIt) {
-        const CNNLayerPtr inputLayer = inputDataIt->second->getInputData()->getCreatorLayer().lock();
+        const CNNLayerPtr inputLayer = getCreatorLayer(inputDataIt->second->getInputData()).lock();
         if (inputLayer->name == currentName) {
             _inputData.emplace(newName, inputDataIt->second);
             _inputData.erase(inputDataIt);
@@ -160,7 +191,7 @@ void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::stri
 
     if (!wasUpdatedInput) {
         for (auto outputDataIt = _outputData.begin(); outputDataIt != _outputData.end(); ++outputDataIt) {
-            const CNNLayerPtr outputLayer = outputDataIt->second->getCreatorLayer().lock();
+            const CNNLayerPtr outputLayer = getCreatorLayer(outputDataIt->second).lock();
             if (outputLayer->name == currentName) {
                 _outputData.emplace(newName, outputDataIt->second);
                 _outputData.erase(outputDataIt);
@@ -203,14 +234,14 @@ void CNNNetworkImpl::validate(int version) {
             for (auto i : layer->insData) {
                 auto data = i.lock();
                 if (data) {
-                    auto inputTo = data->getInputTo();
+                    auto inputTo = getInputTo(data);
                     auto iter = inputTo.find(layerName);
                     auto dataName = data->getName();
                     if (iter == inputTo.end()) {
                         THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
                                            << layerName << " does not point at this layer";
                     }
-                    if (!data->getCreatorLayer().lock()) {
+                    if (!getCreatorLayer(data).lock()) {
                         THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
                     }
                 } else {
@@ -218,7 +249,7 @@ void CNNNetworkImpl::validate(int version) {
                 }
             }
             for (auto data : layer->outData) {
-                auto inputTo = data->getInputTo();
+                auto inputTo = getInputTo(data);
                 std::string dataName = data->getName();
                 for (auto layerIter : inputTo) {
                     CNNLayerPtr layerInData = layerIter.second;
@@ -250,7 +281,7 @@ void CNNNetworkImpl::validate(int version) {
 
     std::string inputType = "Input";
     for (auto i : inputs) {
-        CNNLayerPtr layer = i.second->getInputData()->getCreatorLayer().lock();
+        CNNLayerPtr layer = getCreatorLayer(i.second->getInputData()).lock();
         if (layer && !equal(layer->type, inputType)) {
             THROW_IE_EXCEPTION << "Input layer " << layer->name << " should have Input type but actually its type is "
                                << layer->type;
@@ -290,7 +321,7 @@ void CNNNetworkImpl::resolveOutput() {
             THROW_IE_EXCEPTION << "data name [" << kvp.first << "] dimensions is not known";
 
         // data nodes not going to any layer are basically graph output...
-        if (kvp.second->getInputTo().empty()) {
+        if (getInputTo(kvp.second).empty()) {
             _outputData[kvp.first] = kvp.second;
         }
     }
@@ -364,7 +395,10 @@ StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtens
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
     try {
+#ifdef ENABLE_V7_SERIALIZE
         Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        return OK;
+#endif
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
@@ -372,7 +406,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
-    return OK;
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
@@ -384,15 +419,15 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
 
         SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 
-        // 3D input layout doesn't have batch notation
-        if (dims.size() == 3 || dims.size() == 1) {
-            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        // 3D/1D/0D input layouts don't have batch notation
+        if (dims.size() == 3 || dims.size() == 1 || dims.empty()) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
-            CNNLayerPtr layerT = layer.second->getCreatorLayer().lock();
+            CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();
 
             bool constOrAbsent;
             if (layerT) {

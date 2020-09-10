@@ -127,10 +127,12 @@ private:
 }  // namespace
 
 void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
+    VPU_THROW_UNLESS(_layer != nullptr,
+                     "parseReduce expects valid CNNLayerPtr, got nullptr");
+    const auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
     VPU_THROW_UNLESS(layer != nullptr,
-                     "Layer {} of type {} is nullptr",
-                     layer->name, layer->type);
+                     "Layer {} of type {} cannot be casted to ie::ReduceLayer",
+                     _layer->name, _layer->type);
     VPU_THROW_UNLESS(inputs.size() == 2,
                      "Layer {} of type {} expects {} inputs, but provided {}",
                      layer->name, layer->type, 2, inputs.size());

@@ -12,9 +12,6 @@
 #include <cassert>
 #include <algorithm>
 #include <ie_common.h>
-#include <ie_profiling.hpp>
-#include <ie_layers_property.hpp>
-#include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
@@ -24,6 +21,7 @@
 #include "mkldnn_primitive.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
+#include <openvino/itt.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -75,7 +73,23 @@ enum Type {
     Convert,
     MVN,
     Resample,
-    Normalize
+    Normalize,
+    ScatterUpdate,
+    ScatterElementsUpdate,
+    ScatterNDUpdate,
+    Interpolate,
+    ReduceAnd,
+    ReduceL1,
+    ReduceL2,
+    ReduceLogSum,
+    ReduceLogSumExp,
+    ReduceMax,
+    ReduceMean,
+    ReduceMin,
+    ReduceOr,
+    ReduceProd,
+    ReduceSum,
+    ReduceSumSquare
 };
 
 Type TypeFromName(const std::string type);
@@ -158,6 +172,38 @@ static std::string NameFromType(Type type) {
             return "Resample";
         case Normalize:
             return "Normalize";
+        case ScatterUpdate:
+            return "ScatterUpdate";
+        case ScatterElementsUpdate:
+            return "ScatterElementsUpdate";
+        case ScatterNDUpdate:
+            return "ScatterNDUpdate";
+        case Interpolate:
+            return "Interpolate";
+        case ReduceAnd:
+            return "ReduceAnd";
+        case ReduceL1:
+            return "ReduceL1";
+        case ReduceL2:
+            return "ReduceL2";
+        case ReduceLogSum:
+            return "ReduceLogSum";
+        case ReduceLogSumExp:
+            return "ReduceLogSumExp";
+        case ReduceMax:
+            return "ReduceMax";
+        case ReduceMean:
+            return "ReduceMean";
+        case ReduceMin:
+            return "ReduceMin";
+        case ReduceOr:
+            return "ReduceOr";
+        case ReduceProd:
+            return "ReduceProd";
+        case ReduceSum:
+            return "ReduceSum";
+        case ReduceSumSquare:
+            return "ReduceSumSquare";
         default:
             return "Unknown";
     }
@@ -540,7 +586,7 @@ private:
     std::string typeToStr(Type type);
 
     PerfCount perfCounter;
-    InferenceEngine::ProfilingTask profilingTask;
+    openvino::itt::handle_t profilingTask;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 

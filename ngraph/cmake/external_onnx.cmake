@@ -34,15 +34,7 @@ set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
-add_definitions(-DONNX_BUILD_SHARED_LIBS=ON)
-add_definitions(-DONNX_NAMESPACE=${NGRAPH_ONNX_NAMESPACE})
-
 set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
-
-if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4244 /wd4251")
-    string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif()
 
 FetchContent_Declare(
     ext_onnx
@@ -53,16 +45,24 @@ FetchContent_Declare(
 FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
-    set(ONNX_GEN_PB_TYPE_STUBS OFF)
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
+    set(ONNX_USE_LITE_PROTO ${NGRAPH_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library")
+    set(ONNX_ML ON CACHE BOOL "Use ONNX ML")
+    set(ONNX_BUILD_SHARED_LIBS ON CACHE BOOL "Build ONNX as a shared library")
     if(CMAKE_CROSSCOMPILING)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
     add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIR}")
-target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIR}")
+target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIRS}")
+target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIRS}")
+
+if(MSVC)
+    target_compile_options(onnx PRIVATE /WX-)
+else()
+    target_compile_options(onnx PRIVATE -Wno-error)
+endif()
 
 set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
 set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})

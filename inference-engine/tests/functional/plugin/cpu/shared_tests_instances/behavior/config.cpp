@@ -5,6 +5,8 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/config.hpp"
+
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

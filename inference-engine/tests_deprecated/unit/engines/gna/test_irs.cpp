@@ -9697,4 +9697,156 @@ std::string EltwiseAfterSplitModel(int tensor_size, bool bMul) {
 
     return ir;
 }
+
+std::string TwoInputsModelForIO() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net name="multiInputs2" version="7">
+	<layers>
+		<layer id="0" name="Placeholder" type="Input">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Placeholder_1" type="Input">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Add" type="Eltwise">
+			<data operation="sum"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Layer_output" type="Activation">
+			<data type="tanh"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+    )V0G0N";
+}
+
+std::string PermuteModelForIO() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net name="permute" version="7">
+	<layers>
+		<layer id="0" name="Placeholder" type="Input" version="opset1">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>640</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Reshape/Cast_1238_const" type="Const" version="opset1">
+			<output>
+				<port id="1" precision="I32">
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" precision="I32" size="12"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="Reshape" type="Reshape" version="opset1">
+			<data special_zero="False"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>640</dim>
+				</port>
+				<port id="1">
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>160</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="transpose" type="Permute" version="opset1">
+			<data order="0,2,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>160</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>160</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="Layer_output" type="Reshape" version="opset1">
+			<data special_zero="False"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>160</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>640</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+		<edge from-layer="3" from-port="1" to-layer="5" to-port="0"/>
+	</edges>
+</net>
+    )V0G0N";
+}
+
 }  // namespace GNATestIRs

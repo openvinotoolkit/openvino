@@ -122,9 +122,9 @@ include(debug)
 include(whole_archive)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
-if(ARCH_FOLDER STREQUAL "x86_64" OR ARCH_FOLDER STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+if(X86_64)
     set(ARCH_FOLDER intel64)
-elseif(ARCH_FOLDER STREQUAL "i386")
+elseif(X86)
     set(ARCH_FOLDER ia32)
 endif()
 

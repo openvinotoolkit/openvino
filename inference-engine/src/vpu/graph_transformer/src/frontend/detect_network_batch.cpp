@@ -10,10 +10,9 @@
 #include <set>
 #include <map>
 
-#include <details/caseless.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -119,7 +118,7 @@ void FrontEnd::detectNetworkBatch(
             }
 
             // 1. Don't support if DetectionOutput is not the last layer in network
-            if (!layer->outData.front()->getInputTo().empty()) {
+            if (!getInputTo(layer->outData.front()).empty()) {
                 VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->name);
             }
 
@@ -142,10 +141,10 @@ void FrontEnd::detectNetworkBatch(
                 VPU_THROW_FORMAT("Unsupported layer %s configuration: no outputs", layer->get_name());
 
             // 1. Don't support if DetectionOutput is not the last layer in network
-            for (const auto& outputHandle : layer->get_outputs()) {
-                for (const auto& inputHandle : outputHandle.get_inputs()) {
-                    auto outNode = inputHandle->get_node();
-                    if (std::dynamic_pointer_cast<::ngraph::opset3::Result>(outNode)) {
+            for (const auto& outputHandle : layer->outputs()) {
+                for (const auto& inputHandle : outputHandle.get_target_inputs()) {
+                    auto outNode = inputHandle.get_node();
+                    if (dynamic_cast<::ngraph::opset3::Result *>(outNode)) {
                         continue;
                     }
                     VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->get_name());

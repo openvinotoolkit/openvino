@@ -90,6 +90,19 @@ class BinaryConvolutionOnlyTest : public TestsCommon,
 
 protected:
 
+    static void fill_data_bin(float *data, size_t size) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sinf((float)i) > 0.f ? 1.f : -1.f;
+        }
+    }
+
+    static void fill_data_bin_packed(int8_t *data, size_t size) {
+        int nbits = 8;
+        for (size_t i = 0; i < div_up(size, nbits); i++) {
+            data[i] = static_cast<int8_t>(i % 255);
+        }
+    }
+
     size_t calculateOutDim(size_t in_dim, size_t kernel, size_t stride, size_t pad_begin) {
         return (in_dim + 2lu * pad_begin - kernel) / stride + 1lu;
     }

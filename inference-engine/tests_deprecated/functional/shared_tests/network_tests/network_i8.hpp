@@ -5,7 +5,6 @@
 
 #include <memory>
 #include <unordered_set>
-#include <xml_helper.hpp>
 
 #include <gtest/gtest.h>
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -21,7 +20,7 @@
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #include "cnn_network_ngraph_impl.hpp"
 #include <ie_system_conf.h>
@@ -51,7 +50,6 @@ struct network_params {
     std::string deviceName;
     std::string modelFile;
     std::string imageName;
-    std::string statFile;
     std::vector<std::pair<int, float>> refValue;
     // optional config (used for multi-device)
     std::map<std::string, std::string> config;
@@ -75,13 +73,6 @@ struct network_params {
         std::string result = TestDataHelpers::get_data_path();
         result += kPathSeparator;
         result += imageName;
-        return result;
-    }
-
-    std::string stat() {
-        ModelsPath result;
-        result += kPathSeparator;
-        result += statFile;
         return result;
     }
 };
@@ -354,20 +345,13 @@ protected:
             network.setBatchSize(batch_size);
 
         ie.SetConfig(p.config);
-        if (p.statFile != "") {
-            InferenceEngine::NetworkStatsMap stat = testing::loadStatisticFromFile(p.stat());
-
-            ICNNNetworkStats *pstats;
-            ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-            pstats->setNodesStats(stat);
-        }
 
         if (transformationsParams.transformationsInTestEnabled) {
             ICNNNetwork& icnnnetwork = network;
             auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
             if (networkNGraph) {
-                std::shared_ptr<ICNNNetwork> networkPtr = networkNGraph->getCNNNetwork();
-                network = CNNNetwork(networkPtr);
+                auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
+                network = CNNNetwork(netPtr);
             }
 
             auto originalLayersInfo = LowPrecisionTransformationValidation::getLayers(network);
@@ -418,7 +402,11 @@ protected:
         //    PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE,
         //    transformationsParams.transformationsInPluginEnabled ? PluginConfigParams::YES : PluginConfigParams::NO);
 
-        usedNetwork = cloneNet(network);
+        if (network.getFunction()) {
+            usedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        } else {
+            usedNetwork = cloneNet(network);
+        }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName, config);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         if (inputs.empty()) {
@@ -479,13 +467,13 @@ private:
         return (children.size() == 1) &&
                (children[0]->type == "Convolution") &&
                (children[0]->insData.size() >= 2) &&
-               (children[0]->insData[1].lock()->getCreatorLayer().lock()->name == layer.name);
+               (getCreatorLayer(children[0]->insData[1].lock()).lock()->name == layer.name);
     }
 
     static std::vector<CNNLayerPtr> getChildren(const CNNLayer& layer, const std::string& exceptionLayerName = "") {
         std::vector<CNNLayerPtr> children;
         for (const DataPtr outData : layer.outData) {
-            const std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
+            const std::map<std::string, CNNLayerPtr>& inputTo = getInputTo(outData);
             for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
                 CNNLayerPtr child = it->second;
                 if (exceptionLayerName.empty() || child->name != exceptionLayerName) {
@@ -527,7 +515,6 @@ protected:
                 "CPU",
                 transformationsParam.modelParams.irFilePath,
                 transformationsParam.modelParams.dataFilePath,
-                "",
                 referenceValues
         };
 

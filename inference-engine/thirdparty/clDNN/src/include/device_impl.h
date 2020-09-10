@@ -87,7 +87,7 @@ private:
 struct device_impl : public refcounted_obj<device_impl> {
 public:
     explicit device_impl(const cl::Device dev, const cl::Context& ctx, const cl_platform_id platform, const gpu::device_info_internal& info)
-        : _device(dev), _context(ctx), _platform(platform), _info(info), _mem_caps(_info.supports_usm, _device) { }
+        : _context(ctx), _device(dev), _platform(platform), _info(info), _mem_caps(_info.supports_usm, _device) { }
 
     gpu::device_info_internal get_info() const { return _info; }
     cl::Device get_device() const { return _device; }
@@ -98,8 +98,8 @@ public:
     ~device_impl() = default;
 
 private:
-    cl::Device _device;
     cl::Context _context;
+    cl::Device _device;
     cl_platform_id _platform;
     gpu::device_info_internal _info;
     memory_capabilities _mem_caps;

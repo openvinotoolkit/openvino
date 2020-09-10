@@ -13,10 +13,6 @@
 # limitations under the License.
 
 if(ENABLE_MYRIAD)
-    add_subdirectory(vpu_perfcheck)
-    add_subdirectory(vpu_profile)
-endif()
-
-if (ENABLE_MYRIAD)
     add_subdirectory(vpu_compile)
+    add_subdirectory(vpu_perfcheck)
 endif()

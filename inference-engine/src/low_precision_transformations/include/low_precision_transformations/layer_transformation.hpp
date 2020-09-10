@@ -308,6 +308,11 @@ public:
 
     void fillAvailablePrecisions(const CNNLayer& layer, std::vector<Precision>& availablePrecisions) const;
 
+    void fillFromDequantizationLayer(
+        const CNNLayer& dequantizationLayer,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts) const;
+
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     static void printDequantizationInfo(const CNNLayer& layer);
@@ -330,11 +335,6 @@ protected:
 
     void checkAndUpdateDequantizationShiftWithZero(
         const QuantizationDetails& quantizationDetails,
-        std::vector<float>& dequantizationShifts) const;
-
-    void fillFromDequantizationLayer(
-        const CNNLayer& dequantizationLayer,
-        std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts) const;
 
     bool updatePrecisions;

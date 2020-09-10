@@ -87,7 +87,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(topk_setup.data_shape.size()));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeTopK}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -204,7 +204,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(topk_setup.data_shape.size()));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeTopK}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

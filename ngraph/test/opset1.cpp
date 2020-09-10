@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace
 {
     string capitulate(string name)
@@ -75,7 +77,6 @@ TEST(opset, check_opset1)
     CHECK_OPSET(op::v0::Convert, opset1::Convert)
     // TODO: CHECK_OPSET(op::v0::ConvertLike, opset1::ConvertLike)
     CHECK_OPSET(op::v1::Convolution, opset1::Convolution)
-    CHECK_OPSET(op::v1::ConvolutionBackpropData, opset1::ConvolutionBackpropData)
     CHECK_OPSET(op::v0::Cos, opset1::Cos)
     CHECK_OPSET(op::v0::Cosh, opset1::Cosh)
     CHECK_OPSET(op::v0::CTCGreedyDecoder, opset1::CTCGreedyDecoder)
@@ -114,7 +115,6 @@ TEST(opset, check_opset1)
     CHECK_OPSET(op::v1::Maximum, opset1::Maximum)
     CHECK_OPSET(op::v1::MaxPool, opset1::MaxPool)
     CHECK_OPSET(op::v1::Minimum, opset1::Minimum)
-    // TODO CHECK_OPSET(op::v0::Mod, opset1::Mod)
     CHECK_OPSET(op::v1::Multiply, opset1::Multiply)
     CHECK_OPSET(op::v0::Negative, opset1::Negative)
     // TODO using op::v0::NonMaxSuppression

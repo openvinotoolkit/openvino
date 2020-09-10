@@ -25,40 +25,43 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 }  // namespace ngraph
 
 
-/*
- * Description:
- *      UselessStridedSliceEraser transformation removes StridedSlice operations
- *      with equal input and output shapes.
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief UselessStridedSliceEraser transformation removes StridedSlice operations
+ * with equal input and output shapes.
  */
-
 class ngraph::pass::UselessStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
-/*
- * Description:
- *      SharedStridedSliceEraser replaces group of StridedSlice operations with first
- *      StridedSlice in this group. All SrtideSluces in this group must be equal and
- *      consume the same output port.
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SharedStridedSliceEraser transformation replaces group of StridedSlice
+ * operations with first StridedSlice in this group. All SrtideSlices in this group
+ * must be equal and consume the same output port.
  */
-
 class ngraph::pass::SharedStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
-/*
- * Description:
- *      GroupedStridedSliceOptimizer replaces group of StridedSlice operations with VariadicSplit
- *      All StridedSlice operations must slice data with the same axis and stride = 1.
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief GroupedStridedSliceOptimizer transformation replaces group of StridedSlice
+ * operations with VariadicSplit. All StridedSlice operations must slice data
+ * with the same axis and stride = 1.
  */
-
 class ngraph::pass::GroupedStridedSliceOptimizer: public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief StridedSliceOptimization transformation executes all transformations
+ * related to StridedSlice optimizations.
+ */
 class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {

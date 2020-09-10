@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertTopKToTopKIE;
+class TRANSFORMATIONS_API ConvertTopKToTopKIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertTopKToTopKIE : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertTopKToTopKIEMatcher : public ngraph::pass::MatcherPass {
 public:
-    ConvertTopKToTopKIE() : GraphRewrite() {
-        convert_topk_to_topk_ie();
-    }
-
-private:
-    void convert_topk_to_topk_ie();
+    ConvertTopKToTopKIEMatcher();
 };

@@ -38,6 +38,8 @@ private:
     std::vector<int> aOffsets;
     std::vector<int> bOffsets;
     std::vector<int> cOffsets;
+
+    template<typename T0, typename T1> void process_data();
 };
 
 }  // namespace MKLDNNPlugin

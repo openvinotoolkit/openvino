@@ -68,11 +68,12 @@ std::string XLinkTestsHelper::getMyriadUSBFirmwarePath(const std::string& device
         throw std::invalid_argument("Invalid device address");
     }
 
+    std::string firmwareName = "usb-ma2450.mvcmd";
     if (deviceName.find("ma2480") != std::string::npos) {
-        return FIRMWARE_SUBFOLDER + std::string("usb-ma2x8x.mvcmd");
+        firmwareName = "usb-ma2x8x.mvcmd";
     }
 
-    return FIRMWARE_SUBFOLDER + std::string("usb-ma2450.mvcmd");
+    return FIRMWARE_SUBFOLDER + firmwareName;
 }
 
 std::string XLinkTestsHelper::getMyriadFirmwarePath(const deviceDesc_t& in_deviceDesc) {
@@ -83,10 +84,11 @@ std::string XLinkTestsHelper::getMyriadFirmwarePath(const deviceDesc_t& in_devic
 
     if(in_deviceDesc.protocol == X_LINK_PCIE) {
 #if defined(_WIN32)
-        return FIRMWARE_SUBFOLDER + std::string("pcie-ma248x.elf");
+        const std::string extension = "elf";
 #else
-        return FIRMWARE_SUBFOLDER + std::string("pcie-ma248x.mvcmd");
+        const std::string extension = "mvcmd";
 #endif
+        return FIRMWARE_SUBFOLDER + std::string("pcie-ma248x.") + extension;
     }
 
     return getMyriadUSBFirmwarePath(in_deviceDesc.name);

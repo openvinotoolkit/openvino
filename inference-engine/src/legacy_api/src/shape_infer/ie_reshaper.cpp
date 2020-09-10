@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/ie_reshaper.hpp"
-
-#include <debug.h>
-#include <ie_layers.h>
-
-#include <blob_factory.hpp>
 #include <functional>
-#include <graph_tools.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -17,11 +10,14 @@
 #include <tuple>
 #include <vector>
 
-#include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "ie_cnn_layer_builder.h"
-#include "ie_reshaper.hpp"
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
+#include <debug.h>
+#include <blob_factory.hpp>
+
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers.h>
+#include "legacy/details/ie_cnn_network_tools.h"
+#include "legacy/shape_infer/built-in/ie_built_in_holder.hpp"
+#include "shape_infer/ie_reshaper.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -46,7 +42,7 @@ Reshaper::Reshaper(std::vector<DataPtr> insDatas, const LauncherCreator::Ptr& la
 
     _allSortedLayers = SortTopologicallyStartsFrom(insDatas);
     for (auto& in_data : insDatas) {
-        for (auto layer : in_data->getInputTo()) {
+        for (auto layer : getInputTo(in_data)) {
             _inputLayers.insert(layer.second);
         }
     }
@@ -226,7 +222,7 @@ StatusCode Reshaper::apply(ResponseDesc* resp) {
 }
 
 SizeVector Reshaper::getResultShapeFor(DataPtr& data, ResponseDesc* resp) {
-    auto creator_layer = data->getCreatorLayer().lock();
+    auto creator_layer = getCreatorLayer(data).lock();
     std::string creator_layer_name;
     if (creator_layer) {
         creator_layer_name = creator_layer->name;

@@ -4,15 +4,17 @@
 
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
-#include "details/caseless.hpp"
+#include <cmath>
+
+// Quantization ranges validation is switched off by default in order to avoid regressions on user side
+// #define VALIDATE_QUANTIZATION_RANGES
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -122,6 +124,14 @@ void MKLDNNQuantizeNode::init() {
             THROW_IE_EXCEPTION << "Unsupported input sizes for Quantize layer with name " << getName();
     }
 
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
+        if (prec != Precision::FP32)
+            THROW_IE_EXCEPTION << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+    }
+
     auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
     auto inputLowData = inputLowBlob->buffer().as<float*>();
 
@@ -163,6 +173,39 @@ void MKLDNNQuantizeNode::init() {
             binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
         }
     } else {
+        auto allElementsAreEqual = [&](const float* data, size_t size) {
+            if (size == 0)
+                return true;
+
+            auto first = data[0];
+            for (int i = 1; i < size; i++) {
+                if (data[i] != first)
+                    return false;
+            }
+
+            return true;
+        };
+
+        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
+            inputLowAxisSize = 1;
+            isInputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
+            inputHighAxisSize = 1;
+            isInputHighBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
+            outputLowAxisSize = 1;
+            isOutputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
+            outputHighAxisSize = 1;
+            isOutputHighBroadcasted = true;
+        }
+
         cropLow.resize(inputLowAxisSize);
         cropHigh.resize(inputHighAxisSize);
         inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
@@ -188,6 +231,13 @@ void MKLDNNQuantizeNode::init() {
             float il = inputLowData[isInputLowBroadcasted ? 0 : i];
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                                   << "inputLow = " << il << ", inputHigh = " << ih;
+            }
+#endif
+
             inputScale[i] = (levels - 1) / (ih - il);
             inputShift[i] = -il * (levels - 1) / (ih - il);
         }
@@ -195,6 +245,13 @@ void MKLDNNQuantizeNode::init() {
         for (int i = 0; i < outputScale.size(); i++) {
             float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
             float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+
+#if defined(VALIDATE_QUANTIZATION_RANGES)
+            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+                THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                                   << "outputLow = " << ol << ", outputHigh = " << oh;
+            }
+#endif
 
             outputScale[i] = (oh - ol) / (levels - 1);
 
@@ -468,7 +525,17 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
-    ops.append_quantization(quantizeAlgorithm , cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift);
+    if (!isPostOpDataInitialized) {
+        isPostOpDataInitialized = true;
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
+
+    ops.append_quantization(quantizeAlgorithm, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
 }
 
 bool MKLDNNQuantizeNode::created() const {

@@ -21,11 +21,16 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
         DEPENDENCIES
+            mock_engine
             HeteroPlugin
             MultiDevicePlugin
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )
+
+if (TARGET MKLDNNPlugin)
+    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
+endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
         ${PUBLIC_HEADERS_DIR}

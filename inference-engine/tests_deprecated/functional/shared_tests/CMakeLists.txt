@@ -18,7 +18,6 @@ file(GLOB SHARED_TESTS_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/network_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/ie_class/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/common/*.cpp
@@ -48,7 +47,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
-        ${CMAKE_CURRENT_SOURCE_DIR}/ie_class
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

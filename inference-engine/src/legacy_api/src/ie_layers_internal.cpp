@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_layers_internal.hpp"
-
-#include <math.h>
-
+#include <cmath>
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -14,7 +11,8 @@
 #include <tuple>
 #include <vector>
 
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
+#include "legacy/ie_layers_internal.hpp"
 
 namespace InferenceEngine {
 
@@ -63,7 +61,7 @@ Paddings getPaddingsInternal(const Layer& layer) {
                 bool is_deconv = (layer.type == "Deconvolution");
 
                 for (size_t i = 0; i < layer._kernel.size(); i++) {
-                    float PA = 0;
+                    int PA = 0;
                     int kernel = getKernel(layer, i);
 
                     int stride = layer._stride.size() > i ? layer._stride[i] : 1;

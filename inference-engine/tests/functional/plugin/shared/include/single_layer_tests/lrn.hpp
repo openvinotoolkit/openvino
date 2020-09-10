@@ -19,9 +19,10 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         double,                        // Alpha
-        size_t,                        // Beta
-        size_t,                        // Bias
-        size_t,                        // Size,
+        double,                        // Beta
+        double,                        // Bias
+        size_t,                        // Size
+        std::vector<int64_t>,          // Reduction axes
         InferenceEngine::Precision,    // Network precision
         InferenceEngine::SizeVector,   // Input shapes
         std::string                    // Device name
@@ -29,7 +30,7 @@ typedef std::tuple<
 
 class LrnLayerTest
         : public testing::WithParamInterface<lrnLayerTestParamsSet>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj);
 

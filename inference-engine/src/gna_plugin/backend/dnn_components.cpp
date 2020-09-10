@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 #include <ie_common.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <iomanip>
 #include "backend/dnn_types.h"
 

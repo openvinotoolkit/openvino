@@ -20,7 +20,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}}
 };
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                         InferenceEngine::Precision::FP16};
+                                                         InferenceEngine::Precision::FP16,
+                                                         InferenceEngine::Precision::I64};
 
 
 INSTANTIATE_TEST_CASE_P(NoReshape, ConcatLayerTest,

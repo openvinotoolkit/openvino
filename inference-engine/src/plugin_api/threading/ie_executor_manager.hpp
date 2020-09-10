@@ -17,7 +17,6 @@
 
 #include "threading/ie_itask_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
-#include "ie_api.h"
 
 namespace InferenceEngine {
 

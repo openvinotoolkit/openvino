@@ -4,18 +4,17 @@
 
 #include "low_precision_transformations/eltwise.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 
@@ -164,7 +163,7 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
     if (emptyPathData == nullptr) {
         THROW_IE_LPT_EXCEPTION(eltwise) << "data for empty path is absent";
     }
-    const CNNLayerPtr emptyPathDequantizationLayer = emptyPathData->getCreatorLayer().lock();
+    const CNNLayerPtr emptyPathDequantizationLayer = getCreatorLayer(emptyPathData).lock();
     {
         fillFromDequantizationLayer(*emptyPathDequantizationLayer, emptyPathDequantizationScales, emptyPathDequantizationShifts);
 
@@ -181,7 +180,7 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
         if (fullPathData == nullptr) {
             THROW_IE_LPT_EXCEPTION(eltwise) << "data for full path is absent";
         }
-        const CNNLayerPtr fullPathDequantizationLayer = fullPathData->getCreatorLayer().lock();
+        const CNNLayerPtr fullPathDequantizationLayer = getCreatorLayer(fullPathData).lock();
         std::vector<float> fullPathDequantizationScales;
         std::vector<float> fullPathDequantizationShifts;
         fillFromDequantizationLayer(*fullPathDequantizationLayer, fullPathDequantizationScales, fullPathDequantizationShifts);
@@ -202,9 +201,11 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
         } else if (eltwiseLayer->_operation == EltwiseLayer::eOperation::Prod) {
             for (size_t i = 0ul; i < emptyPathDequantizationScales.size(); ++i) {
                 fullPathDequantizationScales[i] = fullPathDequantizationScales[i] * emptyPathDequantizationScales[i];
+                fullPathDequantizationShifts[i] = fullPathDequantizationShifts[i] * emptyPathDequantizationScales[i];
             }
 
             CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "weights", fullPathDequantizationScales);
+            CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "biases", fullPathDequantizationShifts);
         } else {
             THROW_IE_EXCEPTION << "unexpected operation '" << eltwiseLayer->_operation << "'";
         }
@@ -238,10 +239,10 @@ bool isBranchWithTargetType(const CNNLayer& fakeQuantize, const std::string& typ
         return false;
     }
 
-    if ((fakeQuantize.outData.size() == 1) && (fakeQuantize.outData[0]->getInputTo().size() == 1)) {
+    if ((fakeQuantize.outData.size() == 1) && (getInputTo(fakeQuantize.outData[0]).size() == 1)) {
         const CNNLayerPtr parentOnActivation = CNNNetworkHelper::getParent(fakeQuantize, 0);
         if ((parentOnActivation != nullptr) && CaselessEq<std::string>()(parentOnActivation->type, type) &&
-            (parentOnActivation->outData.size() == 1) && (parentOnActivation->outData[0]->getInputTo().size() == 1)) {
+            (parentOnActivation->outData.size() == 1) && (getInputTo(parentOnActivation->outData[0]).size() == 1)) {
             return true;
         }
     }
@@ -272,7 +273,7 @@ int EltwiseTransformation::getNotEmpty(const CNNLayer& eltwise) {
         return 1;
     }
 
-    const std::vector<std::string> targetTypes = { "Convolution", "GEMM", "FullyConnected" };
+    const std::vector<std::string> targetTypes = { "Convolution", "Gemm", "FullyConnected" };
     const bool allBranchesAreEqual =
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return isBranchWithTargetType(*layer, targetTypes); }) ||
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return !isBranchWithTargetType(*layer, targetTypes); });
@@ -293,7 +294,7 @@ int EltwiseTransformation::getNotEmpty(const CNNLayer& eltwise) {
                 continue;
             }
 
-            if (parents[i]->outData[0]->getInputTo().size() == 1) {
+            if (getInputTo(parents[i]->outData[0]).size() == 1) {
                 return i;
             }
         }

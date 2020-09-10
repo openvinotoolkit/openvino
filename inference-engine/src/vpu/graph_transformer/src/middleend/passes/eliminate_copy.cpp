@@ -160,7 +160,7 @@ void PassImpl::run(const Model& model) {
             model->replaceStageInput(consumerEdge, copyOutput);
         }
 
-        auto allocRes = runAllocator(model, true);
+        auto allocRes = runAllocator(model, EnableShapeAllocation::NO, CheckOnlyCMX::YES);
         if (allocRes.status != AllocationStatus::OK) {
             model->replaceStageOutput(copyProducer->outputEdge(0), copyInput);
 

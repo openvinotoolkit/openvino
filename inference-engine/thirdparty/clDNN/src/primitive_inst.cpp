@@ -22,7 +22,6 @@
 #include "input_layout_inst.h"
 #include "max_unpooling_inst.h"
 #include "arg_max_min_inst.h"
-#include "apply_adam_inst.h"
 #include "fused_conv_eltwise_inst.h"
 
 #include "network_impl.h"
@@ -110,6 +109,20 @@ event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& even
     return _impl->execute(dependencies, *this);
 }
 
+void primitive_inst::set_arguments() {
+    const auto primitive_id = id();
+    CLDNN_ERROR_BOOL(primitive_id,
+                     "Invalid/unset input",
+                     !_has_valid_input,
+                     "Cannot set arguments for primitive " + primitive_id + " with invalid/unset input");
+
+    _impl->set_arguments(*this);
+}
+
+void primitive_inst::cleanup() {
+    _impl->cleanup(*this);
+}
+
 void primitive_inst::build_deps() {
     if (_deps.empty() && !_node.get_dependencies().empty()) {
         _deps = _network.get_primitives(_node.get_dependencies());
@@ -129,10 +142,6 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
             // Get mutable_data nodes count from nodes users
             if (user->is_type<mutable_data>()) {
                 mutable_data_count++;
-            // For certain primitives, it is known which dependency is used for synchronization only
-            } else if (user->is_type<apply_adam>() && (user->as<apply_adam>().has_additional_dep()) &&
-                     (user->as<apply_adam>().additional_dep().id() == node.id())) {
-                user_count--;
             } else if (user->is_type<fused_conv_eltwise>()) {
                 if (!user->as<fused_conv_eltwise>().get_users().empty() &&
                     (*user->as<fused_conv_eltwise>().get_users().begin())->is_type<mutable_data>()) {
@@ -177,6 +186,9 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                       _node.get_memory_dependencies(),
                                       alloc_type,
                                       false);
+    } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
+               engine.supports_allocation(allocation_type::usm_device)) {
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type, net_id);
     }

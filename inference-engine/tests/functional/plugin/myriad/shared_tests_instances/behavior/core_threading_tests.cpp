@@ -7,16 +7,17 @@
 namespace {
 
 Params params[] = {
-    std::tuple<Device, Config> { "MYRIAD", { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
-    std::tuple<Device, Config> { "HETERO", { { "TARGET_FALLBACK", "MYRIAD" } } },
-    std::tuple<Device, Config> { "MULTI", { { MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , "MYRIAD" } } }
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MYRIAD, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_MYRIAD }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_MYRIAD }}},
 };
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params));
+INSTANTIATE_TEST_CASE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(2),
-                     testing::Values(2)));
+                     testing::Values(2)),
+    CoreThreadingTestsWithIterations::getTestCaseName);

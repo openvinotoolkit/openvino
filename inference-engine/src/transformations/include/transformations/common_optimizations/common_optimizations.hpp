@@ -11,7 +11,6 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -23,7 +22,5 @@ class TRANSFORMATIONS_API CommonOptimizations;
 
 class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass {
 public:
-    explicit CommonOptimizations() : FunctionPass() {}
-
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

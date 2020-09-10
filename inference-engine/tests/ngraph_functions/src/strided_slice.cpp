@@ -16,11 +16,12 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &new_axis_mask,
                                                const std::vector<int64_t> &shrink_mask,
                                                const std::vector<int64_t> &ellipsis_mask) {
-    ngraph::Shape constShape = {in.get_shape().size()};
+    ngraph::Shape constShape = {begin.size()};
     auto beginNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape, begin.data());
     auto endNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape, end.data());
     auto strideNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape, stride.data());
-    auto ssNode = std::make_shared<ngraph::opset2::StridedSlice>(in, beginNode, endNode, strideNode, begin_mask, end_mask);
+    auto ssNode = std::make_shared<ngraph::opset2::StridedSlice>(in, beginNode, endNode, strideNode, begin_mask, end_mask,
+                                                                 new_axis_mask, shrink_mask, ellipsis_mask);
     return ssNode;
 }
 

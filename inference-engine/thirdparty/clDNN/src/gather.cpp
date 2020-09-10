@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,11 +31,28 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
-    auto input_format = input_layout.format;
-
     auto output_shape = desc->output_shape;
+    auto output_format = input_layout.format;
 
-    return layout{input_layout.data_type, input_format, output_shape};
+    int spatialNum = 0;
+    for (auto i : node.input(1).get_output_layout().size.raw)
+         spatialNum += (i > 1) ? 1 : 0;
+
+    // change output format if input indeces > 1
+    if (spatialNum == 2 && output_format == cldnn::format::bfzyx) {
+        output_format = cldnn::format::bfwzyx;
+    } else if (spatialNum == 2 && output_format == cldnn::format::bfyx) {
+        output_format = cldnn::format::bfzyx;
+    } else if (spatialNum == 3 && output_format == cldnn::format::bfyx) {
+        output_format = cldnn::format::bfwzyx;
+    }
+
+    auto output_type = input_layout.data_type;
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
+
+    return layout{output_type, output_format, output_shape};
 }
 
 std::string gather_inst::to_string(gather_node const& node) {

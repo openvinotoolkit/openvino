@@ -14,6 +14,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include <algorithm>
 #include <memory>
+#include <numeric>
 
 namespace vpu {
 
@@ -32,10 +33,16 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
         const ngraph::AxisSet & begin_mask,
         const ngraph::AxisSet & end_mask,
         const ngraph::Output<ngraph::Node> & input_shape) {
-    const auto shape_type = input_shape.get_element_type();
+    const auto& shape_type = input_shape.get_element_type();
+
+    VPU_THROW_UNLESS(begin.size() == end.size() && begin.size() == strides.size(),
+        "Begin, end and strides inputs must be of the same size, but {}, {} and {} given accordingly", begin.size(), end.size(), strides.size());
+    const auto inputShapeRank = input_shape.get_partial_shape()[0].get_length();
+    VPU_THROW_UNLESS(inputShapeRank >= begin.size(),
+        "Input shape rank must not be less than begin/end/strides size, but {} and {} given accordingly", inputShapeRank, begin.size());
 
     ngraph::OutputVector output_dimensions;
-    for (int64_t axis = 0; axis < input_shape.get_partial_shape()[0].get_length(); ++axis) {
+    for (int64_t axis = 0; axis < begin.size(); ++axis) {
         auto lb = begin[axis], ub = end[axis], stride = strides[axis];
 
         ngraph::Output<ngraph::Node> lower_bound = ngraph::opset3::Constant::create(shape_type, {1}, {lb});
@@ -99,6 +106,22 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
         }
         output_dimensions.push_back(output_dimension);
     }
+
+    if (output_dimensions.size() < inputShapeRank) {
+        std::vector<std::int64_t> indices(inputShapeRank - output_dimensions.size());
+        std::iota(indices.begin(), indices.end(), static_cast<std::int64_t>(output_dimensions.size()));
+
+        const auto tail = std::make_shared<ngraph::opset3::Gather>(
+            input_shape,
+            ngraph::opset3::Constant::create(ngraph::element::i64, {indices.size()}, indices),
+            ngraph::opset3::Constant::create(shape_type, {}, {0}));
+        output_dimensions.push_back(tail);
+    }
+
+    VPU_THROW_UNLESS(output_dimensions.size() == inputShapeRank,
+        "output shape rank {} must be equal to input shape rank {} for DTS of StridedSlice",
+        output_dimensions.size(), inputShapeRank);
+
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dimensions, 0);
     return output_shape;
 }
@@ -109,35 +132,39 @@ void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
-    const auto ss = ngraph::as_type_ptr<ngraph::opset3::StridedSlice>(target);
-    VPU_THROW_UNLESS(ss, "dynamicToStaticShapeStridedSlice transformation is not applicable for {}", target);
+    const auto stridedSlice = ngraph::as_type_ptr<ngraph::opset3::StridedSlice>(target);
+    VPU_THROW_UNLESS(stridedSlice, "dynamicToStaticShapeStridedSlice transformation is not applicable for {}", target);
 
     const auto all_zero = [](const std::vector<int64_t> & v) {return std::all_of(v.cbegin(), v.cend(), [](const int64_t & i){return i == 0;});};
-    VPU_THROW_UNLESS(all_zero(ss->get_new_axis_mask()),
+    VPU_THROW_UNLESS(all_zero(stridedSlice->get_new_axis_mask()),
             "dynamicToStaticShapeStridedSlice transformation is not applicable for {}, new_axis_mask expected to be zeros", target);
-    VPU_THROW_UNLESS(all_zero(ss->get_shrink_axis_mask()),
+    VPU_THROW_UNLESS(all_zero(stridedSlice->get_shrink_axis_mask()),
                 "dynamicToStaticShapeStridedSlice transformation is not applicable for {}, shrink_axis_mask expected to be zeros", target);
-    VPU_THROW_UNLESS(all_zero(ss->get_ellipsis_mask()),
+    VPU_THROW_UNLESS(all_zero(stridedSlice->get_ellipsis_mask()),
                 "dynamicToStaticShapeStridedSlice transformation is not applicable for {}, ellipsis_mask expected to be zeros", target);
 
-    const auto get_i64_vector_from_const = [&ss](std::shared_ptr<ngraph::Node> node_ptr) {
+    const auto get_i64_vector_from_const = [&stridedSlice](std::shared_ptr<ngraph::Node> node_ptr) {
         const auto constant = ngraph::as_type_ptr<ngraph::opset3::Constant>(node_ptr);
         VPU_THROW_UNLESS(constant,
-                "dynamicToStaticShapeStridedSlice transformation is not applicable for {}, begin, end and stride inputs are expected to be constants", ss);
+                "dynamicToStaticShapeStridedSlice transformation is not applicable for {}, begin, end and stride inputs are expected to be constants",
+                stridedSlice);
         return constant->cast_vector<int64_t>();
     };
 
     const auto input_shape = dsr->input_value(1);
     const auto output_shape = calculate_output_shape(
-            get_i64_vector_from_const(ss->input_value(1).get_node_shared_ptr()),
-            get_i64_vector_from_const(ss->input_value(2).get_node_shared_ptr()),
-            get_i64_vector_from_const(ss->input_value(3).get_node_shared_ptr()),
-            convert_mask_to_axis_set(ss->get_begin_mask()),
-            convert_mask_to_axis_set(ss->get_end_mask()),
+            get_i64_vector_from_const(stridedSlice->input_value(1).get_node_shared_ptr()),
+            get_i64_vector_from_const(stridedSlice->input_value(2).get_node_shared_ptr()),
+            get_i64_vector_from_const(stridedSlice->input_value(3).get_node_shared_ptr()),
+            convert_mask_to_axis_set(stridedSlice->get_begin_mask()),
+            convert_mask_to_axis_set(stridedSlice->get_end_mask()),
             input_shape);
 
-    const auto copied = ss->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(std::move(target), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape));
+    const auto copied = stridedSlice->clone_with_new_inputs(target->input_values());
+
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    outDSR->set_friendly_name(stridedSlice->get_friendly_name());
+    ngraph::replace_node(std::move(target), std::move(outDSR));
 }
 
 }  // namespace vpu

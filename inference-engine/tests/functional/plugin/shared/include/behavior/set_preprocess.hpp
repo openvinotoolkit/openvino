@@ -13,6 +13,7 @@
 #include "ie_preprocess.hpp"
 #include "functional_test_utils/behavior_test_utils.hpp"
 
+namespace BehaviorTestsDefinitions {
 using PreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
@@ -59,3 +60,4 @@ TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
                   info->getResizeAlgorithm());
     }
 }
+}  // namespace BehaviorTestsDefinitions

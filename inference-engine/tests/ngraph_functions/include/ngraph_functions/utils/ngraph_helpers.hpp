@@ -89,13 +89,93 @@ enum ActivationTypes {
     Log,
     Sign,
     Abs,
-    Gelu
+    Gelu,
+    Clamp,
+    Negative,
+    Acos,
+    Asin,
+    Atan,
+    Cos,
+    Cosh,
+    Floor,
+    Sin,
+    Sinh,
+    Sqrt,
+    Tan,
+    Elu,
+    Erf,
+    HardSigmoid,
+    Selu,
+    Ceiling,
+    PReLu,
+    Mish,
+    HSwish,
+    SoftPlus,
+    Swish
+};
+
+enum EltwiseTypes {
+    ADD,
+    MULTIPLY,
+    SUBTRACT
+};
+
+enum ComparisonTypes {
+    EQUAL,
+    NOT_EQUAL,
+    LESS,
+    LESS_EQUAL,
+    GREATER,
+    GREATER_EQUAL
+};
+
+enum LogicalTypes {
+    LOGICAL_AND,
+    LOGICAL_OR,
+    LOGICAL_XOR,
+    LOGICAL_NOT
+};
+
+enum SqueezeOpType {
+    SQUEEZE,
+    UNSQUEEZE
+};
+
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
 };
 
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
 };
+
+enum ReductionType {
+    Mean,
+    Max,
+    Min,
+    Prod,
+    Sum,
+    LogicalOr,
+    LogicalAnd,
+    LogicalXor
+};
+
+enum class InputLayerType {
+    CONSTANT,
+    PARAMETER,
+};
+
+enum class PadMode {
+    CONSTANT,
+    EDGE,
+    REFLECT,
+    SYMMETRIC,
+};
+
+std::ostream &operator<<(std::ostream &os, const ReductionType &m);
+std::ostream &operator<<(std::ostream &os, const PadMode &m);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {
@@ -151,6 +231,22 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
                                                  const element::Type_t &fromPrecision,
                                                  const element::Type_t &toPrecision,
                                                  const size_t elementsCount);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type);
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type);
 
 }  // namespace helpers
 }  // namespace ngraph

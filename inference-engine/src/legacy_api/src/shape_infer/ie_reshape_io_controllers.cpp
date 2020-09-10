@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_infer/ie_reshape_io_controllers.hpp"
-
-#include <ie_layers.h>
-
-#include <blob_factory.hpp>
-#include <ie_layer_validators.hpp>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <blob_factory.hpp>
+
+#include <legacy/ie_layers.h>
+#include <ie_layer_validators.hpp>
+#include "shape_infer/ie_reshape_io_controllers.hpp"
 
 using namespace InferenceEngine;
 using namespace ShapeInfer;
@@ -139,7 +139,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
     checkCorrespondence();
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->getInputTo()) {
+        for (auto const& inputTo : getInputTo(outData)) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first
@@ -162,7 +162,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
 void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& launchers) {
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->getInputTo()) {
+        for (auto const& inputTo : getInputTo(outData)) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first

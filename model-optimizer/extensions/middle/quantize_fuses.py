@@ -91,7 +91,7 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
         return [BinarizeWeightsM1P1]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for quantize_node in graph.get_op_nodes(op='FakeQuantize', keep_in_IR=True):
+        for quantize_node in graph.get_op_nodes(op='FakeQuantize'):
             while len(quantize_node.out_port(0).get_destinations()) == 1:
                 if not quantize_node.out_port(0).get_destination().node.has_valid('fuse_up_to_quantize_ports'):
                     break

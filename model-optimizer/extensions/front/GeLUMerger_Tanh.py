@@ -25,7 +25,6 @@ from mo.graph.graph import Graph
 
 class GeLUMergerTanh(FrontReplacementSubgraph):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def pattern(self):
         log.info('Enabled GeLU Merger for approximation with TanH')

@@ -29,6 +29,29 @@
 #include <map>
 #include <set>
 
+#define CLDNN_REORDER_INPUTS_VERBOSE 0
+
+// Prints overall statistics of performed selection, such as number of reorders required.
+#define CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS          (CLDNN_REORDER_INPUTS_VERBOSE > 0)
+// Prints special cases and work-arounds matched.
+#define CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH       (CLDNN_REORDER_INPUTS_VERBOSE > 1)
+// Prints full list of preferred formats for each node.
+#define CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED           (CLDNN_REORDER_INPUTS_VERBOSE > 2)
+// Prints full list of selected formats for each node.
+#define CLDNN_REORDER_INPUTS_VERBOSE_FORMATS             (CLDNN_REORDER_INPUTS_VERBOSE > 2)
+
+#if CLDNN_REORDER_INPUTS_VERBOSE
+#include "to_string_utils.h"
+#include <iostream>
+#define CLDNN_REORDER_INPUTS_LOG(x) std::cout << "[clDNN][reorder_inputs] " << x << std::endl
+#endif
+
+#if CLDNN_REORDER_INPUTS_VERBOSE_PATTERN_MATCH
+#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) CLDNN_REORDER_INPUTS_LOG(id << " matched for pattern: " << desc)
+#else
+#define CLDNN_REORDER_INPUTS_PATTERN_MATCH_LOG(desc, id) do { } while (false)
+#endif
+
 using namespace cldnn;
 
 // ToDo remove friendship relation from program_impl
@@ -337,9 +360,9 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
 }
 
 void insert_reorders(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
-    auto it = p.get_processing_order().begin();
-    while (it != p.get_processing_order().end()) {
-        auto node = *(it++);
+    auto fwd_it = p.get_processing_order().begin();
+    while (fwd_it != p.get_processing_order().end()) {
+        auto node = *(fwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
@@ -351,9 +374,9 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
         insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
     }
 
-    it = p.get_processing_order().begin();
-    while (it != p.get_processing_order().end()) {
-        auto node = *(it++);
+    auto bwd_it = p.get_processing_order().rbegin();
+    while (bwd_it != p.get_processing_order().rend()) {
+        auto node = *(bwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
@@ -370,71 +393,64 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
 
 void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory& rf) {
     auto fmt_map = get_preferred_formats(p, lo);
+#if CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED
+    {
+        CLDNN_REORDER_INPUTS_LOG("Preferred formats:");
+        for (auto& node_fmt : fmt_map) {
+            if (node_fmt.second != format::any) {
+                CLDNN_REORDER_INPUTS_LOG("  " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second));
+            }
+        }
+    }
+#endif
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
 
-    // WA START ============================================================================================================
-    if (lo.get_optimization_attributes().b_fs_yx_fsv16_network) {
-        // This is a temprorary work-around for known bad case until byxf_af32 handling will be corrected in layout_optimizer.
-        //
-        // Find pattern:
-        //    mvn(int8, b_fs_yx_fsv16, [x,16,1280,720]) -> conv(int8, byxf_af32, [x,3,1280,720]) -> mvn(*, bfyx) ->
-        // Replace with:
-        //    mvn(b_fs_yx_fsv16) -> conv(b_fs_yx_fsv16) -> mvn(b_fs_yx_fsv16) ->
-        //
-        // Generally for such convolution b_fs_yx_fsv16 will always perform better than byxf_af32,
-        // but to avoid unvalidated int8 b_fs_yx_fsv16 networks and potential regressions this WA is needed.
-        // Additionally reorder from af32 -> bfyx will take ~9 times longer than actual convolution.
-        for (auto& node_ptr : p.get_processing_order()) {
-            if (!node_ptr->is_in_data_flow() || !node_ptr->is_type<convolution>() || fmt_map.at(node_ptr) != format::byxf_af32)
+#if CLDNN_REORDER_INPUTS_VERBOSE_FORMATS
+    {
+        CLDNN_REORDER_INPUTS_LOG("Selected formats:");
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0)
                 continue;
 
-            auto& conv_node = node_ptr->as<convolution>();
-
-            bool input_path =
-                conv_node.input().get_output_layout().data_type == data_types::i8 &&
-                conv_node.input().is_type<mvn>() &&
-                fmt_map.at(&conv_node.input()) == format::b_fs_yx_fsv16;
-            bool output_path =
-                conv_node.get_users().size() == 1 &&
-                conv_node.get_users().front()->is_type<mvn>() &&
-                fmt_map.at(conv_node.get_users().front()) == format::bfyx &&
-                conv_node.get_users().front()->get_users().size() == 1 &&
-                !conv_node.get_users().front()->as<mvn>().get_primitive()->across_channels;
-
-            if (!input_path || !output_path)
-                continue;
-
-            auto in_lay = conv_node.input().get_output_layout();
-            auto out_lay = conv_node.get_output_layout();
-            auto wei_lay = conv_node.weights().get_output_layout();
-            bool correct_layouts =
-                // weights
-                wei_lay.data_type == data_types::i8 &&
-                wei_lay.size.spatial[0] == 3 && wei_lay.size.spatial[1] == 3 &&
-                // input/output
-                in_lay.data_type == data_types::i8 && out_lay.data_type == data_types::i8 &&
-                in_lay.size.feature[0] == 16 && out_lay.size.feature[0] == 3 &&
-                in_lay.size.spatial[0] == 1280 && out_lay.size.spatial[0] == 1280 &&
-                in_lay.size.spatial[1] == 720 && out_lay.size.spatial[1] == 720;
-
-            if (!correct_layouts)
-                continue;
-
-            bool correct_conv =
-                conv_node.get_groups() == 1 && conv_node.get_split() == 1 && conv_node.get_deformable_groups() == 1 &&
-                !conv_node.get_depthwise_sep_opt() && !conv_node.get_transposed() &&
-                !conv_node.activations_zero_points_term() && !conv_node.weights_zero_points_term() && !conv_node.compensation_term() &&
-                conv_node.get_primitive()->dilation == tensor(1);
-
-            if (!correct_conv)
-                continue;
-
-            fmt_map.at(node_ptr) = format::b_fs_yx_fsv16;
-            fmt_map.at(conv_node.get_users().front()) = format::b_fs_yx_fsv16;
+            auto fmt = fmt_map.at(node_ptr);
+            CLDNN_REORDER_INPUTS_LOG("  " << node_ptr->id() << " " << fmt_to_str(fmt));
         }
     }
-    // WA END ==============================================================================================================
+#endif
+#if CLDNN_REORDER_INPUTS_VERBOSE_STATISTICS
+    {
+        reorder_cnt total_reorder_count = std::accumulate(
+            p.get_processing_order().begin(),
+            p.get_processing_order().end(),
+            reorder_cnt{ 0, 0 },
+            [&](reorder_cnt& total, program_node* node) {
+            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                return total;
+            auto count = count_reorders(fmt_map, lo, node);
+            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
+        });
+        // Divide results by two as above function will each reorder from both sides
+        CLDNN_REORDER_INPUTS_LOG("Total number of reorders: " << total_reorder_count.number / 2);
+        CLDNN_REORDER_INPUTS_LOG("Total elements count of all reorders: " << total_reorder_count.total_sizes / 2);
+
+        // Count number of reorders that will be fused
+        size_t nodes_with_fusing = 0;
+        for (auto node_ptr : p.get_processing_order()) {
+            if (fmt_map.count(node_ptr) == 0 || fmt_map.at(node_ptr) == format::any)
+                continue;
+            for (auto prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
+                if (!prev_ptr->is_in_data_flow() || fmt_map.at(prev_ptr) == fmt_map.at(node_ptr))
+                    continue;
+                if (lo.can_fuse_reorder(*prev_ptr, *node_ptr, fmt_map.at(prev_ptr), fmt_map.at(node_ptr))) {
+                    nodes_with_fusing += 1;
+                    break;
+                }
+            }
+        }
+        CLDNN_REORDER_INPUTS_LOG("Number of nodes with fused reorders: " << nodes_with_fusing);
+    }
+#endif
 
     insert_reorders(p, fmt_map, rf);
 

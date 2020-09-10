@@ -177,7 +177,7 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         if (!unsqueeze) {
             return false;
         }
-        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered> (unsqueeze->get_argument(0));
+        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
 
         if (!prior_box_node) {
             return false;
@@ -210,9 +210,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
-        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(1));
-        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(2));
-        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(3));
+        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node_shared_ptr());
+        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node_shared_ptr());
+        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node_shared_ptr());
 
         if (!begin || !end || !stride) {
             return false;
@@ -277,8 +277,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         ops_to_replace.push_back(shape_of1);
         ops_to_replace.push_back(shape_of2);
 
-        auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxClusteredIE> (shape_of1->get_argument(0),
-                                                                               shape_of2->get_argument(0),
+        auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxClusteredIE> (shape_of1->input_value(0),
+                                                                               shape_of2->input_value(0),
                                                                                prior_box_node->get_attrs());
         prior_box_ie->set_friendly_name(unsqueeze->get_friendly_name());
 

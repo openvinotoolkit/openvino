@@ -6,8 +6,10 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -15,6 +17,53 @@
 
 namespace ngraph {
 namespace helpers {
+std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
+    switch (m) {
+        case Mean:
+            os << "Mean";
+            break;
+        case Max:
+            os << "Max";
+            break;
+        case Min:
+            os << "Min";
+            break;
+        case Prod:
+            os << "Prod";
+            break;
+        case Sum:
+            os << "Sum";
+            break;
+        case LogicalOr:
+            os << "LogicalOr";
+            break;
+        case LogicalAnd:
+            os << "LogicalAnd";
+            break;
+        case LogicalXor:
+            os << "LogicalXor";
+            break;
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PadMode &m) {
+    switch (m) {
+        case PadMode::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case PadMode::EDGE:
+            os << "EDGE";
+            break;
+        case PadMode::REFLECT:
+            os << "REFLECT";
+            break;
+        case PadMode::SYMMETRIC:
+            os << "SYMMETRIC";
+            break;
+    }
+    return os;
+}
 
 OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &nodes) {
     OutputVector outs;
@@ -95,9 +144,10 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                        return const_cast<std::uint8_t *>(input.data());
                    });
 
-    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
+    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
-        NGRAPH_CHECK(op->is_constant() || op->is_output() || op->is_parameter(),
+        NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
                      "At least one non constant node with type ", op->get_type_name(),
                      " present in function.");
@@ -112,7 +162,7 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
         const auto &output = function->output(i).get_node_shared_ptr();
         NGRAPH_CHECK(output->inputs().size() == 1);
         auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        NGRAPH_CHECK(parrentNode->is_constant(), "Function was not fully folded to constant state!\n",
+        NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
                      "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
 
         const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
@@ -161,9 +211,8 @@ void CompareFunctions(const Function& actual, const Function& expected) {
     std::queue<ComparingNodesPair> nodes;
     nodes.emplace(actualResult, expectedResult);
     while (!nodes.empty()) {
-        const auto& checkingNodes = nodes.front();
-        const auto& actualNode    = checkingNodes.first;
-        const auto& expectedNode  = checkingNodes.second;
+        const auto actualNode   = nodes.front().first;
+        const auto expectedNode = nodes.front().second;
         nodes.pop();
 
         CompareNodes(*actualNode, *expectedNode);
@@ -484,6 +533,163 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
         default:
             throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " precision");
     }
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) {
+    switch (type) {
+        case ngraph::helpers::EltwiseTypes::SUBTRACT:
+            os << "Sub";
+            break;
+        case ngraph::helpers::EltwiseTypes::MULTIPLY:
+            os << "Prod";
+            break;
+        case ngraph::helpers::EltwiseTypes::ADD:
+            os << "Sum";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type) {
+    switch (type) {
+        case ngraph::helpers::SqueezeOpType::SQUEEZE:
+            os << "Squeeze";
+            break;
+        case ngraph::helpers::SqueezeOpType::UNSQUEEZE:
+            os << "Unsqueeze";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type) {
+    switch (type) {
+        case ngraph::helpers::InputLayerType::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case ngraph::helpers::InputLayerType::PARAMETER:
+            os << "PARAMETER";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_INPUT_LAYER_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type) {
+    switch (type) {
+        case ngraph::helpers::ComparisonTypes::EQUAL:
+            os << "Equal";
+            break;
+        case ngraph::helpers::ComparisonTypes::NOT_EQUAL:
+            os << "NotEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER:
+            os << "Greater";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER_EQUAL:
+            os << "GreaterEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS:
+            os << "Less";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS_EQUAL:
+            os << "LessEqual";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) {
+    switch (type) {
+        case ngraph::helpers::LogicalTypes::LOGICAL_AND:
+            os << "LogicalAnd";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_OR:
+            os << "LogicalOr";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_NOT:
+            os << "LogicalNot";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_XOR:
+            os << "LogicalXor";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type) {
+    switch (type) {
+        case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
+            os << "cubic";
+            break;
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear:
+            os << "linear";
+            break;
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
+            os << "linear_onnx";
+            break;
+        case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
+            os << "nearest";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type) {
+    switch (type) {
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
+            os << "align_corners";
+            break;
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
+            os << "asymmetric";
+            break;
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
+            os << "half_pixel";
+            break;
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+            os << "pytorch_half_pixel";
+            break;
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+            os << "tf_half_pixel_for_nn";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type) {
+    switch (type) {
+        case ngraph::op::v4::Interpolate::NearestMode::ceil:
+            os << "ceil";
+            break;
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
+            os << "round_prefer_ceil";
+            break;
+        case ngraph::op::v4::Interpolate::NearestMode::floor:
+            os << "floor";
+            break;
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
+            os << "round_prefer_floor";
+            break;
+        case ngraph::op::v4::Interpolate::NearestMode::simple:
+            os << "simple";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
 }
 
 }  // namespace helpers

@@ -40,9 +40,9 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
-void set_arguments(kernels_cache::kernel_type& kernel,
-                   const kernel_selector::kernel_arguments& args,
-                   const kernel::kernel_arguments_data& data) {
+void set_arguments_impl(kernels_cache::kernel_type& kernel,
+                        const kernel_selector::kernel_arguments& args,
+                        const kernel::kernel_arguments_data& data) {
     for (uint32_t i = 0; i < static_cast<uint32_t>(args.size()); i++) {
         cl_int status = CL_INVALID_ARG_VALUE;
         switch (args[i].t) {
@@ -109,42 +109,6 @@ void set_arguments(kernels_cache::kernel_type& kernel,
                         status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.bias).get_buffer());
                 }
                 break;
-            case kernel_selector::kernel_argument_types::PREV_WEIGHTS_GRADIENT:
-                if (data.prev_weights_grad) {
-                    if (data.prev_weights_grad->get_layout().format.is_image_2d())
-                        status =
-                            kernel.setArg(i,
-                                          dynamic_cast<const gpu::gpu_image2d&>(*data.prev_weights_grad).get_buffer());
-                    else if (memory_capabilities::is_usm_type(data.prev_weights_grad->get_allocation_type()))
-                        status =
-                            kernel.setArgUsm(i,
-                                            dynamic_cast<const gpu::gpu_usm&>(*data.prev_weights_grad).get_buffer());
-                    else
-                        status =
-                            kernel.setArg(i,
-                                          dynamic_cast<const gpu::gpu_buffer&>(*data.prev_weights_grad).get_buffer());
-                }
-                break;
-            case kernel_selector::kernel_argument_types::PREV_BIAS_GRADIENT:
-                if (data.prev_bias_grad) {
-                    if (memory_capabilities::is_usm_type(data.prev_bias_grad->get_allocation_type()))
-                        status = kernel.setArgUsm(i, dynamic_cast<const gpu::gpu_usm&>(*data.prev_bias_grad).get_buffer());
-                    else
-                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.prev_bias_grad).get_buffer());
-                }
-                break;
-            case kernel_selector::kernel_argument_types::WEIGHTS_QUANTIZATION_FACTORS:
-                if (data.weights_quantization_factors) {
-                    if (memory_capabilities::is_usm_type(data.weights_quantization_factors->get_allocation_type()))
-                        status = kernel.setArgUsm(
-                            i,
-                            dynamic_cast<const gpu::gpu_usm&>(*data.weights_quantization_factors).get_buffer());
-                    else
-                        status = kernel.setArg(
-                            i,
-                            dynamic_cast<const gpu::gpu_buffer&>(*data.weights_quantization_factors).get_buffer());
-                }
-                break;
             case kernel_selector::kernel_argument_types::WEIGHTS_ZERO_POINTS:
                 if (data.weights_zero_points) {
                     if (memory_capabilities::is_usm_type(data.weights_zero_points->get_allocation_type()))
@@ -181,35 +145,6 @@ void set_arguments(kernels_cache::kernel_type& kernel,
                                  dynamic_cast<const gpu::gpu_buffer&>(*data.compensation).get_buffer());
                 }
                 break;
-            case kernel_selector::kernel_argument_types::OUTPUT_CALIBRATION_FACTORS:
-                if (args[i].index == 0) {
-                    if (data.output_calibration_factors) {
-                        if (memory_capabilities::is_usm_type(data.output_calibration_factors->get_allocation_type()))
-                            status = kernel.setArgUsm(
-                                i,
-                                dynamic_cast<const gpu::gpu_usm&>(*data.output_calibration_factors).get_buffer());
-                        else
-                            status = kernel.setArg(
-                                i,
-                                dynamic_cast<const gpu::gpu_buffer&>(*data.output_calibration_factors).get_buffer());
-                    }
-                } else {
-                    size_t new_idx = args[i].index - 1;
-                    if (new_idx < data.fused_op_calibration_factors.size() &&
-                        data.fused_op_calibration_factors[new_idx]) {
-                        if (memory_capabilities::is_usm_type(data.fused_op_calibration_factors[new_idx]->get_allocation_type()))
-                            status = kernel.setArgUsm(
-                                i,
-                                dynamic_cast<const gpu::gpu_usm&>(*data.fused_op_calibration_factors[new_idx]).get_buffer());
-                        else
-                            status = kernel.setArg(
-                                i,
-                                dynamic_cast<const gpu::gpu_buffer&>(*data.fused_op_calibration_factors[new_idx])
-                                    .get_buffer());
-                    }
-                }
-
-                break;
             case kernel_selector::kernel_argument_types::SCALE_TABLE:
                 if (data.scale_table) {
                     if (memory_capabilities::is_usm_type(data.scale_table->get_allocation_type()))
@@ -228,9 +163,6 @@ void set_arguments(kernels_cache::kernel_type& kernel,
                 break;
             case kernel_selector::kernel_argument_types::SPLIT:
                 status = kernel.setArg(i, data.split);
-                break;
-            case kernel_selector::kernel_argument_types::LEARNING_RATE:
-                status = kernel.setArg(i, data.lr);
                 break;
             case kernel_selector::kernel_argument_types::SCALAR:
                 if (data.scalars && args[i].index < data.scalars->size()) {
@@ -306,27 +238,47 @@ void set_arguments(kernels_cache::kernel_type& kernel,
         }
 
         if (status != CL_SUCCESS) {
-            throw std::runtime_error("Error set args\n");
+            throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
         }
     }
 }
 }  // namespace
 
-event_impl::ptr kernel::run(uint32_t queue_id,
-                            const kernel_selector::cl_kernel_data& kernel_data,
-                            const std::vector<event_impl::ptr>& dependencies,
-                            const kernel_arguments_data& args) const {
+void kernel::set_arguments(uint32_t queue_id,
+                           const kernel_selector::cl_kernel_data& kernel_data,
+                           const kernel_arguments_data& args) {
     static std::mutex m;
     std::lock_guard<std::mutex> guard(m);
-    auto clkernel = context()->get_kernels_cache(_prog_id).get_kernel(_kernel_id, _one_time_kernel);
+    auto compiled_kernel = context()->get_kernels_cache(_prog_id).get_kernel(_kernel_id, _one_time_kernel);
+
+    // Create a copy of cl kernel for each stream if it doesn't exist
+    // Copy is needed to avoid data races between streams, but we create it only once for each stream
+    // because the cloning is quite expensive.
+    // Mutex is still needed to ensure that insert operation into the map is thread safe
+    if (_cl_kernels.find(queue_id) == _cl_kernels.end())
+        _cl_kernels[queue_id] = compiled_kernel.clone();
+
     try {
-        set_arguments(clkernel, kernel_data.arguments, args);
+        set_arguments_impl(_cl_kernels.at(queue_id), kernel_data.arguments, args);
     } catch (cl::Error const& err) {
         throw ocl_error(err);
     }
+}
+
+void kernel::cleanup(uint32_t queue_id) {
+    _cl_kernels.erase(queue_id);
+}
+
+event_impl::ptr kernel::run(uint32_t queue_id,
+                            const kernel_selector::cl_kernel_data& kernel_data,
+                            const std::vector<event_impl::ptr>& dependencies) const {
+
+    if (_cl_kernels.find(queue_id) == _cl_kernels.end() || _cl_kernels.at(queue_id).get() == NULL) {
+        throw std::runtime_error("[clDNN] Kernel for layer " + kernel_data.layerID + " is not found for stream " + std::to_string(queue_id));
+    }
 
     return context()->enqueue_kernel(queue_id,
-                                     clkernel,
+                                     _cl_kernels.at(queue_id),
                                      toNDRange(kernel_data.workGroups.global),
                                      toNDRange(kernel_data.workGroups.local),
                                      dependencies);

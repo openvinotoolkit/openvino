@@ -18,7 +18,7 @@ struct TestExtensionsHolder {
 };
 
 
-class FakeExtensions : public IExtension {
+class FakeExtensions : public Cpu::MKLDNNExtensions {
  public:
     void Unload() noexcept override {};
 
@@ -60,21 +60,6 @@ class FakeExtensions : public IExtension {
             return NOT_FOUND;
         }
         factory = factories[cnnLayer->type](cnnLayer);
-        return OK;
-    }
-    StatusCode getShapeInferTypes(char **&types, unsigned int &size, ResponseDesc *resp) noexcept override {
-        collectTypes(types, size, GetExtensionsHolder()->si_list);
-        return OK;
-    };
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr &impl, const char *type, ResponseDesc *resp) noexcept override {
-        auto &factories = GetExtensionsHolder()->si_list;
-        if (factories.find(type) == factories.end()) {
-            std::string errorMsg = std::string("Shape Infer Implementation for ") + type + " wasn't found!";
-            if (resp) errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            return NOT_FOUND;
-        }
-        impl = factories[type];
         return OK;
     }
 

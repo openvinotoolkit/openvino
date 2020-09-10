@@ -29,6 +29,7 @@ protected:
         Subgraph& subgraph,
         std::function<void(
             const CNNLayer& layer,
+            const std::string& originalLayerName,
             std::vector<float>& dequantizationScales,
             std::vector<float>& dequantizationShifts)> getLayerDequantizationCallback) const;
 

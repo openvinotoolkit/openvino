@@ -6,13 +6,13 @@
 #include "mkldnn_depthwise_node.h"
 #include "mkldnn_activation_node.h"
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
 #include "bf16transformer.h"
-
+#include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
 
 using namespace mkldnn;
@@ -633,9 +633,15 @@ private:
         for (int i = 0; i < p.len_; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
+                if (eltwise_injectors.size() <= eltwise_inj_idx
+                        || eltwise_injectors[eltwise_inj_idx] == nullptr)
+                    assert(!"Invalid eltwise injectors.");
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
+                if (depthwise_injectors.size() <= depthwise_inj_idx
+                        || depthwise_injectors[depthwise_inj_idx] == nullptr)
+                    assert(!"Invalid depthwise injectors.");
                 mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
                 mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
@@ -644,6 +650,9 @@ private:
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
+                if (quantization_injectors.size() <= quantization_inj_idx
+                        || quantization_injectors[quantization_inj_idx] == nullptr)
+                    assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
 
@@ -667,7 +676,8 @@ private:
 };
 
 MKLDNNNormalizeNode::MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(layer, eng, cache), src_data_size(0lu), dst_data_size(0lu), weights_data_size(0lu),
+        input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED), weights_prec(Precision::UNSPECIFIED) {}
 
 void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -703,7 +713,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         weights_blob = transformer.convertBF16ToFloat(tweights);
     } else {
         // Unknown non supported data type, return an error
-        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize wiht name '" << layer->name <<
+        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
             "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
     }
 }
@@ -806,6 +816,7 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
                                                         depthwiseLayer->_weights->buffer(),
@@ -823,6 +834,7 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
                                                                memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
                                                                 depthwiseLayer->_biases->buffer(),
                                                                 depthwiseLayer->_biases->size() *
@@ -1314,7 +1326,7 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
     // post ops for tails: post-ops params is padding.
     std::vector<float> weights_padding(CB * blk_size);
     if (!channel_shared) {
-        memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
+        cpu_memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
     }
 
     for (size_t b = 0lu; b < B; b++) {

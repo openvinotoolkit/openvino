@@ -1450,7 +1450,7 @@ void ref_strided_slice(const InferenceEngine::Blob::Ptr& src,
         for (size_t i = 0; i < num_dims; i++) {
             auto value = values[i];
             if (value < 0) {
-                value = std::max<int32_t>(src_dims[i] + value + 1, 0);
+                value = std::max<int32_t>(src_dims[i] + value, 0);
             }
             value = std::min<int32_t>(src_dims[i], value);
             convertedDims[i] = value;

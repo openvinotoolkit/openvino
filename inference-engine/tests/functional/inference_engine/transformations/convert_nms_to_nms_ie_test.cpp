@@ -10,13 +10,15 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -29,14 +31,16 @@ TEST(TransformationTests, ConvertNMSToNMSIEStatic) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         const auto & orig_shape = f->get_output_partial_shape(0);
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
@@ -68,13 +72,15 @@ TEST(TransformationTests, ConvertNMSToNMSIEDynamic1) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -105,13 +111,15 @@ TEST(TransformationTests, ConvertNMSToNMSIEDynamic2) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset1::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }

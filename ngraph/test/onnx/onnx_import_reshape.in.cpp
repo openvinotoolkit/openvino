@@ -25,10 +25,11 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/ngraph.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -37,6 +38,8 @@
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
+
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
@@ -57,7 +60,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims)
                                  {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 12}, expected_output);
     test_case.run();
@@ -80,7 +83,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims)
                                                     {{18, 19, 20}, {21, 22, 23}}})
                                .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{4, 2, 3}, expected_output);
     test_case.run();
@@ -102,7 +105,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims)
                                                     {{{16, 17}, {18, 19}}, {{20, 21}, {22, 23}}}})
                                .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{3, 2, 2, 2}, expected_output);
     test_case.run();
@@ -123,7 +126,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim)
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
                                .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{24}, expected_output);
     test_case.run();
@@ -161,7 +164,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim)
                                                      {0.46147937, 0.7805292}}})
                                .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
@@ -183,7 +186,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim)
                                  {{12, 13}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 23}}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
@@ -205,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input)
                                  {{12, 13}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 23}}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
@@ -216,30 +219,51 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space.prototxt"));
 
-    std::vector<float> input{
-        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
-        0.f, 4.f, 1.f, 5.f, 8.f, 12.f, 9.f, 13.f, 2.f, 6.f, 3.f, 7.f, 10.f, 14.f, 11.f, 15.f};
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_chw)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_chw.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_v1.prototxt"));
 
-    std::vector<float> input{
-        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
-        0.f, 4.f, 1.f, 5.f, 8.f, 12.f, 9.f, 13.f, 2.f, 6.f, 3.f, 7.f, 10.f, 14.f, 11.f, 15.f};
+        0.f, 8.f,  1.f, 9.f,  16.f, 24.f, 17.f, 25.f, 2.f, 10.f, 3.f, 11.f, 18.f, 26.f, 19.f, 27.f,
+        4.f, 12.f, 5.f, 13.f, 20.f, 28.f, 21.f, 29.f, 6.f, 14.f, 7.f, 15.f, 22.f, 30.f, 23.f, 31.f};
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_crd.prototxt"));
+
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
+
+    std::vector<float> expected_output{0.f,  4.f,  1.f,  5.f,  8.f,  12.f, 9.f,  13.f,
+                                       2.f,  6.f,  3.f,  7.f,  10.f, 14.f, 11.f, 15.f,
+                                       16.f, 20.f, 17.f, 21.f, 24.f, 28.f, 25.f, 29.f,
+                                       18.f, 22.f, 19.f, 23.f, 26.f, 30.f, 27.f, 31.f};
+
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -262,44 +286,82 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize)
                  std::runtime_error);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode)
+{
+    try
+    {
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_mode.prototxt"));
+        FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape)
+{
+    try
+    {
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_input_shape.prototxt"));
+        FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception";
+    }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth.prototxt"));
 
-    std::vector<float> input{0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                             22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f};
+    std::vector<float> input(32);
+    std::iota(input.begin(), input.end(), 0);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
         4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
     };
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_chw)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_chw.prototxt"));
-
-    std::vector<float> input{0.f,  1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f,
-                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f,
-                             22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f};
-
-    std::vector<float> expected_output{
-        0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
-        4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
-    };
-
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
-    test_case.add_input(input);
-    test_case.add_expected_output(expected_output);
-    test_case.run();
+    try
+    {
+        onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.prototxt"));
+        FAIL() << "Expected ngraph_error exception, but no exception was thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
+            << "Could not find \"Input must be 4-dimensional\" in exception message: \"" << msg
+            << "\"";
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception, got another type of exception";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize)
@@ -334,7 +396,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze)
         test::NDArray<float, 2>({{1.0f, 2.0f}, {3.0f, 4.0f}, {5.0f, 6.0f}, {7.0f, 8.0f}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(Shape{1, 4, 1, 1, 2}, input);
     test_case.add_expected_output(Shape{4, 2}, expected_output);
     test_case.run();
@@ -358,7 +420,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze)
               {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -382,7 +444,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes)
               {{{-0.05270234f, 0.7113202f, -0.45783648f, -1.3378475f, 0.26926285f}}}}})
             .get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -400,7 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat)
 
     auto expected_output = test::NDArray<float, 1>({1, 2, 3, 4}).get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -418,7 +480,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis)
 
     auto expected_output = test::NDArray<float, 2>({{1, 2}, {3, 4}, {5, 6}, {7, 8}}).get_vector();
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -448,7 +510,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_2d.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_expected_output<float>({0, 1, 2, 6, 7, 8});
     test_case.add_expected_output<float>({3, 4, 5, 9, 10, 11});
@@ -461,7 +523,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/split_variable_parts_2d.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_expected_output<float>({0, 1, 6, 7});
     test_case.add_expected_output<float>({2, 3, 4, 5, 8, 9, 10, 11});
@@ -473,7 +535,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_static_shape)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/expand_static_shape.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     // input data shape (3,1)
     test_case.add_input(std::vector<float>{1, 2, 3});
 

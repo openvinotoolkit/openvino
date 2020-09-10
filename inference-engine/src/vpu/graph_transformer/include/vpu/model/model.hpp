@@ -32,6 +32,7 @@ struct Resources final {
     int numCMXSlices = 0;
     int numSHAVEs = 0;
     int numExecutors = 0;
+    int tilingCMXLimit = 0;
 };
 
 void printTo(std::ostream& os, const Resources& res);
@@ -59,8 +60,6 @@ private:
 
     VPU_MODEL_ATTRIBUTE(int, batchSize, 1)
 
-    VPU_MODEL_ATTRIBUTE(InferenceEngine::NetworkStatsMap, nodesStats, {})
-
 public:
     //
     // Constructor
@@ -77,8 +76,6 @@ public:
     //
 
     void setBatchSize(int batchSize);
-
-    inline void setNodesStats(const ie::NetworkStatsMap& stats) { _nodesStats = stats; }
 
     //
     // Data nodes
@@ -166,6 +163,7 @@ public:
             const Stage& newDependentStage);
 
     void removeStageDependency(const StageDependency& edge);
+    void removeStageDependency(const Stage& stage, const Data& dependency);
 
     //
     // Stage <-> Stage edges
@@ -392,8 +390,17 @@ inline Stage ModelObj::addNewStage(
 // runAllocator
 //
 
+VPU_DECLARE_ENUM(EnableShapeAllocation,
+                 YES,
+                 NO)
+
+VPU_DECLARE_ENUM(CheckOnlyCMX,
+                 YES,
+                 NO)
+
 AllocationResult runAllocator(
         const Model& model,
-        bool onlyCheckCMX = false);
+        EnableShapeAllocation = EnableShapeAllocation::NO,
+        CheckOnlyCMX = CheckOnlyCMX::NO);
 
 }  // namespace vpu

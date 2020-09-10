@@ -10,8 +10,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "details/ie_cnn_network_tools.h"
-#include <details/caseless.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <caseless.hpp>
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/layer_transformation.hpp"
 
@@ -143,7 +143,7 @@ private:
 
         for (size_t outDataIndex = 0; outDataIndex < layer->outData.size(); ++outDataIndex) {
             DataPtr outData = layer->outData[outDataIndex];
-            const std::map<std::string, CNNLayerPtr> inputTo = outData->getInputTo();
+            const std::map<std::string, CNNLayerPtr> inputTo = getInputTo(outData);
             const Precision parentOutPrecision = getDataPrecision(precisionByPort, *layer, outDataIndex);
 
             for (auto it = inputTo.begin(); it != inputTo.end(); it++) {

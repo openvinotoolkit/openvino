@@ -13,7 +13,10 @@
 #include <memory>
 #include <string>
 
-#include <ie_plugin_ptr.hpp>
+#include <ie_parameter.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <cpp/ie_executable_network.hpp>
+
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -114,5 +117,21 @@ using ExportMagic = std::array<char, 4>;
  * @ingroup ie_dev_api_plugin_api
  */
 constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
+
+/**
+ * @private
+ */
+class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
+    std::string deviceName;
+    std::string deviceID;
+public:
+    explicit DeviceIDParser(const std::string& deviceNameWithID);
+
+    std::string getDeviceID() const;
+    std::string getDeviceName() const;
+
+    static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
+    static std::vector<std::string> getMultiDevices(std::string devicesList);
+};
 
 }  // namespace InferenceEngine

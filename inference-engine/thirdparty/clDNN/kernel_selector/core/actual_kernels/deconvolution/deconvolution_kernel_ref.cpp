@@ -55,7 +55,6 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableGradient();
     k.EnableGroupedConvolution();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();

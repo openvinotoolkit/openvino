@@ -20,11 +20,12 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
 
     const auto copied = eltwise->copy_with_new_inputs(eltwise->input_values());
 
-    auto shapeToConstant = [&eltwise](const ngraph::Output<ngraph::Node> & output) -> std::shared_ptr<ngraph::opset3::Constant> {
+    auto shapeToConstant = [&eltwise](const ngraph::Output<ngraph::Node>& output,
+                                      const ngraph::element::Type& elemType) -> std::shared_ptr<ngraph::opset3::Constant> {
         VPU_THROW_UNLESS(output.get_partial_shape().is_static(),
             "DynamicToStaticShape transformation for {} of type {} expects static shape on inputs without DSR",
             eltwise->get_friendly_name(), eltwise->get_type_info());
-        return ngraph::opset3::Constant::create(ngraph::element::i64, {output.get_shape().size()}, output.get_shape());
+        return ngraph::opset3::Constant::create(elemType, {output.get_shape().size()}, output.get_shape());
     };
 
     const auto lhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(0).get_node_shared_ptr());
@@ -32,19 +33,29 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
 
     VPU_THROW_UNLESS(lhsDSR || rhsDSR, "DynamicToStaticShape transformation for {} of type {} expects at least one DSR as input",
         eltwise->get_friendly_name(), eltwise->get_type_info());
+    if (lhsDSR && rhsDSR) {
+        VPU_THROW_UNLESS(lhsDSR->get_input_element_type(1) == rhsDSR->get_input_element_type(1),
+                "DynamicToStaticShape transformation for {} of type {} expects equal shapes data types, actual {} vs {}",
+                eltwise->get_friendly_name(), eltwise->get_type_info(),
+                lhsDSR->get_input_element_type(1), rhsDSR->get_input_element_type(1));
+    }
+    const auto shapeElementType = lhsDSR ? lhsDSR->get_input_element_type(1) : rhsDSR->get_input_element_type(1);
 
-    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(0));
-    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(1));
+    auto lhsInput = lhsDSR ? lhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(0), shapeElementType);
+    auto rhsInput = rhsDSR ? rhsDSR->input_value(1) : shapeToConstant(eltwise->input_value(1), shapeElementType);
 
     const auto diff = std::abs(lhsRank.get_length() - rhsRank.get_length());
     if (diff) {
         auto & broadcastInput = lhsRank.get_length() < rhsRank.get_length() ? lhsInput : rhsInput;
-        const auto broadcastConst = ngraph::opset3::Constant::create(broadcastInput.get_element_type(), {static_cast<uint64_t>(diff)}, {1});
+        const auto broadcastConst = ngraph::opset3::Constant::create(broadcastInput.get_element_type(), {static_cast<size_t>(diff)}, {1});
         broadcastInput = std::make_shared<ngraph::opset3::Concat>(ngraph::OutputVector{broadcastConst, broadcastInput}, 0);
     }
 
     const auto shape = std::make_shared<ngraph::opset3::Maximum>(lhsInput, rhsInput);
-    ngraph::replace_node(std::move(eltwise), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape));
+
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape);
+    outDSR->set_friendly_name(eltwise->get_friendly_name());
+    ngraph::replace_node(std::move(eltwise), std::move(outDSR));
 }
 
 }  // namespace vpu

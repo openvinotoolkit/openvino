@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ void pre_replace_deconv::run(program_impl& p) {
             bool unit_stride = std::all_of(deconv_prim->stride.spatial.begin(),
                                            deconv_prim->stride.spatial.end(),
                                            [](tensor::value_type v) { return v == 1; });
-            if (unit_stride && !deconv_prim->gradient()) {
+            if (unit_stride) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 auto groups = deconv_node.get_groups();
@@ -72,12 +72,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
                                 _lo.is_format_optimized(node->as<deconvolution>(), format::b_fs_yx_fsv16));
                 // int8/uint8 input
-                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8) &&
-                               // imad convolution kernel limitation for groups
-                               (groups == 1 || weights_node.get_output_layout().size.feature[0] % 4 == 0 ||
-                                groups == static_cast<uint32_t>(input_node.get_output_layout().size.feature[0])) &&
-                               // no uint8/int8 3D convolution support
-                               input_node.get_output_layout().format.dimension() == 4;
+                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8);
 
                 if (!perform_opt)
                     continue;
@@ -201,8 +196,7 @@ void pre_replace_deconv::run(program_impl& p) {
                filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
                deconv_prim->input_offset.spatial[0] == -4 && deconv_prim->input_offset.spatial[1] == -4 &&
                weights_vec.size() == 1 && deconv_prim->bias.size() == 1 &&
-               node->get_dependency(0).get_output_layout().format == format::bfyx &&
-               !deconv_prim->gradient()) {
+               node->get_dependency(0).get_output_layout().format == format::bfyx) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 primitive_id input_id = deconv_prim->input[0];
@@ -324,7 +318,7 @@ void pre_replace_deconv::run(program_impl& p) {
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
                 }
 
-                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2);
+                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);
 
                 p.get_or_create(pixel_shuffle_prim);
                 auto pixel_shuffle_node_ptr = p.nodes_map.find(deconv_id)->second;

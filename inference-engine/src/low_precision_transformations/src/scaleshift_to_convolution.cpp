@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 
@@ -51,11 +51,11 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
         return;
     }
 
-    if (outData->getInputTo().size() == 1ul && parents[0]->type != "Concat") {
+    if (getInputTo(outData).size() == 1ul && parents[0]->type != "Concat") {
         return;
     }
 
-    if (layer.outData[0]->getInputTo().size() == 0ul) {
+    if (getInputTo(layer.outData[0]).size() == 0ul) {
         return;
     }
 
@@ -115,7 +115,7 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
 
         if (this->updateBiases) {
             std::vector<float> biasesShifts(dequantizationShifts.size(), 0.f);
-            updateLayerBiases(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts, biasesShifts);
+            updateLayerBiases(context, *convolutionLayerPtr, false, dequantizationScales, dequantizationShifts, biasesShifts);
         }
 
         addDequantizationLayer(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts);

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,10 @@ layout permute_inst::calc_output_layout(permute_node const& node) {
 
     auto input_size = tensor(output_sizes);
     auto op = node.get_primitive()->output_padding;
+
+    if (node.has_fused_primitives()) {
+        input_layout.data_type = node.get_fused_output_layout().data_type;
+    }
 
     return layout(input_layout.data_type, input_layout.format, input_size, op);
 }

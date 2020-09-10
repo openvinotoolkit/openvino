@@ -21,7 +21,7 @@ void Operation::validate_and_infer_types() {
 //! [op:validate]
 
 //! [op:copy]
-std::shared_ptr<ngraph::Node> Operation::copy_with_new_args(const ngraph::NodeVector &new_args) const {
+std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
     if (new_args.size() != 1) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }

@@ -4,7 +4,7 @@
 
 #include <format_reader_ptr.h>
 #include <gtest/gtest.h>
-#include "graph_tools.hpp"
+#include <legacy/graph_tools.hpp>
 #include "raw_matcher.hpp"
 #include <precision_utils.h>
 
@@ -50,7 +50,7 @@ void RawMatcher::match() {
             if (config._inputPrecision) q->setPrecision(config._inputPrecision);
             DataPtr p = q->getInputData();
             IE_SUPPRESS_DEPRECATED_START
-            layer = p->getInputTo().begin()->second;
+            layer = getInputTo(p).begin()->second;
             IE_SUPPRESS_DEPRECATED_END
         }
 

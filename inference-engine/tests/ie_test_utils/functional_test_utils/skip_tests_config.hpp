@@ -31,6 +31,6 @@ inline bool currentTestIsDisabled() {
 #define SKIP_IF_CURRENT_TEST_IS_DISABLED()                              \
 {                                                                       \
     if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {      \
-        SKIP() << "Disabled test due to configuration" << std::endl;    \
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;    \
     }                                                                   \
 }

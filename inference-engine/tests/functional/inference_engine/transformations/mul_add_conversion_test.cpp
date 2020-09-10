@@ -24,7 +24,7 @@
 #include <ngraph_ops/power.hpp>
 #include <ngraph_ops/scaleshift.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

@@ -93,6 +93,7 @@ public:
     // Model common adaptation
     //
 
+    Pass::Ptr decomposeSwish();
     Pass::Ptr eliminateConstConcat();
     Pass::Ptr splitGroupedConv();
     Pass::Ptr splitConv3DInto2D();
@@ -218,6 +219,7 @@ public:
     //
 
     Pass::Ptr dumpModel(const std::string& postfix);
+    Pass::Ptr markFastStages();
 
     //
     // Dilation Conv NCE  passes
@@ -243,7 +245,9 @@ public:
 
     Pass::Ptr replaceGemmByConv();
 
-    Pass::Ptr propagateDynamismToOutputs();
+    Pass::Ptr propagateDynamism();
+
+    Pass::Ptr annotateMemoryTypes();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

@@ -296,7 +296,7 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
-ShapeLocation Allocator::allocateShape(Data& data) {
+ShapeLocation Allocator::allocateShape(const Data& data) {
     ShapeLocation shapeLocation;
 
     const auto dimsByteSize = data->desc().dimsByteSize();
@@ -308,7 +308,7 @@ ShapeLocation Allocator::allocateShape(Data& data) {
         shapeLocation.dimsLocation = dataLocation.location;
         shapeLocation.dimsOffset = dataLocation.offset;
 
-        if (data->usage() == DataUsage::Output) {
+        if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             // We need to allocate memory for maximum dims values also
             data->attrs().set<int>("ioDimsUpperBoundOffset", _blobMemOffset);
             _blobMemOffset += dimsByteSize;

@@ -56,7 +56,7 @@ public:
      * @param offset offset to the current memory block
      * @param dimOffsets per-dimension offset from the padding to actual data,
      */
-    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, SizeVector dimOffsets);
+    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, const SizeVector& dimOffsets);
     /**
      * @brief The constructor allows to create blocking descriptors for blocked memory
      *
@@ -66,8 +66,8 @@ public:
      * @param dimOffsets per-dimension offset from the padding to actual data,
      * @param strides strides for each dimension
      */
-    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, SizeVector dimOffsets,
-                 SizeVector strides);
+    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset,
+                 const SizeVector& dimOffsets, const SizeVector& strides);
 
     /**
      * @brief Returns the blocked dimensions vector
@@ -159,7 +159,7 @@ public:
      * @param dims memory dimensions
      * @param blockDesc blocking descriptor
      */
-    TensorDesc(const Precision& precision, SizeVector dims, const BlockingDesc& blockDesc);
+    TensorDesc(const Precision& precision, const SizeVector& dims, const BlockingDesc& blockDesc);
     /**
      * @brief The constructor creates the tensor descriptor using standard layout
      *
@@ -167,7 +167,7 @@ public:
      * @param dims memory dimensions
      * @param layout memory layout
      */
-    TensorDesc(const Precision& precision, SizeVector dims, Layout layout);
+    TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout);
     /**
      * @brief The constructor creates the empty tensor descriptor with precision and layout
      *
@@ -297,7 +297,7 @@ public:
      * @param dims the vector of dimensions
      * @return the standard memory layout
      */
-    static Layout getLayoutByDims(SizeVector dims);
+    static Layout getLayoutByDims(const SizeVector& dims);
 
 private:
     /**
@@ -317,5 +317,37 @@ private:
      */
     BlockingDesc blockingDesc;
 };
+
+/**
+ * @brief This structure describes ROI data for image-like tensors.
+ */
+struct ROI {
+    size_t id = 0;      //!< ID of a ROI (offset over batch dimension)
+    size_t posX = 0;    //!< W upper left coordinate of ROI
+    size_t posY = 0;    //!< H upper left coordinate of ROI
+    size_t sizeX = 0;   //!< W size of ROI
+    size_t sizeY = 0;   //!< H size of ROI
+
+    ROI() = default;
+
+    ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY) :
+        id(id), posX(posX), posY(posY), sizeX(sizeX), sizeY(sizeY) {
+    }
+};
+
+/**
+ * @brief Creates a TensorDesc object for ROI.
+ *
+ * @param origDesc original TensorDesc object.
+ * @param roi An image ROI object inside of the original object.
+ * @param useOrigMemDesc Flag to use original memory description (strides/offset).
+ *     Should be set if the new TensorDesc describes shared memory.
+ *
+ * @return A newly created TensorDesc object representing ROI.
+ */
+INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(
+        const TensorDesc& origDesc,
+        const ROI& roi,
+        bool useOrigMemDesc);
 
 }  // namespace InferenceEngine

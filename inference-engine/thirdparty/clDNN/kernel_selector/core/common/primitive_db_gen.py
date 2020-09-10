@@ -9,6 +9,7 @@ import os
 import argparse
 import glob
 import ntpath
+import re
 
 class OpenCL2CHeaders(object):
 
@@ -64,6 +65,27 @@ class OpenCL2CHeaders(object):
         max_characters = 16350
         characters = 1  # Newline character above
 
+        comment_regexp = re.compile(r'(^)?[^\S\n]*/(?:\*(.*?)\*/[^\S\n]*|/[^\n]*)($)?', re.DOTALL | re.MULTILINE)
+
+        def comment_replacer(match):
+            begin, mid, end = match.group(1,2,3)
+            if mid is None:
+                return ''
+            elif begin is not None or end is not None:
+                return ''
+            elif '\n' in mid:
+                return '\n'
+            else:
+                return ' '
+
+            return
+
+        # Remove comments
+        content = comment_regexp.sub(comment_replacer, content)
+        # Remove empty lines
+        content = os.linesep.join([s for s in content.splitlines() if s])
+        # Remove multiple spaces
+        content = re.sub(' +', ' ', content)
         for i, line in enumerate(content.split('\n')):
             if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
                 res += ')__krnl"\n + R"__krnl('

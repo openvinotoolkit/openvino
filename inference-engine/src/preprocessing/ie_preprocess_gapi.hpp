@@ -14,6 +14,7 @@
 #include <opencv2/gapi/gcomputation.hpp>
 #include <opencv2/gapi/util/optional.hpp>
 #include "ie_profiling.hpp"
+#include <openvino/itt.hpp>
 
 // FIXME: Move this definition back to ie_preprocess_data,
 // also free ie_preprocess_gapi of these details
@@ -28,10 +29,10 @@ class PreprocEngine {
     Opt<CallDesc> _lastCall;
     std::vector<cv::GCompiled> _lastComp;
 
-    ProfilingTask _perf_graph_building {"Preproc Graph Building"};
-    ProfilingTask _perf_exec_tile  {"Preproc Calc Tile"};
-    ProfilingTask _perf_exec_graph {"Preproc Exec Graph"};
-    ProfilingTask _perf_graph_compiling {"Preproc Graph compiling"};
+    openvino::itt::handle_t _perf_graph_building = openvino::itt::handle("Preproc Graph Building");
+    openvino::itt::handle_t _perf_exec_tile = openvino::itt::handle("Preproc Calc Tile");
+    openvino::itt::handle_t _perf_exec_graph = openvino::itt::handle("Preproc Exec Graph");
+    openvino::itt::handle_t _perf_graph_compiling = openvino::itt::handle("Preproc Graph compiling");
 
     enum class Update { REBUILD, RESHAPE, NOTHING };
     Update needUpdate(const CallDesc &newCall) const;

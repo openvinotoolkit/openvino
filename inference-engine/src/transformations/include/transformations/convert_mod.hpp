@@ -19,12 +19,7 @@ class TRANSFORMATIONS_API ConvertMod;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMod: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMod: public ngraph::pass::MatcherPass {
 public:
-    ConvertMod() : GraphRewrite() {
-        convert_mod();
-    }
-
-private:
-    void convert_mod();
+    ConvertMod();
 };

@@ -114,27 +114,48 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                 )
 
 
-class RemoveOutputOps(BackReplacementPattern):
-    enabled = False
+class RemoveConstToResult(BackReplacementPattern):
+    """
+    Transformation looks for a constant sub-graph followed by Result operation.
+    If sub-graph is Const->data->Result -- then all three nodes are removed.
+    If there is more complex constant sub-graph -- then only Result node is removed.
 
-    def run_after(self):
-        return [CreateConstNodesReplacement]
+    Currently IE is unable to handle such graph so this transformation is a work around for such case.
+    For instance, this case appears for Wide and Deep model.
+    """
+    enabled = True
+    force_clean_up = True
 
-    def run_before(self):
-        return []
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('const_data', {'kind': 'data', 'value': lambda value: value is not None}),
+                ('result_node', {'type': 'Result', 'kind': 'op'}),
+            ],
+            edges=[
+                ('const_data', 'result_node')
+            ]
+        )
 
-    def find_and_replace_pattern(self, graph: Graph):
-        for node in list(graph.get_op_nodes(op='Result')):
-            if len(node.in_nodes()) > 0:
-                assert (len(node.in_nodes()) == 1)
-            graph.remove_node(node.id)
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        const_data_node = match['const_data']
+        result_node = match['result_node']
+        nodes_to_remove = [result_node.id]
+
+        # in case only const data consumer that is the result node, remove the whole sub-graph
+        parent_node = result_node.in_port(0).get_source().node
+        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
+            nodes_to_remove.append(parent_node.id)
+            nodes_to_remove.append(const_data_node.id)
+
+        graph.remove_nodes_from(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):
     """
-    This transformation is used while generating IR of lower than 10 version
-
-    Changes linking mechanism of TensorIterator outer graph with inner graph
+    Transformation changes linking mechanism of TensorIterator outer graph with inner graph
         from linking outer graph node ports with inner Parameter and Result operations
         to linking outer graph node ports with functional operations and their input/output ports
 
@@ -154,70 +175,6 @@ class NormalizeTI(BackReplacementPattern):
         ti.input_port_map = [dict(unique_r) for unique_r in set([tuple(rec.items()) for rec in ti.input_port_map])]
         ti.output_port_map = [dict(unique_r) for unique_r in set([tuple(rec.items()) for rec in ti.output_port_map])]
         ti.back_edges = [dict(unique_rec) for unique_rec in set([tuple(rec.items()) for rec in ti.back_edges])]
-
-    @staticmethod
-    def normalize_ti(ti):
-        assert ti.has_valid('input_port_map')
-        assert ti.has_valid('output_port_map')
-        assert ti.has_valid('back_edges')
-
-        body = ti.body
-
-        for record in ti.input_port_map:
-            assert 'internal_layer_id' in record
-            assert 'internal_port_id' not in record
-            assert 'external_port_id' in record
-            internal_layer_id = copy(record['internal_layer_id'])
-            parameter = get_internal_node_by_layer_id(ti, internal_layer_id)
-
-            dst = parameter.out_port(0).get_destination()
-            in_port_idx = dst.idx
-            internal_node = dst.node
-            internal_port_id = internal_node.in_edge(in_port_idx)['internal_port_id']
-
-            record['internal_layer_id'] = internal_node.internal_layer_id
-            record['internal_port_id'] = internal_port_id
-            TensorIterator.update_back_edge_map(ti=ti, direction='to', old_layer_id=internal_layer_id, old_port_id=None,
-                                                new_layer_id=internal_node.internal_layer_id,
-                                                new_port_id=internal_port_id)
-
-        for record in ti.output_port_map:
-            assert 'internal_layer_id' in record
-            assert 'internal_port_id' not in record
-            assert 'external_port_id' in record
-            internal_layer_id = copy(record['internal_layer_id'])
-            result = get_internal_node_by_layer_id(ti, internal_layer_id)
-
-            out_port_idx = result.in_port(0).get_source().idx
-            internal_node = result.in_port(0).get_source().node
-            internal_port_id = internal_node.out_edge(out_port_idx)['internal_port_id']
-
-            record['internal_layer_id'] = internal_node.internal_layer_id
-            record['internal_port_id'] = internal_port_id
-            TensorIterator.update_back_edge_map(ti=ti, direction='from', old_layer_id=internal_layer_id,
-                                                old_port_id=None, new_layer_id=internal_node.internal_layer_id,
-                                                new_port_id=internal_port_id)
-
-        for record in ti.back_edges:
-            assert 'from_layer' in record
-            assert 'to_layer' in record
-
-            internal_layer_id = record['from_layer']
-            result = get_internal_node_by_layer_id(ti, internal_layer_id)
-
-            if result.soft_get('type') == 'Result':
-                assert 'from_port' not in record
-
-                out_port_idx = result.in_port(0).get_source().idx
-                internal_node = result.in_port(0).get_source().node
-                internal_port_id = internal_node.out_edge(out_port_idx)['internal_port_id']
-
-                TensorIterator.update_back_edge_map(ti=ti, direction='from', old_layer_id=internal_layer_id,
-                                                    old_port_id=None, new_layer_id=internal_node.internal_layer_id,
-                                                    new_port_id=internal_port_id)
-
-        body.remove_nodes_from([n.id for n in body.get_op_nodes(type='Input')])
-        body.remove_nodes_from([n.id for n in body.get_op_nodes(type='Parameter')])
 
     @staticmethod
     def external_nodes_normalization(ti):
@@ -297,10 +254,7 @@ class NormalizeTI(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for ti in graph.get_op_nodes(type='TensorIterator'):
-            if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-                self.normalize_ti(ti)
-            else:
-                self.external_nodes_normalization(ti)
+            self.external_nodes_normalization(ti)
 
             if len([record for record in ti.input_port_map if record.get('axis') is not None]) == 0:
                 for record in ti.output_port_map:
