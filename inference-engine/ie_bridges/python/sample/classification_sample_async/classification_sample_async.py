@@ -24,7 +24,6 @@ import logging as log
 from openvino.inference_engine import IECore
 import threading
 
-import ngraph as ng
 
 class InferReqWrap:
     def __init__(self, request, id, num_iter):

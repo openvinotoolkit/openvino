@@ -23,7 +23,6 @@ import numpy as np
 import logging as log
 from openvino.inference_engine import IECore
 
-import ngraph as ng
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
