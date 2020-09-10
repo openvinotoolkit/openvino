@@ -108,7 +108,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt openvino::mt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
 
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
@@ -165,8 +165,8 @@ add_library(${TARGET_NAME} SHARED
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} Threads::Threads pugixml openvino::itt
-                                             ${NGRAPH_LIBRARIES} inference_engine_transformations
-                                     PUBLIC ${TARGET_NAME}_legacy openvino::mt)
+                                             ${NGRAPH_LIBRARIES} inference_engine_transformations openvino::mt
+                                     PUBLIC ${TARGET_NAME}_legacy)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR} PRIVATE
                                                 $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -197,8 +197,8 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations openvino::itt
-                                       PUBLIC pugixml openvino::mt)
+                                               inference_engine_transformations openvino::itt openvino::mt
+                                       PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
