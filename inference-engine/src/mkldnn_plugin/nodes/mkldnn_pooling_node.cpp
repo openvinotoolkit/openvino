@@ -139,27 +139,30 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     MKLDNNMemoryDesc out_candidate(outputDesc[0]);
 
     algorithm alg;
+    bool not_zero_l = false;
+    for (auto lr : data_pad_begin) {
+        if (lr) {
+            not_zero_l = true;
+            break;
+        }
+    }
+    bool not_zero_r = false;
+    for (auto pr : data_pad_end) {
+        if (pr) {
+            not_zero_r = true;
+            break;
+        }
+    }
     if (type == PoolingLayer::PoolType::AVG) {
-        bool not_zero_l = false;
-        for (auto lr : data_pad_begin) {
-            if (lr) {
-                not_zero_l = true;
-                break;
-            }
-        }
-        bool not_zero_r = false;
-        for (auto pr : data_pad_end) {
-            if (pr) {
-                not_zero_r = true;
-                break;
-            }
-        }
         if (!exclude_pad && (not_zero_l || not_zero_r))
             alg = pooling_avg_include_padding;
         else
             alg = pooling_avg_exclude_padding;
     } else if (type == PoolingLayer::PoolType::MAX) {
-        alg = pooling_max;
+        if (!exclude_pad && (not_zero_l || not_zero_r))
+            THROW_IE_EXCEPTION << "Incorrect padding mode. MaxPool supports same padding mode only " << getName();
+        else
+            alg = pooling_max;
     } else {
         // TODO: Handle rest of the possible: STOCH, ROI, SPACIAL_PYRAMID
         THROW_IE_EXCEPTION << "Unsupported pooling type";
