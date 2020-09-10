@@ -60,24 +60,22 @@ void MatmulSqueezeAddTest::SetUp() {
     std::vector<size_t> inputShape;
     size_t outputSize;
     std::tie(netPrecision, targetDevice, tempConfig, inputShape, outputSize) = this->GetParam();
-    for (auto const& c : tempConfig) {
-        configuration[c.first] = c.second;
-    }
+    configuration.insert(tempConfig.begin(), tempConfig.end());
+
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
-    outPrc = InferenceEngine::Precision::FP32;
 
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] }, generateFloatNumbers(0, 1, outputSize * inputShape[1]), false);
-    auto matmul_0 = ngraph::builder::makeMatMul(params[0], constant_0, false, true);
+    auto matmul_0 = std::make_shared<ngraph::op::MatMul>(params[0], constant_0, false, true);
 
-    auto constant_1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
-    auto squeeze_0 = std::make_shared<ngraph::opset1::Squeeze>(matmul_0, constant_1);
+    auto constant_1 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
+    auto squeeze_0 = std::make_shared<ngraph::op::Squeeze>(matmul_0, constant_1);
 
     auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { inputShape[0], outputSize }, generateFloatNumbers(0, 1, inputShape[0] * outputSize), false);
     auto add_0 = std::make_shared<ngraph::opset1::Add>(squeeze_0, constant_2);
 
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(add_0)};
+    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(add_0)};
     function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
 }
 
