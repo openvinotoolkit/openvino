@@ -47,6 +47,7 @@ NGRAPH_OP(MaxPool, op::v1)
 NGRAPH_OP(OneHot, op::v1)
 NGRAPH_OP(Pad, op::v1)
 NGRAPH_OP(Select, op::v1)
+NGRAPH_OP(GatherTree, op::v1)
 
 NGRAPH_OP(EmbeddingBagOffsetsSum, ngraph::op::v3)
 NGRAPH_OP(EmbeddingBagPackedSum, ngraph::op::v3)

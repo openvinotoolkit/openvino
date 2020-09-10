@@ -45,7 +45,7 @@ read networks using the Core class:
 ```cpp
 CNNNetwork network = core.ReadNetwork(input_model);
 ```
-The Core class also allows reading models from the ONNX format (more information is [here](./ONNX_Supported_Ops.md)):
+The Core class also allows reading models from the ONNX format (more information is [here](./ONNX_Support.md)):
 ```cpp
 CNNNetwork network = core.ReadNetwork("model.onnx");
 ```
