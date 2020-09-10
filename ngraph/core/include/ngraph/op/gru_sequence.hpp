@@ -27,9 +27,9 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v4
+        namespace v5
         {
-            class NGRAPH_API GRUSequence : public Op, public util::RNNCellBase
+            class NGRAPH_API GRUSequence : public util::RNNCellBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -56,14 +56,8 @@ namespace ngraph
                 void validate_and_infer_types() override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-
-                std::size_t get_hidden_size() { return m_hidden_size; }
-                const std::vector<std::string>& get_activations() { return m_activations; }
-                const std::vector<float>& get_activations_alpha() { return m_activations_alpha; }
-                const std::vector<float>& get_activations_beta() { return m_activations_beta; }
-                bool get_linear_before_reset() { return m_linear_before_reset; }
-                float get_clip() { return m_clip; }
-                op::RecurrentSequenceDirection get_direction() { return m_direction; }
+                bool get_linear_before_reset() const { return m_linear_before_reset; }
+                op::RecurrentSequenceDirection get_direction() const { return m_direction; }
             protected:
                 op::RecurrentSequenceDirection m_direction;
                 bool m_linear_before_reset;

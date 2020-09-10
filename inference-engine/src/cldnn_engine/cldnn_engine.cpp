@@ -87,6 +87,30 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
+            // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
+            // Reshape->Pooling->Reshape scenario is also more optimal in case when batch > 1 and network precission is FP16
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMax>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceSum>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
@@ -115,7 +139,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Apply all transformations to TensorIterator body
         ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        // temporarily switch back to plugin unroller from NGraph unroller until TI output names are corrected
+        // ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
@@ -554,7 +579,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(device_info.dev_name, "NEO", false));
+        auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
+        deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto opt : _impl->m_config.key_config_map)

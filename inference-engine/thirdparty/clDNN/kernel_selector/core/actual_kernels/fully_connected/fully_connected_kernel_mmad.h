@@ -29,6 +29,12 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
+    struct FullyConnectedTuningData {
+        const size_t sub_group_size = 8;
+        size_t slm_div_factor = 1;
+        size_t work_group_size = 1;
+    };
+
 protected:
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
@@ -38,5 +44,6 @@ protected:
                  FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params, const optional_params& options) const override;
+    FullyConnectedTuningData SetTuningParams(const fully_connected_params& params) const;
 };
 }  // namespace kernel_selector

@@ -10,6 +10,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 **Operating Systems**
 
 - Ubuntu* 18.04 long-term support (LTS), 64-bit
+- CentOS* 7.4, 64-bit
 - macOS* 10.14.x versions. 
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
 - Windows Server* 2016 or higher
@@ -28,6 +29,10 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
  - Ubuntu* 18.04 
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
+   ```
+ - CentOS* 7.4 
+   ```sh
+   conda install openvino-ie4py-centos7 -c intel
    ```
  - Windows* 10 and macOS*
    ```sh

@@ -15,12 +15,13 @@
 
 namespace ngraph {
 namespace op {
-class TRANSFORMATIONS_API GRUSequenceIE : public Op, public ngraph::op::util::RNNCellBase {
+class TRANSFORMATIONS_API GRUSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
     GRUSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,
+                  const Output <Node> &seg_lengths,
                   const Output <Node> &WR,
                   const Output <Node> &B,
                   size_t hidden_size,

@@ -44,7 +44,7 @@ TEST(type_prop, gru_sequence_forward)
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence = make_shared<opset4::GRUSequence>(
+    const auto sequence = make_shared<op::v5::GRUSequence>(
         X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);

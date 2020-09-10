@@ -93,6 +93,7 @@ public:
     // Model common adaptation
     //
 
+    Pass::Ptr decomposeSwish();
     Pass::Ptr eliminateConstConcat();
     Pass::Ptr splitGroupedConv();
     Pass::Ptr splitConv3DInto2D();
@@ -245,6 +246,8 @@ public:
     Pass::Ptr replaceGemmByConv();
 
     Pass::Ptr propagateDynamism();
+
+    Pass::Ptr annotateMemoryTypes();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

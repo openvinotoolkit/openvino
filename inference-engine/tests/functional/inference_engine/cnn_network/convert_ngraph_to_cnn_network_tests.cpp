@@ -85,15 +85,15 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
             std::make_shared<ngraph::opset4::GroupConvolution>(),
             std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
             std::make_shared<ngraph::opset4::GRUCell>(),
-            // std::make_shared<ngraph::opset4::GRUSequence>(), todo: enable after GRUSequence support
+            // std::make_shared<ngraph::op::v5::GRUSequence>(), todo: enable after GRUSequence support
             std::make_shared<ngraph::opset4::HardSigmoid>(),
             std::make_shared<ngraph::opset4::LRN>(),
             std::make_shared<ngraph::opset4::LSTMCell>(),
-            // std::make_shared<ngraph::opset4::LSTMSequence>(), todo: enable after LSTMSequence support
+            // std::make_shared<ngraph::op::v5::LSTMSequence>(), todo: enable after LSTMSequence support
             std::make_shared<ngraph::opset4::NonMaxSuppression>(),
             std::make_shared<ngraph::opset4::NormalizeL2>(),
             std::make_shared<ngraph::opset4::RNNCell>(),
-            // std::make_shared<ngraph::opset4::RNNSequence>(), todo: enable after RNNSequence support
+            // std::make_shared<ngraph::op::v5::RNNSequence>(), todo: enable after RNNSequence support
             std::make_shared<ngraph::opset4::OneHot>(),
             std::make_shared<ngraph::opset4::Pad>(),
             std::make_shared<ngraph::opset4::PriorBoxClustered>(),

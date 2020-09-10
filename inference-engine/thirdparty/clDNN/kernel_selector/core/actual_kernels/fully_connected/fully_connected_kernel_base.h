@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,14 @@ public:
 
         uint32_t last_rg_size = 0;
         uint32_t rg_count = 0;
+
+        // Gemm style params
+        uint32_t tile_m = 0;
+        uint32_t tile_n = 0;
+        uint32_t tile_mk = 0;
+        uint32_t tile_nk = 0;
+        uint32_t tile_ms = 0;
+        uint32_t tile_ns = 0;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;

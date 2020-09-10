@@ -413,6 +413,29 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"LSTMCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                         const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "LSTMCell",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<LSTMCell>(attrs);
+        res->params = params;
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
+
     addSpecificCreator({"RNNCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "RNNCell",
@@ -520,7 +543,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"GRUSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
 
         LayerParams attrs = {node->get_friendly_name(), "GRUSequence",
                              details::convertPrecision(node->get_output_element_type(0))};
@@ -540,14 +563,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
 
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -557,7 +580,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"RNNSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
 
         LayerParams attrs = {node->get_friendly_name(), "RNNSequence",
                              details::convertPrecision(node->get_output_element_type(0))};
@@ -574,14 +597,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params["direction"] = "Bidirectional";
 
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -591,7 +614,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"LSTMSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
 
         LayerParams attrs = {node->get_friendly_name(), "LSTMSequence",
                              details::convertPrecision(node->get_output_element_type(0))};
@@ -608,14 +631,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params["direction"] = "Bidirectional";
 
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto &weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        const auto biasNode = node->input_value(5).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto &bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -780,7 +803,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::LSTMCellIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),

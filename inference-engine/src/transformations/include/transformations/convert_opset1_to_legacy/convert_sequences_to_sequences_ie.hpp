@@ -24,8 +24,8 @@ class TRANSFORMATIONS_API ConvertRNNSequenceMatcher;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Converts opset4::LSTMSequence to legacy LSTMSequenceIE.
- * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
+ * @brief Converts LSTMSequence to legacy LSTMSequenceIE.
+ * SequenceIE op doesn't use seq_length input and num_direction (direction) attribute.
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
@@ -36,8 +36,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Converts opset4::GRUSequence to legacy GRUSequenceIE.
- * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
+ * @brief Converts GRUSequence to legacy GRUSequenceIE.
+ * SequenceIE op doesn't use seq_length input and num_direction (direction) attribute.
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
@@ -48,8 +48,8 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Converts opset4::RNNSequence to legacy RNNSequenceIE.
- * SequenceIE op doesn't take seq_length input and doesn't use num_direction (direction) variable.
+ * @brief Converts RNNSequence to legacy RNNSequenceIE.
+ * SequenceIE op doesn't use seq_length input and num_direction (direction) attribute.
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/rnn_sequence.hpp"
+#include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
 #include <memory>
@@ -24,14 +25,14 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::RNNSequence, "RNNSequence", 4);
+NGRAPH_RTTI_DEFINITION(op::v5::RNNSequence, "RNNSequence", 4);
 
-op::v4::RNNSequence::RNNSequence()
+op::v5::RNNSequence::RNNSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD)
 {
 }
 
-op::v4::RNNSequence::RNNSequence(const Output<Node>& X,
+op::v5::RNNSequence::RNNSequence(const Output<Node>& X,
                                  const Output<Node>& H_t,
                                  const Output<Node>& sequence_lengths,
                                  const Output<Node>& W,
@@ -43,129 +44,140 @@ op::v4::RNNSequence::RNNSequence(const Output<Node>& X,
                                  const std::vector<float>& activations_alpha,
                                  const std::vector<float>& activations_beta,
                                  float clip)
-    : Op({X, H_t, sequence_lengths, W, R, B})
-    , RNNCellBase(hidden_size, clip, activations, activations_alpha, activations_beta)
+    : RNNCellBase({X, H_t, sequence_lengths, W, R, B},
+                  hidden_size,
+                  clip,
+                  activations,
+                  activations_alpha,
+                  activations_beta)
     , m_direction(direction)
 {
     constructor_validate_and_infer_types();
 }
 
-void op::v4::RNNSequence::validate_and_infer_types()
+void op::v5::RNNSequence::validate_and_infer_types()
 {
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape output_shape_0{PartialShape::dynamic(4)};
-    PartialShape output_shape_1{PartialShape::dynamic(3)};
+    for (const auto& input : inputs())
+    {
+        if (input.get_partial_shape().rank().is_dynamic())
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
+    }
+
+    auto rnn_seq_gates_count = 1;
+    auto merged_batch_size = Dimension::dynamic();
+    auto merged_hidden_size = Dimension::dynamic();
+    auto merged_num_directions = Dimension::dynamic();
+    auto result_et = element::dynamic;
 
     auto x_pshape = get_input_partial_shape(0);
+    auto ht_pshape = get_input_partial_shape(1);
+    auto sl_pshape = get_input_partial_shape(2);
+    auto w_pshape = get_input_partial_shape(3);
+    auto r_pshape = get_input_partial_shape(4);
+    auto b_pshape = get_input_partial_shape(5);
+
+    ngraph::op::util::validate_seq_input_rank_dimension(
+        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
+
+    // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(
-        this, x_pshape.rank().compatible(3), "The 'X' input must be a 3D tensor.");
-    if (x_pshape.is_static())
+        this,
+        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(5)),
+        "Element types for X, initial_hidden_state, W, R and B inputs do not "
+        "match.");
+
+    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
+                          "Parameter batch_size not matched in RNNSequence.");
+
+    // Merge hidden_size dimension across all inputs to evaluate output dimension
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
+                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
+                          "Parameter hidden_size not matched RNNSequence.");
+
+    // Merge num_directions dimension across all inputs to evaluate output dimension
+    NODE_VALIDATION_CHECK(
+        this,
+        Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
+            Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
+        "Parameter num_directions not matched in RNNSequence.");
+
+    // Validate hidden_size value for W, R, B inputs
+    if (merged_hidden_size.is_static())
     {
-        size_t batch_size = get_input_partial_shape(0).get_shape()[0];
-        size_t seq_length = get_input_partial_shape(0).get_shape()[1];
-        size_t input_size = get_input_partial_shape(0).get_shape()[2];
-        size_t num_directions =
-            m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
-
-        output_shape_0 = Shape{batch_size, num_directions, seq_length, m_hidden_size};
-        output_shape_1 = Shape{batch_size, num_directions, m_hidden_size};
-
-        auto h_state_pshape = get_input_partial_shape(1);
-        auto seq_lengths_pshape = get_input_partial_shape(2);
-        auto w_pshape = get_input_partial_shape(3);
-        auto r_pshape = get_input_partial_shape(4);
-        auto b_pshape = get_input_partial_shape(5);
-
-        if (h_state_pshape.is_static())
+        if (w_pshape[1].is_static())
         {
-            auto h_state_shape = h_state_pshape.to_shape();
             NODE_VALIDATION_CHECK(
                 this,
-                (h_state_shape == Shape{batch_size, num_directions, m_hidden_size}),
-                "Input tensor initial_hidden_state must have shape (",
-                batch_size,
-                ", ",
-                num_directions,
-                ", ",
-                m_hidden_size,
-                "). Actual shape is:",
-                h_state_shape,
+                w_pshape[1].compatible(merged_hidden_size * rnn_seq_gates_count),
+                "Parameter hidden_size mistmatched in W input. Current value is: ",
+                w_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * rnn_seq_gates_count,
                 ".");
         }
 
-        if (seq_lengths_pshape.is_static())
+        if (r_pshape[1].is_static())
         {
-            const Shape& seq_length_shape = seq_lengths_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (seq_length_shape == Shape{batch_size}),
-                                  "Input tensor sequence_lengths must have shape (",
-                                  batch_size,
-                                  "). Actual shape is:",
-                                  seq_length_shape,
-                                  ".");
+            NODE_VALIDATION_CHECK(
+                this,
+                r_pshape[1].compatible(merged_hidden_size * rnn_seq_gates_count),
+                "Parameter hidden_size mistmatched in R input. Current value is: ",
+                r_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * rnn_seq_gates_count,
+                ".");
         }
 
-        if (w_pshape.is_static())
+        if (b_pshape[1].is_static())
         {
-            auto w_shape = w_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (w_shape == Shape{num_directions, m_hidden_size, input_size}),
-                                  "Input tensor W must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  ", ",
-                                  input_size,
-                                  "). Actual shape is:",
-                                  w_shape,
-                                  ".");
-        }
-
-        if (r_pshape.is_static())
-        {
-            auto r_shape = r_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (r_shape == Shape{num_directions, m_hidden_size, m_hidden_size}),
-                                  "Input tensor R must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  ", ",
-                                  m_hidden_size,
-                                  "). Actual shape is:",
-                                  r_shape,
-                                  ".");
-        }
-
-        if (b_pshape.is_static())
-        {
-            auto b_shape = b_pshape.to_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  (b_shape == Shape{num_directions, m_hidden_size}),
-                                  "Input tensor B must have shape (",
-                                  num_directions,
-                                  ", ",
-                                  m_hidden_size,
-                                  "). Actual shape is:",
-                                  b_shape,
-                                  ".");
+            NODE_VALIDATION_CHECK(
+                this,
+                b_pshape[1].compatible(merged_hidden_size * rnn_seq_gates_count),
+                "Parameter hidden_size mistmatched in B input. Current value is: ",
+                b_pshape[1].get_length(),
+                ", expected: ",
+                merged_hidden_size.get_length() * rnn_seq_gates_count,
+                ".");
         }
     }
-    set_output_type(0, arg_type, output_shape_0);
-    set_output_type(1, arg_type, output_shape_1);
+
+    // Mark inputs which are relevant to output parameters
+    for (size_t i = 0; i <= 5; ++i)
+        set_input_is_relevant_to_shape(i);
+
+    // Set output size, type and shape
+    set_output_size(2);
+    set_output_type(
+        0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
+    set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }
 
-bool op::v4::RNNSequence::visit_attributes(AttributeVisitor& visitor)
+bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node>
-    op::v4::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
+    op::v5::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<op::v4::RNNSequence>(new_args.at(0),
+    return make_shared<op::v5::RNNSequence>(new_args.at(0),
                                             new_args.at(1),
                                             new_args.at(2),
                                             new_args.at(3),
