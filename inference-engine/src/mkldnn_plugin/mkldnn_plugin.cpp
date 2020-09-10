@@ -35,6 +35,10 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
+#include <transformations/tensor_iterator_transformations/convert_ti_to_sequences.h>
+#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/rnn_cell_decomposition.hpp>
+#include <transformations/gru_cell_decomposition.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -42,10 +46,6 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
-#include <transformations/tensor_iterator_transformations/convert_ti_to_sequences.h>
-#include <transformations/lstm_cell_decomposition.hpp>
-#include <transformations/rnn_cell_decomposition.hpp>
-#include <transformations/gru_cell_decomposition.hpp>
 
 #endif
 #endif
