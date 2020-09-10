@@ -147,15 +147,17 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
 {
 #ifdef LPT_SUPPORT
     // replace low precision tensor to fp32
-    auto to_float_by_index = [](const HostTensorVector& inputs, const size_t targetIndex, const size_t otherIndex) -> std::shared_ptr<HostTensor> {
+    auto to_float_by_index = [](const HostTensorVector& inputs,
+                                const size_t targetIndex,
+                                const size_t otherIndex) -> std::shared_ptr<HostTensor> {
         std::shared_ptr<HostTensor> input;
         if ((inputs[otherIndex]->get_element_type() == element::f32) &&
-           (inputs[targetIndex]->get_element_type() == element::i8))
+            (inputs[targetIndex]->get_element_type() == element::i8))
         {
             input = to_float<int8_t>(inputs[targetIndex]);
         }
-		else if ((inputs[otherIndex]->get_element_type() == element::f32) &&
-            (inputs[targetIndex]->get_element_type() == element::u8))
+        else if ((inputs[otherIndex]->get_element_type() == element::f32) &&
+                 (inputs[targetIndex]->get_element_type() == element::u8))
         {
             input = to_float<uint8_t>(inputs[targetIndex]);
         }
@@ -172,7 +174,8 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
 
     auto s1 = shape_size(input0->get_shape());
     auto s2 = shape_size(input1->get_shape());
-    if ((shape_size(input0->get_shape()) == 1ul) && (shape_size(input1->get_shape()) > 1ul)) {
+    if ((shape_size(input0->get_shape()) == 1ul) && (shape_size(input1->get_shape()) > 1ul))
+    {
         auto tmp = input0;
         input0 = input1;
         input1 = tmp;
