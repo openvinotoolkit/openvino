@@ -16,7 +16,9 @@
 typedef std::tuple<
     InferenceEngine::Precision,          // Network Precision
     std::string,                         // Target Device
-    std::map<std::string, std::string>   // Configuration
+    std::map<std::string, std::string>,  // Configuration
+    std::vector<size_t>,                 // Input Shapes
+    size_t                               // Output Size
 > matmulSqueezeAddParams;
 
 namespace LayerTestsDefinitions {

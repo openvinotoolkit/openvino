@@ -16,10 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "81.9175"}
-    }
+    { }
 };
 
 std::vector<std::vector<size_t>> input_shapes = {
@@ -42,7 +39,7 @@ std::vector<size_t> output_sizes = {
 INSTANTIATE_TEST_CASE_P(MatmulSqueezeAdd, MatmulSqueezeAddTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
                             ::testing::ValuesIn(configs),
                             ::testing::ValuesIn(input_shapes),
                             ::testing::ValuesIn(output_sizes)),
