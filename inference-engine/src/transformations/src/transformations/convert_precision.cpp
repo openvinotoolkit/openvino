@@ -12,6 +12,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
+#include <transformations/rt_info/generic_ie_convert_precision.hpp>
+
 using namespace ngraph;
 
 bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
@@ -264,6 +266,13 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
 
 bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     node->set_output_type(idx, to, node->output(idx).get_partial_shape());
+    auto & rt_info = node->get_rt_info();
+    using attr_type = VariantWrapper<GenericIEConvertPrecision>;
+    if (rt_info.count(attr_type::type_info.name)) {
+        if (auto attr = std::dynamic_pointer_cast<attr_type>(rt_info[attr_type::type_info.name])) {
+            attr->get().convert_precision(to);
+        }
+    }
     // return false as we do not replace original node
     return false;
 }

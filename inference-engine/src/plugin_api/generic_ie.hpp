@@ -114,6 +114,8 @@ private:
         reshape = flag;
     }
 
+    void convert_precision(const element::Type &);
+
     std::vector<InferenceEngine::IShapeInferExtensionPtr> extensions;
     bool reshape = true;
     std::map<std::string, InferenceEngine::Parameter> params;
