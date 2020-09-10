@@ -1180,6 +1180,12 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& 
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
 
+    if (!inputsDesc->inputScaleFactors.empty()) {
+        gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
+                 << "Scale factors provided in imported model will be used\n";
+        inputsDesc->inputScaleFactors.clear();
+    }
+
     serial.setHeader(header);
     serial.Import(basePtr,
             header.gnaMemSize,
