@@ -98,86 +98,6 @@ if (GEMM STREQUAL "MKL")
     debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
-## Intel OMP package
-if (THREADING STREQUAL "OMP")
-    reset_deps_cache(OMP)
-    if (WIN32 AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_WIN "iomp.zip"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    elseif(LINUX AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_LIN "iomp.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    elseif(APPLE AND X86_64)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_MAC "iomp_20190130_mac.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    else()
-        message(FATAL_ERROR "Intel OMP is not available on current platform")
-    endif()
-    update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    log_rpath_from_dir(OMP "${OMP}/lib")
-    debug_message(STATUS "intel_omp=" ${OMP})
-endif ()
-
-## TBB package
-if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    reset_deps_cache(TBBROOT)
-
-    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
-        if (WIN32 AND X86_64)
-            #TODO: add target_path to be platform specific as well, to avoid following if
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
-        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
-        elseif(LINUX AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
-                    TARGET_PATH "${TEMP}/tbb")
-        elseif(LINUX AND AARCH64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
-                    TARGET_PATH "${TEMP}/tbb_yocto"
-                    ENVIRONMENT "TBBROOT")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
-        else()
-            message(FATAL_ERROR "TBB is not available on current platform")
-        endif()
-    else()
-        if(DEFINED TBB_DIR)
-            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
-        else()
-            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
-        endif()
-    endif()
-
-    update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-
-    if (WIN32)
-        log_rpath_from_dir(TBB "${TBB}/bin")
-    else ()
-        log_rpath_from_dir(TBB "${TBB}/lib")
-    endif ()
-    debug_message(STATUS "tbb=" ${TBB})
-endif ()
-
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
@@ -263,8 +183,6 @@ if (ENABLE_OPENCV)
     debug_message(STATUS "opencv=" ${OPENCV})
 endif()
 
-include(ie_parallel)
-
 if (ENABLE_GNA)
     reset_deps_cache(
             GNA
@@ -340,9 +258,4 @@ configure_file(
 configure_file(
         "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-        COPYONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
         COPYONLY)

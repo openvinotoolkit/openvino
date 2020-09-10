@@ -15,5 +15,7 @@
 # ******************************************************************************
 
 add_subdirectory(itt)
+add_subdirectory(mt)
 
 openvino_developer_export_targets(openvino::itt)
+openvino_developer_export_targets(openvino::mt)

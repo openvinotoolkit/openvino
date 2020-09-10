@@ -2,6 +2,111 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_policy(SET CMP0054 NEW)
+
+# TBB library is stored on ftp
+include(dependency_solver)
+
+# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+if(ARM)
+    set(THREADING_DEFAULT "SEQ")
+else()
+    set(THREADING_DEFAULT "TBB")
+endif()
+
+set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
+
+set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
+
+list (APPEND IE_OPTIONS THREADING)
+
+if (NOT THREADING STREQUAL "TBB" AND
+    NOT THREADING STREQUAL "TBB_AUTO" AND
+    NOT THREADING STREQUAL "OMP" AND
+    NOT THREADING STREQUAL "SEQ")
+    message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
+endif()
+
+## Intel OMP package
+if (THREADING STREQUAL "OMP")
+    reset_deps_cache(OMP)
+    if (WIN32 AND X86_64)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_WIN "iomp.zip"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_LIN "iomp.tgz"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    elseif(APPLE AND X86_64)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_MAC "iomp_20190130_mac.tgz"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    else()
+        message(FATAL_ERROR "Intel OMP is not available on current platform")
+    endif()
+    update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
+    log_rpath_from_dir(OMP "${OMP}/lib")
+    debug_message(STATUS "intel_omp=" ${OMP})
+endif ()
+
+## TBB package
+if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    reset_deps_cache(TBBROOT)
+
+    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+        if (WIN32 AND X86_64)
+            #TODO: add target_path to be platform specific as well, to avoid following if
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT")
+        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT")
+        elseif(LINUX AND X86_64)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                    TARGET_PATH "${TEMP}/tbb")
+        elseif(LINUX AND AARCH64)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
+                    TARGET_PATH "${TEMP}/tbb_yocto"
+                    ENVIRONMENT "TBBROOT")
+        elseif(APPLE AND X86_64)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT")
+        else()
+            message(FATAL_ERROR "TBB is not available on current platform")
+        endif()
+    else()
+        if(DEFINED TBB_DIR)
+            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
+        else()
+            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
+        endif()
+    endif()
+
+    update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+
+    if (WIN32)
+        log_rpath_from_dir(TBB "${TBB}/bin")
+    else ()
+        log_rpath_from_dir(TBB "${TBB}/lib")
+    endif ()
+    debug_message(STATUS "tbb=" ${TBB})
+endif ()
+
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     find_package(TBB COMPONENTS tbb tbbmalloc)
     if (TBB_FOUND)
@@ -24,7 +129,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         set(LINK_TYPE "PUBLIC")
     endif()
 
-    function(ie_target_link_libraries TARGET_NAME LINK_TYPE)
+    function(ov_target_link_libraries TARGET_NAME LINK_TYPE)
         if(CMAKE_VERSION VERSION_LESS "3.12.0")
             if(NOT target_type STREQUAL "OBJECT_LIBRARY")
                 target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
@@ -64,7 +169,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
-            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
+            ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
         else ()
             ext_message(WARNING "TBB was not found by the configured TBB_DIR path. \
                                  SEQ method will be used for ${TARGET_NAME}")
@@ -110,7 +215,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /Qopenmp)
-                ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "-nodefaultlib:vcomp")
+                ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "-nodefaultlib:vcomp")
             else()
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} -fopenmp)
             endif ()
@@ -118,17 +223,17 @@ function(set_ie_threading_interface_for TARGET_NAME)
             # Debug binaries are optional.
             if (OMP_LIBRARIES_DEBUG AND NOT LINUX)
                 if (WIN32)
-                    ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
+                    ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
                     if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-                        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
+                        ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
                     else()
-                        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
+                        ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
                     endif ()
                 endif ()
             else ()
                 # Link Release library to all configurations.
-                ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
+                ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
             endif ()
         endif ()
 
@@ -138,6 +243,6 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
-        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${CMAKE_THREAD_LIBS_INIT})
+        ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${CMAKE_THREAD_LIBS_INIT})
     endif()
 endfunction(set_ie_threading_interface_for)

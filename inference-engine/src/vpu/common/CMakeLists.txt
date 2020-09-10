@@ -11,8 +11,6 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 function(add_common_target TARGET_NAME STATIC_IE)
     add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-    set_ie_threading_interface_for(${TARGET_NAME})
-
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
@@ -50,7 +48,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
     ie_developer_export_targets(${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
-                                         PRIVATE openvino::itt)
+                                         PRIVATE openvino::itt openvino::mt)
 endfunction()
 
 add_common_target("vpu_common_lib" FALSE)

@@ -1,4 +1,5 @@
 # Copyright (C) 2018-2020 Intel Corporation
+
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -168,11 +169,9 @@ ie_add_plugin(NAME ${TARGET_NAME}
               OBJECT_LIBRARIES ${object_libraries}
               SOURCES ${SOURCES} ${HEADERS})
 
-set_ie_threading_interface_for(${TARGET_NAME})
-
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
-                      inference_engine_transformations mkldnn)
+                      inference_engine_transformations mkldnn openvino::mt)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -198,12 +197,13 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
-
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::mt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
-                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+                                              $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_options(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_OPTIONS>)
 
 set(mkldnn_plugin_object_libraries "${TARGET_NAME}_obj" CACHE INTERNAL "" FORCE)
 

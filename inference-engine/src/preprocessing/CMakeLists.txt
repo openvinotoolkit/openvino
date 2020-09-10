@@ -130,7 +130,9 @@ add_library(${TARGET_NAME}_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
+                                                      $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_options(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_OPTIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ocv"
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
@@ -139,7 +141,8 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_D
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
+target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:openvino::mt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create shared library file from object library
 
@@ -153,9 +156,7 @@ add_library(${TARGET_NAME} SHARED
             ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt
+target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::mt
                                      PUBLIC inference_engine)
 
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -178,15 +179,13 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}
 add_library(${TARGET_NAME}_s STATIC
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME}_s)
-
 target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt openvino::mt
                                        INTERFACE inference_engine_s)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)

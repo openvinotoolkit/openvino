@@ -11,8 +11,6 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h *.inc)
 function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-    set_ie_threading_interface_for(${TARGET_NAME})
-
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
@@ -46,7 +44,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     endif()
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                         PRIVATE openvino::itt)
+                                         PRIVATE openvino::itt openvino::mt)
 
     if(WIN32)
         target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)

@@ -118,7 +118,8 @@ if(WIN32)
 endif()
 
 add_library(${TARGET} STATIC ${HDR} ${SRC})
-set_ie_threading_interface_for(${TARGET})
+
+target_link_libraries(${TARGET} PRIVATE openvino::mt)
 
 if(GEMM STREQUAL "OPENBLAS")
     ## enable cblas_gemm from OpenBLAS package

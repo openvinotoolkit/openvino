@@ -30,9 +30,9 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-set_ie_threading_interface_for(${TARGET_NAME}_obj)
-
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
+                                              $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_options(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_OPTIONS>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -40,7 +40,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::mt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create shared library
 
@@ -55,9 +56,7 @@ add_library(${TARGET_NAME} SHARED
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             $<TARGET_OBJECTS:inference_engine_common_obj>)
 
-set_ie_threading_interface_for(${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES} inference_engine_transformations pugixml openvino::itt)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES} inference_engine_transformations pugixml openvino::itt openvino::mt)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 

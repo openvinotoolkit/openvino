@@ -163,6 +163,6 @@ else()
                                       IE::inference_engine_c_api)
 
         set(IE_EXTERNAL_DIR "${IE_ROOT_DIR}/external")
-        include("${IE_ROOT_DIR}/share/ie_parallel.cmake")
+        include("${IE_ROOT_DIR}/share/parallel.cmake")
     endif()
 endif()

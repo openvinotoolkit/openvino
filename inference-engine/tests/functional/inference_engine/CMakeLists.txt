@@ -103,12 +103,17 @@ function(ie_headers_compilation_with_custom_flags)
 
     set(target_name ieFuncTestsCompilation${IE_TEST_TEST_SUFFIX})
     add_library(${target_name} OBJECT ${source_file})
-    target_include_directories(${target_name} PRIVATE "${IE_TEST_INCLUDE_DIRECTORY}"
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
+    target_include_directories(${target_name} PRIVATE
+        "${IE_TEST_INCLUDE_DIRECTORY}"
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::mt,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(${target_name} PRIVATE
+        $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
+        $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_options(${target_name} PRIVATE $<TARGET_PROPERTY:openvino::mt,INTERFACE_COMPILE_OPTIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml, openvino::itt, inference_engine_preproc headers
+        # ngraph, pugixml, openvino::itt, openvino::mt, inference_engine_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -121,9 +126,6 @@ function(ie_headers_compilation_with_custom_flags)
             target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
         endif()
     endif()
-
-    # To include TBB headers as system
-    set_ie_threading_interface_for(${target_name})
 
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}

@@ -113,7 +113,6 @@ source_group("include" FILES ${TEST_INCLUDE})
 # create target
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLIA_TESTS})
-set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
@@ -141,7 +140,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_lp_transformations
     inference_engine_transformations
-    inference_engine_ir_v7_reader)
+    inference_engine_ir_v7_reader
+    openvino::mt)
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
