@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "fake_quantize.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/org.openvinotoolkit/fake_quantize.hpp"
 
 namespace ngraph
 {
