@@ -15,13 +15,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
-    namespace pass {
+namespace pass {
 
-        class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
-        class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
-        class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
+    class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 
-    }  // namespace pass
+}  // namespace pass
 }  // namespace ngraph
 
 /**

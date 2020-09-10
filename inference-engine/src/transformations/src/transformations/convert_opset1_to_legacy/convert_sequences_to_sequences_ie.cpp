@@ -23,14 +23,12 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             return false;
         }
 
-        const auto& W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                lstm_sequence->input_value(4).get_node_shared_ptr());
+        const auto& W = lstm_sequence->input_value(4).get_node_shared_ptr();
         if (!W) {
             return false;
         }
 
-        const auto& R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                lstm_sequence->input_value(5).get_node_shared_ptr());
+        const auto& R = lstm_sequence->input_value(5).get_node_shared_ptr();
         if (!R) {
             return false;
         }
@@ -84,14 +82,12 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                gru_sequence->input_value(3).get_node_shared_ptr());
+        auto W = gru_sequence->input_value(3).get_node_shared_ptr();
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                gru_sequence->input_value(4).get_node_shared_ptr());
+        auto R = gru_sequence->input_value(4).get_node_shared_ptr();
         if (!R) {
             return false;
         }
@@ -146,14 +142,12 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                rnn_sequence->input_value(3).get_node_shared_ptr());
+        auto W = rnn_sequence->input_value(3).get_node_shared_ptr();
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                rnn_sequence->input_value(4).get_node_shared_ptr());
+        auto R = rnn_sequence->input_value(4).get_node_shared_ptr();
         if (!R) {
             return false;
         }
