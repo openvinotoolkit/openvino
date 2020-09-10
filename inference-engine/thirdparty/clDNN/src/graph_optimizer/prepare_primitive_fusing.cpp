@@ -614,8 +614,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
-            auto p1_raw_size = parent1->get_output_layout().size.raw;
-            auto p2_raw_size = parent2->get_output_layout().size.raw;
+            auto p1_raw_size = parent1->get_output_layout().size.sizes();
+            auto p2_raw_size = parent2->get_output_layout().size.sizes();
             for (unsigned k = 0; k < p1_raw_size.size(); k++) {
                 if (p1_raw_size[k] < p2_raw_size[k]) {
                     if (p1_raw_size[k] != 1)
