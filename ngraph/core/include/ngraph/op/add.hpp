@@ -65,7 +65,6 @@ namespace ngraph
 
         } // namespace v1
         using v1::Add;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 
     NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")

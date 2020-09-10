@@ -82,6 +82,5 @@ namespace ngraph
             };
         }
         using v1::Select;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

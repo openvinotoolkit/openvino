@@ -55,6 +55,5 @@ namespace ngraph
         } // namespace v1
 
         using v1::Minimum;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

@@ -68,6 +68,5 @@ namespace ngraph
         } // namespace v1
 
         using v1::Power;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

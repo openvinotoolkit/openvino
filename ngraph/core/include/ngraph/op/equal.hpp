@@ -69,6 +69,5 @@ namespace ngraph
         } // namespace v1
 
         using v1::Equal;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

@@ -496,79 +496,119 @@ namespace {
             input[0]->get_shape(),\
             op->get_batch_axis(),\
             op->get_origin_sequence_axis(),\
-            input[1]->get_data_ptr<U>());\
-
+            input[1]->get_data_ptr<U>()); \
+            break;
         switch (input[1]->get_element_type()) {
             case element::Type_t::boolean:
-                REF_CALL(element::Type_t::boolean)
+            REF_CALL(element::Type_t::boolean)
             case element::Type_t::i8:
-                REF_CALL(element::Type_t::i8);
+            REF_CALL(element::Type_t::i8);
             case element::Type_t::i16:
-                REF_CALL(element::Type_t::i16);
+            REF_CALL(element::Type_t::i16);
             case element::Type_t::i32:
-                REF_CALL(element::Type_t::i32);
+            REF_CALL(element::Type_t::i32);
             case element::Type_t::i64:
-                REF_CALL(element::Type_t::i64);
+            REF_CALL(element::Type_t::i64);
             case element::Type_t::u8:
-                REF_CALL(element::Type_t::u8);
+            REF_CALL(element::Type_t::u8);
             case element::Type_t::u16:
-                REF_CALL(element::Type_t::u16);
+            REF_CALL(element::Type_t::u16);
             case element::Type_t::u32:
-                REF_CALL(element::Type_t::u32);
+            REF_CALL(element::Type_t::u32);
             case element::Type_t::u64:
-                REF_CALL(element::Type_t::u64);
+            REF_CALL(element::Type_t::u64);
             case element::Type_t::f16:
-                REF_CALL(element::Type_t::f16);
+            REF_CALL(element::Type_t::f16);
             case element::Type_t::f32:
-                REF_CALL(element::Type_t::f32);
+            REF_CALL(element::Type_t::f32);
             case element::Type_t::f64:
-                REF_CALL(element::Type_t::f64);
+            REF_CALL(element::Type_t::f64);
             default:
                 return false;
         }
 #undef REF_CALL
+        return true;
     }
 
-    template<element::Type_t ET>
+    template<element::Type_t OUT_ET>
     bool evaluate(const shared_ptr<op::v0::Convert> &op, const HostTensorVector &outputs,
                   const HostTensorVector &input) {
-        using T = typename element_type_traits<ET>::value_type;
-#define REF_CALL(U) \
-        runtime::reference::convert<T, typename element_type_traits<U>::value_type>(\
-            input[0]->get_data_ptr<T>(),\
-            outputs[0]->get_data_ptr<U>(),\
-            shape_size(input[0]->get_shape()));
+        using TO = typename element_type_traits<OUT_ET>::value_type;
+        if (OUT_ET == element::Type_t::boolean) {
+#define REF_CALL_BOOL(TI) \
+        runtime::reference::convert_to_bool<typename element_type_traits<TI>::value_type>(\
+            input[0]->get_data_ptr<TI>(),\
+            outputs[0]->get_data_ptr<char>(),\
+            shape_size(input[0]->get_shape())); \
+            break;
+            switch (input[0]->get_element_type()) {
+                case element::Type_t::boolean:
+                    REF_CALL_BOOL(element::Type_t::boolean);
+                case element::Type_t::i8:
+                    REF_CALL_BOOL(element::Type_t::i8);
+                case element::Type_t::i16:
+                    REF_CALL_BOOL(element::Type_t::i16);
+                case element::Type_t::i32:
+                    REF_CALL_BOOL(element::Type_t::i32);
+                case element::Type_t::i64:
+                    REF_CALL_BOOL(element::Type_t::i64);
+                case element::Type_t::u8:
+                    REF_CALL_BOOL(element::Type_t::u8);
+                case element::Type_t::u16:
+                    REF_CALL_BOOL(element::Type_t::u16);
+                case element::Type_t::u32:
+                    REF_CALL_BOOL(element::Type_t::u32);
+                case element::Type_t::u64:
+                    REF_CALL_BOOL(element::Type_t::u64);
+                case element::Type_t::f16:
+                    REF_CALL_BOOL(element::Type_t::f16);
+                case element::Type_t::f32:
+                    REF_CALL_BOOL(element::Type_t::f32);
+                case element::Type_t::f64:
+                    REF_CALL_BOOL(element::Type_t::f64);
+                default:
+                    return false;
+            }
+#undef REF_CALL_BOOL
+        } else {
+#define REF_CALL(TI) \
+        runtime::reference::convert<typename element_type_traits<TI>::value_type, TO>(\
+            input[0]->get_data_ptr<TI>(),\
+            outputs[0]->get_data_ptr<TO>(),\
+            shape_size(input[0]->get_shape())); \
+            break;
 
-
-        switch (input[0]->get_element_type()) {
-            case element::Type_t::boolean:
+            switch (input[0]->get_element_type()) {
+                case element::Type_t::boolean:
                 REF_CALL(element::Type_t::boolean);
-            case element::Type_t::i8:
+                case element::Type_t::i8:
                 REF_CALL(element::Type_t::i8);
-            case element::Type_t::i16:
+                case element::Type_t::i16:
                 REF_CALL(element::Type_t::i16);
-            case element::Type_t::i32:
+                case element::Type_t::i32:
                 REF_CALL(element::Type_t::i32);
-            case element::Type_t::i64:
+                case element::Type_t::i64:
                 REF_CALL(element::Type_t::i64);
-            case element::Type_t::u8:
+                case element::Type_t::u8:
                 REF_CALL(element::Type_t::u8);
-            case element::Type_t::u16:
+                case element::Type_t::u16:
                 REF_CALL(element::Type_t::u16);
-            case element::Type_t::u32:
+                case element::Type_t::u32:
                 REF_CALL(element::Type_t::u32);
-            case element::Type_t::u64:
+                case element::Type_t::u64:
                 REF_CALL(element::Type_t::u64);
-            case element::Type_t::f16:
+                case element::Type_t::f16:
                 REF_CALL(element::Type_t::f16);
-            case element::Type_t::f32:
+                case element::Type_t::f32:
                 REF_CALL(element::Type_t::f32);
-            case element::Type_t::f64:
+                case element::Type_t::f64:
                 REF_CALL(element::Type_t::f64);
-            default:
-                return false;
-        }
+                default:
+                    return false;
+            }
 #undef REF_CALL
+        }
+        return true;
     }
 
 //    TODO: Rewrite to v1
@@ -600,18 +640,16 @@ namespace {
                   const HostTensorVector &inputs) {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::pad(inputs[0]->get_data_ptr<char>(),
-                                   inputs[1]->get_data_ptr<char>(),
-                                   outputs[0]->get_data_ptr<char>(),
-                                   shape_size(inputs[0]->get_shape()),
-                                   inputs[1]->get_shape(),
-                                   outputs[0]->get_shape(),
-                                   op->get_pads_end(),
-                                   op->get_pads_begin(),
-                                   op->get_pad_mode());
+                                inputs[1]->get_data_ptr<char>(),
+                                outputs[0]->get_data_ptr<char>(),
+                                shape_size(inputs[0]->get_shape()),
+                                inputs[1]->get_shape(),
+                                outputs[0]->get_shape(),
+                                op->get_pads_end(),
+                                op->get_pads_begin(),
+                                op->get_pad_mode());
         return true;
     }
-
-
 
 
     template<typename T>
