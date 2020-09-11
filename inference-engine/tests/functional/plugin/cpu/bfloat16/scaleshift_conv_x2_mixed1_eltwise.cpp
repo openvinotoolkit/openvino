@@ -30,7 +30,7 @@ protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //         scaleshift (FP32)
         //             |               |
-        //      Conv1(BF16)       Conv2(FP32)
+        //      Conv1(BF16)       Conv2(Input data precision)
         //             \       /
         //            eltwise(Fused into Conv1)
 
@@ -108,7 +108,6 @@ protected:
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["CONV_2"] = "FP32";
         expectedPrecisions["ELT_1"] = "ndef";
     }
 };

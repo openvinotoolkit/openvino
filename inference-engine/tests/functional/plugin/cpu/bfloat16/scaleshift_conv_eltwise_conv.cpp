@@ -28,7 +28,7 @@ namespace LayerTestsDefinitions {
 class ScaleshiftConvEltwiseConv : public BasicBF16Test {
 protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
-        //        scaleshift (FP32)     Conv (FP32)
+        //        scaleshift (FP32)     Conv (Input data precision)
         //                   \          /
         //              Eltwise (Fused into Conv)
         //                |
@@ -124,7 +124,6 @@ protected:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
-        expectedPrecisions["CONV_1"] = "FP32";
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";
     }

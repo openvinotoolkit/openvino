@@ -12,6 +12,9 @@
 #include <legacy/details/ie_cnn_network_tools.h>
 #include <legacy/ie_util_internal.hpp>
 #include "ngraph/type/bfloat16.hpp"
+#include <low_precision_transformations/network_helper.hpp>
+#include "mkldnn_node.h"
+
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -60,6 +63,22 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
             iter->insData[0].lock()->getPrecision() == Precision::FP32) {
             auto curPrec = iter->insData[0].lock()->getPrecision();
             iter->insData[0].lock()->setPrecision(Precision::BF16);
+        }
+        if (_initbf16.find(iter->type) != _initbf16.end()) {
+            for (size_t o = 0; o < iter->insData.size(); o++) {
+                if (inputs.find(iter->insData[o].lock()->getName()) != inputs.end()) {
+                    // insert convert
+                    std::string layerName = iter->insData[o].lock()->getName() + "_" + std::to_string(o);
+                    LayerParams cnnLayerParams{ layerName, "Convert", Precision::FP32 };
+                    auto lay = new CNNLayer(cnnLayerParams);
+                    std::map<std::string, std::string> par = {{"name", layerName}, {"type", "Convert"}, {"precision", "FP32"}};
+                    lay->params = par;
+                    CNNLayerPtr convertLayer(lay);
+                    CNNNetworkHelper::addLayerToCNNNetworkAfterData(iter->insData[o].lock(), convertLayer, iter->name, network);
+                    // set conv input as bf
+                    iter->insData[o].lock()->setPrecision(Precision::BF16);
+                }
+            }
         }
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()

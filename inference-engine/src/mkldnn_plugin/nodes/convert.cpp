@@ -60,6 +60,12 @@ public:
         try {
             auto compare = getPrecisionMask(inputs[0]->getTensorDesc().getPrecision(), outputs[0]->getTensorDesc().getPrecision());
             switch (compare) {
+                case getPrecisionMask(Precision::BF16, Precision::FP32):
+                    // in this case convert has to be changes by reorder
+                    break;
+                case getPrecisionMask(Precision::FP32, Precision::BF16):
+                    // in this case convert has to be changes by reorder
+                    break;
                 case getPrecisionMask(Precision::U8, Precision::FP32):
                     exec_cast<PrecisionTrait<Precision::U8>::value_type, PrecisionTrait<Precision::FP32>::value_type>(inputs[0], outputs[0]);
                     break;
