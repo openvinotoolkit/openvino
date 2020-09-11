@@ -7,7 +7,7 @@ pipelines and calcuates the average execution time.
 ## Prerequisites
 
 To build the time tests, you need to have the `build` folder, which is created
-when you configure and build OpenVINO.
+when you configure and build OpenVINO™.
 
 ## Measure Time
 
