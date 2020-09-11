@@ -21,7 +21,7 @@ This plugin adds the following command-line options:
 # pylint:disable=import-error
 import pytest
 from pathlib import Path
-from xml.etree import ElementTree as ET
+import yaml
 
 
 def pytest_addoption(parser):
@@ -30,18 +30,19 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="Path to test config",
-        default=Path(".") / "local_configs" / "test_config.xml"
+        default=Path(".") / "local_configs" / "test_config.yml"
     )
     parser.addoption(
-        "--binary",
+        "--exe",
         required=True,
+        dest="executable",
         type=Path,
         help="Path to a binary to execute",
     )
     parser.addoption(
         "--niter",
         type=int,
-        help="Number of iterations to run binary and aggregate results",
+        help="Number of iterations to run executable and aggregate results",
         default=3
     )
     parser.addoption(
@@ -75,9 +76,9 @@ def test_conf(request):
 
 
 @pytest.fixture(scope="session")
-def binary(request):
+def executable(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('binary')
+    return request.config.getoption('executable')
 
 
 @pytest.fixture(scope="session")
@@ -110,20 +111,14 @@ def no_venv(request):
     return request.config.getoption('no_venv')
 
 
-
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
 
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
-    test_conf_root = ET.parse(metafunc.config.getoption('test_conf')).getroot()
-    test_cases = []
-    for test_rec in test_conf_root.iter("test"):
-        test_case = {}
-        for field in test_rec:
-            test_case.update({field.tag: field.attrib})
-        test_cases.append(test_case)
+    with open(metafunc.config.getoption('test_conf'), "r") as file:
+        test_cases = yaml.load(file, Loader=yaml.FullLoader)
     if test_cases:
         # TODO: prepare human-readable test id
         # test_ids = []

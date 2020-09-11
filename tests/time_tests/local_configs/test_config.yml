@@ -1,0 +1,12 @@
+- device:
+    name: "CPU"
+  model:
+    name: "vgg16"
+    precision: "FP32"
+    source: "omz"
+- device:
+    name: "GPU"
+  model:
+    name: "vgg16"
+    precision: "FP32"
+    source: "omz"
