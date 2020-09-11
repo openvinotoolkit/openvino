@@ -86,22 +86,7 @@ std::vector<std::pair<std::shared_ptr<primitive>, bool>> reorder_factory::get_we
         }
     }
 
-    // TODO: Add conversion of WeightsTensor to cldnn::tensor to have not flattened shape
-    // layout expected_layout = from_weights_tensor(reorder_params.dest);
-
-    auto new_dtype = from_weights_type(reorder_params.dest.GetDType());
-    const auto bpp = data_type_traits::size_of(new_dtype);
-    tensor expected_size = { 1, 1, 1, (tensor::value_type)(reorder_params.dest.PhysicalSizeInBytes() / bpp) };
-
-    bool toImageType = IsImageType(reorder_params.dest.GetLayout());
-    bool toDynamicLSTMType = IsDynamicLSTMType(reorder_params.dest.GetLayout());
-    if (toImageType || toDynamicLSTMType)
-        expected_size = old_layout.size;
-
-    layout expected_layout = { new_dtype,
-                              toImageType ? from_weights_layout(reorder_params.dest.GetLayout())
-                                          : format::bfyx,  // simple linear format (flatten to x channel)
-                              expected_size };
+    layout expected_layout = from_weights_tensor(reorder_params.dest);
 
     cache_key ckey{ input_id, expected_layout };
     auto itr = _cached_generic_reorders.find(ckey);
