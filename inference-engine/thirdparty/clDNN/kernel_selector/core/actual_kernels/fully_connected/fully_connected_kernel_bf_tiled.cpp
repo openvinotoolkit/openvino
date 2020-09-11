@@ -1,0 +1,341 @@
+// Copyright (c) 2020 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "fully_connected_kernel_bf_tiled.h"
+
+#include <vector>
+#include <functional>
+
+static constexpr size_t simd = 16;
+
+namespace kernel_selector {
+
+FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
+    for (unsigned tile_b = 1; tile_b <= 32; ++tile_b)
+    for (unsigned tile_ofm = 1; tile_ofm <= 4; tile_ofm *= 2)
+    for (unsigned tile_ifm = 1; tile_ifm <= 2; tile_ifm *= 2)
+    for (unsigned tile_k = 1; tile_k <= 8; tile_k *= 2)
+    for (unsigned dispatch_bsv = 1; dispatch_bsv <= 16; ++dispatch_bsv)
+    for (unsigned dispatch_fsv = 1; dispatch_fsv <= 16; ++dispatch_fsv)
+    for (auto exec : Parent::autoTuneOptions) {
+        // Block reads support at most vector size of 8.
+        if (tile_k * tile_ofm > 8)
+            continue;
+        // For bsv == 1 dispatch order reduces to b_fsv, so anything other than fsv == 1 is redundant.
+        if (dispatch_bsv == 1 && dispatch_fsv != 1)
+            continue;
+
+        auto_tune_params.emplace_back(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec);
+    }
+}
+
+ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputLayout(DataLayout::bf);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bf);
+    k.EnableBatching();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableDifferentTypes();
+    k.EnableDifferentInputWeightsTypes();
+    return k;
+}
+
+bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_params& options) const {
+    if (!Parent::Validate(params, options))
+        return false;
+
+    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    auto& input = fc_params.inputs[0];
+
+    // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
+    // but we need to ensure that batch pitch preserves alignment.
+    if (input.GetDType() == Datatype::F16 && input.Batch().pitch % 2 != 0 && input.Batch().v > 1)
+        return false;
+
+    if (input.GetLayout() == DataLayout::bfyx) {
+        // Padding on input is not supported.
+        // TODO: Enable by mirroring the padding in weights.
+        if (input.X().pad.Total() != 0)
+            return false;
+        if (input.Y().pad.Total() != 0)
+            return false;
+    }
+
+    return true;
+}
+
+namespace {
+
+struct TuneParamsSelector {
+    using tune_params = FullyConnected_bf_tiled::tune_params;
+    using functional_case = std::function<tune_params(const fully_connected_params&)>;
+
+    TuneParamsSelector(const fully_connected_params& params) : params(params), selected(false) {}
+
+    TuneParamsSelector& Case(const tune_params& tparams) {
+        if (!selected && VerifyTuneParams(params, tparams)) {
+            result = tparams;
+            selected = true;
+        }
+        return *this;
+    }
+
+    TuneParamsSelector& Case(functional_case fun) {
+        return Case(fun(params));
+    }
+
+    tune_params Default(const tune_params& tparams) {
+        if (!selected) {
+            selected = true;
+            result = tparams;
+        }
+        return result;
+    }
+
+    tune_params Default(functional_case fun) {
+        return Default(fun(params));
+    }
+
+    static bool VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams);
+
+    const fully_connected_params& params;
+    bool selected;
+    tune_params result;
+};
+
+bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams) {
+    // Check divisibility by dispatch tile sizes.
+    if (params.output.Batch().v % (tparams.tile_b * tparams.dispatch_bsv) != 0)
+        return false;
+    if (CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
+        return false;
+
+    // Same result can be achieved with smaller tile_ofm.
+    if (params.output.Feature().v <= (tparams.tile_ofm / 2) * simd)
+        return false;
+    // No weights layout for such huge tile ofm.
+    if (tparams.tile_ofm * simd > 64)
+        return false;
+
+    // Reject tile sizes that are guaranteed to spill out of registers.
+    unsigned acc_register_bytes = tparams.tile_b * tparams.tile_ofm * simd * BytesPerElement(params.inputs[0].GetDType());
+    unsigned in_register_bytes = tparams.tile_b * tparams.tile_ifm * simd * BytesPerElement(params.inputs[0].GetDType());
+    unsigned wei_register_bytes = tparams.tile_ofm * tparams.tile_k * simd * BytesPerElement(params.weights.GetDType());
+
+    unsigned total_register_bytes = acc_register_bytes + in_register_bytes + wei_register_bytes;
+    unsigned max_register_bytes = 128 * 32;
+
+    if (total_register_bytes > max_register_bytes)
+        return false;
+
+    return true;
+}
+
+}
+
+FullyConnected_bf_tiled::tune_params
+FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, int idx) const {
+    if (idx >= 0 && idx < (int)auto_tune_params.size()
+        && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
+        return auto_tune_params[idx];
+
+    size_t batch = params.output.Batch().v;
+    size_t output_f = params.output.Feature().v;
+    Datatype dtype = params.inputs[0].GetDType();
+
+    auto selector = TuneParamsSelector(params);
+
+    unsigned max_tile_ofm = 1;
+    while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
+        max_tile_ofm *= 2;
+
+    if (dtype == Datatype::F16) {
+        // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED));
+    }
+    
+    if (dtype == Datatype::F32) {
+        // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, AGE_BASED));
+    }
+
+    selector.Case([&](const fully_connected_params&) -> tune_params {
+        tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, DEFAULT);
+    
+        while (batch % result.tile_b != 0)
+            result.tile_b--;
+    
+        result.dispatch_bsv = 16;
+        while (batch % (result.tile_b * result.dispatch_bsv) != 0)
+            result.dispatch_bsv--;
+
+        if (result.tile_b >= 8)
+            result.exec_options = AGE_BASED;
+    
+        return result;
+    });
+
+    return selector.Default(tune_params(1, 1, 1, 1, 1, 1, DEFAULT));
+}
+
+FullyConnected_bf_tiled::DispatchData
+FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int autoTuneIndex) const {
+    auto runInfo = Parent::SetDefault(params);
+    auto tparams = GetAutoTuneParams(params, autoTuneIndex);
+
+    size_t feature_threads = CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd);
+    size_t batch_threads = params.output.Batch().v / tparams.tile_b;
+
+    runInfo.gws0 = feature_threads * batch_threads * simd;
+    runInfo.gws1 = 1;
+    runInfo.gws2 = 1;
+
+    runInfo.lws0 = simd;
+    runInfo.lws1 = 1;
+    runInfo.lws2 = 1;
+
+    runInfo.tile_m = tparams.tile_b;
+    runInfo.tile_n = tparams.tile_ofm;
+    runInfo.tile_mk = tparams.tile_ifm;
+    runInfo.tile_nk = tparams.tile_k;
+    runInfo.tile_ms = tparams.dispatch_bsv;
+    runInfo.tile_ns = tparams.dispatch_fsv;
+
+    return runInfo;
+}
+
+JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
+    JitConstants jit = Parent::GetJitConstants(params, kd);
+
+    jit.AddConstant(MakeJitConstant("SIMD", simd));
+    jit.AddConstant(MakeJitConstant("TILE_B", kd.tile_m));
+    jit.AddConstant(MakeJitConstant("TILE_OFM", kd.tile_n));
+    jit.AddConstant(MakeJitConstant("TILE_IFM", kd.tile_mk));
+    jit.AddConstant(MakeJitConstant("TILE_K", kd.tile_nk));
+    jit.AddConstant(MakeJitConstant("TILE_K_OFM", kd.tile_nk * kd.tile_n));
+    jit.AddConstant(MakeJitConstant("DISPATCH_BSV", kd.tile_ms));
+    jit.AddConstant(MakeJitConstant("DISPATCH_FSV", kd.tile_ns));
+
+    jit.Merge(MakeConstantLoopUnrollJitConstants(kd.tile_m));
+
+    bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.output.GetFirstElementOffset() % 2 != 0;
+    jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
+
+    auto activation_dt = GetActivationType(params);
+    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+    jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+
+    if (!params.fused_ops.empty()) {
+        auto boundary_check = BoundaryCheck::DISABLED;
+        if (params.output.Feature().v % (kd.tile_n * simd) != 0)
+            boundary_check = BoundaryCheck::ENABLED;
+
+        FusedOpsConfiguration conf = { "",
+                                       {"(out_b + bi)", "out_f", "0", "0"},
+                                       "activated[bi]",
+                                       activation_dt,
+                                       kd.tile_n,
+                                       LoadType::LT_ALIGNED_READ,
+                                       boundary_check,
+                                       IndexType::TENSOR_COORD,
+                                       Tensor::DataChannelName::FEATURE };
+        conf.SetLoopAxes({ Tensor::DataChannelName::BATCH }, true);
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
+KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
+                                                                const optional_params &options,
+                                                                const int autoTuneIndex) const {
+    auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    if (autoTuneIndex >= 0 && autoTuneIndex < (int)auto_tune_params.size()
+        && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
+        return {};
+
+    tune_params tparams = GetAutoTuneParams(fc_params, autoTuneIndex);
+
+    WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
+    if (tparams.tile_ofm * simd == 32)
+        weights_layout = WeightsLayout::os_iyx_osv32;
+    else if (tparams.tile_ofm * simd == 64)
+        weights_layout = WeightsLayout::os_iyx_osv64;
+
+    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
+        estimated_time = FORCE_PRIORITY_3;
+    if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
+        estimated_time = FORCE_PRIORITY_4;
+
+    return GetCommonKernelsData(params,
+                                options,
+                                fc_params.inputs[0].GetLayout(),
+                                weights_layout,
+                                estimated_time,
+                                tparams.exec_options,
+                                autoTuneIndex);
+
+}
+
+KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {
+    KernelsData res = {};
+    for (size_t idx = 0; idx < auto_tune_params.size(); ++idx) {
+        KernelsData kds = GetTunedKernelsDataByIndex(params, options, (int)idx);
+
+        if (!kds.empty()) {
+            res.emplace_back(kds[0]);
+        }
+    }
+    return res;
+}
+
+KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params, const optional_params& optParams) const {
+    KernelsData res = {};
+    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    auto tparams = GetAutoTuneParams(fc_params);
+
+    KernelsData kds = GetTunedKernelsDataByIndex(params, optParams, -1);
+    if (!kds.empty()) {
+        res.emplace_back(kds[0]);
+    }
+
+    return res;
+}
+
+}  // namespace kernel_selector

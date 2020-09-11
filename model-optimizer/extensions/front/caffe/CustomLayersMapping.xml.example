@@ -1,0 +1,3 @@
+<CustomKernelsMapping>
+  <CustomLayer NativeType="ReLU" hasParam ="true" protoParamName = "relu_param"/>
+</CustomKernelsMapping>

@@ -1,0 +1,31 @@
+[
+    {
+        "custom_attributes": {
+            "code_type": "caffe.PriorBoxParameter.CORNER",
+            "pad_mode": "caffe.ResizeParameter.CONSTANT",
+            "resize_mode": "caffe.ResizeParameter.WARP",
+            "confidence_threshold": 0.05,
+            "top_k": 6000,
+            "keep_top_k": 300,
+            "nms_threshold": 0.5,
+            "variance": [0.2, 0.2, 0.2, 0.2]
+        },
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "id": "RetinaNetFilteredDetectionsReplacement",
+        "instances": {
+            "end_points": [
+                "filtered_detections/map/TensorArrayStack/TensorArrayGatherV3",
+                "filtered_detections/map/TensorArrayStack_1/TensorArrayGatherV3",
+                "filtered_detections/map/TensorArrayStack_2/TensorArrayGatherV3"
+            ],
+            "start_points": [
+                "regression/concat",
+                "classification/concat",
+                "anchors/concat",
+                "clipped_boxes/Shape"
+            ]
+        },
+        "match_kind": "points"
+    }
+]

@@ -1,0 +1,19 @@
+<attributes>
+
+    <processes>
+        <value>1</value>
+    </processes>
+    <threads>
+        <value>1</value>
+    </threads>
+    <iterations>
+        <value>30</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <model name="mobilenet-ssd" source="omz" />
+    </models>
+</attributes>
