@@ -18,6 +18,7 @@
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
+#include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
@@ -98,6 +99,7 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
 
     ::ngraph::pass::Manager manager;
     // WA: ConvertPriorBox must be executed before ConstantFolding pass
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<::ngraph::pass::CommonOptimizations>();
     manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
