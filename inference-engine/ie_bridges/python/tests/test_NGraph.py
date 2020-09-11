@@ -1,22 +1,12 @@
 from openvino.inference_engine import IECore, IENetwork
-
-try:
-    import ngraph as ng
-    from ngraph.impl.op import Parameter
-    from ngraph.impl import Function, Shape, Type
-    ngraph_available=True
-except:
-    ngraph_available=False
-
-import pytest
+import ngraph as ng
+from ngraph.impl.op import Parameter
+from ngraph.impl import Function, Shape, Type
 
 from conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
-
-if not ngraph_available:
-    pytest.skip("NGraph is not installed, skip", allow_module_level=True)
 
 
 def test_create_IENetwork_from_nGraph():
@@ -58,3 +48,30 @@ def test_get_ops_from_IENetwork():
                          '28/Reshape/Cast_1955_const', '28/Reshape', 'onnx_initializer_node_17/Output_0/Data__const',
                          '29/WithoutBiases', 'onnx_initializer_node_18/Output_0/Data_/copy_const', '29', 'fc_out',
                          'fc_out/sink_port_0']
+
+
+def test_get_type_name():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
+    assert ops[2].get_type_name() == "Convolution"
+
+
+def test_getting_shapes():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
+    shapes = [sh for sh in ops[2].shape]
+    assert shapes == [1, 16, 32, 32]
+
+
+def test_get_set_rt_info():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
+    rt_info = ops[14].get_rt_info()
+    rt_info["affinity"] = "test_affinity"
+    assert ops[14].get_rt_info()["affinity"] == "test_affinity"
