@@ -133,6 +133,7 @@ void FakeQuantizeLayerTest::UpdateSeed() {
 
 TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
     Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     if (BASE_SEED != USE_CLOCK_TIME &&
         BASE_SEED != USE_INCREMENTAL_SEED) {
