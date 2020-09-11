@@ -134,7 +134,7 @@ TEST_P(ConcatWithDifferentChildsTransformation, CompareFunctions) {
     const ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -158,7 +158,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f / 2.f}, {0.f}, { 128.f}, ngraph::element::u8 },
-            { {}, {}, { 0.01f } },
+            { ngraph::element::f32, {}, { 0.01f } },
             { ngraph::element::f32, {}, { 0.01f } }
         }
     },
@@ -174,7 +174,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8 },
             { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-64.f}, { 64.f}, ngraph::element::i8 },
-            { {}, {}, { 0.01f } },
+            { ngraph::element::f32, {}, { 0.01f } },
             { ngraph::element::f32, {}, { 0.01f } }
         }
     },
