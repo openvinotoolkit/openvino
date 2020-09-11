@@ -858,6 +858,23 @@ TEST(partial_shape, merge_rank_static_static_fail)
     ASSERT_TRUE(s.same_scheme(PartialShape{2, 3, Dimension::dynamic(), 5}));
 }
 
+TEST(partial_shape, changed_dimension_by_reference)
+{
+    PartialShape s{1, 2, 3};
+
+    Dimension& d = s[1];
+
+    ASSERT_TRUE(s.is_static());
+
+    d = Dimension::dynamic();
+
+    ASSERT_TRUE(s.is_dynamic());
+
+    d = 2;
+
+    ASSERT_TRUE(s.is_static());
+}
+
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok)
 {
     auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
