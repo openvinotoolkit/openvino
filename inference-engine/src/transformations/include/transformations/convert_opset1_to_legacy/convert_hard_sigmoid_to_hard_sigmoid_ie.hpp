@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertHardSigmoidToLegacyMatcher;
 
 class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertHardSigmoidToLegacyMatcher();
 };

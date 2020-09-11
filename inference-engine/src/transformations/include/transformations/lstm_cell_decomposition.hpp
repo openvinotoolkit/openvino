@@ -38,5 +38,6 @@ class TRANSFORMATIONS_API LSTMCellDecomposition;
 
 class ngraph::pass::LSTMCellDecomposition: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     LSTMCellDecomposition();
 };
