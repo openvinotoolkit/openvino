@@ -70,7 +70,6 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
-
     static const std::unordered_map<std::string, bool> mock = {
         { CONFIG_VALUE(YES), true },
         { CONFIG_VALUE(NO), false }
