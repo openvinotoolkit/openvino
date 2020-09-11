@@ -42,7 +42,7 @@ There are a couple of things to notice here. One is that the full path to the x6
 MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and cmake may
 fail to detect it correctly.
 The other equally important thing to note is that the temporary directory where the build is to be installed can be specified.
-If the installation directory is not specified, the default location is `C:\Program Files\OpenVPN`.
+If the installation directory is not specified, the default location is `C:\Program Files\OpenVINO`.
 This examples uses `C:\temporary_install_dir` however, a subdirectory of `openvino\build` works as well.
 The final Python wheel will contain the contents of this temporary directory so it's very important to set it.
 

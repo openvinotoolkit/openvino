@@ -10,5 +10,5 @@ if sys.platform == "win32":
     #
     # If you're using a custom installation of nGraph,
     # add the location of ngraph.dll to your system PATH.
-    ngraph_dll_dir = os.path.join(os.path.dirname(ng.__file__), ".", ".")
+    ngraph_dll_dir = os.path.join(os.path.dirname(ng.__file__), "..", "..")
     os.environ["PATH"] = os.path.abspath(ngraph_dll_dir) + ";" + os.environ["PATH"]
