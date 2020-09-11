@@ -87,8 +87,8 @@ public:
             params.updatePrecisions,
             fakeQuantizeOnData.expected,
             fakeQuantizeOnData.expectedFakeQuantizeOnDataPrecision,
-            fakeQuantizeOnData.expectedValues.find(precision)->second.subtract,
-            fakeQuantizeOnData.expectedValues.find(precision)->second.multiply);
+            fakeQuantizeOnData.expectedValues.find(element::f32)->second.subtract,
+            fakeQuantizeOnData.expectedValues.find(element::f32)->second.multiply);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -114,6 +114,7 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
+    ngraph::element::i32
     // ngraph::element::f16
 };
 

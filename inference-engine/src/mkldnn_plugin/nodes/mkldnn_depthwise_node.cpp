@@ -66,6 +66,58 @@ void MKLDNNDepthwiseNode::getSupportedDescriptors() {
     }
 }
 
+void MKLDNNDepthwiseNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    auto parentOutDims = getParentEdgeAt(0)->getDims();
+    if (parentOutDims.ndims() <= 5) {
+        MKLDNNNode::initSupportedPrimitiveDescriptors();
+    } else {
+        createSpecificDescriptor5D();
+        if (specificDesc5DPtr == nullptr)
+            THROW_IE_EXCEPTION << "Cannot create specific MKLDNNDescriptor for depthwise node " << getName();
+        const auto& desc = *specificDesc5DPtr;
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine());
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = MKLDNNMemoryDesc(InferenceEngine::TensorDesc(Precision::FP32, parentOutDims.ToSizeVector(), Layout::ANY));
+                config.inConfs.push_back(dataConfig);
+            }
+
+            std::vector<mkldnn::memory::format> outFormats;
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.constant = false;
+                dataConfig.desc = MKLDNNMemoryDesc(InferenceEngine::TensorDesc(Precision::FP32, parentOutDims.ToSizeVector(), Layout::ANY));
+                config.outConfs.push_back(dataConfig);
+
+                auto primDesc = itpd.fetch();
+                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
+                if (dstPrimDesc) {
+                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+                } else {
+                    // This path is needed to correctly handle Deconvolution node
+                    auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
+                    if (diffSrcPrimDesc) {
+                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
+                    }
+                }
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            itpd++;
+        }
+    }
+}
+
 void MKLDNNDepthwiseNode::createPrimitive() {
     if (prim)
         return;
@@ -79,7 +131,30 @@ void MKLDNNDepthwiseNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
-    auto prim_desc = createPrimitiveDescriptor<depthwise_forward::primitive_desc, depthwise_forward::desc>();
+    auto createRightPrimitiveDescriptor = [&]() -> depthwise_forward::primitive_desc {
+        auto parentOutDims = getParentEdgeAt(0)->getDims();
+        if (parentOutDims.ndims() <= 5) {
+            return createPrimitiveDescriptor<depthwise_forward::primitive_desc, depthwise_forward::desc>();
+        } else {
+            const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
+            auto& desc = *specificDesc5DPtr;
+            auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), mkldnn::primitive_attr());
+
+            while (itpd.is_not_end())  {
+                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+                if (impl_type == getSelectedPrimitiveDescriptor()->getImplementationType()) {
+                    specificPrepareMemory5D(itpd);
+                    std::shared_ptr<depthwise_forward::desc> selected_desc_ptr = desc;
+                    depthwise_forward::primitive_desc prim_desc = depthwise_forward::primitive_desc(*selected_desc_ptr, getEngine());
+                    return prim_desc;
+                }
+                itpd++;
+            }
+            THROW_IE_EXCEPTION << "Cannot create specific primitive descriptor for depthwise node " << getName() << ".";
+        }
+    };
+
+    auto prim_desc = createRightPrimitiveDescriptor();
 
     if (isBroadcast()) {
         float broadcastValue = static_cast<float*>(internalBlobMemory[0]->GetData())[0];
@@ -185,6 +260,9 @@ void MKLDNNDepthwiseNode::initOptimalPrimitiveDescriptor() {
             !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
         THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
 
+    if (getParentEdgeAt(0)->getDims().ndims() > 5)
+        return;
+
     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
         config.outConfs[0].desc = config.inConfs[0].desc;
     } else if (!isUninitTensorDesc(config.outConfs[0].desc)) {
@@ -195,4 +273,81 @@ void MKLDNNDepthwiseNode::initOptimalPrimitiveDescriptor() {
 
     initDescriptor(config);
 }
+
+void MKLDNNDepthwiseNode::createSpecificDescriptor5D() {
+    auto parentOutDims = getParentEdgeAt(0)->getDims();
+    MKLDNNDims newDims;
+    for (int i = 0; i < 4; i++)
+        newDims.push_back(parentOutDims[i]);
+    int lastDim = 1;
+    for (int i = 4; i < parentOutDims.ndims(); i++) {
+        lastDim *= parentOutDims[i];
+    }
+    newDims.push_back(lastDim);
+
+    MKLDNNMemoryDesc in_candidate{newDims, MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32), mkldnn::memory::ncdhw};
+    MKLDNNMemoryDesc out_candidate(in_candidate);
+    MKLDNNDims weightDims({in_candidate.getDims()[1]});
+
+    MKLDNNMemoryDesc wgh_candidate{weightDims, in_candidate.getDataType(), memory::x};
+
+    if (isWithBiases()) {
+        MKLDNNMemoryDesc bias_candidate{weightDims, in_candidate.getDataType(), memory::x};
+        MKLDNNDescriptor desc(std::shared_ptr<depthwise_forward::desc>(
+                new depthwise_forward::desc(prop_kind::forward_scoring, getAlgorithm(), in_candidate, out_candidate, wgh_candidate, bias_candidate)));
+        specificDesc5DPtr = std::make_shared<MKLDNNDescriptor>(desc);
+    } else {
+        MKLDNNDescriptor desc(std::shared_ptr<depthwise_forward::desc>(
+                new depthwise_forward::desc(prop_kind::forward_scoring, getAlgorithm(), in_candidate, out_candidate, wgh_candidate)));
+        specificDesc5DPtr = std::make_shared<MKLDNNDescriptor>(desc);
+    }
+}
+
+void MKLDNNDepthwiseNode::specificPrepareMemory5D(mkldnn::primitive_desc_iterator& itpd) {
+    std::vector<MKLDNNMemoryDesc> intDescs;
+    for (auto &it : internalBlobDesc)
+        intDescs.push_back(it(itpd, 0));
+
+    internalBlobMemory.clear();
+    for (size_t i = 0; i < internalBlobs.size(); i++) {
+        const auto &internalBlob = internalBlobs[i];
+
+        auto create = [&] () {
+            auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
+            auto newFormat = newDesc.getFormat();
+            if (newFormat == mkldnn::memory::ncdhw) {
+                newFormat = mkldnn::memory::goihw;
+            }
+            if (newFormat == mkldnn::memory::nchw) {
+                newFormat = mkldnn::memory::oihw;
+            }
+
+            MKLDNNMemory memory{ getEngine() };
+            memory.Create(MKLDNNMemoryDesc(newDesc.getDims(), newDesc.getDataType(), newFormat), internalBlob->buffer());
+
+            MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+            _ptr->Create(intDescs[i]);
+            _ptr->SetData(memory);
+
+            return _ptr;
+        };
+
+        MKLDNNMemoryPtr ptr;
+        if (weightCache != nullptr) {
+            const uint64_t data_hash = weightCache->GetHashFunc().hash(
+                    internalBlob->buffer(), internalBlob->byteSize());
+
+            const std::string string_hash = getName() + "_" + std::to_string(i)
+                                            + "_" + std::to_string(internalBlob->byteSize())
+                                            + "_" + std::to_string(data_hash);
+
+            ptr = weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+
+        internalBlobMemory.push_back(ptr);
+    }
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNDepthwiseNode, Depthwise);

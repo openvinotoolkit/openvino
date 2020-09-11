@@ -150,7 +150,6 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
     auto minputHolder = minput->wmap();
 
     auto inputBlobData = minputHolder.as<T *>();
-    srand(0);
     for (size_t i = 0; i < inputBlob->size(); i++) {
         auto rand_max = RAND_MAX;
         inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;

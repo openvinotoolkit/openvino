@@ -358,14 +358,14 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
         if (dequantization.subtract != nullptr) {
             parent = dequantization.subtract->clone_with_new_inputs({
                 parent,
-                dequantization.subtract->input_value(1) });
+                dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
             parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 
         if (dequantization.multiply != nullptr) {
             parent = dequantization.multiply->clone_with_new_inputs({
                 parent,
-                dequantization.multiply->input_value(1) });
+                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
             parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 

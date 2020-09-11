@@ -25,9 +25,6 @@
 #include "inputs_filling.hpp"
 #include "utils.hpp"
 
-// #include "C:\Projects\openvinotoolkit\openvino\inference-engine\src\plugin_api\cpp_interfaces\interface\ie_internal_plugin_config.hpp"
-// #include "C:\Projects\openvinotoolkit\openvino\inference-engine\include\ie_plugin_config.hpp"
-
 using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
@@ -290,12 +287,6 @@ int main(int argc, char *argv[]) {
         }
 
         for (auto&& item : config) {
-            // item.second[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::NO;
-            // item.second[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH;
-            // item.second[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_CNNNETWORK;
-            // item.second[InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT] = "c:\\Projects\\temp\\execution_graph";
-            // std::cout << "LPT: nGraph LP transformations are used" << std::endl;
-            // execNet.GetExecGraphInfo());
             ie.SetConfig(item.second, item.first);
         }
 

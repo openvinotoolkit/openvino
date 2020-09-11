@@ -350,7 +350,24 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
         op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2)), 254.f) &&
         op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3)), -127.f) &&
         op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4)), 127.f)) {
-        return fold<opset1::Add>(fq->input_value(0), fq->input_value(3));
+        const auto type1 = fq->input_value(0).get_element_type();
+        const auto type2 = fq->input_value(3).get_element_type();
+        if (type1.is_real() && type2.is_real()) {
+            return fold<opset1::Add>(fq->input_value(0), fq->input_value(3));
+        }
+        if (type1.is_real() && !type2.is_real()) {
+            return fold<opset1::Add>(
+                fq->input_value(0),
+                fold<opset1::Convert>(fq->input_value(3), type1));
+        }
+        if (!type1.is_real() && type2.is_real()) {
+            return fold<opset1::Add>(
+                fold<opset1::Convert>(fq->input_value(0), type2),
+                fq->input_value(3));
+        }
+        return fold<opset1::Add>(
+            fold<opset1::Convert>(fq->input_value(0), element::f32),
+            fold<opset1::Convert>(fq->input_value(3), element::f32));
     }
 
     auto constant = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
@@ -443,11 +460,11 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const bool updatePrecision) {
     using std::make_shared;
 
-    const auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    const auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
-
     const auto outputLow = fq->input_value(3);
     const auto outputHigh = fq->input_value(4);
+
+    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, min);
+    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, max);
 
     // TODO: threshold values have to used here to avoid shifts
     const std::shared_ptr<Node> scale = fold<opset1::Divide>(
@@ -462,14 +479,16 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
     // Build a substitution sub-graph:
 
-    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-        fq->input_value(0),
-        fq->input_value(1),
-        fq->input_value(2),
-        newMin->output(0),
-        newMax->output(0),
-        fq->get_levels(),
-        fq->get_auto_broadcast()), true);
+    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(
+        std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast()),
+        true);
     // TODO: for debuging only - remove later
     newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
 
@@ -497,8 +516,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             THROW_IE_LPT_EXCEPTION(*newFQ) << "unexpected operation type";
         }
 
-        convert2 = std::make_shared<DequantizationConvert>(convert, fq->get_output_element_type(0));
+        convert2 = std::make_shared<DequantizationConvert>(convert, element::f32);
         convert2->set_friendly_name(convert->get_friendly_name() + "/DequantizationConvert");
+    } else {
+        if (newFQ->get_output_element_type(0) != element::f32) {
+            convert2 = std::make_shared<DequantizationConvert>(newFQ, element::f32);
+            convert2->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationConvert");
+        }
     }
 
     // TODO: why type relaxed?

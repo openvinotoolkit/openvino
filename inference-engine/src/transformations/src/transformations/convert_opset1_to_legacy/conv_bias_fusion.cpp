@@ -38,7 +38,6 @@ std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shar
 
 template <class Conv>
 bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
-#ifdef LPT_SUPPORT
     if (!ngraph::is_type<ngraph::op::ConvolutionIE>(conv)) {
         return false;
     }
@@ -48,7 +47,9 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
     };
 
-    if (isLowPrecision(conv, 0) || isLowPrecision(conv, 1)) {
+    // Convolution operation has to be executed in INT8 if ...
+    if (isLowPrecision(conv, 0) && isLowPrecision(conv, 1)) {
+        // ... INT8 on activations && INT8 on weights
         return true;
     }
 
@@ -57,11 +58,8 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return false;
     }
 
-    return isLowPrecision(subtract, 0) || isLowPrecision(subtract, 1);
-#else
-    const ngraph::element::Type inputType = conv->get_input_element_type(1);
-    return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
-#endif
+    // ... INT8 on activations with asymmetric quantization && INT8 on weights
+    return isLowPrecision(subtract, 0) && isLowPrecision(subtract, 1) && isLowPrecision(conv, 1);
 }
 
 template <class Conv>

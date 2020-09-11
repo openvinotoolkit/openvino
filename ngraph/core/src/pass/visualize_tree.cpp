@@ -335,19 +335,21 @@ static std::string pretty_value(const vector<T>& values)
     bool first = true;
     for (size_t i = 0; i < values.size(); ++i)
     {
-		if (i > 32) {
-			ss << "...";
-			break;
-		}
+        if (i > 32)
+        {
+            ss << "...";
+            break;
+        }
 
-		const auto& value = values[i];
+        const auto& value = values[i];
         if (!first)
             ss << ", ";
         ss << value;
 
-		if (((i + 1) % 8) == 0) {
-			ss << std::endl;
-		}
+        if (((i + 1) % 8) == 0)
+        {
+            ss << std::endl;
+        }
 
         first = false;
     }
@@ -452,14 +454,16 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
     {
         rc += "\\n" + node->get_name();
     }
-	rc += "\\n" + std::string(node->get_type_name());
-	const auto rt = node->get_rt_info();
-	if (!rt.empty()) {
-		rc += "\\nrt info: ";
-		for (const auto& item : rt) {
-			rc += item.first + " ";
-		}
-	}
+    rc += "\\n" + std::string(node->get_type_name());
+    const auto rt = node->get_rt_info();
+    if (!rt.empty())
+    {
+        rc += "\\nrt info: ";
+        for (const auto& item : rt)
+        {
+            rc += item.first + " ";
+        }
+    }
     return rc;
 }
 

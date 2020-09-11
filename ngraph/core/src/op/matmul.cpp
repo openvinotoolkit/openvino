@@ -100,7 +100,11 @@ void op::MatMul::pre_validate_and_infer_types()
     if (A_rank.is_static() && B_rank.is_static())
     {
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-        set_output_type(0, ((inputElementType0 != element::u8) && (inputElementType1 != element::i8)) ? result_et : element::f32, PartialShape::dynamic(max_rank));
+        set_output_type(0,
+                        ((inputElementType0 != element::u8) && (inputElementType1 != element::i8))
+                            ? result_et
+                            : element::f32,
+                        PartialShape::dynamic(max_rank));
     }
 #else
     if (A_rank.is_static() && B_rank.is_static())

@@ -206,7 +206,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8 },
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {170.f}, ngraph::element::u8 },
-            { ngraph::element::f32, { 85.2219 }, { 0.015f } }
+            { ngraph::element::f32, { 85 }, { 0.015f } }
         }
     },
     // mixed: U8 + I8: concat multi channels
@@ -234,7 +234,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         {
             { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {170.f}, ngraph::element::u8 },
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8 },
-            { ngraph::element::f32, { 85.2219 }, { 0.015f } }
+            { ngraph::element::f32, { 85 }, { 0.015f } }
         }
     },
 };

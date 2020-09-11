@@ -349,7 +349,8 @@ void ConcatTransformation::addDequantizationLayers(
                         // concatenation axis is 1
                         if (!subtractNodes.empty()) {
                             const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
-                            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
+
+                            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<DequantizationSubtract>(
                                 destination->get_input_source_output(sourceOutputIdx),
                                 NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
                                     subtractNodes[0] :
@@ -360,7 +361,8 @@ void ConcatTransformation::addDequantizationLayers(
 
                         if (!multiplyNodes.empty()) {
                             const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
-                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
+
+                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
                                 destination->get_input_source_output(sourceOutputIdx),
                                 NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
                                     multiplyNodes[0] :
