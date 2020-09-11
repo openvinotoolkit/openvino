@@ -33,6 +33,12 @@ def pytest_addoption(parser):
         default=Path(".") / "local_configs" / "test_config.yml"
     )
     parser.addoption(
+        "--env_conf",
+        type=Path,
+        help="Path to environment config",
+        default=Path(".") / "local_configs" / "env_config.yml"
+    )
+    parser.addoption(
         "--exe",
         required=True,
         dest="executable",
@@ -45,34 +51,18 @@ def pytest_addoption(parser):
         help="Number of iterations to run executable and aggregate results",
         default=3
     )
-    parser.addoption(
-        "--omz",
-        type=Path,
-        help="Path to Open Model Zoo root folder"
-    )
-    parser.addoption(
-        "--mo",
-        type=Path,
-        help="Path to Model Optimizer main runner",
-        default=Path(".") / ".." / ".." / "model_optimizer" / "mo.py"
-    )
-    parser.addoption(
-        "--out_dir",
-        type=Path,
-        help="Path to the output directory to store models",
-        default=Path(".") / "_out"
-    )
-    parser.addoption(
-        '--no_venv',
-        action="store_true",
-        help='Skip preparation and use of virtual environment'
-    )
 
 
 @pytest.fixture(scope="session")
 def test_conf(request):
     """Fixture function for command-line option."""
     return request.config.getoption('test_conf')
+
+
+@pytest.fixture(scope="session")
+def env_conf(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('env_conf')
 
 
 @pytest.fixture(scope="session")
@@ -87,28 +77,8 @@ def niter(request):
     return request.config.getoption('niter')
 
 
-@pytest.fixture(scope="session")
-def omz(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('omz')
-
-
-@pytest.fixture(scope="session")
-def mo(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('mo')
-
-
-@pytest.fixture(scope="session")
-def out_dir(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('out_dir')
-
-
-@pytest.fixture(scope="session")
-def no_venv(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('no_venv')
+class Environment:
+    env = {}
 
 
 def pytest_generate_tests(metafunc):
@@ -127,3 +97,8 @@ def pytest_generate_tests(metafunc):
         #     id = "_".join([id] + ["{}-{}".format(key, val) for key, val in case.items()])
         # metafunc.parametrize("instance", test_cases, ids=test_ids)
         metafunc.parametrize("instance", test_cases)
+
+
+def pytest_sessionstart(session):
+    with open(session.config.getoption('env_conf'), "r") as env_conf:
+        Environment.env = yaml.load(env_conf, Loader=yaml.FullLoader)
