@@ -66,16 +66,21 @@ void MatmulSqueezeAddTest::SetUp() {
 
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
-    auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] }, generateFloatNumbers(0, 1, outputSize * inputShape[1]), false);
+    auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] },
+        generateFloatNumbers(0, 1, outputSize * inputShape[1]), false);
     auto matmul_0 = std::make_shared<ngraph::op::MatMul>(params[0], constant_0, false, true);
 
     auto constant_1 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
-    auto squeeze_0 = std::make_shared<ngraph::op::Squeeze>(matmul_0, constant_1);
+    auto unsqueeze_0 = std::make_shared<ngraph::op::Unsqueeze>(matmul_0, constant_1);
 
-    auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { inputShape[0], outputSize }, generateFloatNumbers(0, 1, inputShape[0] * outputSize), false);
-    auto add_0 = std::make_shared<ngraph::opset1::Add>(squeeze_0, constant_2);
+    auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { 1, inputShape[0], outputSize },
+        generateFloatNumbers(0, 1, inputShape[0] * outputSize), false);
+    auto add_0 = std::make_shared<ngraph::op::Add>(unsqueeze_0, constant_2);
 
-    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(add_0)};
+    auto constant_3 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
+    auto squeeze_0 = std::make_shared<ngraph::op::Squeeze>(add_0, constant_3);
+
+    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(squeeze_0)};
     function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
 }
 
