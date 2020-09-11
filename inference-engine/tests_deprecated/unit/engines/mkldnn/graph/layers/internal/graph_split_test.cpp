@@ -227,102 +227,102 @@ TEST_P(MKLDNNGraphSplitTests, TestsSplit) {}
 INSTANTIATE_TEST_CASE_P(
         TestsSplit, MKLDNNGraphSplitTests,
         ::testing::Values(
-                split_test_params {
-                        {1, 24, 2, 5},
-                        {{1, 16, 2, 5}, {1, 8, 2, 5}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                }
-                        }
-                },
-                split_test_params {
-                        {1, 20, 2, 5},
-                        {{1, 13, 2, 5}, {1, 7, 2, 5}},
-                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                }
-                        }
-                },
-                split_test_params {
-                        {1, 20, 2, 5},
-                        {{1, 10, 2, 5}, {1, 10, 2, 5}},
-                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                }
-                        }
-                },
-                split_test_params {
-                        {2, 20, 2, 5},
-                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
-                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                }
-                        }
-                },
+                // split_test_params {
+                //         {1, 24, 2, 5},
+                //         {{1, 16, 2, 5}, {1, 8, 2, 5}},
+                //         1, 3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                }
+                //        }
+                // },
+                // split_test_params {
+                //         {1, 20, 2, 5},
+                //         {{1, 13, 2, 5}, {1, 7, 2, 5}},
+                //         1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 }
+                //         }
+                // },
+                // split_test_params {
+                //         {1, 20, 2, 5},
+                //         {{1, 10, 2, 5}, {1, 10, 2, 5}},
+                //         1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 }
+                //         }
+                // },
+                // split_test_params {
+                //         {2, 20, 2, 5},
+                //         {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                //         1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 }
+                //         }
+                //  },
                 split_test_params {
                         {1, 24, 2, 5},
                         {{1, 16, 2, 5}, {1, 8, 2, 5}},
@@ -544,28 +544,28 @@ INSTANTIATE_TEST_CASE_P(
                 //                 }
                 //         }
                 // },
-                split_test_params {
-                        {2, 20, 2, 5},
-                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
-                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(2, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
-                                }
-                        }
-                },
+                // split_test_params {
+                //         {2, 20, 2, 5},
+                //         {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                //         1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::ANY, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 },
+                //                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                //                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+                //                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                //                     ASSERT_EQ(2, impl.getConfig().outConfs.size());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                //                      ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                //                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(1).desc.getLayout());
+                //                 }
+                //         }
+                // },
                 split_test_params {
                         {2, 24, 2, 5},
                         {{2, 16, 2, 5}, {2, 8, 2, 5}},
