@@ -70,7 +70,9 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(tools)
+if(ENABLE_TOOLS)
+    add_subdirectory(tools)
+endif()
 
 function(ie_build_samples)
     # samples should be build with the same flags as from OpenVINO package,
