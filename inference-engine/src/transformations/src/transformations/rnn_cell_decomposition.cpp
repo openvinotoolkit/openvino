@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/op/util/activation_functions.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition", 0);
+
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
