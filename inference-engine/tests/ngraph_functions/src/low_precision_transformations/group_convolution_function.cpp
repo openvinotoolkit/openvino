@@ -201,8 +201,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
             weightsSize == 1ul ? std::vector<float>(
                 groupCount * outputChannelsInGroup * inputChannelsInGroup * kernelSize * kernelSize,
                 weightsConst->cast_vector<float>()[0]) : weightsConst->cast_vector<float>());
-    }
-    else {
+    } else {
         weights = createWeightsOriginal(
             weightsConst->get_element_type(),
             inputShape,
