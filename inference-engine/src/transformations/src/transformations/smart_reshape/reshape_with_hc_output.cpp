@@ -3,6 +3,7 @@
 //
 
 #include "transformations/smart_reshape/reshape_with_hc_output.hpp"
+#include "transformations/smart_reshape/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -31,16 +32,13 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
     const auto & reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 
     const auto & raw_idx = reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
-    const auto & idx = ngraph::normalize_axis(matmul->description(), raw_idx, reshape->get_output_partial_shape(0).rank());
-    const auto & shape_of = std::make_shared<ngraph::opset4::ShapeOf>(shape_source);
-    const auto & C = std::make_shared<ngraph::opset4::Gather>(shape_of,
-                                                              ngraph::opset4::Constant::create(ngraph::element::i64, {1}, {idx}),
-                                                              ngraph::opset4::Constant::create(ngraph::element::i64, {}, {0}));
+    const auto & idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape->get_output_partial_shape(0).rank());
+    const auto & C = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(shape_source, idx);
     const auto & N = ngraph::opset4::Constant::create(ngraph::element::i64, {1}, {-1});
     const auto & pattern_vector = reshape_is_A_input ?
             (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C})) :
             (matmul->get_transpose_b() ? ngraph::OutputVector({N, C}) : ngraph::OutputVector({C, N}));
-    const auto new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
+    const auto & new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
 
     new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
     copy_runtime_info(reshape_pattern, new_reshape_pattern);
@@ -56,7 +54,7 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+        const auto & pattern_to_output = m.get_pattern_value_map();
         return relax_hc_reshape_followed_by_matmul(
                 pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, true);
     };
@@ -72,7 +70,7 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
-        const auto &pattern_to_output = m.get_pattern_value_map();
+        const auto & pattern_to_output = m.get_pattern_value_map();
         return relax_hc_reshape_followed_by_matmul(
                 pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, false);
     };

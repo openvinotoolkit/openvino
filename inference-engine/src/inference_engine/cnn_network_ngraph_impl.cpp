@@ -127,6 +127,10 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
     ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
 
+    ngraph::pass::Manager ssr_manager;
+    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+    ssr_manager.run_passes(_ngraph_function);
+
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
         std::string outName = layer->get_friendly_name();
@@ -154,6 +158,11 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
+
+    ngraph::pass::Manager ssr_manager;
+    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+    ssr_manager.run_passes(_ngraph_function);
+
     InputsDataMap inputs;
     OutputsDataMap outputs;
     network.getInputsInfo(inputs);
@@ -311,11 +320,6 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
         auto params = _ngraph_function->get_parameters();
-
-        ngraph::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-        ssr_manager.run_passes(_ngraph_function);
-
         for (size_t i = 0; i < params.size(); i++) {
             const auto& param = params[i];
             if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
