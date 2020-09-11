@@ -40,6 +40,10 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
 
+        if (m_transformation_callback(add)) {
+            return false;
+        }
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];
