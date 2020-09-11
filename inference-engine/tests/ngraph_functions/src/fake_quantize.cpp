@@ -76,8 +76,6 @@ std::shared_ptr<ngraph::Node> makeFakeQuantize(const ngraph::Output<ngraph::Node
     auto outputLowNode = ngraph::builder::makeConstant(type, constShapes, outputLowData, outputLowData.empty(), seed);
     auto outputHighNode = ngraph::builder::makeConstant(type, constShapes, outputHighData, outputHighData.empty(), seed);
 
-    std::cerr << "il=" << inputLowData[0] << " ih=" << inputHighData[0] << " ol=" << outputLowData[0] << " oh=" << outputHighData[0] << std::endl;
-
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(in, inputLowNode, inputHighNode, outputLowNode, outputHighNode, levels);
 
     return fq;

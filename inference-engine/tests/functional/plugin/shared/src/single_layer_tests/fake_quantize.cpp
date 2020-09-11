@@ -26,9 +26,8 @@
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-// 999901
-#define BASE_SEED   819101905
-#define NGRAPH_SEED 819101905
+#define BASE_SEED   USE_CLOCK_TIME
+#define NGRAPH_SEED USE_CLOCK_TIME
 
 namespace LayerTestsDefinitions {
 
@@ -88,6 +87,8 @@ void FakeQuantizeLayerTest::SetUp() {
         if (NGRAPH_SEED != USE_CLOCK_TIME) {
             ngraphSeed = NGRAPH_SEED;
         }
+        std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
+                  << "ngraphSeed = " << ngraphSeed << std::endl;
         fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
     } else {
         fakeQNode = ngraph::builder::makeFakeQuantize(
