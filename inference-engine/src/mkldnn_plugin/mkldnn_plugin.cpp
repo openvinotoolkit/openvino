@@ -81,6 +81,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             return fc_op->input_value(0).get_shape().size() == 3ul;
         }
 
+        if (auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(node)) {
+            return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+        }
+
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
