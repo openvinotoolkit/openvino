@@ -83,5 +83,5 @@ namespace
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tanh::evaluate");
-    return evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_tanh(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }

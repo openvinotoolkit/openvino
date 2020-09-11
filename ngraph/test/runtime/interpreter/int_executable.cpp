@@ -111,6 +111,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (auto tensor : outputs)
     {
         auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
+        NGRAPH_CHECK(host_tensor, "Host tensor is unexpectedly nullptr");
         func_outputs.push_back(host_tensor);
     }
 
@@ -141,6 +142,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // for each ordered op in the graph
     for (auto op : m_nodes)
     {
+        std::cerr << "Interpret " << op->description() << '\n';
         event::Duration d2(op->description(), "Interpreter");
         if (op::is_parameter(op))
         {

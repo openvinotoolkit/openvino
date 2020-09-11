@@ -122,6 +122,32 @@ namespace ngraph
     }     // namespace runtime
 } // namespace ngraph
 
+class TemporaryOverrideOutputs
+{
+    std::shared_ptr<Node> node;
+    std::vector<PartialShape> orig_shapes;
+public:
+
+    TemporaryOverrideOutputs (std::shared_ptr<Node> node, const std::vector<std::shared_ptr<HostTensor>>& args) : node(node)
+    {
+        for(size_t i = 0; i < args.size(); ++i)
+        {
+            auto output = node->output(i);
+            orig_shapes.push_back(output.get_partial_shape());
+            output.get_tensor().set_partial_shape(args[i]->get_shape());
+        }
+    }
+
+    ~TemporaryOverrideOutputs()
+    {
+        for(size_t i = 0; i < orig_shapes.size(); ++i)
+        {
+            auto output = node->output(i);
+            output.get_tensor().set_partial_shape(orig_shapes[i]);
+        }
+    }
+};
+
 class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable
 {
     friend class INTBackend;
@@ -170,7 +196,7 @@ protected:
                                 const std::vector<std::shared_ptr<HostTensor>>& inputs);
 
     template <typename T>
-    void op_engine(const Node& node,
+    void op_engine(const Node& orig_node,
                    const std::vector<std::shared_ptr<HostTensor>>& out,
                    const std::vector<std::shared_ptr<HostTensor>>& args)
     {
@@ -182,6 +208,15 @@ protected:
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
+        std::shared_ptr<Node> node_ptr = const_cast<Node&>(orig_node).shared_from_this();
+        TemporaryOverrideOutputs overrider(node_ptr, args);
+        OutputVector outputs;
+        for(size_t i = 0; i < node_ptr->inputs().size(); ++i)
+        {
+            outputs.push_back(node_ptr->get_input_source_output(i));
+        }
+        auto cloned_node = orig_node.clone_with_new_inputs(outputs);
+        const Node& node = *cloned_node;
         switch (get_typeid(node))
         {
         case OP_TYPEID::Abs:
@@ -275,7 +310,7 @@ protected:
             // const op::Convert* c = static_cast<const op::Convert*>(&node);
             element::Type type = node.get_element_type();
             std::stringstream ss;
-            size_t element_count = shape_size(node.get_output_shape(0));
+            size_t element_count = shape_size(args[0]->get_shape());
             switch (type)
             {
             case element::Type_t::boolean:

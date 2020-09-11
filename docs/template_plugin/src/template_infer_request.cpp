@@ -69,6 +69,56 @@ void TemplateInferRequest::allocateDeviceBuffers() {
     _outputTensors.resize(_networkOutputs.size());
 }
 
+template<typename BlobData, typename GetNetworkPrecisionF>
+static void AllocateImplSingle(
+                         BlobMap& blobMap,
+                         BlobMap& networkBlobMap,
+                         BlobData& blobData,
+                         GetNetworkPrecisionF&& GetNetworkPrecision,
+                         const SizeVector& dims) {
+    auto& precision = blobData.second->getTensorDesc().getPrecision();
+    auto layout = blobData.second->getTensorDesc().getLayout();
+    Blob::Ptr blob;
+    switch (precision) {
+        case Precision::U8: {
+            blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
+        } break;
+        case Precision::FP32 : {
+            blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
+        } break;
+        case Precision::I32 : {
+            blob = InferenceEngine::make_shared_blob<std::int32_t>({precision, dims, layout});
+        } break;
+        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
+    }
+    blob->allocate();
+    blobMap[blobData.first] = blob;
+
+    auto networkPresion = GetNetworkPrecision(blobData.first);
+    Blob::Ptr networkBlob;
+    switch (networkPresion) {
+        case ngraph::element::Type_t::f32 : {
+            if (precision == Precision::FP32) {
+                networkBlob = blob;
+            } else {
+                networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
+            }
+        } break;
+        case ngraph::element::Type_t::i32 : {
+            if (precision == Precision::I32) {
+                networkBlob = blob;
+            } else {
+                networkBlob = InferenceEngine::make_shared_blob<std::int32_t>({Precision::I32, dims, layout});
+            }
+        } break;
+        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
+    }
+    if (blob != networkBlob) {
+        networkBlob->allocate();
+    }
+    networkBlobMap[blobData.first] = networkBlob;
+}
+
 template<typename BlobDataMap, typename GetNetworkPrecisionF>
 static void AllocateImpl(const BlobDataMap& blobDataMap,
                          BlobMap& blobMap,
@@ -80,37 +130,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
             continue;
         }
         auto& dims = blobData.second->getTensorDesc().getDims();
-        auto& precision = blobData.second->getTensorDesc().getPrecision();
-        auto layout = blobData.second->getTensorDesc().getLayout();
-        Blob::Ptr blob;
-        switch (precision) {
-        case Precision::U8: {
-            blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
-        } break;
-        case Precision::FP32 : {
-            blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
-        }
-        blob->allocate();
-        blobMap[blobData.first] = blob;
-
-        auto networkPresion = GetNetworkPrecision(blobData.first);
-        Blob::Ptr networkBlob;
-        switch (networkPresion) {
-        case ngraph::element::Type_t::f32 : {
-            if (precision == Precision::FP32) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
-            }
-        } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
-        }
-        if (blob != networkBlob) {
-            networkBlob->allocate();
-        }
-        networkBlobMap[blobData.first] = networkBlob;
+        AllocateImplSingle(blobMap, networkBlobMap, blobData, GetNetworkPrecision, dims);
     }
 }
 
@@ -191,23 +211,15 @@ void TemplateInferRequest::inferPreprocess() {
         }
         auto index = _executableNetwork->_inputIndex[input.first];
         const auto& parameter = _parameters[index];
-        const auto& parameterShape = parameter->get_shape();
+        auto parameterShape = m_realShapes.find(input.first) != m_realShapes.end() ? ngraph::Shape(m_realShapes.at(input.first)) : parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape,
             InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput)->rmap().as<void*>());
     }
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
-        auto index = _executableNetwork->_outputIndex[output.first];
-        if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
-            networkOutput = outputBlob;
-        }
-        const auto& result = _results[index];
-        const auto& resultShape = result->get_shape();
-        const auto& resultType = result->get_element_type();
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(resultType, resultShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
+    // Go over all outputs in the model, not over all allocated blobs because for a part of the outputs
+    // blobs may not be yet allocated due to unknown dimensions
+    for (size_t index = 0; index < _results.size(); ++index) {
+        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
     }
     _durations[Preprocess] = Time::now() - start;
 }
@@ -246,6 +258,50 @@ void TemplateInferRequest::inferPostprocess() {
     _durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
+
+void TemplateInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "GetBlob");
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    const SizeVector oneVector = { 1 };
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
+        auto it = _preProcData.find(name);
+        if (it != _preProcData.end()) {
+            data = it->second->getRoiBlob();
+        } else {
+            data = _inputs[name];
+            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] : foundInput->getTensorDesc().getDims();
+            if (!data) {
+                auto&& parameters = _executableNetwork->_function->get_parameters();
+                AllocateImplSingle(_inputs, _networkInputBlobs, *_networkInputs.find(name), [&] (const std::string& blobName) {
+                    return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
+                }, dims);
+                data = _inputs[name];
+            }
+            checkBlob(data, name, true,
+                      foundInput->getTensorDesc().getLayout() != SCALAR
+                      ? dims
+                      : oneVector);
+        }
+    } else {
+        data = _outputs[name];
+        const auto &dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name]
+                                                                         : foundInput->getTensorDesc().getDims();
+        if (!data) {
+            auto &&results = _executableNetwork->_function->get_results();
+            AllocateImplSingle(_outputs, _networkOutputBlobs, *_networkOutputs.find(name),
+                               [&](const std::string &blobName) {
+                                   return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
+                               }, dims);
+            data = _outputs[name];
+        }
+        checkBlob(data, name, false,
+                  foundOutput->getTensorDesc().getLayout() != SCALAR
+                  ? dims
+                  : oneVector);
+    }
+}
 
 // ! [infer_request:get_performance_counts]
 void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
