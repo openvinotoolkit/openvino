@@ -24,15 +24,18 @@ class TRANSFORMATIONS_API ConvertRNNCellMatcher;
 
 class ngraph::pass::ConvertLSTMCellMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertLSTMCellMatcher();
 };
 
 class ngraph::pass::ConvertGRUCellMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGRUCellMatcher();
 };
 
 class ngraph::pass::ConvertRNNCellMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertRNNCellMatcher();
 };
