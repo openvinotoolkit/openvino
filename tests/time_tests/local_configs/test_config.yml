@@ -1,9 +1,7 @@
 - device:
     name: "CPU"
   model:
-    name: "vgg16"
-    precision: "FP32"
-    source: "omz"
+    path: "/home/vurusovs_local/work/openvino/tests/stress_tests/tmp_model/vgg16.xml"
 - device:
     name: "GPU"
   model:
