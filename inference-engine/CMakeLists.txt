@@ -182,7 +182,9 @@ endif()
 # Developer package
 #
 
-ie_developer_export_targets(format_reader)
+if(ENABLE_SAMPLES OR ENABLE_TOOLS)
+    ie_developer_export_targets(format_reader)
+endif()
 ie_developer_export_targets(${NGRAPH_LIBRARIES})
 
 # for Template plugin
