@@ -141,40 +141,19 @@ INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel_dimension, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_per_tensor_quantization, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(FQInputs_4D_per__multiplier_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel__multiplier_4D, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
-
-using FQMulFusion_Negative = FQMulFusion;
-TEST_P(FQMulFusion_Negative, DontFuseTheSubgraph) {
-  m_expected_function = ngraph::clone_function(*m_function);
-
-  ngraph::pass::Manager manager;
-  manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
-  manager.run_passes(m_function);
-
-  const auto res = compare_functions(m_function, m_expected_function);
-  ASSERT_TRUE(res.first) << res.second;
-};
-
-INSTANTIATE_TEST_CASE_P(Multiplier_wrong_shape, FQMulFusion_Negative,
-                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
-                                           // only one dimension should be != 1
-                                           ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
-                                           // expected C6 shape - ignored in this test
-                                           ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
 } // namespace
 
 } // namespace LayerTestsDefinitions
