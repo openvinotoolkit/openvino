@@ -23,9 +23,9 @@ public:
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
+    ngraph::element::Type,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
     GroupConvolutionTransformationParam
 > GroupConvolutionTransformationParams;
@@ -41,6 +41,7 @@ protected:
 
 private:
     void validate();
+    void validateNGraph();
 };
 
 }  // namespace LayerTestsDefinitions

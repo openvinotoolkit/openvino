@@ -21,9 +21,9 @@
 namespace LayerTestsDefinitions {
 
 std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<GroupConvolutionTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
     std::tie(netPrecision, targetDevice, params, version, param) = obj.param;
@@ -42,17 +42,16 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
 void GroupConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type netPrecision;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
     std::tie(netPrecision, targetDevice, params, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
-        precision,
+        netPrecision,
         param.inputShape,
         param.outputShape,
         param.group,
@@ -61,19 +60,20 @@ void GroupConvolutionTransformation::SetUp() {
 
     if (version == LptVersion::cnnNetwork) {
         validate();
+    } else {
+        validateNGraph();
     }
 }
 
 void GroupConvolutionTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
     std::tie(netPrecision, targetDevice, params, version, param) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
-
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
     IE_SUPPRESS_DEPRECATED_START
 
     InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
@@ -90,13 +90,32 @@ void GroupConvolutionTransformation::validate() {
             checkPrecisions(
                 *layer,
                 { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-                { getDeviceInternalPrecision(netPrecision) });
+                { getDeviceInternalPrecision(toCNNNetwork(netPrecision)) });
         } else {
-            checkPrecisions(*layer, netPrecision);
+            checkPrecisions(*layer, toCNNNetwork(netPrecision));
         }
     }
 
     IE_SUPPRESS_DEPRECATED_END
+}
+
+void GroupConvolutionTransformation::validateNGraph() {
+    ngraph::element::Type netPrecision;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    GroupConvolutionTransformationParam param;
+
+    std::tie(netPrecision, targetDevice, params, version, param) = this->GetParam();
+
+    auto transformed = transformNGraph(params);
+    EXPECT_EQ(1ul, transformed->get_output_size());
+    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
+
+    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
+    ASSERT_FALSE(parent == nullptr);
+    const std::string typeName = parent->get_type_name();
+
+    ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {

@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -14,32 +15,14 @@ namespace subgraph {
 
 class GroupConvolutionFunction {
 public:
-    class ActualValues {
-    public:
-        ngraph::element::Type lowPrecision;
-        std::vector<float> subtractValues;
-        std::vector<float> mutliplyValues;
-        std::vector<float> weightsValues;
-        builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-    };
-
-    class ExpectedValues {
-    public:
-        ngraph::element::Type activationPrecision;
-        std::vector<float> subtractValues;
-        ngraph::element::Type weightsPrecision;
-        std::vector<float> weightsValues;
-        builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;;
-        std::vector<float> mutliplyValues;
-    };
-
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::Shape& outputShape,
         const size_t groupCount,
-        const bool updatePrecisions,
-        const ActualValues& actualValues);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
@@ -54,23 +37,13 @@ public:
         const ngraph::Shape& inputShape,
         const ngraph::Shape& outputShape,
         const size_t groupCount,
-        const bool updatePrecisions,
-        const ExpectedValues& expectedValues);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+        const ngraph::element::Type precisionAfterOperation,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const ngraph::element::Type precisionAfterDequantization);
 };
-
-inline std::ostream& operator<<(std::ostream& out, const GroupConvolutionFunction::ActualValues& values) {
-    return out << "_" << values.lowPrecision <<
-        "_subtract" << values.subtractValues.size() <<
-        "_mutliply" << values.mutliplyValues.size() << "_" <<
-        values.fakeQuantizeOnWeights;
-}
-
-inline std::ostream& operator<<(std::ostream& out, const GroupConvolutionFunction::ExpectedValues& values) {
-    return out << "_" << values.activationPrecision <<
-        "_subtract" << values.subtractValues.size() <<
-        "_weightsPrecision" << values.weightsPrecision << "_" <<
-        values.fakeQuantizeOnWeights;
-}
 
 }  // namespace subgraph
 }  // namespace builder
