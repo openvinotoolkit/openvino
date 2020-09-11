@@ -17,6 +17,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/init_node_info.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -80,9 +81,11 @@ public:
 
 TEST_P(FQMulFusion, ExpectFusion) {
   ngraph::pass::Manager manager;
+  manager.register_pass<ngraph::pass::InitNodeInfo>();
   manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
 
   manager.run_passes(m_function);
+  ASSERT_NO_THROW(check_rt_info(m_function));
 
   const auto res = compare_functions(m_function, m_expected_function);
   ASSERT_TRUE(res.first) << res.second;
