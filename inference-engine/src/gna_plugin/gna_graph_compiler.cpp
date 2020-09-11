@@ -110,6 +110,12 @@ void GNAGraphCompiler::fillConcatConnections(InferenceEngine::CNNLayerPtr layer)
                 InferenceEngine::details::product(begin(dataInput->getDims()),
                                                   end(dataInput->getDims())) * dataInput->getPrecision().size();
 
+        // concat align layer can have additional padding, so the size of layer needs to be calculated
+        // based on original number of rows
+        if (ptrConcatLayerInput->CheckParamPresence("original_num_rows")) {
+            layer_size = ptrConcatLayerInput->GetParamAsInt("original_num_rows") * dataInput->getPrecision().size();
+        }
+
         layerInfoItem.concatInputLayers.emplace_back(GNAConcatLayer::ConcatConnectedLayerInfo{ptrConcatLayerInput->name, concat_size, layer_size});
 
         concat_size += layer_size;
@@ -397,6 +403,11 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         ptr_outputs,
         ptr_weights,
         ptr_biases);
+
+    if (inputs->getLayout() == Layout::NHWC) {
+        currentComponent.orientation_in  = kDnnInterleavedOrientation;
+        currentComponent.orientation_out = kDnnInterleavedOrientation;
+    }
 
     size_t num_data_bytes_out =
         InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
@@ -843,7 +854,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
 
-    if (ALIGN64(cropOffset) == cropOffset) {
+    if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
         GNAPluginNS::GNACropLayer cropLayerInfoItem(layer);
         std::string& id = layer->name;

@@ -4,7 +4,7 @@
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/network_helper.hpp"
-#include "low_precision_transformations/itt.hpp"
+#include "itt.hpp"
 
 #include <ie_common.h>
 

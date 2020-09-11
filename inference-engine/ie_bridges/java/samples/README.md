@@ -61,10 +61,7 @@ https://download.01.org/opencv/2019/open_model_zoo/R1/models_bin/face-detection-
 
 ## Build and run
 
-Build and run steps are similar to ```benchmark_app```, but you need to add OpenCV path.
-
-### Build
-Add an environment variable with OpenCV installation or build path:
+Build and run steps are similar to ```benchmark_app```, but you need to add an environment variable with OpenCV installation or build path before building:
 ```bash
 export OpenCV_DIR=/path/to/opencv/
 ```
