@@ -312,9 +312,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     try {
         auto params = _ngraph_function->get_parameters();
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::SmartReshape>();
-        manager.run_passes(_ngraph_function);
+        ngraph::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.run_passes(_ngraph_function);
 
         for (size_t i = 0; i < params.size(); i++) {
             const auto& param = params[i];

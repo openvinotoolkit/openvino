@@ -16,12 +16,12 @@ bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Functio
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SmartReshape");
 
     ngraph::pass::Manager manager;
-
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::ReshapeMatMul>();
 
-//    manager.set_callback(m_transformation_callback);
+    manager.register_pass<ngraph::pass::ReshapeAMatMul>();
+    manager.register_pass<ngraph::pass::ReshapeBMatMul>();
+
     manager.run_passes(f);
     return true;
 }

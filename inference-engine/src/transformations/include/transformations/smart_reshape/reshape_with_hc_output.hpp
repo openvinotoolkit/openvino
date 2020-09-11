@@ -14,12 +14,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ReshapeMatMul;
+class TRANSFORMATIONS_API ReshapeAMatMul;
+class TRANSFORMATIONS_API ReshapeBMatMul;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ReshapeMatMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeAMatMul: public ngraph::pass::MatcherPass {
 public:
-    ReshapeMatMul();
+    ReshapeAMatMul();
+};
+class ngraph::pass::ReshapeBMatMul: public ngraph::pass::MatcherPass {
+public:
+    ReshapeBMatMul();
 };
