@@ -41,7 +41,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     size_t levels;
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
-    std::tie(levels, constShape, fqDirectArgs, std::ignore) = fqParams;
+    std::vector<float> inputArg;
+    std::tie(levels, constShape, fqDirectArgs, inputArg) = fqParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -54,6 +55,9 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     }
     if (!fqDirectArgs.empty()) {
         result << "_fqArgs=" << fqDirectArgs[0] << "_" << fqDirectArgs[1] << "_" << fqDirectArgs[2] << "_" << fqDirectArgs[3];
+    }
+    if (inputArg.size() == 3) {
+        result << "_inputArg=" << inputArg[0] << "_" << inputArg[1] << "_" << inputArg[2];
     }
     return result.str();
 }
