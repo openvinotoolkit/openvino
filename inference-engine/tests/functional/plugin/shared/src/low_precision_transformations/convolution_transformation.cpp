@@ -111,7 +111,6 @@ void ConvolutionTransformation::validateNGraph() {
     std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
 
     auto transformed = transformNGraph(params);
-    ngraph::pass::VisualizeTree("C://models//Convolution//conv.after").run_on_function(transformed);
     EXPECT_EQ(1ul, transformed->get_output_size());
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 
