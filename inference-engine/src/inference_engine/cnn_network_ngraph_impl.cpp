@@ -159,10 +159,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
 
     _ngraph_function = copyFunction(network.getFunction(), false);
 
-    ngraph::pass::Manager ssr_manager;
-    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-    ssr_manager.run_passes(_ngraph_function);
-
     InputsDataMap inputs;
     OutputsDataMap outputs;
     network.getInputsInfo(inputs);
