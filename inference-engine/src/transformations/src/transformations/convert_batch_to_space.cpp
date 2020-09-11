@@ -11,6 +11,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBatchToSpace, "ConvertBatchToSpace", 0);
+
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {

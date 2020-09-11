@@ -21,5 +21,6 @@ class TRANSFORMATIONS_API HSwishDecomposition;
  */
 class ngraph::pass::HSwishDecomposition: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishDecomposition();
 };

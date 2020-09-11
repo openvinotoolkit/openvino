@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertMulAddToScaleShiftOrPower;
 
 class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMulAddToScaleShiftOrPower() : GraphRewrite() {
         convert_mul_add_to_scaleshift_or_power();
     }

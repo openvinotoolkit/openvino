@@ -24,5 +24,6 @@ class TRANSFORMATIONS_API ConvertExtractImagePatchesToReorgYolo;
  */
 class ngraph::pass::ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertExtractImagePatchesToReorgYolo();
 };

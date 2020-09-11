@@ -10,6 +10,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
+
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     Shape shape{2, 2, 1, 1};
     auto input = make_shared<pattern::op::Label>(element::f32, shape);

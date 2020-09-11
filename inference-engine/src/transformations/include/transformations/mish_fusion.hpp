@@ -28,5 +28,6 @@ class TRANSFORMATIONS_API MishFusion;
  */
 class ngraph::pass::MishFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     MishFusion();
 };

@@ -12,6 +12,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
+
 void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
     auto broadcast = std::make_shared<pattern::op::Label>(element::f32, Shape {}, pattern::has_class<opset3::Broadcast>());
 

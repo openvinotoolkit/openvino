@@ -125,6 +125,8 @@ ngraph::graph_rewrite_callback get_callback() {
     return callback;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
+
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
@@ -135,6 +137,8 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
     register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
+
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
@@ -144,6 +148,8 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
     register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
     auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));

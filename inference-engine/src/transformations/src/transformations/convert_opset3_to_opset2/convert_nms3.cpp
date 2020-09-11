@@ -12,6 +12,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS1ToNMS3, "ConvertNMS1ToNMS3", 0);
+
 void ngraph::pass::ConvertNMS1ToNMS3::convert_nms1_to_nms3() {
     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
     auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});

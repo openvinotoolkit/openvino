@@ -24,5 +24,6 @@ class TRANSFORMATIONS_API ConvertInterpolateToInterpOrResampleMatcher;
 
 class ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertInterpolateToInterpOrResampleMatcher();
 };

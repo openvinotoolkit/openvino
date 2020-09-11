@@ -13,6 +13,8 @@
 #include <ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
+
 ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});

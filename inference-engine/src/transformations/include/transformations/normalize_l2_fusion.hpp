@@ -27,6 +27,7 @@ class TRANSFORMATIONS_API NormalizeL2FusionWithAdd;
  */
 class ngraph::pass::NormalizeL2Fusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     NormalizeL2Fusion() {
         add_matcher<ngraph::pass::NormalizeL2FusionWithMax>();
         add_matcher<ngraph::pass::NormalizeL2FusionWithAdd>();
@@ -38,8 +39,9 @@ public:
  * @brief NormalizeL2FusionWithMax transformation replaces a sub-graph
  * x/(max(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
- class ngraph::pass::NormalizeL2FusionWithMax: public ngraph::pass::MatcherPass {
+class ngraph::pass::NormalizeL2FusionWithMax: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     NormalizeL2FusionWithMax();
 };
 
@@ -48,7 +50,8 @@ public:
  * @brief NormalizeL2FusionWithAdd transformation replaces a sub-graph
  * x/(add(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
- class ngraph::pass::NormalizeL2FusionWithAdd: public ngraph::pass::MatcherPass {
+class ngraph::pass::NormalizeL2FusionWithAdd: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     NormalizeL2FusionWithAdd();
 };

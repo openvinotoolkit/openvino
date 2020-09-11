@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertNMS1ToNMS3;
 
 class ngraph::pass::ConvertNMS1ToNMS3: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertNMS1ToNMS3() : GraphRewrite() {
         convert_nms1_to_nms3();
     }

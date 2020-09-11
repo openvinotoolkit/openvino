@@ -55,6 +55,8 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
     return is_power ? CONVERSION_RESULT::POWER : CONVERSION_RESULT::SCALE_SHIFT;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulAddToScaleShiftOrPower, "ConvertMulAddToScaleShiftOrPower", 0);
+
 void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshift_or_power() {
     auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
 

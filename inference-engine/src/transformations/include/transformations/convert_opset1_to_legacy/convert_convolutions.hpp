@@ -36,20 +36,24 @@ public:
 
 class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertConvolution();
 };
 
 class ngraph::pass::ConvertGroupConvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGroupConvolution();
 };
 
 class ngraph::pass::ConvertDeconvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertDeconvolution();
 };
 
 class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGroupDeconvolution();
 };

@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 class ngraph::pass::RemoveFilteringBoxesBySize: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     RemoveFilteringBoxesBySize() : GraphRewrite() {
         remove_filtering_boxes_by_size();
     }

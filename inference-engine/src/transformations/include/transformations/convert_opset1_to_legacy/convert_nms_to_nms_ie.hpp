@@ -30,5 +30,6 @@ class TRANSFORMATIONS_API ConvertNMSToNMSIEMatcher;
 
 class ngraph::pass::ConvertNMSToNMSIEMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertNMSToNMSIEMatcher();
 };

@@ -24,6 +24,7 @@ class TRANSFORMATIONS_API Reshape1DMaxPool;
 
 class ngraph::pass::Reshape1DOps: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Reshape1DOps() : GraphRewrite() {
         add_matcher<ngraph::pass::Reshape1DConvolution>();
         add_matcher<ngraph::pass::Reshape1DAvgPool>();
@@ -33,15 +34,18 @@ public:
 
 class ngraph::pass::Reshape1DConvolution: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Reshape1DConvolution();
 };
 
 class ngraph::pass::Reshape1DAvgPool: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Reshape1DAvgPool();
 };
 
 class ngraph::pass::Reshape1DMaxPool: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Reshape1DMaxPool();
 };

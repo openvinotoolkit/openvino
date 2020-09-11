@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertSeluToSeluIEMatcher;
 
 class ngraph::pass::ConvertSeluToSeluIEMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertSeluToSeluIEMatcher();
 };

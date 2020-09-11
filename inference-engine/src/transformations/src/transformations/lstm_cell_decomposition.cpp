@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
+
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto lstm_cell = ngraph::pattern::wrap_type<opset4::LSTMCell>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {

@@ -72,6 +72,8 @@ bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::e
     return false;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
+
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},

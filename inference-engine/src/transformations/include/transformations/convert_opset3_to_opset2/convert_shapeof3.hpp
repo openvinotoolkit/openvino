@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertShapeOf3;
 
 class ngraph::pass::ConvertShapeOf3: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertShapeOf3() : GraphRewrite() {
         convert_shapeof3();
     }

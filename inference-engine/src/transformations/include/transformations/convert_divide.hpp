@@ -21,5 +21,6 @@ class TRANSFORMATIONS_API ConvertDivide;
 
 class ngraph::pass::ConvertDivide: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertDivide();
 };

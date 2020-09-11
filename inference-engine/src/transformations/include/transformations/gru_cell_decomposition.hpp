@@ -37,5 +37,6 @@ class TRANSFORMATIONS_API GRUCellDecomposition;
 
 class ngraph::pass::GRUCellDecomposition: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     GRUCellDecomposition();
 };

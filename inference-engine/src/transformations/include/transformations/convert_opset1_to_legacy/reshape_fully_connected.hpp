@@ -45,5 +45,6 @@ class TRANSFORMATIONS_API ReshapeFullyConnected;
 
 class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ReshapeFullyConnected();
 };

@@ -22,10 +22,12 @@ class TRANSFORMATIONS_API ConvertProposal4ToLegacyMatcher;
 
 class ngraph::pass::ConvertProposal4ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertProposal4ToLegacyMatcher();
 };
 
 class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertProposalToLegacyMatcher();
 };

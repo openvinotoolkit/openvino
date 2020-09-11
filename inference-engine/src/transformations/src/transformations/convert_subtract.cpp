@@ -11,6 +11,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
+
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 

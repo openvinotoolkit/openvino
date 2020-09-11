@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertPReLUToReLUIE;
 
 class ngraph::pass::ConvertPReLUToReLUIE: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertPReLUToReLUIE();
 };

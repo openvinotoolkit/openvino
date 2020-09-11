@@ -11,6 +11,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
+
 ngraph::pass::ConvertDivide::ConvertDivide() {
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 

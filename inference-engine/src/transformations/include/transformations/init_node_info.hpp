@@ -62,10 +62,6 @@ class TRANSFORMATIONS_API InitNodeInfo;
  */
 class ngraph::pass::InitNodeInfo: public ngraph::pass::FunctionPass {
 public:
-	/**
-     * Constructor
-     */
-    InitNodeInfo() : FunctionPass() {}
-
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

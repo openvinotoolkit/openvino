@@ -12,6 +12,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
+
 void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_scatter() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});

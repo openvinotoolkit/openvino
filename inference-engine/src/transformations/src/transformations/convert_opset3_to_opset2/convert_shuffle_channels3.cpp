@@ -13,6 +13,8 @@
 
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
+
 void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);

@@ -21,5 +21,6 @@ class TRANSFORMATIONS_API ConvertMinimum;
 
 class ngraph::pass::ConvertMinimum: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMinimum();
 };

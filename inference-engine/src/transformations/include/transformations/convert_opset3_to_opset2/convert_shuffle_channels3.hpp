@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertShuffleChannels3;
 
 class ngraph::pass::ConvertShuffleChannels3: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertShuffleChannels3() : GraphRewrite() {
         convert_shuffle_channels3();
     }

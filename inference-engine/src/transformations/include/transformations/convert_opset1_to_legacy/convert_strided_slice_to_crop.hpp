@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertStridedSliceToCropMatcher;
 
 class ngraph::pass::ConvertStridedSliceToCropMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertStridedSliceToCropMatcher();
 };

@@ -23,10 +23,12 @@ class TRANSFORMATIONS_API ConvertNormalizeL2ToLegacyMatcher;
 
 class ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertNormalizeL2WithMulToNormalizeIE();
 };
 
 class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertNormalizeL2ToLegacyMatcher();
 };

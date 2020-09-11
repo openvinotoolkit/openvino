@@ -32,5 +32,6 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 
 class ngraph::pass::ConvertQuantizeDequantize: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertQuantizeDequantize();
 };

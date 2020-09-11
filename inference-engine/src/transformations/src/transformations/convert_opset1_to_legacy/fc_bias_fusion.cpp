@@ -12,6 +12,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
+
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto fc = ngraph::pattern::wrap_type<op::FullyConnected>();
     auto add = ngraph::pattern::wrap_type<opset1::Add>({fc, std::make_shared<pattern::op::Label>()});

@@ -13,6 +13,8 @@
 
 #include <ngraph_ops/lrn_ie.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
+
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});

@@ -10,6 +10,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
+
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto data1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto data2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});

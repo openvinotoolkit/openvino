@@ -32,5 +32,6 @@ class TRANSFORMATIONS_API FullyConnectedBiasFusion;
 
 class ngraph::pass::FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     FullyConnectedBiasFusion();
 };

@@ -28,6 +28,7 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
  */
 class ngraph::pass::SwishFusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SwishFusion() {
         add_matcher<ngraph::pass::SwishFusionWithSigmoid>();
         add_matcher<ngraph::pass::SwishFusionWithSigmoidWithBeta>();
@@ -40,8 +41,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x) with a Swish op.
  */
- class ngraph::pass::SwishFusionWithSigmoid: public ngraph::pass::MatcherPass {
+class ngraph::pass::SwishFusionWithSigmoid: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SwishFusionWithSigmoid();
 };
 
@@ -51,6 +53,7 @@ public:
  */
 class ngraph::pass::SwishFusionWithSigmoidWithBeta: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SwishFusionWithSigmoidWithBeta();
 };
 
@@ -60,6 +63,7 @@ public:
  */
 class ngraph::pass::SwishFusionWithBeta: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SwishFusionWithBeta();
 };
 
@@ -69,5 +73,6 @@ public:
  */
 class ngraph::pass::SwishFusionWithoutBeta: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SwishFusionWithoutBeta();
 };

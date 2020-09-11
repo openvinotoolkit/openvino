@@ -22,6 +22,7 @@ class TRANSFORMATIONS_API ConvertSqrtToPowerIEMatcher;
 
 class ngraph::pass::ConvertSqrtToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertSqrtToPowerIEMatcher();
 };
 

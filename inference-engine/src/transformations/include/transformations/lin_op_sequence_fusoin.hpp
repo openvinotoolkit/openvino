@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API MultiplyMultiplyFusion;
 
 class ngraph::pass::LinOpSequenceFusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     LinOpSequenceFusion() {
         add_matcher<ngraph::pass::AddMultiplyFusion>();
         add_matcher<ngraph::pass::AddAddFusion>();
@@ -32,15 +33,18 @@ public:
 
 class ngraph::pass::AddMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     AddMultiplyFusion();
 };
 
 class ngraph::pass::AddAddFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     AddAddFusion();
 };
 
 class ngraph::pass::MultiplyMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     MultiplyMultiplyFusion();
 };

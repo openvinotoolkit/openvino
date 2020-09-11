@@ -13,6 +13,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSwishToSwishIEMatcher, "ConvertSwishToSwishIEMatcher", 0);
+
 ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 

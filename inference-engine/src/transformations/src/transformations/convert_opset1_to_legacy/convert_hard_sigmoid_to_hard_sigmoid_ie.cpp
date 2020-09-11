@@ -13,6 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/hard_sigmoid_ie.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertHardSigmoidToLegacyMatcher, "ConvertHardSigmoidToLegacyMatcher", 0);
 
 ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});

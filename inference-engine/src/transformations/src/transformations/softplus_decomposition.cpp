@@ -11,6 +11,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusDecomposition, "SoftPlusDecomposition", 0);
+
 ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)
     auto input = ngraph::pattern::any_input();

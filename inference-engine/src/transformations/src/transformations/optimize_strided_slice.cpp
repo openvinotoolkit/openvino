@@ -10,6 +10,10 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
+
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
@@ -76,6 +80,8 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
     return lhs_plan == rhs_plan;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
+
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
 
@@ -98,6 +104,8 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
     }
     return graph_rewritten;
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
