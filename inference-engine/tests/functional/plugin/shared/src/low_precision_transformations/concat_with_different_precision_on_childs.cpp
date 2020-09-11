@@ -66,7 +66,6 @@ void ConcatWithDifferentChildsTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
-
     if (version == LptVersion::cnnNetwork) {
         validate();
     }
@@ -94,7 +93,7 @@ void ConcatWithDifferentChildsTransformation::validate() {
 
     const InferenceEngine::CNNLayerPtr outputLayer0 = getCreatorLayer(outputs.begin()->second).lock();
     const InferenceEngine::CNNLayerPtr outputLayer1 = getCreatorLayer((++outputs.begin())->second).lock();
-    EXPECT_EQ("Clamp", outputLayer0->type);
+    EXPECT_EQ("ScaleShift", outputLayer0->type);
     EXPECT_EQ("ScaleShift", outputLayer1->type);
 
     const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer1);

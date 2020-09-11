@@ -33,7 +33,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
 
         const auto subValues = constant->cast_vector<float>();
         for (size_t i = 1; i < subValues.size(); ++i) {
-            if (subValues[0] != subValues[i]) {
+            if (std::abs(subValues[0] - subValues[i]) > 1e-6) {
                 return false;
             }
         }
@@ -95,7 +95,7 @@ bool ClampTransformation::canBeTransformed(const TransformationContext& context,
     const auto mulConstValues = mulConst->cast_vector<float>();
 
     for (size_t i = 1; i < mulConstValues.size(); ++i) {
-        if (mulConstValues[0] != mulConstValues[i]) {
+        if (std::abs(mulConstValues[0] - mulConstValues[i]) > 1e-6) {
             return false;
         }
     }

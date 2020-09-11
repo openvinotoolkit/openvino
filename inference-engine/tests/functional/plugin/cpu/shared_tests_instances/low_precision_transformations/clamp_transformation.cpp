@@ -54,20 +54,15 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params{
     // per-channel quantization with the same values
     {
         {
-            256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            256ul, ngraph::Shape{ 1, 3, 1, 1 },
             { -127.f, -127.f, -127.f },
             { 128.f, 128.f, 128.f },
             { 0.f, 0.f, 0.f },
-            { 25.5f, 25.5f, 25.5f }
+            { 255.f, 255.f, 255.f }
         },
-        {
-            {},
-            {{0.f, 0.f, 0.f}},
-            {{0.1f, 0.1f, 0.1f}}
-        },
+        {},
         0.0,
-        128.0
+        255.0
     },
     // per-channel quantization with different values
     {
