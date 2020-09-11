@@ -14,26 +14,28 @@ Please see complete documentation [here](https://www.tensorflow.org/addons/api_d
 Pseudo code:
 
 ```python
+final_idx[ :, :, :] = end_token
 for batch in range(BATCH_SIZE):
     for beam in range(BEAM_WIDTH):
         max_sequence_in_beam = min(MAX_TIME, max_seq_len[batch])
 
         parent = parent_idx[max_sequence_in_beam - 1, batch, beam]
-        
+
+        final_idx[max_sequence_in_beam - 1, batch, beam] = step_idx[max_sequence_in_beam - 1, batch, beam]
+       
         for level in reversed(range(max_sequence_in_beam - 1)):
             final_idx[level, batch, beam] = step_idx[level, batch, parent]
 
             parent = parent_idx[level, batch, parent]
 
-# For a given beam, past the time step containing the first decoded end_token 
-# all values are filled in with end_token.
-for batch in range(BATCH_SIZE):
-    for beam in range(BEAM_WIDTH):
-        for level in range(MAX_TIME):
-            if final_idx[level, batch, beam] == end_token:
-                for i in range(level+1, MAX_TIME):
-                    final_idx[i, batch, beam] = end_token
-                break
+        # For a given beam, past the time step containing the first decoded end_token 
+        # all values are filled in with end_token.
+        finished = False
+        for time in range(max_sequence_in_beam):
+            if(finished):
+                final_idx[time, batch, beam] = end_token
+            elif(final_idx[time, batch, beam] == end_token):
+                finished = True
 ```
 
 Element data types for all input tensors should match each other.
