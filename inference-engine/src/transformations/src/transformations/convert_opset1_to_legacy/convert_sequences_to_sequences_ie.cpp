@@ -27,7 +27,6 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         const auto& R = lstm_sequence->input_value(5);
 
         // Bidirectional cases are not supported
-        // todo: add exception
         if (lstm_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
@@ -84,7 +83,6 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         auto R = gru_sequence->input_value(4);
 
         // Bidirectional cases are not supported
-        // todo: add exception
         if (gru_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
@@ -135,7 +133,6 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         }
 
         // Bidirectional cases are not supported
-        // todo: add exception
         if (rnn_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
