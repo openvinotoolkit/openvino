@@ -25,8 +25,11 @@ typedef std::tuple<
 > convSpecificParams;
 typedef std::tuple<
         convSpecificParams,
-        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // in precision
+        InferenceEngine::Precision,     // out precision
         InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::Layout,        // in layout
+        InferenceEngine::Layout,        // out layout
         LayerTestsUtils::TargetDevice   // Device name
 > convLayerTestParamsSet;
 namespace LayerTestsDefinitions {
