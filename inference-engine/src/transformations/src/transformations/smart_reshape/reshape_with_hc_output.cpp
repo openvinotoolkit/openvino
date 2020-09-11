@@ -27,7 +27,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
     const auto &shape_source = pattern_to_output.at(other_input_label);
     if (ngraph::is_type<ngraph::opset4::Transpose>(shape_source.get_node_shared_ptr()) ||
             ngraph::is_type<ngraph::opset4::Reshape>(shape_source.get_node_shared_ptr()))
-        // loop could be created
+        // avoiding loop creation
         return false;
     const auto & reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 

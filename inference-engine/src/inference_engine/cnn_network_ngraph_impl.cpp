@@ -158,7 +158,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
-
     InputsDataMap inputs;
     OutputsDataMap outputs;
     network.getInputsInfo(inputs);
@@ -316,6 +315,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
         auto params = _ngraph_function->get_parameters();
+
         for (size_t i = 0; i < params.size(); i++) {
             const auto& param = params[i];
             if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
