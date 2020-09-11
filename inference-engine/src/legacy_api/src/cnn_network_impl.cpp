@@ -20,6 +20,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
@@ -96,6 +97,8 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
     ::ngraph::pass::Manager manager;
+    // WA: ConvertPriorBox must be executed before ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<::ngraph::pass::CommonOptimizations>();
     manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();

@@ -27,6 +27,7 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
@@ -164,7 +165,8 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         ngraph::pass::Manager manager;
-
+        // WA: ConvertPriorBox must be executed before ConstantFolding pass
+        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
