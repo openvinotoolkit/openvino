@@ -22,6 +22,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
 #include "exec_graph_info.hpp"
@@ -310,6 +311,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
         auto params = _ngraph_function->get_parameters();
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::SmartReshape>();
+        manager.run_passes(_ngraph_function);
 
         for (size_t i = 0; i < params.size(); i++) {
             const auto& param = params[i];
