@@ -118,5 +118,12 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+    if (fakeQuantize != nullptr) {
+        if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
+            return false;
+        }
+    }
+
     return true;
 }
