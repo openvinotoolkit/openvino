@@ -96,7 +96,6 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 }
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    return false;
     std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
     if ((reshape == nullptr) || (!canBeTransformed(context, reshape))) {
         return false;
