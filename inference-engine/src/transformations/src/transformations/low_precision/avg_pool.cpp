@@ -30,9 +30,7 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
-    if (pooling->get_friendly_name() == "InceptionV4/Logits/AvgPool_1a/AvgPool") {
-        int a = 3;
-    }
+
     const auto children = pooling->get_output_target_inputs(0);
     bool updatePrecision = false;
     // NOTE: This check was added for models that don't have FQ after AvgPool
