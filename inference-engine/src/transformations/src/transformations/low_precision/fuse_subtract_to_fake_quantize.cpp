@@ -39,8 +39,12 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     outputLowConst = fold<opset1::Subtract>(outputLowConst, value);
     outputHighConst = fold<opset1::Subtract>(outputHighConst, value);
 
+    const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
+    const size_t parentIndex = NetworkHelper::getInputIndex(fakeQuantizeParent, fakeQuantize);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-        opset1::FakeQuantize(fakeQuantize->get_input_node_shared_ptr(0),
+        opset1::FakeQuantize(
+            fakeQuantizeParent->output(parentIndex),
             fakeQuantize->input_value(1),
             fakeQuantize->input_value(2),
             outputLowConst,
