@@ -43,6 +43,7 @@ namespace pass {
 
 class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     DepthToSpaceFusion() : GraphRewrite() {
         depth_to_space_fusion();
     }

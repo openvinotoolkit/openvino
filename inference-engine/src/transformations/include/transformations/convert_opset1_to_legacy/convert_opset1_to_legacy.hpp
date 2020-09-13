@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertOpSet1ToLegacy;
 
 class ngraph::pass::ConvertOpSet1ToLegacy: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

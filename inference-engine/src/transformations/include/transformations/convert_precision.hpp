@@ -71,6 +71,7 @@ class TRANSFORMATIONS_API ConvertPrecision;
 
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to)
         : FunctionPass(),
         m_from(from),
