@@ -60,16 +60,22 @@ PartialShape::PartialShape(const std::vector<Dimension>& dimensions)
 
 bool ngraph::PartialShape::is_static() const
 {
-    if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN)
+    ShapeType shape_type = m_shape_type;
+
+    if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN || m_shape_type == ShapeType::SHAPE_IS_UPDATED)
     {
-        m_shape_type =
+        shape_type =
             m_rank_is_static && std::all_of(m_dimensions.begin(),
                                             m_dimensions.end(),
                                             [](const Dimension& d) { return d.is_static(); })
                 ? ShapeType::SHAPE_IS_STATIC
                 : ShapeType::SHAPE_IS_DYNAMIC;
+
+        if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN)
+            m_shape_type = shape_type;
     }
-    return m_shape_type == ShapeType::SHAPE_IS_STATIC;
+
+    return shape_type == ShapeType::SHAPE_IS_STATIC;
 }
 
 bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const
@@ -473,7 +479,7 @@ Dimension& PartialShape::operator[](size_t i)
         throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
     }
     m_shape_type =
-        ShapeType::SHAPE_IS_UNKNOWN; // We can't guarantee that the shape remains static or dynamic.
+        ShapeType::SHAPE_IS_UPDATED; // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
 

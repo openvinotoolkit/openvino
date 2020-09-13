@@ -10,6 +10,8 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
+
 void ngraph::pass::ConvertGELU::convert_gelu() {
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
