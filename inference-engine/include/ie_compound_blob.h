@@ -35,43 +35,18 @@ public:
     using CPtr = std::shared_ptr<const CompoundBlob>;
 
     /**
-     * @brief A virtual destructor
-     */
-    virtual ~CompoundBlob() = default;
-
-    /**
-     * @brief A copy constructor
-     */
-    CompoundBlob(const CompoundBlob& blob);
-
-    /**
-     * @brief A copy assignment operator
-     */
-    CompoundBlob& operator=(const CompoundBlob& blob) = default;
-
-    /**
-     * @brief A move constructor
-     */
-    CompoundBlob(CompoundBlob&& blob);
-
-    /**
-     * @brief A move assignment operator
-     */
-    CompoundBlob& operator=(CompoundBlob&& blob) = default;
-
-    /**
      * @brief Constructs a compound blob from a vector of blobs
      *
      * @param blobs A vector of blobs that is copied to this object
      */
-    explicit CompoundBlob(const std::vector<Blob::Ptr>& blobs);
+    explicit CompoundBlob(const std::vector<Blob::Ptr>& blobs, const TensorDesc& tensorDesc = {});
 
     /**
      * @brief Constructs a compound blob from a vector of blobs
      *
      * @param blobs A vector of blobs that is moved to this object
      */
-    explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs);
+    explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs, const TensorDesc& tensorDesc = {});
 
     /**
      * @brief Always returns 0
@@ -121,11 +96,6 @@ public:
 
 protected:
     /**
-     * @brief A default constructor
-     */
-    CompoundBlob();
-
-    /**
      * @brief Compound blob container for underlying blobs
      */
     std::vector<Blob::Ptr> _blobs;
@@ -157,11 +127,6 @@ public:
     using CPtr = std::shared_ptr<const NV12Blob>;
 
     /**
-     * @brief A deleted default constructor
-     */
-    NV12Blob() = delete;
-
-    /**
      * @brief Constructs NV12 blob from two planes Y and UV
      *
      * @param y Blob object that represents Y plane in NV12 color format
@@ -176,31 +141,6 @@ public:
      * @param uv Blob object that represents UV plane in NV12 color format
      */
     NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv);
-
-    /**
-     * @brief A virtual destructor
-     */
-    virtual ~NV12Blob() = default;
-
-    /**
-     * @brief A copy constructor
-     */
-    NV12Blob(const NV12Blob& blob) = default;
-
-    /**
-     * @brief A copy assignment operator
-     */
-    NV12Blob& operator=(const NV12Blob& blob) = default;
-
-    /**
-     * @brief A move constructor
-     */
-    NV12Blob(NV12Blob&& blob) = default;
-
-    /**
-     * @brief A move assignment operator
-     */
-    NV12Blob& operator=(NV12Blob&& blob) = default;
 
     /**
      * @brief Returns a shared pointer to Y plane
@@ -241,11 +181,6 @@ public:
     using CPtr = std::shared_ptr<const I420Blob>;
 
     /**
-     * @brief A deleted default constructor
-     */
-    I420Blob() = delete;
-
-    /**
      * @brief Constructs I420 blob from three planes Y, U and V
      * @param y Blob object that represents Y plane in I420 color format
      * @param u Blob object that represents U plane in I420 color format
@@ -260,32 +195,6 @@ public:
      * @param v Blob object that represents V plane in I420 color format
      */
     I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v);
-
-    /**
-     * @brief A virtual destructor. It is made out of line for RTTI to
-     * work correctly on some platforms.
-     */
-    virtual ~I420Blob();
-
-    /**
-     * @brief A copy constructor
-     */
-    I420Blob(const I420Blob& blob) = default;
-
-    /**
-     * @brief A copy assignment operator
-     */
-    I420Blob& operator=(const I420Blob& blob) = default;
-
-    /**
-     * @brief A move constructor
-     */
-    I420Blob(I420Blob&& blob) = default;
-
-    /**
-     * @brief A move assignment operator
-     */
-    I420Blob& operator=(I420Blob&& blob) = default;
 
     /**
      * @brief Returns a reference to shared pointer to Y plane
@@ -348,5 +257,69 @@ public:
     const Blob::Ptr& v() const noexcept;
 
     Blob::Ptr createROI(const ROI& roi) const override;
+};
+
+/**
+ * @brief This class represents a blob that contains other blobs - one per batch
+ */
+class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
+ public:
+    /**
+     * @brief A smart pointer to the BatchedBlob object
+     */
+    using Ptr = std::shared_ptr<BatchedBlob>;
+
+    /**
+     * @brief A smart pointer to the const BatchedBlob object
+     */
+    using CPtr = std::shared_ptr<const BatchedBlob>;
+
+    /**
+     * @brief Constructs a batched blob from a vector of blobs
+     * @details All passed blobs should meet following requirements:
+     * - all blobs have equal tensor descriptors,
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW
+     * - batch dimensions should be equal to 1 or not defined (C, CHW).
+     * Resulting blob's tensor descriptor is constructed using tensor descriptors
+     * of passed blobs by setting batch dimension to blobs.size()
+     *
+     * @param blobs A vector of blobs that is copied to this object
+     */
+    explicit BatchedBlob(const std::vector<Blob::Ptr>& blobs);
+
+    /**
+     * @brief Constructs a batched blob from a vector of blobs
+     * @details All passed blobs should meet following requirements:
+     * - all blobs have equal tensor descriptors,
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW
+     * - batch dimensions should be equal to 1 or not defined (C, CHW).
+     * Resulting blob's tensor descriptor is constructed using tensor descriptors
+     * of passed blobs by setting batch dimension to blobs.size()
+     *
+     * @param blobs A vector of blobs that is copied to this object
+     */
+    explicit BatchedBlob(std::vector<Blob::Ptr>&& blobs);
+
+    /**
+     * @brief Constructs a batched blob from a vector of blobs with specified
+     * tensor descriptor
+     * @details It is caller's responsibility to validate the correctness of sub-blobs
+     * and tensor descriptor
+     *
+     * @param tensorDesc Defines the layout and dims of the blob
+     * @param blobs A vector of blobs that is copied to this object
+     */
+    BatchedBlob(const std::vector<Blob::Ptr>& blobs, const TensorDesc& tensorDesc);
+
+    /**
+     * @brief Constructs a batched blob from a vector of blobs with specified
+     * tensor descriptor
+     * @details It is caller's responsibility to validate the correctness of sub-blobs
+     * and tensor descriptor
+     *
+     * @param tensorDesc Defines the layout and dims of the blob
+     * @param blobs A vector of blobs that is copied to this object
+     */
+    BatchedBlob(std::vector<Blob::Ptr>&& blobs, const TensorDesc& tensorDesc);
 };
 }  // namespace InferenceEngine
