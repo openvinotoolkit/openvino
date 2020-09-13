@@ -297,6 +297,21 @@ public:
         const std::string& name,
         const DataVector& inputs,
         const DataVector& outputs);
+
+    Stage addSigmoidStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const DataVector& inputs,
+            const DataVector& outputs);
+
+    Stage addProdStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input0,
+            const Data& input1,
+            const Data& output);
 };
 
 }  // namespace vpu

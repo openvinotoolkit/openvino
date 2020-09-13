@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GRUCellDecomposition, "GRUCellDecomposition", 0);
+
 ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {

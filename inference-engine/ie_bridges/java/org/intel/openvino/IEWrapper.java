@@ -3,7 +3,7 @@ package org.intel.openvino;
 public class IEWrapper {
     protected final long nativeObj;
 
-    protected IEWrapper(long addr){
+    protected IEWrapper(long addr) {
         nativeObj = addr;
     }
 

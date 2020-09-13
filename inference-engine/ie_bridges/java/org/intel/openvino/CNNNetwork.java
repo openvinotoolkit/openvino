@@ -8,11 +8,11 @@ public class CNNNetwork extends IEWrapper {
         super(addr);
     }
 
-    public String getName(){
+    public String getName() {
         return getName(nativeObj);
     }
 
-    public int getBatchSize(){
+    public int getBatchSize() {
         return getBatchSize(nativeObj);
     }
 
@@ -20,7 +20,7 @@ public class CNNNetwork extends IEWrapper {
         return GetOutputsInfo(nativeObj);
     }
 
-    public Map<String, InputInfo> getInputsInfo(){
+    public Map<String, InputInfo> getInputsInfo() {
         return GetInputsInfo(nativeObj);
     }
 
@@ -28,7 +28,7 @@ public class CNNNetwork extends IEWrapper {
         reshape(nativeObj, inputShapes);
     }
 
-    public Map<String, int[]> getInputShapes(){
+    public Map<String, int[]> getInputShapes() {
         return getInputShapes(nativeObj);
     }
 
@@ -46,7 +46,7 @@ public class CNNNetwork extends IEWrapper {
     private static native int getBatchSize(long addr);
 
     private static native Map<String, InputInfo> GetInputsInfo(long addr);
-    
+
     private static native Map<String, Data> GetOutputsInfo(long addr);
 
     private static native void reshape(long addr, Map<String, int[]> inputShapes);
