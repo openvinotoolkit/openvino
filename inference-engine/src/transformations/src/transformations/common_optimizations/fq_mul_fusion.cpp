@@ -20,17 +20,17 @@ namespace {
     const auto mul_out_low = std::make_shared<ngraph::opset4::Multiply>(out_low, multiplier);
     const auto mul_out_high = std::make_shared<ngraph::opset4::Multiply>(out_high, multiplier);
 
-    ngraph::OutputVector folded_out_low(1), folded_out_high(1);
+    ngraph::OutputVector new_out_low(1), new_out_high(1);
 
-    if (!mul_out_low->constant_fold(folded_out_low, {out_low, multiplier})) {
-      throw ngraph::ngraph_error("Could not constant fold the output_low Multiply operation");
+    if (!mul_out_low->constant_fold(new_out_low, {out_low, multiplier})) {
+      new_out_low[0] = mul_out_low;
     }
 
-    if (!mul_out_high->constant_fold(folded_out_high, {out_high, multiplier})) {
-      throw ngraph::ngraph_error("Could not constant fold the output_high Multiply operation");
+    if (!mul_out_high->constant_fold(new_out_high, {out_high, multiplier})) {
+      new_out_high[0] = mul_out_high;
     }
 
-    return {folded_out_low[0], folded_out_high[0]};
+    return {new_out_low[0], new_out_high[0]};
   }
 } // namespace
 
