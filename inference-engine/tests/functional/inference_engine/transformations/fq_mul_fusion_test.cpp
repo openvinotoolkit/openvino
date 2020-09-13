@@ -154,6 +154,34 @@ INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMu
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
+
+INSTANTIATE_TEST_CASE_P(FQInputs_4D__multiplier_channel_3rd_dim, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 3, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 3, 1})));
+
+INSTANTIATE_TEST_CASE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1}),
+                                           ::testing::Values(ngraph::Shape{1, 3, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 3, 1})));
+
+INSTANTIATE_TEST_CASE_P(FQ_all_ones__multiplier_4D_with_channel, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
+
+INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
+                        ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
+                                           ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
 } // namespace
 
 } // namespace LayerTestsDefinitions

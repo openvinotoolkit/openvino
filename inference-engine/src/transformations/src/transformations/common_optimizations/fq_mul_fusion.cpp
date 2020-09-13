@@ -36,7 +36,8 @@ namespace {
 
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
-// The Multiply node is removed along with the constant (C6).
+// Both output_low and output_high are multiplied by the value represented as C6 (a constant) below.
+// In case any of the FQ inputs (C4 and/or C5) is constant, it gets constant folded with C6.
 //
 //            C1 C2 C3 C4 C5
 //            |  |  |  |  |
