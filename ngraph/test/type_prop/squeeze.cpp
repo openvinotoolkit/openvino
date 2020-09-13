@@ -25,16 +25,40 @@ TEST(type_prop, squeeze)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{0, 2});
+        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{0, -4});
     auto squeeze = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
     ASSERT_EQ(squeeze->get_shape(), (Shape{4, 4, 1, 8}));
 
-    auto squeeze_default_axes = make_shared<op::Squeeze>(param);
+    axes_node = make_shared<ngraph::op::Constant>(element::u64, Shape{0}, vector<int64_t>{});
+    auto squeeze_default_axes = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze_default_axes->get_element_type(), element::f32);
     ASSERT_EQ(squeeze_default_axes->get_shape(), (Shape{4, 4, 8}));
+
+    auto squeeze_no_axes = make_shared<op::Squeeze>(param);
+
+    ASSERT_EQ(squeeze_default_axes->get_element_type(), element::f32);
+    ASSERT_EQ(squeeze_default_axes->get_shape(), (Shape{4, 4, 8}));
+
+    auto repeated_axes_node = ngraph::op::Constant::create(element::u64, Shape{5}, vector<int64_t>{0, 0, 0, 4, 4});
+    auto repeated_squeeze = make_shared<op::Squeeze>(param, repeated_axes_node);
+
+    ASSERT_EQ(repeated_squeeze->get_element_type(), element::f32);
+    ASSERT_EQ(repeated_squeeze->get_shape(), (Shape{4, 1, 4, 8}));
+
+    auto not_sorted_axes_node =
+            make_shared<ngraph::op::Constant>(element::u64, Shape{5}, vector<int64_t>{4, 0, 4, 4, 0});
+    auto non_sorted_squeeze = make_shared<op::Squeeze>(param, not_sorted_axes_node);
+    ASSERT_EQ(non_sorted_squeeze->get_element_type(), element::f32);
+    ASSERT_EQ(non_sorted_squeeze->get_shape(), (Shape{4, 1, 4, 8}));
+
+    auto dynamic_param = make_shared<op::Parameter>(element::f32, PartialShape{1, 4, Dimension::dynamic(), 4, 1, 8});
+    axes_node = make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{0, 2});;
+    auto dynamic_squeeze =  make_shared<op::Squeeze>(dynamic_param, axes_node);
+    ASSERT_EQ(dynamic_squeeze->get_element_type(), element::f32);
+    EXPECT_TRUE(dynamic_squeeze->get_output_partial_shape(0).same_scheme(PartialShape{4, 4, 1, 8}));
 }
 
 TEST(type_prop, squeeze_dynamic)
@@ -48,11 +72,22 @@ TEST(type_prop, squeeze_dynamic)
 
     EXPECT_TRUE(squeeze->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 
-    auto squeeze_default_axes = make_shared<op::Squeeze>(param);
+    axes_node = make_shared<ngraph::op::Constant>(element::u64, Shape{0}, vector<int64_t>{});
+    auto squeeze_default_axes = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze_default_axes->get_element_type(), element::f32);
     EXPECT_TRUE(
         squeeze_default_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+
+    auto squeeze_no_axes = make_shared<op::Squeeze>(param);
+    ASSERT_EQ(squeeze_no_axes->get_element_type(), element::f32);
+    EXPECT_TRUE(squeeze_no_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+
+    auto static_param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 1, 1, 1});
+    auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto squeeze_dynamic_axes = make_shared<op::Squeeze>(static_param, axes_param);
+    ASSERT_EQ(squeeze_no_axes->get_element_type(), element::f32);
+    EXPECT_TRUE(squeeze_no_axes->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, squeeze_axes_invalid_value)
@@ -60,6 +95,22 @@ TEST(type_prop, squeeze_axes_invalid_value)
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node =
         make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{0, 2});
+
+    try
+    {
+        auto squeeze = make_shared<op::Squeeze>(param, axes_node);
+        FAIL() << "Squeeze axis invalid value not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "provided axis value is invalid. Only axes of size 1 may be removed.");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+    auto dynamic_param = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4, Dimension::dynamic()});
 
     try
     {

@@ -1539,13 +1539,6 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
-{
-    const auto data_param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});
-    EXPECT_THROW(make_shared<op::Squeeze>(data_param, axes_param), CheckFailure);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, squared_difference)
 {
     const auto x1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});

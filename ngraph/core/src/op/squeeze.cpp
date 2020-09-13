@@ -48,68 +48,45 @@ void op::Squeeze::validate_and_infer_types()
 {
     set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
 
-    auto data = input_value(0);
-    auto data_partial_shape = data.get_partial_shape();
+    const auto& data_partial_shape = input_value(0).get_partial_shape();
     bool data_has_dynamic_shape = data_partial_shape.is_dynamic();
     bool data_has_dynamic_rank = data_partial_shape.rank().is_dynamic();
 
     bool auto_squeezing = get_input_size() == 1;
+    if (!auto_squeezing && is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+        auto_squeezing = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr())->cast_vector<int64_t>().empty();
+
     if (data_has_dynamic_rank || (auto_squeezing && data_has_dynamic_shape))
         return;
-
     if (!auto_squeezing && !is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
         return;
 
-    uint64_t data_rank = data_partial_shape.rank().get_length();
-    // Prepare set of unique axes marked to be removed from input data.
-    vector<uint64_t> axes_to_squeeze(data_rank);
     if (auto_squeezing)
     {
-        auto data_shape = data.get_shape();
-        // Default behaviour is to remove all single dimension axes.
-        for (uint64_t idx = 0; idx < data_rank; ++idx)
-        {
-            if (data_shape.at(idx) == 1)
-            {
-                axes_to_squeeze.at(idx) = 1;
-            }
-            else
-            {
-                axes_to_squeeze.at(idx) = 0;
-            }
-        }
+        auto output_shape = data_partial_shape.to_shape();
+        output_shape.erase(std::remove(output_shape.begin(), output_shape.end(), 1), output_shape.end());
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
     }
-    else
-    {
-        const auto axes_constant =
-            as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-        const auto raw_axes = axes_constant->cast_vector<int64_t>();
-        auto normalized_axes = normalize_axes(this->description(), raw_axes, data_rank);
-        set<size_t, greater<size_t>> unique_axes(begin(normalized_axes), end(normalized_axes));
+    const auto & data_rank = data_partial_shape.rank().get_length();
+    auto axes = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr())->cast_vector<int64_t>();
+    std::transform(axes.begin(), axes.end(), axes.begin(), [data_rank](int64_t axis) -> int64_t { return axis < 0 ? data_rank + axis : axis; });
+    axes.erase(std::unique(axes.begin(), axes.end()), axes.end());
 
-        for (uint64_t axis : unique_axes)
-        {
-            if (!data_has_dynamic_shape)
-            {
-                auto data_shape = data.get_shape();
-                NODE_VALIDATION_CHECK(
-                    this,
-                    (data_shape.at(axis) == 1),
-                    "provided axis value is invalid. Only axes of size 1 may be removed.");
-            }
-            axes_to_squeeze.at(axis) = 1;
-        }
-    }
-
-    vector<Dimension> output_data_shape;
-    for (uint64_t idx = 0; idx < data_rank; ++idx)
-    {
-        if (axes_to_squeeze.at(idx) == 0)
-        {
-            output_data_shape.push_back(data_partial_shape[idx]);
-        }
-    }
-    set_output_type(0, get_input_element_type(0), PartialShape(output_data_shape));
+    auto output_partial_shape = std::vector<ngraph::Dimension>(data_partial_shape);
+    int idx = 0;
+    output_partial_shape.erase(std::remove_if(output_partial_shape.begin(), output_partial_shape.end(),
+                                              [this, axes, &idx, data_partial_shape](const Dimension& d) {
+        bool should_remove = std::find(axes.begin(), axes.end(), idx) != axes.end();
+        if (should_remove)
+            NODE_VALIDATION_CHECK(
+                      this,
+                      (data_partial_shape[idx].is_dynamic() || data_partial_shape[idx] == 1),
+                      "provided axis value is invalid. Only axes of size 1 may be removed.");
+        ++idx;
+        return should_remove;
+    }), output_partial_shape.end());
+    set_output_type(0, get_input_element_type(0), PartialShape(output_partial_shape));
 }
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
@@ -148,7 +125,7 @@ namespace
         int64_t data_rank = static_cast<int64_t>(data_shape.size());
         auto out_shape = data_shape;
         // Empty axes vector
-        if (!arg1)
+        if (arg1->get_element_count() == 0)
         {
             out_shape.erase(std::remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
         }
