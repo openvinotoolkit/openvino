@@ -368,18 +368,21 @@ std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::T
 
     // TODO: Add SSE2/FP16C/AVX check
 
-    size_t const n = size / 8;
+    const int nthr = tbb::this_task_arena::max_concurrency();
+    const size_t trange = size / nthr;
+    size_t step = trange >= 8 ? (trange / 8) * 8 : 8;
+    const size_t n = size / step;
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, n),
                         [&](tbb::blocked_range<size_t> range) {
-                            for (size_t i = range.begin(); i < range.end(); ++i) {
-                                __m128i f16vec = _mm_loadu_si128((const __m128i*)&src_data[i * 8]); // SSE2
+                            for (size_t i = range.begin() * step; i < range.end() * step; i += 8) {
+                                __m128i f16vec = _mm_loadu_si128((const __m128i*)&src_data[i]);     // SSE2
                                 __m256 f32vec = _mm256_cvtph_ps(f16vec);                            // FP16C
-                                _mm256_storeu_ps(&dst_data[i * 8], f32vec);                         // AVX
+                                _mm256_storeu_ps(&dst_data[i], f32vec);                             // AVX
                             }
                         });
 
-    std::transform(src_data + n * 8, src_data + size, dst_data + n * 8,
+    std::transform(src_data + n * step, src_data + size, dst_data + n * step,
                 [](src_type val) {
                     return static_cast<dst_type>(val);
                 });
