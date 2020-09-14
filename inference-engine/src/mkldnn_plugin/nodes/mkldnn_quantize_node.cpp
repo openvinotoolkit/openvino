@@ -160,6 +160,13 @@ void MKLDNNQuantizeNode::init() {
                 break;
             }
         }
+
+        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
+                binarization = false;
+                break;
+            }
+        }
     }
 
     if (binarization) {
