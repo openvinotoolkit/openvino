@@ -61,6 +61,9 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
                 size_t get_num_coords() const { return m_num_coords; }
                 size_t get_num_classes() const { return m_num_classes; }
                 size_t get_num_regions() const { return m_num_regions; }
@@ -79,7 +82,7 @@ namespace ngraph
                 int m_axis;
                 int m_end_axis;
             };
-        }
+        } // namespace v0
         using v0::RegionYolo;
-    }
-}
+    } // namespace op
+} // namespace ngraph

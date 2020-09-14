@@ -16,6 +16,7 @@
 
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -114,4 +115,40 @@ shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_a
                                    m_axis,
                                    m_end_axis,
                                    m_anchors);
+}
+
+namespace
+{
+    bool evaluate_region_yolo(const HostTensorPtr& input_tensor,
+                              const HostTensorPtr& output_tensor,
+                              const size_t coords,
+                              const size_t classes,
+                              const size_t regions,
+                              const bool do_softmax,
+                              const vector<int64_t>& mask,
+                              const int axis,
+                              const int end_axis,
+                              const vector<float>& anchors)
+    {
+        //runtime::reference::region_yolo();
+        return true;
+    }
+} // namespace
+
+bool ngraph::op::v0::RegionYolo::evaluate(const HostTensorVector& outputs,
+                                          const HostTensorVector& inputs) const
+{
+    const auto& input = inputs[0];
+    const auto& output = outputs[0];
+
+    return evaluate_region_yolo(input,
+                                output,
+                                m_num_coords,
+                                m_num_classes,
+                                m_num_regions,
+                                m_do_softmax,
+                                m_mask,
+                                m_axis,
+                                m_end_axis,
+                                m_anchors);
 }
