@@ -196,8 +196,13 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             if (shape_b.size() == 1) {
                 // In case if shape_b has only one dimension we reshape it to [...,1,X,1]
                 reshape_shape = Shape(shape_a.size() - (shape_b.size() + 1), 1);
-                reshape_shape.push_back(shape_b[0]);  // add X dimension
-                reshape_shape.push_back(1);  // add last 1 dimension
+                if (matmul->get_transpose_b()) {
+                    reshape_shape.push_back(1);           // add 1 dimension
+                    reshape_shape.push_back(shape_b[0]);  // add X dimension at the end
+                } else {
+                    reshape_shape.push_back(shape_b[0]);  // add X dimension
+                    reshape_shape.push_back(1);           // add last 1 dimension
+                }
             } else {
                 // In this case we reshape shape_b to [...,1,1,X]
                 reshape_shape = Shape(shape_a.size() - shape_b.size(), 1);

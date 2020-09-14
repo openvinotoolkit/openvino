@@ -113,14 +113,24 @@ namespace ngraph
                 };
 
                 // Perform transpose if requested
-                if (transpose_arg0 && arg0_rank > 1)
+                if (transpose_arg0)
                 {
-                    arg0_transpose_vec.reserve(shape_size(arg0_shape));
-                    auto axis_vector = get_transpose_order(arg0_shape);
+                    Shape arg0_inpnut_shape = arg0_shape;
+
+                    if (arg0_rank == 1)
+                    {
+                        // unsqueeze 1D vector of shape {S} to 2D {1, S}
+                        arg0_inpnut_shape.insert(arg0_inpnut_shape.begin(), 1);
+                        wip_arg0_shape = arg0_inpnut_shape;
+                        arg0_rank = arg0_inpnut_shape.size();
+                    }
+
+                    arg0_transpose_vec.reserve(shape_size(arg0_inpnut_shape));
+                    auto axis_vector = get_transpose_order(arg0_inpnut_shape);
                     swap(wip_arg0_shape[arg0_rank - 1], wip_arg0_shape[arg0_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
                                         reinterpret_cast<char*>(arg0_transpose_vec.data()),
-                                        arg0_shape,
+                                        arg0_inpnut_shape,
                                         axis_vector,
                                         wip_arg0_shape,
                                         sizeof(T));
@@ -128,14 +138,24 @@ namespace ngraph
                     arg0_update = arg0_transpose_vec.data();
                 }
 
-                if (transpose_arg1 && arg1_rank > 1)
+                if (transpose_arg1)
                 {
-                    arg1_transpose_vec.reserve(shape_size(arg1_shape));
-                    auto axis_vector = get_transpose_order(arg1_shape);
+                    Shape arg1_inpnut_shape = arg1_shape;
+
+                    if (arg1_rank == 1)
+                    {
+                        // unsqueeze 1D vector of shape {S} to 2D {1, S}
+                        arg1_inpnut_shape.insert(arg1_inpnut_shape.begin(), 1);
+                        wip_arg1_shape = arg1_inpnut_shape;
+                        arg1_rank = arg1_inpnut_shape.size();
+                    }
+
+                    arg1_transpose_vec.reserve(shape_size(arg1_inpnut_shape));
+                    auto axis_vector = get_transpose_order(arg1_inpnut_shape);
                     swap(wip_arg1_shape[arg1_rank - 1], wip_arg1_shape[arg1_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
                                         reinterpret_cast<char*>(arg1_transpose_vec.data()),
-                                        arg1_shape,
+                                        arg1_inpnut_shape,
                                         axis_vector,
                                         wip_arg1_shape,
                                         sizeof(T));

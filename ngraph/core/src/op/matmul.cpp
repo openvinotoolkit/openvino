@@ -19,15 +19,11 @@
 #include "itt.hpp"
 #include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/matmul_factory.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
@@ -35,7 +31,7 @@ op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
                    const bool& transpose_b)
-    : FusedOp(OutputVector{A, B})
+    : Op(OutputVector{A, B})
     , m_transpose_a{transpose_a}
     , m_transpose_b{transpose_b}
 {
@@ -47,62 +43,6 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("transpose_a", m_transpose_a);
     visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
-}
-
-void op::MatMul::pre_validate_and_infer_types()
-{
-    element::Type result_et;
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
-
-    const Rank& A_rank = get_input_partial_shape(0).rank();
-    const Rank& B_rank = get_input_partial_shape(1).rank();
-
-    if (A_rank.is_static() && B_rank.is_static())
-    {
-        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
-    }
-    else
-    {
-        set_output_type(0, result_et, PartialShape::dynamic());
-    }
-}
-
-OutputVector op::MatMul::decompose_op() const
-{
-    auto A = input_value(0);
-    auto B = input_value(1);
-
-    const auto a_rank = A.get_shape().size();
-    const auto b_rank = B.get_shape().size();
-
-    if (m_transpose_a && a_rank >= 2)
-    {
-        vector<size_t> axes_order(a_rank);
-        // generate default axes_order.
-        iota(axes_order.begin(), axes_order.end(), 0);
-        // transpose the last 2 spatial dims
-        swap(axes_order[a_rank - 1], axes_order[a_rank - 2]);
-        A = builder::opset1::reorder_axes(A, axes_order);
-    }
-
-    if (m_transpose_b && b_rank >= 2)
-    {
-        vector<size_t> axes_order(b_rank);
-        iota(axes_order.begin(), axes_order.end(), 0);
-        swap(axes_order[b_rank - 1], axes_order[b_rank - 2]);
-        B = builder::opset1::reorder_axes(B, axes_order);
-    }
-
-    builder::MatmulFactory factory({A, B});
-    return factory.make_matmul_op();
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
@@ -125,12 +65,26 @@ namespace
         size_t arg0_rank = arg0_shape.size();
         size_t arg1_rank = arg1_shape.size();
 
-        if (transpose_a && arg0_rank > 1)
+        if (transpose_a)
         {
+            // 1D vector of shape {S} is reshaped to {S, 1}
+            if (arg0_rank == 1)
+            {
+                arg0_shape_update.insert(arg0_shape_update.begin(), 1);
+                arg0_rank = arg0_shape_update.size();
+            }
+
             swap(arg0_shape_update[arg0_rank - 2], arg0_shape_update[arg0_rank - 1]);
         }
-        if (transpose_b && arg1_rank > 1)
+        if (transpose_b)
         {
+            // 1D vector of shape {S} is reshaped to {1, S}
+            if (arg1_rank == 1)
+            {
+                arg1_shape_update.insert(arg1_shape_update.begin(), 1);
+                arg1_rank = arg1_shape_update.size();
+            }
+
             swap(arg1_shape_update[arg1_rank - 2], arg1_shape_update[arg1_rank - 1]);
         }
 
@@ -155,23 +109,50 @@ namespace
             arg0_shape_update.erase(arg0_shape_update.begin() + arg0_rank - 1);
             output_shape = arg0_shape_update;
         }
-        else if (arg0_rank == 2 && arg1_rank == 2)
-        {
-            NGRAPH_CHECK(arg0_shape_update[1] == arg1_shape_update[0], "Incompatible arg shapes");
-            output_shape = Shape{arg0_shape_update[0], arg1_shape_update[1]};
-        }
         else
         {
             NGRAPH_CHECK(arg0_shape_update[arg0_rank - 1] == arg1_shape_update[arg1_rank - 2],
-                         "Incompatible arg shapes");
+                         "Incompatible matrix dimensions, A dim = ",
+                         arg0_shape_update[arg0_rank - 1],
+                         ", B dim = ",
+                         arg1_shape_update[arg1_rank - 2]);
 
-            const auto& broadcast_shapes = builder::get_numpy_broadcast_shapes(
-                {Shape{begin(arg0_shape_update), next(end(arg0_shape_update), -2)},
-                 Shape{begin(arg1_shape_update), next(end(arg1_shape_update), -2)}});
+            auto max_rank = std::max(arg0_rank, arg1_rank);
+            output_shape = Shape(max_rank);
 
-            output_shape = broadcast_shapes.first;
-            output_shape.insert(output_shape.end(), arg0_shape_update[arg0_rank - 2]);
-            output_shape.insert(output_shape.end(), arg1_shape_update[arg1_rank - 1]);
+            // handle batch size
+            if (max_rank > 2)
+            {
+                Shape low_size_matrix =
+                    arg0_rank > arg1_rank ? arg1_shape_update : arg0_shape_update;
+                Shape big_size_matrix =
+                    arg0_rank > arg1_rank ? arg0_shape_update : arg1_shape_update;
+
+                if (arg0_rank != arg1_rank)
+                {
+                    size_t delta_rank = big_size_matrix.size() - low_size_matrix.size();
+
+                    // resize low_size_matrix (with 1) to have the same dimension as
+                    // big_size_matrix
+                    low_size_matrix.resize(low_size_matrix.size() + delta_rank, 1);
+                    // move added 1 values to the beginning
+                    std::rotate(low_size_matrix.begin(),
+                                low_size_matrix.end() - delta_rank,
+                                low_size_matrix.end());
+                }
+
+                // get max value for all batches, COL_INDEX_DIM and ROW_INDEX_DIM are updated at the
+                // end
+                for (auto i = 0; i < max_rank - 2; i++)
+                {
+                    output_shape[i] = std::max(low_size_matrix[i], big_size_matrix[i]);
+                }
+            }
+
+            // in output_shape replace 2 last axes with ROW_INDEX_DIM from arg0 matrix
+            // and COL_INDEX_DIM from arg1 matrix
+            output_shape.at(output_shape.size() - 2) = arg0_shape_update.at(arg0_rank - 2);
+            output_shape.at(output_shape.size() - 1) = arg1_shape_update.at(arg1_rank - 1);
         }
 
         return output_shape;
@@ -237,4 +218,43 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+}
+
+void ngraph::op::v0::MatMul::validate_and_infer_types()
+{
+    element::Type result_et;
+
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        get_input_element_type(0),
+        ", arg1 element type: ",
+        get_input_element_type(1),
+        ").");
+
+    const Rank& A_rank = get_input_partial_shape(0).rank();
+    const Rank& B_rank = get_input_partial_shape(1).rank();
+
+    if (A_rank.is_static() && B_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              (A_rank.get_length() >= 1) && (B_rank.get_length() >= 1),
+                              "Rank for input matrix shall be >= 1.");
+
+        Shape output_shape;
+        Shape A_matrix = get_input_partial_shape(0).to_shape();
+        Shape B_matrix = get_input_partial_shape(1).to_shape();
+
+        const bool transpose_a = get_transpose_a();
+        const bool transpose_b = get_transpose_b();
+
+        output_shape = evaluate_matmul_output_shape(A_matrix, B_matrix, transpose_a, transpose_b);
+
+        set_output_type(0, result_et, PartialShape(output_shape));
+    }
+    else
+    {
+        set_output_type(0, result_et, PartialShape::dynamic());
+    }
 }
