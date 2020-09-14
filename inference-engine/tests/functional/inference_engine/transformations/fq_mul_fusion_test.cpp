@@ -225,6 +225,50 @@ TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
+    const auto data = std::make_shared<ngraph::opset4::Parameter>(
+        ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224});
+    const auto in_low =
+        std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto in_high =
+        std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto out_low =
+        std::make_shared<ngraph::opset4::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{});
+    const auto out_high = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{}, {100.0f});
+    const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+        data, in_low, in_high, out_low, out_high, 42);
+
+    const auto mul_value = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{}, {3.14f});
+    const auto mul = std::make_shared<ngraph::opset4::Multiply>(fq, mul_value);
+
+    auto function = std::make_shared<ngraph::Function>(ngraph::OutputVector{mul},
+        ngraph::ParameterVector{data, in_low, in_high, out_low});
+
+    const auto expected_out_low = std::make_shared<ngraph::opset4::Multiply>(out_low, mul_value);
+    // this constant should be created by constant folding of the last FQ input
+    const auto expected_out_high = ngraph::opset4::Constant::create(
+        ngraph::element::Type_t::f32, ngraph::Shape{}, {314.0f});
+
+    const auto expected_fq = std::make_shared<ngraph::opset4::FakeQuantize>(
+        data, in_low, in_high, expected_out_low, expected_out_high, 42);
+
+    const auto expected_function =
+        std::make_shared<ngraph::Function>(ngraph::OutputVector{expected_fq},
+            ngraph::ParameterVector{data, in_low, in_high, out_low});
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
+
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    const auto res = compare_functions(function, expected_function);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
 } // namespace
 
 } // namespace LayerTestsDefinitions
