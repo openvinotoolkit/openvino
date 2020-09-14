@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include "ngraph/coordinate_transform.hpp"
 namespace ngraph
 {
     namespace runtime
@@ -31,6 +33,31 @@ namespace ngraph
                                     const Shape& out_shape,
                                     const bool ctc_merge_repeated)
             {
+                auto max_seq_len = data_shape[0];
+                auto batch_size = data_shape[1];
+                auto class_count = data_shape[2];
+
+                CoordinateTransform out_transform = CoordinateTransform(out_shape);
+                CoordinateTransform data_transform = CoordinateTransform(data_shape);
+                CoordinateTransform seq_masks_transform = CoordinateTransform(sequence_masks_shape);
+
+                // final sequences don't have to fill the whole output, elements that don't store
+                // information are set to -1
+                std::fill(out, out + out_shape.size(), static_cast<T>(-1.0));
+
+                for (unsigned int seq_ind = 0; seq_ind < max_seq_len; seq_ind++)
+                {
+                    for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
+                    {
+                        auto data_index = data_transform.index({batch_ind, seq_ind, 0});
+                        auto mask_index = seq_masks_transform.index({batch_ind, seq_ind});
+                        // first 0 marks the end of a sequence
+                        if (sequence_masks[mask_index] != static_cast<T>(1))
+                        {
+                            continue;
+                        }
+                    }
+                }
             }
         } // namespace reference
     }     // namespace runtime

@@ -69,6 +69,7 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/ctc_greedy_decoder.cpp
     op_eval/floor_mod.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
