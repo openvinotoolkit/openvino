@@ -61,7 +61,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
-            { {128} },
+            { {128}, ngraph::element::f32 },
             ngraph::element::u8,
             { {ngraph::element::f32}, { -128 }, { 0.01f } },
             ngraph::element::f32,
