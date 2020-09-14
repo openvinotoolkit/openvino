@@ -506,16 +506,23 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
 def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return {layer.get_friendly_name(): layer for layer in all_layers if layer.get_type_name() not in ['Const']}
+            return {layer.get_friendly_name(): layer for layer in all_layers \
+                    if layer.get_type_name() not in ['Constant', 'Result']}
         else:
+            all_layers_names = {op.get_friendly_name() : op for op in all_layers}
             user_layers = [layer.strip() for layer in layers.split(',')]
             layers_to_check = []
             for user_layer in user_layers:
-                if user_layer not in all_layers:
+                if user_layer not in all_layers_names:
                     raise Exception("Layer {} doesn't exist in the model".format(user_layer))
                 if user_layer in inputs:
                     raise Exception("Layer {} is input layer. Can not proceed".format(user_layer))
-                layers_to_check.append(user_layer)
+                if all_layers_names[user_layer].get_type_name() != 'Result':
+                    layers_to_check.append(user_layer)
+                else:
+                    # if layer type is Result - add previous layer
+                    prev_layer = all_layers[len(all_layers)-2]
+                    layers_to_check.append(prev_layer.get_friendly_name())
             return layers_to_check
     else:
         return outputs
