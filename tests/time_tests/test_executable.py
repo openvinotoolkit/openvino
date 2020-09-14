@@ -33,8 +33,8 @@ def test_run(instance, executable, niter):
         model_path = instance["model"]["path"]
 
     exe_args = {
-        "executable": executable,
-        "model": model_path,
+        "executable": Path(executable),
+        "model": Path(model_path),
         "device": instance["device"]["name"],
         "niter": niter
     }
