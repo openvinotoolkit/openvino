@@ -36,33 +36,33 @@ namespace {
 
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
-// Both output_low and output_high are multiplied by the value represented as C6 (a constant) below.
-// In case any of the FQ inputs (C4 and/or C5) is constant, it gets constant folded with C6.
+// Both output_low and output_high are multiplied by the value represented as C (a constant) below.
+// In case any of the FQ inputs (out_L, out_H) is constant, it gets constant folded with C.
 //
-//            C1 C2 C3 C4 C5
-//            |  |  |  |  |
-//            |  |  |  |  |                     C1 C2 C3   C4*C6    C5*C6
-//            v  v  v  v  v                     |  |  |      |        |
-//          +--------------+                    |  |  |      |        |
-//          | FakeQuantize |                    v  v  v      v        v
-//          +--------------+                  +--------------------------+
-//                 |                =====>    |       FakeQuantize       |
-//                 v                          +--------------------------+
-//            +----------+                                  |
-//            | Multiply | <--- C6                          v
-//            +----+-----+
-//                 |
-//                 v
+//          data  in_L in_H out_L out_H
+//            |    |    |     |     |
+//            |    |    |     |     |                data  in_L in_H  out_L * C  out_H * C
+//            v    v    v     v     v                  |    |    |        |          |
+//          +-------------------------+                |    |    |        |          |
+//          |       FakeQuantize      |                v    v    v        v          v
+//          +-------------------------+             +-----------------------------------+
+//                       |                =====>    |            FakeQuantize           |
+//                       v                          +-----------------------------------+
+//                  +----------+                                      |
+//                  | Multiply | <--- C                               v
+//                  +----+-----+
+//                       |
+//                       v
 //
 
 ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
-  const auto fq_output_low_p = ngraph::pattern::wrap_type<opset4::Constant>();
-  const auto fq_output_high_p = ngraph::pattern::wrap_type<opset4::Constant>();
+  const auto fq_output_low_p = ngraph::pattern::any_input();
+  const auto fq_output_high_p = ngraph::pattern::any_input();
 
   const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
       {ngraph::pattern::any_input(),
-       ngraph::pattern::wrap_type<opset4::Constant>(),
-       ngraph::pattern::wrap_type<opset4::Constant>(),
+       ngraph::pattern::any_input(),
+       ngraph::pattern::any_input(),
        fq_output_low_p,
        fq_output_high_p},
       pattern::consumers_count(1));
@@ -76,12 +76,12 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
     const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
 
-    const auto output_low_const = pattern_map.at(fq_output_low_p);
-    const auto output_high_const = pattern_map.at(fq_output_high_p);
+    const auto original_output_low = pattern_map.at(fq_output_low_p);
+    const auto original_output_high = pattern_map.at(fq_output_high_p);
     const auto mul_constant = pattern_map.at(mul_constant_p);
 
     const auto new_output_limits = get_adjusted_output_range(
-      output_low_const, output_high_const, mul_constant);
+      original_output_low, original_output_high, mul_constant);
 
     const auto new_fq_node = fq_node->clone_with_new_inputs({fq_node->input_value(0),
                                                             fq_node->input_value(1),
