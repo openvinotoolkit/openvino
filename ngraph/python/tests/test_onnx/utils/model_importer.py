@@ -36,6 +36,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
         backend: Type[Backend],
         models: List[Dict[str, str]],
         parent_module: Optional[str] = None,
+        data_root: Optional[str] = "",
     ) -> None:
         self.backend = backend
         self._parent_module = parent_module
@@ -44,7 +45,11 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
         self._test_items = defaultdict(dict)  # type: Dict[Text, Dict[Text, TestItem]]
 
         for model in models:
-            test_name = "test_{}".format(model["model_name"])
+            test_name = "test_{}".format(model["model_name"]) \
+                .replace(".onnx", "") \
+                .replace(data_root, "") \
+                .replace("/", "_") \
+                .replace("-", "_")
 
             test_case = OnnxTestCase(
                 name=test_name,
