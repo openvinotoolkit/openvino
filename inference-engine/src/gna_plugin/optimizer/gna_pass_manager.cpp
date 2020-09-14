@@ -294,6 +294,9 @@ void SubstituteSoftSignPass::run() {
     };
     auto getNthChild = [](CNNLayerPtr l, int N) {
         auto first = getInputTo(l->outData.front()).begin();
+        auto last = getInputTo(l->outData.front()).end();
+        IE_ASSERT(first != last);
+        IE_ASSERT(N <= std::distance(first, last));
         std::advance(first, N);
         return first->second;
     };
@@ -1119,6 +1122,7 @@ void EltwiseSplitOverChannelsPass::run() {
         for (size_t k = 0; k != totalSplits; k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
+            IE_ASSERT(eltwiseRaw != nullptr);
             eltwiseRaw->_operation = masterEltwise->_operation;
             eltwiseRaw->coeff = masterEltwise->coeff;
             auto eltwise = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(eltwiseRaw) : eltwiseRaw;
