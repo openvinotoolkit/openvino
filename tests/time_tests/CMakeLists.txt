@@ -20,4 +20,5 @@ endif()
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
-add_subdirectory(common)
+add_subdirectory(time-testhelper)
+add_subdirectory(src)
