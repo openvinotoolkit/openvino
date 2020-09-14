@@ -102,3 +102,17 @@ def pytest_generate_tests(metafunc):
 def pytest_sessionstart(session):
     with open(session.config.getoption('env_conf'), "r") as env_conf:
         Environment.env = yaml.load(env_conf, Loader=yaml.FullLoader)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def db_report(request):
+    # TODO: add reporting to DB before and after test
+    instance = request.node.callspec.params["instance"]
+    funcargs = request.node.funcargs
+    exe = funcargs["executable"]
+    niter = funcargs["niter"]
+    env = Environment.env
+
+    yield   # run test
+
+    b = 2
