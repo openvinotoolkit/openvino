@@ -74,7 +74,7 @@ class Convolution(Op):
 
         if np.any(spatial_val_wo_stride < 0):
             raise Error("Data after padding has dimension less than window size. " +
-                        "Possible reason of error in incorrect input_shape")
+                        "Possible reason of error is incorrectly specified model input shape(s).")
 
         float_spatial_val_wo_stride = float_array(spatial_val_wo_stride)
         return float_spatial_val_wo_stride / stride_spatial_shape + 1
@@ -122,8 +122,8 @@ class Convolution(Op):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
             # layout for Convolution weights is OIHW
-            kernel_shape = np.array([node.output, input_shape[node.channel_dims].item() / node.group,
-                                    *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]], dtype=np.int64)
+            kernel_shape = int64_array([node.output, input_shape[node.channel_dims].item() / node.group,
+                                       *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
                 #node.input_feature_channel, node.output_feature_channel = node.output_feature_channel, node.input_feature_channel
@@ -167,7 +167,7 @@ class Convolution(Op):
         if not node.has_valid('stride'):
             node['stride'] = np.full([len(input_shape)], 1, dtype=np.int64)
         if not node.has_valid('pad'):
-            node['pad'] = np.array([[0, 0]] * len(input_shape), dtype=np.int64)
+            node['pad'] = int64_array([[0, 0]] * len(input_shape))
         node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
         if not node.has_valid('output_padding'):
