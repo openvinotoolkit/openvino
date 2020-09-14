@@ -24,13 +24,15 @@ def test_run(instance, executable, niter):
     """
     # Prepare model to get model_path
     model_path = ""
-    if instance["model"]["source"] == "omz":
+    if instance["model"].get("source") == "omz":
         # TODO: call OMZ and fill model_path (it may be done by parsing MO log)
         retcode = 1
-        msg = ""
+        msg = "OMZ models aren't supported yet"
         assert retcode == 0, msg
     else:
-        model_path = instance["model"]["path"]
+        model_path = instance["model"].get("path")
+
+    assert model_path, "Model path is empty"
 
     exe_args = {
         "executable": Path(executable),
@@ -39,4 +41,4 @@ def test_run(instance, executable, niter):
         "niter": niter
     }
     retcode, aggr_stats = run_executable(exe_args, log=logging)
-    assert retcode == 0, "Something went wrong"     # TODO: update
+    assert retcode == 0, "Run of executable failed"     # TODO: update
