@@ -1,6 +1,6 @@
 package org.intel.openvino;
 
-public class InputInfo extends IEWrapper{
+public class InputInfo extends IEWrapper {
 
     public InputInfo(long addr) {
         super(addr);
@@ -14,7 +14,7 @@ public class InputInfo extends IEWrapper{
         SetLayout(nativeObj, layout.getValue());
     }
 
-    public Layout getLayout(){
+    public Layout getLayout() {
         return Layout.valueOf(getLayout(nativeObj));
     }
 
@@ -22,11 +22,11 @@ public class InputInfo extends IEWrapper{
         SetPrecision(nativeObj, precision.getValue());
     }
 
-    public Precision getPrecision(){
+    public Precision getPrecision() {
         return Precision.valueOf(getPrecision(nativeObj));
     }
 
-    public TensorDesc getTensorDesc(){
+    public TensorDesc getTensorDesc() {
         return new TensorDesc(GetTensorDesc(nativeObj));
     }
 

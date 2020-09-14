@@ -15,6 +15,8 @@
 
 #include <ngraph_ops/interp.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
+
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
