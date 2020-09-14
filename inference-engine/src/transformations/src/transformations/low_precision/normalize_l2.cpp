@@ -122,7 +122,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{element::f32},
         ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(axes->clone_with_new_inputs({}), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(axes->output(0), element::f32).get(),
         normalize->get_eps(),
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
