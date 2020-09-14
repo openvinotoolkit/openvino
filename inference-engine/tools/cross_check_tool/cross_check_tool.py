@@ -36,7 +36,7 @@ from utils import get_config_dictionary, get_layers_list, print_output_layers, i
 
 
 @error_handling('plugin of \'{plugin.device}\' device config \'{config}\' loading')
-def set_plugin_config(core: IECore, device : str, config: str = None):
+def set_plugin_config(core: IECore, device: str, config: str = None):
     core.set_config(get_config_dictionary(config_file=config), device_name=device)
 
 
@@ -83,7 +83,7 @@ def get_net_copy_with_output(model: str, output: str, core: IECore):
 @error_handling('getting model layers info')
 def get_model_info(net: IENetwork):
     func = ng.function_from_cnn(net)
-    ops = func.get_ops()
+    ops = func.get_ordered_ops()
     return ops, net.input_info, net.outputs
 
 
@@ -103,7 +103,7 @@ def get_perf_counts(executable_network):
 
 
 @error_handling('getting inference results for outputs: \'{output}\'')
-def infer(net: IENetwork, core: IECore, device : str, inputs: dict, output: list):
+def infer(net: IENetwork, core: IECore, device: str, inputs: dict, output: list):
     executable_network = get_exec_net(core=core, net=net, device=device)
     infer_dict = get_infer_results(executable_network=executable_network, inputs=inputs)
     pc = get_perf_counts(executable_network=executable_network)
@@ -122,7 +122,7 @@ def infer(net: IENetwork, core: IECore, device : str, inputs: dict, output: list
 
 @error_handling('getting inference results for outputs: \'{output}\'')
 def overall_accuracy_check(model: str, ref_model: str, out_layers: list, ref_out_layers: list, inputs: dict,
-                           ref_inputs: dict, core: IECore, device: str, ref_core: IECore, ref_device : str, layers: str,
+                           ref_inputs: dict, core: IECore, device: str, ref_core: IECore, ref_device: str, layers: str,
                            num_of_iterations: int):
     global_times, ref_global_times = [], []
     if layers in ['None', None]:
@@ -164,7 +164,8 @@ def one_ir_mode(args):
         if out_layer not in results:
             continue
         out_blob, pc = results[out_layer]
-        ref_results = infer(net=net_copy, core=ref_core, device=args.reference_device, inputs=inputs, output=[out_layer])
+        ref_results = infer(net=net_copy, core=ref_core, device=args.reference_device,
+                            inputs=inputs, output=[out_layer])
         if out_layer not in ref_results:
             continue
         ref_out_blob, ref_pc = ref_results[out_layer]
