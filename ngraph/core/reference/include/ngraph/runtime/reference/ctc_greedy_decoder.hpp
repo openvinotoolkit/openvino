@@ -17,6 +17,9 @@
 #pragma once
 
 #include <algorithm>
+#include <iostream>
+#include <limits>
+#include <vector>
 #include "ngraph/coordinate_transform.hpp"
 namespace ngraph
 {
@@ -43,21 +46,44 @@ namespace ngraph
 
                 // final sequences don't have to fill the whole output, elements that don't store
                 // information are set to -1
-                std::fill(out, out + out_shape.size(), static_cast<T>(-1.0));
 
-                for (unsigned int seq_ind = 0; seq_ind < max_seq_len; seq_ind++)
+                std::vector<T> tmp_out(shape_size(out_shape));
+                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<T>(-1.0));
+
+                for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
                 {
-                    for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
+                    T previous_class_index = static_cast<T>(-1);
+                    auto out_index = out_transform.index({batch_ind, 0, 0, 0});
+                    for (unsigned int seq_ind = 0; seq_ind < max_seq_len; seq_ind++)
                     {
-                        auto data_index = data_transform.index({batch_ind, seq_ind, 0});
-                        auto mask_index = seq_masks_transform.index({batch_ind, seq_ind});
+                        auto data_index = data_transform.index({seq_ind, batch_ind, 0});
+                        auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
+                        auto max = std::numeric_limits<T>::min();
+                        unsigned int max_class_ind = 0;
+
                         // first 0 marks the end of a sequence
                         if (sequence_masks[mask_index] != static_cast<T>(1))
                         {
                             continue;
                         }
+
+                        for (unsigned int class_index = 0; class_index < class_count; class_index++)
+                        {
+                            T considered = data[data_index + class_index];
+                            if (considered > max)
+                            {
+                                max = considered;
+                                max_class_ind = class_index;
+                            }
+                        }
+                        if (!(previous_class_index == max_class_ind && ctc_merge_repeated))
+                        {
+                            tmp_out[out_index++] = max_class_ind;
+                        }
+                        previous_class_index = max_class_ind;
                     }
                 }
+                std::copy(tmp_out.begin(), tmp_out.end(), out);
             }
         } // namespace reference
     }     // namespace runtime
