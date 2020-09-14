@@ -144,6 +144,8 @@ DECL_PASS(InsertConcatAligningFilter);
  */
 DECL_PASS(ReorderConcatInputs);
 
+DECL_PASS_BEFORE_COPY(InsertIdentityToLSTMCell);
+
 /**
 * @brief unrolled LSTM cell layer in supported GNA primitives
 */
@@ -158,6 +160,10 @@ DECL_PASS_BEFORE_COPY(UnrollTI);
 * @brief removed const layer before reshape layer
 */
 DECL_PASS_BEFORE_COPY(RemoveConst);
+
+/**
+*/
+DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
 
 /**
  * @brief removed extra identity layer for multi-output
