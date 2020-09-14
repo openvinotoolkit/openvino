@@ -70,7 +70,7 @@ The final wheel should be located in `ngraph\python\dist` directory.
 
     `call <CMAKE_INSTALL_PREFIX>\bin\setupvars.bat`
 
-NOTE: This step is not required for using alone nGraph Wheel, but it needed for most usage scenarios (for example for run unit tests).
+**NOTE**: Skip this step if you want to use the nGraph Wheel by itself. This step is required for most usage scenarios, like running unit tests.
 
 ### Using a virtualenv (optional)
 
