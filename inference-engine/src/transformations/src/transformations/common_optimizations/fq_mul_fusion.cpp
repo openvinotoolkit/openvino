@@ -19,6 +19,10 @@ namespace {
                             ngraph::Output<ngraph::Node> multiplier) {
     const auto mul_out_low = std::make_shared<ngraph::opset4::Multiply>(out_low, multiplier);
     const auto mul_out_high = std::make_shared<ngraph::opset4::Multiply>(out_high, multiplier);
+    copy_runtime_info({out_low.get_node_shared_ptr(), multiplier.get_node_shared_ptr()},
+                      mul_out_low);
+    copy_runtime_info({out_high.get_node_shared_ptr(), multiplier.get_node_shared_ptr()},
+                      mul_out_high);
 
     ngraph::OutputVector new_out_low(1), new_out_high(1);
 
