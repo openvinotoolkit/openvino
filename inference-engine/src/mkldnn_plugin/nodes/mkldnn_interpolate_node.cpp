@@ -658,6 +658,7 @@ private:
                     vpmovzxwd(vmm_src, op);
                 }
                 uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
@@ -683,6 +684,7 @@ private:
             case memory::bf16:
                 pinsrw(xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
@@ -762,6 +764,7 @@ private:
             case memory::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 pextrw(op, xmm_dst, 0x0);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }

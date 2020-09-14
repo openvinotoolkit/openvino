@@ -144,6 +144,8 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16
     // IE converts f16 to f32
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
+    // The same thing for bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
     function->validate_nodes_and_infer_types();
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
