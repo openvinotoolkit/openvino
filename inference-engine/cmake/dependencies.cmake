@@ -181,9 +181,9 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.0")
-    set(OPENCV_BUILD "36")
-    set(OPENCV_BUILD_YOCTO "36")
+    set(OPENCV_VERSION "4.3.0")
+    set(OPENCV_BUILD "060")
+    set(OPENCV_BUILD_YOCTO "073")
 
     if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
