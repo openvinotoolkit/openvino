@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <fstream>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -553,6 +555,86 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         for (std::size_t j = 0; j < num_of_elems; ++j)
         {
             EXPECT_NEAR(result_vector[j], expected_results[i][j], 0.00001);
+        }
+        ++i;
+    }
+}
+
+static std::vector<float> readFile(const std::string& filename)
+{
+    std::vector<float> res;
+    std::ifstream iFile(filename);
+    float x;
+    while (iFile >> x) {
+        res.push_back(x);
+    }
+    return res;
+}
+
+TEST(op_eval, interpolate_v4_nearest_my)
+{
+
+    struct ShapesAndAttrs
+    {
+        Shape input_data_shape;
+        std::vector<int64_t> spatial_shape;
+        Shape out_shape;
+        std::vector<float> scales_data;
+        CoordinateTransformMode transform_mode;
+        ShapeCalcMode shape_calculation_mode;
+        Nearest_mode nearest_mode;
+    };
+
+    std::vector<ShapesAndAttrs> shapes_and_attrs = {
+            ShapesAndAttrs{Shape{16, 7, 190, 400},
+                           {390, 600},
+                           Shape{16, 7, 390, 600},
+                           {2.0526315789473686, 1.5},
+                           CoordinateTransformMode::tf_half_pixel_for_nn,
+                           ShapeCalcMode::sizes,
+                           Nearest_mode::ceil}};
+
+    std::size_t i = 0;
+    for (const auto& s : shapes_and_attrs)
+    {
+        auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
+        auto target_spatial_shape =
+                op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
+        InterpolateAttrs attrs;
+        attrs.mode = InterpolateMode::nearest;
+        attrs.shape_calculation_mode = s.shape_calculation_mode;
+        attrs.coordinate_transformation_mode = s.transform_mode;
+        attrs.nearest_mode = s.nearest_mode;
+        attrs.antialias = false;
+        attrs.pads_begin = {0, 0, 0, 0};
+        attrs.pads_end = {0, 0, 0, 0};
+        attrs.cube_coeff = -0.75;
+
+        std::size_t n = shape_size(s.input_data_shape);
+        std::vector<float> input_data(n);
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            input_data[i] = i;
+        }
+//        std::iota(input_data.begin(), input_data.end(), 0.0f);
+
+        auto interp =
+                std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
+        auto fun = std::make_shared<Function>(OutputVector{interp}, ParameterVector{image});
+        auto result = std::make_shared<HostTensor>();
+        ASSERT_TRUE(fun->evaluate(
+            {result}, {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data)}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
+        auto result_vector = read_vector<float>(result);
+        std::size_t num_of_elems = shape_size(s.out_shape);
+        auto res = readFile("/home/user/tests-private/onnxrt_result.txt");
+        for (std::size_t j = 0; j < num_of_elems; ++j)
+        {
+            EXPECT_NEAR(result_vector[j], res[j], 0.0000002);
         }
         ++i;
     }
