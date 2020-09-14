@@ -573,6 +573,30 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
     }
 }
 
+TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+
+    try {
+        auto rres = ie.QueryNetwork(ksoNetwork, deviceName);
+        auto rl_map = rres.supportedLayersMap;
+        auto func = ksoNetwork.getFunction();
+        for (const auto & op : func->get_ops()) {
+            if (!rl_map.count(op->get_friendly_name())) {
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+            }
+        }
+        for (const auto & op : ksoNetwork.getFunction()->get_ops()) {
+            std::string affinity = rl_map[op->get_friendly_name()];
+            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+        }
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoNetwork, deviceName);
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    }
+}
+
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
