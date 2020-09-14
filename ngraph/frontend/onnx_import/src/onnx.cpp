@@ -96,6 +96,31 @@ namespace ngraph
                 }
             }
 
+            // TODO ADD DESCRIPTION
+            void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
+                                            const std::string& model_path)
+            {
+                const auto model_dir_path = model_path.substr(0, model_path.find_last_of(R"(/)"));
+                auto graph_proto = model_proto.mutable_graph();
+                for (auto& initializer_tensor : *graph_proto->mutable_initializer())
+                {
+                    // Set full paths to external data
+                    const auto location_key_value_index = 0;
+                    if (initializer_tensor.has_data_location() &&
+                        initializer_tensor.data_location() ==
+                            ONNX_NAMESPACE::TensorProto_DataLocation::
+                                TensorProto_DataLocation_EXTERNAL)
+                    {
+                        const auto external_data_relative_path =
+                            initializer_tensor.external_data(location_key_value_index).value();
+                        const auto external_data_full_path =
+                            model_dir_path + R"(/)" + external_data_relative_path;
+                        initializer_tensor.mutable_external_data(location_key_value_index)
+                            ->set_value(external_data_full_path);
+                    }
+                }
+            }
+
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
@@ -112,7 +137,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        std::shared_ptr<Function> import_onnx_model(std::istream& stream)
+        std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                                    const std::string& model_path)
         {
             if (!stream.good())
             {
@@ -144,6 +170,7 @@ namespace ngraph
             }
 
             detail::fixup_legacy_operators(model_proto.mutable_graph());
+            detail::update_external_data_paths(model_proto, model_path);
 
             return detail::convert_to_ng_function(model_proto);
         }
@@ -155,7 +182,7 @@ namespace ngraph
             {
                 throw detail::error::file_open{file_path};
             }
-            return import_onnx_model(ifs);
+            return import_onnx_model(ifs, file_path);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

@@ -18,7 +18,7 @@
 #include <iostream>
 
 #include "external_data_info.hpp"
-#include "log.hpp"
+#include "ngraph/log.hpp"
 
 namespace ngraph
 {
@@ -44,7 +44,7 @@ namespace ngraph
             std::string ExternalDataInfo::load_external_data() const
             {
                 std::ifstream external_data_stream(m_data_location,
-                                                std::ios::binary | std::ios::in | std::ios::ate);
+                                                   std::ios::binary | std::ios::in | std::ios::ate);
                 if (external_data_stream.fail())
                     throw invalid_external_data{*this};
 
@@ -57,7 +57,8 @@ namespace ngraph
                 const auto page_size = 4096;
                 if (m_offset != 0 && m_offset % page_size != 0)
                 {
-                    NGRAPH_WARN << "offset should be multiples 4096 (page size) to enable mmap support";
+                    NGRAPH_WARN
+                        << "offset should be multiples 4096 (page size) to enable mmap support";
                 }
                 // default value of m_offset is 0
                 external_data_stream.seekg(m_offset, std::ios::beg);

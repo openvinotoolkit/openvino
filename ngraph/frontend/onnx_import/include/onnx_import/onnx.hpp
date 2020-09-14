@@ -62,11 +62,13 @@ namespace ngraph
         /// \note       If stream parsing fails or the ONNX model contains unsupported ops,
         ///             the function throws an ngraph_error exception.
         ///
-        /// \param[in]  stream    The input stream (e.g. file stream, memory stream, etc).
+        /// \param[in]  stream     The input stream (e.g. file stream, memory stream, etc).
+        /// \param[in]  model_path path to imported onnx model. ADD MORE
         ///
         /// \return     An nGraph function that represents a single output from the created graph.
         ONNX_IMPORTER_API
-        std::shared_ptr<Function> import_onnx_model(std::istream& stream);
+        std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                                    const std::string& model_path = "");
 
         /// \brief     Imports and converts an ONNX model from the input file
         ///            to an nGraph Function representation.

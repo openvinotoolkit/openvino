@@ -46,11 +46,11 @@ namespace ngraph
                 {
                     invalid_external_data(const ExternalDataInfo& external_data_info)
                         : ngraph_error{std::string{"invalid external data - "} + "location: " +
-                                    external_data_info.m_data_location + ", offset: " +
-                                    std::to_string(external_data_info.m_offset) + ", lenght: " +
-                                    std::to_string(external_data_info.m_data_lenght) +
-                                    ", sha1_digest: " +
-                                    std::to_string(external_data_info.m_sha1_digest)}
+                                       external_data_info.m_data_location + ", offset: " +
+                                       std::to_string(external_data_info.m_offset) + ", lenght: " +
+                                       std::to_string(external_data_info.m_data_lenght) +
+                                       ", sha1_digest: " +
+                                       std::to_string(external_data_info.m_sha1_digest)}
                     {
                     }
                 };
