@@ -2,78 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
+#include "low_precision_transformations/fuse_subtract_to_fake_quantize_transformation.hpp"
 #include <vector>
 #include <gtest/gtest.h>
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
+using namespace ngraph;
 
 namespace {
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
+    const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
+        LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    };
 
-const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // 1) Multiply
-    {
-        ngraph::Shape{1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+    const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
         {
-            ngraph::element::f32,
-            { },
-            ngraph::element::f32,
-            { {}, {}, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // 1) Subtract + Multiply
-    {
-        ngraph::Shape{1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+            Shape{1, 3, 16, 16},
+            LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+            {
+                { 256ul, {}, { 0.f }, { 2.55f }, { 10.f }, { 255.f } },
+                { {}, {}, {} },
+            }
+        },
         {
-            ngraph::element::f32,
-            { },
-            ngraph::element::f32,
-            { {}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // 1) Convert + Subtract + Multiply
-    {
-        ngraph::Shape{1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            { },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // 1) Convert + Subtract + Multiply 2) Add
-    {
-        ngraph::Shape{1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            { {128}, ngraph::element::f32 },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-};
+            Shape{1, 3, 16, 16},
+            LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+            {
+                { 256ul, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f } },
+                { {}, {}, {} },
+            }
+        },
+    };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versions),
-        ::testing::ValuesIn(testValues)),
-    FuseFakeQuantizeTransformation::getTestCaseName);
+    INSTANTIATE_TEST_CASE_P(LPT, FuseSubtractToFakeQuantizeTransformation,
+        ::testing::Combine(
+            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+            ::testing::ValuesIn(versions),
+            ::testing::ValuesIn(testValues)),
+        FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace
