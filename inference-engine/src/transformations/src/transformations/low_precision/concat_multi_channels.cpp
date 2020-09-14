@@ -22,39 +22,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-std::vector<std::shared_ptr<Node>> ConcatMultiChannelsTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
-    const std::shared_ptr<Node>& op) const noexcept {
-    std::queue<std::shared_ptr<Node>> notHandledChildren;
-
-    for (const auto& output : op->outputs()) {
-        for (const auto& input : output.get_target_inputs()) {
-            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-            notHandledChildren.emplace(child);
-        }
-    }
-
-    std::vector<std::shared_ptr<Node>> resultChildren;
-
-    while (!notHandledChildren.empty()) {
-        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
-        notHandledChildren.pop();
-
-        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
-            resultChildren.push_back(operation);
-            continue;
-        }
-
-        for (const auto& output : operation->outputs()) {
-            for (const auto& input : output.get_target_inputs()) {
-                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-                notHandledChildren.emplace(child);
-            }
-        }
-    }
-
-    return resultChildren;
-}
-
 bool ConcatMultiChannelsTransformation::isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept {
     for (const std::shared_ptr<ngraph::opset1::Concat>& concat : concatLayers) {
         const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(concat);
