@@ -897,6 +897,7 @@ std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> no
     return NetworkHelper::toScalar(constant);
 }
 
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
