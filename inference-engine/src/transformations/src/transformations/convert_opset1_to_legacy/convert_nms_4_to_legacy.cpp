@@ -14,6 +14,8 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToLegacyMatcher, "ConvertNMS4ToLegacyMatcher", 0);
+
 ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
     auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});

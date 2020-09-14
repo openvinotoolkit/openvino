@@ -13,6 +13,8 @@
 #include "ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
+
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
