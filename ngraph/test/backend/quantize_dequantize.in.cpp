@@ -20,12 +20,12 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -55,13 +55,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize)
     auto quantize =
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
-    
+
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
     test_case.add_expected_output<output_c_type>(input_shape, {1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7});
-    test_case.run(); 
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize)
@@ -81,13 +81,14 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize)
     auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
-    
+
     std::vector<input_c_type> x{{1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7}};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape, {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS); 
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
@@ -110,13 +111,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
     auto quantize =
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
-    
+
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
     test_case.add_expected_output<output_c_type>(input_shape, {0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6});
-    test_case.run(); 
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_zero_offset)
@@ -136,31 +137,14 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_zero_offset)
     auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
-    #if 0
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
 
-    copy_data(x, vector<input_c_type>{0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6});
-    // minus offset                   0  0  0  0  0  0  0  0  0  0  0  0
-    // equals                         0  0  1  2  2  2  3  4  4  4  5  6
-    // multiplied by scale            2  2  2  2  2  2  2  2  2  2  2  2
-    // equals                         0  0  2  4  4  4  6  8  8  8 10 12
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(test::all_close_f((vector<output_c_type>{0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12}),
-                                  read_vector<output_c_type>(y),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-    #else
     std::vector<input_c_type> x{0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape, {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS); 
-
-    #endif
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
@@ -183,21 +167,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
     auto quantize =
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
+    std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
-
-    copy_data(x, vector<input_c_type>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
-    // divided by scale               2  2  2  3  3  3  4  4  4  5  5   5
-    // equals (rounded)               0  1  1  1  1  2  2  2  2  2  2   2
-    // plus offset                   10 10 10 20 20 20 30 30 30 40 40  40
-    // equals                        10 11 11 21 21 22 32 32 32 42 42  42
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_axes)
@@ -218,21 +194,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_axes)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42};
 
-    copy_data(x, vector<input_c_type>{10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42});
-    // minus offset                   10  10  10  20  20  20  30  30  30  40  40  40
-    // equals                          0   1   1   1   1   2   2   2   2   2   2   2
-    // multiplied by scale             2   2   2   3   3   3   4   4   4   5   5   5
-    // equals                          0   2   2   3   3   6   8   8   8  10  10  10
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(test::all_close_f((vector<output_c_type>{0, 2, 2, 3, 3, 6, 8, 8, 8, 10, 10, 10}),
-                                  read_vector<output_c_type>(y),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 2, 2, 3, 3, 6, 8, 8, 8, 10, 10, 10});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
@@ -256,20 +224,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
-    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-    // plus offset                    1   1  1   1  1   1  1   1  1   1  1    1
-    // equals                         1   1  2  -1  3  -1  4  -3  5  -3  6   -5
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8)
@@ -290,22 +251,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
 
-    copy_data(x, vector<input_c_type>{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5});
-    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(
-        test::all_close_f((vector<output_c_type>{0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12}),
-                          read_vector<output_c_type>(y),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
@@ -329,20 +281,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
-    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-    // plus offset                    0   0  0   0  0   0  0   0  0   0  0    0
-    // equals                         0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8_zero_offset)
@@ -363,22 +308,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8_zero_offset)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
 
-    copy_data(x, vector<input_c_type>{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6});
-    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(
-        test::all_close_f((vector<output_c_type>{0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12}),
-                          read_vector<output_c_type>(y),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
@@ -402,20 +338,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
-    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-    // plus offset                    1   1  1   1  1   1  1   1  1   1  1    1
-    // equals                         1   1  2  -1  3  -1  4  -3  5  -3  6   -5
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32)
@@ -436,22 +365,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
 
-    copy_data(x, vector<input_c_type>{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5});
-    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(
-        test::all_close_f((vector<output_c_type>{0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12}),
-                          read_vector<output_c_type>(y),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
@@ -475,20 +395,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
-    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-    // plus offset                    0   0  0   0  0   0  0   0  0   0  0    0
-    // equals                         0   0  1  -2  2  -2  3  -4  4  -4  5   -6
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32_zero_offset)
@@ -509,22 +422,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32_zero_offset)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
 
-    copy_data(x, vector<input_c_type>{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6});
-    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_TRUE(
-        test::all_close_f((vector<output_c_type>{0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12}),
-                          read_vector<output_c_type>(y),
-                          MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_uint8)
@@ -550,16 +454,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_uint8)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-    copy_data(x, vector<input_c_type>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{0, max, max, max, max, max, max, max, max, max, max, max}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(
+        input_shape, {0, max, max, max, max, max, max, max, max, max, max, max});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int8)
@@ -586,16 +487,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int8)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{0, min, max, min, max, min, max, min, max, min, max, min}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(
+        input_shape, {0, min, max, min, max, min, max, min, max, min, max, min});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int32)
@@ -623,16 +521,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int32)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
 
-    copy_data(x, vector<input_c_type>{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11});
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{0, min, max, min, max, min, max, min, max, min, max, min}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(
+        input_shape, {0, min, max, min, max, min, max, min, max, min, max, min});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_ZERO)
@@ -656,18 +551,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_ZERO)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   2   3  -2   -2   -3   3   3   4   -3   -3   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 2, 3, -2, -2, -3, 3, 3, 4, -3, -3, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 2, 3, -2, -2, -3, 3, 3, 4, -3, -3, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_INFINITY)
@@ -691,18 +581,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_INFINITY)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   3   3  -2   -3   -3   3   4   4   -3   -4   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 3, 3, -2, -3, -3, 3, 4, 4, -3, -4, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 3, 3, -2, -3, -3, 3, 4, 4, -3, -4, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_UPWARD)
@@ -726,18 +611,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_UPWARD)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   3   3  -2   -2   -3   3   4   4   -3   -3   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 3, 3, -2, -2, -3, 3, 4, 4, -3, -3, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 3, 3, -2, -2, -3, 3, 4, 4, -3, -3, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_DOWNWARD)
@@ -761,18 +641,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_DOWNWARD)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   2   3  -2   -3   -3   3   3   4   -3   -4   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 2, 3, -2, -3, -3, 3, 3, 4, -3, -4, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 2, 3, -2, -3, -3, 3, 3, 4, -3, -4, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_EVEN)
@@ -796,18 +671,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_EVEN)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   2   3  -2   -2   -3   3   4   4   -3   -4   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 2, 3, -2, -2, -3, 3, 4, 4, -3, -4, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 2, 3, -2, -2, -3, 3, 4, 4, -3, -4, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_INFINITY)
@@ -836,18 +706,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_INFINITY)
         static_cast<op::Quantize::RoundMode>(static_cast<int>(round_mode)));
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               3   3   3  -3   -3   -3   4   4   4   -4   -4   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{3, 3, 3, -3, -3, -3, 4, 4, 4, -4, -4, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {3, 3, 3, -3, -3, -3, 4, 4, 4, -4, -4, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_ZERO)
@@ -876,18 +741,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_ZERO)
         static_cast<op::Quantize::RoundMode>(static_cast<int>(round_mode)));
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   2   2  -2   -2   -2   3   3   3   -3   -3   -3
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 2, 2, -2, -2, -2, 3, 3, 3, -3, -3, -3}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 2, 2, -2, -2, -2, 3, 3, 3, -3, -3, -3});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_UP)
@@ -911,18 +771,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_UP)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               3   3   3  -2   -2   -2   4   4   4   -3   -3   -3
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{3, 3, 3, -2, -2, -2, 4, 4, 4, -3, -3, -3}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {3, 3, 3, -2, -2, -2, 4, 4, 4, -3, -3, -3});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
@@ -946,18 +801,13 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
+    std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
 
-    copy_data(x, vector<input_c_type>{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15});
-    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
-    // equals (rounded)               2   2   2  -3   -3   -3   3   3   3   -4   -4   -4
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x});
-    EXPECT_EQ((vector<output_c_type>{2, 2, 2, -3, -3, -3, 3, 3, 3, -4, -4, -4}),
-              read_vector<output_c_type>(y));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_expected_output<output_c_type>(input_shape,
+                                                 {2, 2, 2, -3, -3, -3, 3, 3, 3, -4, -4, -4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, dequantize_dynamic_offset)
@@ -978,21 +828,17 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_dynamic_offset)
     auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
     auto f = make_shared<Function>(dequantize, ParameterVector{X, scale, offset});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
-    auto Scale = backend->create_tensor(output_type, scale_offset_shape);
-    auto Offset = backend->create_tensor(input_type, scale_offset_shape);
+    std::vector<input_c_type> x{0, 3, 128, 255};
+    std::vector<output_c_type> Scale{2};
+    std::vector<input_c_type> Offset{128};
 
-    copy_data(x, vector<input_c_type>{0, 3, 128, 255});
-    copy_data(Scale, vector<output_c_type>{2});
-    copy_data(Offset, vector<input_c_type>{128});
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_input<output_c_type>({Scale});
+    test_case.add_input<input_c_type>({Offset});
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x, Scale, Offset});
-    EXPECT_TRUE(test::all_close_f((vector<output_c_type>{-256.0f, -250.0f, 0.0f, 254.0f}),
-                                  read_vector<output_c_type>(y),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    test_case.add_expected_output<output_c_type>(input_shape, {-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)
@@ -1016,22 +862,15 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X, scale, offset});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto x = backend->create_tensor(input_type, input_shape);
-    auto y = backend->create_tensor(output_type, input_shape);
-    auto Scale = backend->create_tensor(input_type, scale_offset_shape);
-    auto Offset = backend->create_tensor(output_type, scale_offset_shape);
+    std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    std::vector<input_c_type> Scale{2};
+    std::vector<output_c_type> Offset{1};
 
-    copy_data(x, vector<input_c_type>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
-    // divide by scale                2  2  2  2  2  2  2  2  2  2  2   2
-    // equals (rounded)               0  0  1  2  2  2  3  4  4  4  5   6
-    // plus offset                    1  1  1  1  1  1  1  1  1  1  1   1
-    // equals                         1  1  2  3  3  3  4  5  5  5  6   7
-    copy_data(Scale, vector<input_c_type>{2});
-    copy_data(Offset, vector<output_c_type>{1});
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<input_c_type>({x});
+    test_case.add_input<input_c_type>({Scale});
+    test_case.add_input<output_c_type>({Offset});
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({y}, {x, Scale, Offset});
-    EXPECT_EQ((vector<output_c_type>{1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7}),
-              read_vector<output_c_type>(y));
+    test_case.add_expected_output<output_c_type>(input_shape, {1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7});
+    test_case.run();
 }
