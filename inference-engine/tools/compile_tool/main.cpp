@@ -111,10 +111,6 @@ static bool parseCommandLine(int *argc, char ***argv, InferenceEngine::Core& ie)
         throw std::invalid_argument("Target device name is required");
     }
 
-    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
-        std::vector<std::string> myriadDeviceIds = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
-    }
-
     if (1 < *argc) {
         std::stringstream message;
         message << "Unknown arguments: ";
@@ -148,24 +144,28 @@ static std::map<std::string, std::string> parseConfig(const std::string& configN
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    IE_SUPPRESS_DEPRECATED_START
+    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
+IE_SUPPRESS_DEPRECATED_START
         config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = "VPU_MYRIAD_2480";
-    IE_SUPPRESS_DEPRECATED_END
+IE_SUPPRESS_DEPRECATED_END
 
-    if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
-        config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
+        if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
+            config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
+        }
+
+        if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
+            config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
+        }
+
+        if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
+            config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
+        }
     }
 
-    if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
-        config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
-    }
-
-    if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
-        config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
-    }
-
-    if (!FLAGS_DLA_ARCH_NAME.empty()) {
-        config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
+    if (std::string::npos != FLAGS_d.find("FPGA")) {
+        if (!FLAGS_DLA_ARCH_NAME.empty()) {
+            config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
+        }
     }
 
     return config;
@@ -228,7 +228,7 @@ static InferenceEngine::Precision getInputPrecision(const std::string &value) {
          { "FP16", InferenceEngine::Precision::FP16 },
          { "U8", InferenceEngine::Precision::U8 }
     };
-    return getPrecision(value, supported_precisions, "for input layer");
+    return getPrecision(value, supported_precisions, " for input layer");
 }
 
 static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
@@ -236,7 +236,7 @@ static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
          { "FP32", InferenceEngine::Precision::FP32 },
          { "FP16", InferenceEngine::Precision::FP16 }
     };
-    return getPrecision(value, supported_precisions, "for output layer");
+    return getPrecision(value, supported_precisions, " for output layer");
 }
 
 static InferenceEngine::Layout getLayout(const std::string &value) {
@@ -297,7 +297,7 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
         if (input != inputs.end()) {
             const auto input_precision = input->second->getPrecision();
             if ((isFloat(input_precision) && isFloat(getInputPrecision(user_precision))) ||
-                (isFP16(input_precision) && isU8(getInputPrecision(user_precision)))) {
+                (isFloat(input_precision) && isU8(getInputPrecision(user_precision)))) {
                 input->second->setPrecision(getInputPrecision(user_precision));
             }
         } else if (output != outputs.end()) {
@@ -311,10 +311,8 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
     }
 }
 
-static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network, const std::string & device) {
-    bool isMyriad = FLAGS_d.find("MYRIAD") != std::string::npos;
-
-    if (isMyriad) {
+static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network) {
+    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
         const InferenceEngine::Precision fp16 = InferenceEngine::Precision::FP16;
 
         for (auto &&layer : network.getInputsInfo()) {
@@ -410,7 +408,7 @@ int main(int argc, char *argv[]) {
 
         auto network = ie.ReadNetwork(FLAGS_m);
 
-        setDefaultIOPrecisions(network, FLAGS_d);
+        setDefaultIOPrecisions(network);
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
         processLayout(network, FLAGS_il, FLAGS_ol);
 

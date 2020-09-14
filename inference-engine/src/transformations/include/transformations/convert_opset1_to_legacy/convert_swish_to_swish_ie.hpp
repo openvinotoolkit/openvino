@@ -20,5 +20,6 @@ namespace pass {
 
 class ngraph::pass::ConvertSwishToSwishIEMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertSwishToSwishIEMatcher();
 };

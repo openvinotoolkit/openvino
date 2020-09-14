@@ -71,7 +71,6 @@ private:
     std::vector<float> sum_scales;
     bool broadcast = false;
     int batch_dim = 5;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     mkldnn::primitive_attr attr;
 
     std::shared_ptr<jit_uni_eltwise_fq_kernel> eltiwse_fq_kernel;
