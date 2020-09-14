@@ -21,5 +21,6 @@ class TRANSFORMATIONS_API ConvertSpaceToDepth;
 
 class ngraph::pass::ConvertSpaceToDepth: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertSpaceToDepth();
 };
