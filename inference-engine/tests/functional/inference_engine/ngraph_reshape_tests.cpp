@@ -471,7 +471,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     cnn.reshape(inShape);
 }
 
-TEST_F(NGraphReshapeTests, DISABLED_ReshapeWithDefaultGenericOps) {
+TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>

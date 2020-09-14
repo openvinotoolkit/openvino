@@ -374,7 +374,7 @@ StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_
                 if (newDims != currentDims) {
                     return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
                         "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
-                        "- [SUGGESTED] Regenerate IR with current version of OpenVINO and MO\n"
+                        "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
                         "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
                 }
             }
