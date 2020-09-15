@@ -60,6 +60,26 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
     return fnPtr;
 }
 
+static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
+                                                         InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+    auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
+    auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
+    auto newShape = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
+    auto reshape = std::make_shared<ngraph::opset4::Reshape>(convert, newShape, false);
+    auto conv1 = ngraph::builder::makeConvolution(params[0], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 4);
+    auto relu1 = std::make_shared<ngraph::opset4::Relu>(conv1);
+    auto add = std::make_shared<ngraph::opset4::Add>(relu1, reshape);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
+    fnPtr->set_friendly_name("KSOFunction");
+    return fnPtr;
+}
+
 static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP32);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
