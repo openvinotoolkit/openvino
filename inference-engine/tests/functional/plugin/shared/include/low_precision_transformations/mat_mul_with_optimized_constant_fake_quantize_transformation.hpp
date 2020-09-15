@@ -20,7 +20,7 @@ public:
 
 typedef std::tuple<
     InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>,
     std::string,
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues
 > MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams;

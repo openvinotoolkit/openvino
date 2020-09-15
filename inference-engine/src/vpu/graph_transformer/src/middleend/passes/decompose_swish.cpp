@@ -3,6 +3,7 @@
 //
 
 #include <vpu/middleend/pass_manager.hpp>
+#include <vpu/model/data_contents/replicated_data_content.hpp>
 
 namespace vpu {
 
@@ -31,16 +32,33 @@ void PassImpl::run(const Model& model) {
         const auto outputData = swish->output(0);
         const auto name = swish->name();
         const auto& layer = swish->origLayer();
+        const auto beta = swish->attrs().get<float>("beta");
 
         model->removeStage(swish);
+        auto sigmoidInput = inputData;
 
-        const auto sigmoidOutput = model->addNewData(inputData->name() + "@sigmoid", inputData->desc());
+        if (beta != 1.0f) {
+            const auto betaDesc = DataDesc(inputData->desc());
+            const auto betaConst = model->addConstData(inputData->name() + "@beta", betaDesc,
+                                                       replicateContent(beta, betaDesc.totalDimSize(), betaDesc));
+            const auto prodOutput = model->addNewData(inputData->name() + "@prod-x-beta", inputData->desc());
+            _stageBuilder->addProdStage(
+                    model,
+                    name + "@prod-x-beta",
+                    layer,
+                    inputData,
+                    betaConst,
+                    prodOutput);
+            sigmoidInput = prodOutput;
+        }
+        const auto sigmoidDesc = inputData->desc();
+        const auto sigmoidOutput = model->addNewData(inputData->name() + "@sigmoid", sigmoidDesc);
 
         _stageBuilder->addSigmoidStage(
                 model,
                 name + "@sigmoid",
                 layer,
-                {inputData},
+                {sigmoidInput},
                 {sigmoidOutput});
         _stageBuilder->addProdStage(
                 model,
