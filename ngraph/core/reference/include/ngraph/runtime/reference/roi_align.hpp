@@ -65,10 +65,15 @@ namespace ngraph
                     T bin_width = roi_width / pooled_width;
                     T bin_height = roi_height / pooled_height;
 
-                    uint64_t num_samples_in_bin = sampling_ratio * sampling_ratio;
+                    auto sampling_ratio_x =
+                        sampling_ratio == 0 ? static_cast<int>(ceil(bin_width)) : sampling_ratio;
+                    auto sampling_ratio_y =
+                        sampling_ratio == 0 ? static_cast<int>(ceil(bin_height)) : sampling_ratio;
 
-                    T sample_distance_x = bin_width / static_cast<T>(sampling_ratio);
-                    T sample_distance_y = bin_height / static_cast<T>(sampling_ratio);
+                    uint64_t num_samples_in_bin = sampling_ratio_x * sampling_ratio_y;
+
+                    T sample_distance_x = bin_width / static_cast<T>(sampling_ratio_x);
+                    T sample_distance_y = bin_height / static_cast<T>(sampling_ratio_y);
 
                     std::vector<std::pair<unsigned int, unsigned int>> pooling_points;
                     std::vector<T> pooling_weights;
@@ -82,14 +87,14 @@ namespace ngraph
                     {
                         for (unsigned int x_bin_ind = 0; x_bin_ind < pooled_width; x_bin_ind++)
                         {
-                            for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio;
+                            for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y;
                                  y_sample_ind++)
                             {
                                 T sample_y = y1 + static_cast<T>(y_bin_ind) * bin_height +
                                              sample_distance_y * (static_cast<T>(y_sample_ind) +
                                                                   static_cast<T>(0.5f));
 
-                                for (int64_t x_sample_ind = 0; x_sample_ind < sampling_ratio;
+                                for (int64_t x_sample_ind = 0; x_sample_ind < sampling_ratio_x;
                                      x_sample_ind++)
                                 {
                                     T sample_x = x1 + static_cast<T>(x_bin_ind) * bin_width +
@@ -116,7 +121,7 @@ namespace ngraph
                                     if (sample_y_low >= feature_map_height - 1)
                                     {
                                         sample_y_high = sample_y_low = feature_map_height - 1;
-                                        sample_y = (T)sample_y_low;
+                                        sample_y = static_cast<T>(sample_y_low);
                                     }
                                     else
                                     {
@@ -126,7 +131,7 @@ namespace ngraph
                                     if (sample_x_low >= feature_map_height - 1)
                                     {
                                         sample_x_high = sample_x_low = feature_map_width - 1;
-                                        sample_x = (T)sample_x_low;
+                                        sample_x = static_cast<T>(sample_x_low);
                                     }
                                     else
                                     {
