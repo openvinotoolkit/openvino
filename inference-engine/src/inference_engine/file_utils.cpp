@@ -53,7 +53,7 @@ std::basic_string<C> getPathName(const std::basic_string<C>& s) {
 }  // namespace
 
 static std::string getIELibraryPathA() {
-#if defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_PARTITION_DESKTOP)
+#ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -79,14 +79,15 @@ static std::string getIELibraryPathA() {
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     return getPathName(std::string(info.dli_fname)).c_str();
 # endif  // USE_STATIC_IE
+#else
+# error "Unsupported OS"
 #endif  // _WIN32
-    return {};
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
-#if defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_PARTITION_DESKTOP)
+#ifdef _WIN32
     WCHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -97,8 +98,9 @@ std::wstring getIELibraryPathW() {
     return getPathName(std::wstring(ie_library_path));
 #elif defined(__linux__) || defined(__APPLE__)
     return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
+#else
+# error "Unsupported OS"
 #endif
-    return {};
 }
 
 #endif  // ENABLE_UNICODE_PATH_SUPPORT

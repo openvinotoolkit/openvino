@@ -41,9 +41,9 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 static string find_my_pathname()
 {
 #ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
-# if defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_PARTITION_DESKTOP)
-    WCHAR wpath[MAX_PATH];
+# ifdef _WIN32
     HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
+    WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
     wstring ws(wpath);
     string path(ws.begin(), ws.end());
@@ -55,6 +55,8 @@ static string find_my_pathname()
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
     return dl_info.dli_fname;
+# else
+#  error "Unsupported OS"  
 # endif
 #else
     return {};
