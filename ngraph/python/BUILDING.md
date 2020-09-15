@@ -36,14 +36,22 @@ cmake ..
       -DCMAKE_INSTALL_PREFIX="C:\temporary_install_dir"
       -DNGRAPH_PYTHON_BUILD_ENABLE=TRUE
       -DNGRAPH_ONNX_IMPORT_ENABLE=TRUE
-      -DCMAKE_CXX_COMPILER=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Tools\MSVC\14.16.27023\bin\Hostx64\x64
+      -DCMAKE_CXX_COMPILER="C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Tools\MSVC\14.16.27023\bin\Hostx64\x64"
 ~~~~
 There are a couple of things to notice here. One is that the full path to the x64 version of
 MSVC compiler has to be specified. This is because DNNL requires a 64-bit version and cmake may
 fail to detect it correctly.
 The other equally important thing to note is that the temporary directory where the build is to be installed can be specified.
-This examples uses `C:\temporary_install_dir` however, a subdirectory of `ngraph\build` works as well.
+If the installation directory is not specified, the default location is `C:\Program Files\OpenVINO`.
+This examples uses `C:\temporary_install_dir` however, a subdirectory of `openvino\build` works as well.
 The final Python wheel will contain the contents of this temporary directory so it's very important to set it.
+
+To specify an exact Python version, use the following options:
+~~~~
+-DPYTHON_EXECUTABLE="C:\Program Files\Python37\python.exe"
+-DPYTHON_LIBRARY="C:\Program Files\Python37\libs\python37.lib"
+-DPYTHON_INCLUDE_DIR="C:\Program Files\Python37\include"
+~~~~
 
 2. Build the `install` target:
 
@@ -56,7 +64,13 @@ adjust the number of threads used in the building process to your machine's capa
 
     `cmake --build . --target python_wheel --config Release -j 8`
 
-The final wheel should be located in `build\python\dist` directory.
+The final wheel should be located in `ngraph\python\dist` directory.
+
+4. Configure the environment for the Inference Engine Python API:
+
+    `call <CMAKE_INSTALL_PREFIX>\bin\setupvars.bat`
+
+**NOTE**: Skip this step if you want to use the nGraph Wheel by itself. This step is required for most usage scenarios, like running unit tests.
 
 ### Using a virtualenv (optional)
 
@@ -81,6 +95,6 @@ Unit tests require additional packages be installed:
 
 Then run tests:
 
-    (venv) $ pytest test/ngraph/
+    (venv) $ pytest tests
 
 [ngraph_build]: http://ngraph.nervanasys.com/docs/latest/buildlb.html
