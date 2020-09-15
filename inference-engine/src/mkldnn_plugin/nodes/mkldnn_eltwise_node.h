@@ -8,13 +8,12 @@
 #include <mkldnn_node.h>
 #include <string>
 #include <vector>
-#include <c_types_map.hpp>
 #include <memory>
 #include <details/caseless.hpp>
 
 namespace MKLDNNPlugin {
 
-#define MAX_ELTWISE_INPUTS 8
+#define MAX_ELTWISE_INPUTS 7
 
 enum EltwiseOpType {
     Add = 0,
@@ -74,7 +73,7 @@ struct jit_eltwise_params {
 
     size_t src_size[MAX_ELTWISE_INPUTS];
     size_t dst_size;
-    size_t oc_step;
+    size_t oc_size;
 };
 
 struct jit_eltwise_call_args {
@@ -132,33 +131,33 @@ public:
 private:
     void init() override;
 
-    EltwiseOpType eltwiseOp;
-    mkldnn::algorithm eltwiseAlgorithm;
+    EltwiseOpType eltwiseOp = Add;
+    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm_undef;
 
-    std::shared_ptr<jit_uni_eltwise_kernel> eltiwse_kernel;
-    jit_eltwise_params jep;
+    std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
+    jit_eltwise_params jep = {};
 
     int optimalTensorRank = 6;
 
-    bool isDynBatchEnabled;
-    size_t batchDimIdx;
-    size_t tensorRank;
-    size_t fullWorkAmount;
-    size_t schedulerWorkAmount;
-    std::vector<std::vector<size_t>> dims_in;
-    std::vector<std::vector<size_t>> offsets_in;
-    std::vector<size_t> dims_out;
-    std::vector<size_t> offsets_out;
-    std::vector<ptrdiff_t> start_offset_in;
-    ptrdiff_t start_offset_out;
+    bool isDynBatchEnabled = false;
+    size_t batchDimIdx = 0;
+    size_t tensorRank = 0;
+    size_t fullWorkAmount = 0;
+    size_t schedulerWorkAmount = 0;
+    std::vector<std::vector<size_t>> dims_in = {};
+    std::vector<std::vector<size_t>> offsets_in = {};
+    std::vector<size_t> dims_out = {};
+    std::vector<size_t> offsets_out = {};
+    std::vector<ptrdiff_t> start_offset_in = {};
+    ptrdiff_t start_offset_out = 0;
 
-    std::vector<size_t> offsets_oc;
+    std::vector<size_t> offsets_oc = {};
 
-    float alpha;
-    float beta;
+    float alpha = 0;
+    float beta = 0;
 
-    std::vector<float> scales;
-    std::vector<float> shifts;
+    std::vector<float> scales = {};
+    std::vector<float> shifts = {};
 
     void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);

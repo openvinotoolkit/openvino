@@ -198,4 +198,3 @@ void jit_emitter::emit(const std::vector<size_t> &in_vec_idxs, const std::vector
 }
 
 } // namespace MKLDNNPlugin
-

@@ -106,10 +106,6 @@ protected:
         eltwise->get_rt_info() = CPUTestsBase::setCPUInfo(inFmts, outFmts, priority);
         function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
     }
-
-    std::vector<cpu_memory_format_t> inFmts, outFmts;
-    std::vector<std::string> priority;
-    std::string selectedType;
 };
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
@@ -120,16 +116,6 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-
-std::vector<std::vector<cpu_memory_format_t>> filterCPUMemoryFormat(int count) {
-    std::vector<std::vector<cpu_memory_format_t>> resCPUMemoryFormats;
-
-
-
-    return resCPUMemoryFormats;
-}
-
-/* ========== */
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -151,7 +137,27 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 
 std::map<std::string, std::string> additional_config = {};
 
-std::vector<std::vector<std::vector<size_t>>> inShapes4D = {
+std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+        for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nChw16c)
+                formats[i] = nChw8c;
+            if (formats[i] == nCdhw16c)
+                formats[i] = nCdhw8c;
+        }
+    };
+
+    if (!with_cpu_x86_avx512f()) {
+        for (auto& param : paramsVector) {
+            adjustBlockedFormatByIsa(std::get<0>(param));
+            adjustBlockedFormatByIsa(std::get<1>(param));
+        }
+    }
+
+    return paramsVector;
+}
+
+std::vector<std::vector<std::vector<size_t>>> inShapes_4D = {
         {{2, 4, 4, 1}},
         {{2, 17, 5, 4}},
         {{2, 17, 5, 4}, {1, 17, 1, 1}},
@@ -166,18 +172,18 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
 
 const auto params_4D_FP32 = ::testing::Combine(
         ::testing::Combine(
-            ::testing::ValuesIn(inShapes4D),
+            ::testing::ValuesIn(inShapes_4D),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_4D));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
 
 INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32, EltwiseLayerCPUTest, params_4D_FP32, EltwiseLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<std::vector<size_t>>> inShapes5D = {
+std::vector<std::vector<std::vector<size_t>>> inShapes_5D = {
         {{2, 4, 3, 4, 1}},
         {{2, 17, 7, 5, 4}},
         {{2, 17, 6, 5, 4}, {1, 17, 6, 1, 1}},
@@ -192,31 +198,60 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
 
 const auto params_5D_FP32 = ::testing::Combine(
         ::testing::Combine(
-            ::testing::ValuesIn(inShapes5D),
+            ::testing::ValuesIn(inShapes_5D),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
             ::testing::Values(InferenceEngine::Precision::FP32),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
-        ::testing::ValuesIn(cpuParams_5D));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
 INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32, EltwiseLayerCPUTest, params_5D_FP32, EltwiseLayerCPUTest::getTestCaseName);
 
-//const auto params_4D_I8 = ::testing::Combine(
-//        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes),
-//            ::testing::ValuesIn(eltwiseOpTypes),
-//            ::testing::ValuesIn(secondaryInputTypes),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::Values(InferenceEngine::Precision::I16),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
-//        ::testing::ValuesIn(filterCPUInfoForDevice("I8")));
-//
-//INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_I8, EltwiseLayerCPUTest, params_4D_I8, EltwiseLayerCPUTest::getTestCaseName);
+std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Mixed = {
+        {{2, 17, 31, 3}, {2, 1, 31, 3}},
+        {{2, 17, 5, 1}, {2, 1, 1, 4}},
+};
 
+std::vector<CPUSpecificParams> cpuParams_4D_Mixed = {
+        CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
+};
+
+const auto params_4D_FP32_Mixed = ::testing::Combine(
+        ::testing::Combine(
+            ::testing::ValuesIn(inShapes_4D_Mixed),
+            ::testing::ValuesIn(eltwiseOpTypes),
+            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+            ::testing::ValuesIn(opTypes),
+            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Mixed)));
+
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_Mixed, EltwiseLayerCPUTest, params_4D_FP32_Mixed, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Mixed = {
+        {{2, 17, 31, 4, 3}, {2, 1, 31, 1, 3}},
+        {{2, 17, 5, 3, 1}, {2, 1, 1, 3, 4}},
+};
+
+std::vector<CPUSpecificParams> cpuParams_5D_Mixed = {
+        CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
+};
+
+const auto params_5D_FP32_Mixed = ::testing::Combine(
+        ::testing::Combine(
+            ::testing::ValuesIn(inShapes_5D_Mixed),
+            ::testing::ValuesIn(eltwiseOpTypes),
+            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+            ::testing::ValuesIn(opTypes),
+            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Mixed)));
+
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_Mixed, EltwiseLayerCPUTest, params_5D_FP32_Mixed, EltwiseLayerCPUTest::getTestCaseName);
 
 } // namespace
-
 } // namespace CPULayerTestsDefinitions
