@@ -44,7 +44,7 @@ namespace ngraph
             std::string ExternalDataInfo::load_external_data() const
             {
                 std::ifstream external_data_stream(m_data_location,
-                                                   std::ios::binary | std::ios::in | std::ios::ate);
+                                                   std::ios::binary | std::ios::in);
                 if (external_data_stream.fail())
                     throw invalid_external_data{*this};
 
@@ -70,9 +70,9 @@ namespace ngraph
 
                 std::string read_data;
                 read_data.resize(read_data_lenght);
-                // TODO CHECK
                 external_data_stream.read(&read_data[0], read_data_lenght);
                 external_data_stream.close();
+
                 return read_data;
             }
         }

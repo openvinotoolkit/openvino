@@ -40,8 +40,6 @@ namespace ngraph
 
                 std::string load_external_data() const;
 
-                // TODO POSSIBLE TO MOVE TO EXCEPTION?
-                // << OPERATOR?
                 struct invalid_external_data : ngraph_error
                 {
                     invalid_external_data(const ExternalDataInfo& external_data_info)
