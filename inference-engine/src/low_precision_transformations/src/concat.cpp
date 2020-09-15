@@ -148,10 +148,10 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
             switch (quantizedTensorAlignmentOnActivations) {
             case QuantizedTensorAlignment::None: {
                 const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
                 const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
 
                 break;
             }
@@ -165,18 +165,18 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
                                                     (outputHighValue / quantizationDetails.outputHighValues[0]))
                                                  : outputHighValue;
 
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 1, inputLowValue);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 2, inputHighValue);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, dataPrecision.min);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, dataPrecision.max);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 1, inputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 2, inputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, dataPrecision.min);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, dataPrecision.max);
                 break;
             }
             case QuantizedTensorAlignment::UpdateLevel: {
                 const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
                 const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
 
                 const int levels = static_cast<int>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
                 fakeQuantizeLayer.params["levels"] = std::to_string(levels);

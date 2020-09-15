@@ -135,6 +135,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
             }
 
             fillDequantizationsForWeightsPath(
+                context,
                 fullyConnected,
                 supportAsymmetricQuantization,
                 originalWeightsDequantizationScales,

@@ -105,6 +105,7 @@ void ConvolutionTransformation::transform(TransformationContext& context, CNNLay
     const CNNLayerPtr parentOnData = CNNNetworkHelper::getParent(layer, 0ul);
 
     const DataPrecision dataPrecisionOnWeights = fillDequantizationsForWeightsPath(
+        context,
         layer,
         supportAsymmetricQuantization,
         originalWeightsDequantizationScales,

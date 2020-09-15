@@ -48,15 +48,21 @@ public:
 
     static Blob::Ptr makeNewBlobPtr(const TensorDesc& desc);
 
-    static void invertFakeQuantize(const CNNLayer& fakeQuantize);
-
-    static void updateBlobs(CNNLayer& layer, const std::string& blobName, float value);
-
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, float value);
 
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
 
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, float value);
+
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
+
     static void updateBlobs(CNNLayer& layer, const std::string& blobName, const std::vector<float>& values);
+
+    static CNNLayerPtr copyConstant(
+        TransformationContext& context,
+        const CNNLayer& quantizeLayer,
+        const CNNLayerPtr& blobLayer,
+        const size_t constLayerIndex);
 
     // return true if at least one child uses layer on weights
     static bool onWeights(const CNNLayer& layer);

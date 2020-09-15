@@ -16,7 +16,8 @@ class MatMulWithOptimizedConstantFakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::Shape& inputShape1,
+        const ngraph::Shape& inputShape2,
         const FakeQuantizeOnData& fqOnData,
         const FakeQuantizeOnData& fqOnWeights);
 };

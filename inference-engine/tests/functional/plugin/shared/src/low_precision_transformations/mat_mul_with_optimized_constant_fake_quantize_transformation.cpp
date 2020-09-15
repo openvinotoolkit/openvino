@@ -23,16 +23,16 @@ namespace LayerTestsDefinitions {
 std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseName(
     testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
 
-    std::tie(netPrecision, inputShape, targetDevice, param) = obj.param;
+    std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
     result << netPrecision.name() << "_" <<
-        CommonTestUtils::vec2str(inputShape) << "_" <<
+        CommonTestUtils::vec2str(shapes.first) << "_" << CommonTestUtils::vec2str(shapes.second) << "_" <<
         targetDevice << "_"  <<
         param.fqOnData << "_" <<
         param.fqOnWeights;
@@ -43,15 +43,16 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
     threshold = 0.01f;
 
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
     InferenceEngine::details::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
-    std::tie(netPrecision, inputShape, targetDevice, param) = this->GetParam();
+    std::tie(netPrecision, shapes, targetDevice, param) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
         precision,
-        inputShape,
+        shapes.first,
+        shapes.second,
         param.fqOnData,
         param.fqOnWeights);
 }

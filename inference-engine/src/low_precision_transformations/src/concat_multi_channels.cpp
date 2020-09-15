@@ -106,8 +106,8 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         dequantizationScalesLayers[fakeQuantizeLayer->name] = dequantizationScales;
         dequantizationShiftsLayers[fakeQuantizeLayer->name] = dequantizationShifts;
 
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 3, dataPrecision.min);
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, dataPrecision.max);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 3, dataPrecision.min);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 4, dataPrecision.max);
     }
 
     if (updatePrecisions) {
