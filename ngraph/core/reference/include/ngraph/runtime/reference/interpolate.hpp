@@ -289,7 +289,7 @@ namespace ngraph
                 struct LinearModeInnerIterationResult
                 {
                     bool condition;
-                    float w;
+                    float w = 0;
                     Coordinate inner_coord;
                 };
 

@@ -250,14 +250,14 @@ void WeightableLayerTransformation::updateLayerBiasesFcSpecific(
     CNNNetworkHelper::updateBlobs(*biasesLayer, "custom", biases);
 }
 
-void WeightableLayerTransformation::updateWeights(const CNNLayerPtr parent, std::vector<float>& outputLowValues,
+void WeightableLayerTransformation::updateWeights(TransformationContext& context, const CNNLayerPtr parent, std::vector<float>& outputLowValues,
                                                   std::vector<float>& outputHighValues) const {
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(*parent);
     // TODO: refactor: move to standalone method
     switch (quantizedTensorAlignmentOnWeights) {
     case LayerTransformation::QuantizedTensorAlignment::None: {
-        CNNNetworkHelper::updateBlobs(*parent, 3, outputLowValues);
-        CNNNetworkHelper::updateBlobs(*parent, 4, outputHighValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 3, outputLowValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 4, outputHighValues);
         break;
     }
     case LayerTransformation::QuantizedTensorAlignment::UpdateIntervals:
@@ -300,10 +300,10 @@ void WeightableLayerTransformation::updateWeights(const CNNLayerPtr parent, std:
             outputHighValues[i] = roundf(outputHighValues[i] * maxK);
         }
 
-        CNNNetworkHelper::updateBlobs(*parent, 1, inputLowValues);
-        CNNNetworkHelper::updateBlobs(*parent, 2, inputHighValues);
-        CNNNetworkHelper::updateBlobs(*parent, 3, outputLowValues);
-        CNNNetworkHelper::updateBlobs(*parent, 4, outputHighValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 1, inputLowValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 2, inputHighValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 3, outputLowValues);
+        CNNNetworkHelper::updateBlobs(context, *parent, 4, outputHighValues);
 
         const size_t levels = static_cast<size_t>(roundf(minOutputIntervalLowValue + maxOutputIntervalHighValue + 1.0));
         parent->params["levels"] = std::to_string(levels);
@@ -411,6 +411,7 @@ void WeightableLayerTransformation::createAsymmetric(TransformationContext& cont
 }
 
 DataPrecision WeightableLayerTransformation::fillDequantizationsForWeightsPath(
+    TransformationContext& context,
     const CNNLayer& weightableLayer,
     const bool supportAsymmetricQuantization,
     std::vector<float>& dequantizationScales,
@@ -461,7 +462,7 @@ DataPrecision WeightableLayerTransformation::fillDequantizationsForWeightsPath(
         }
     }
 
-    updateWeights(parent, outputLowValues, outputHighValues);
+    updateWeights(context, parent, outputLowValues, outputHighValues);
     return dataPrecision;
 }
 
