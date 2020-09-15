@@ -31,8 +31,6 @@ static constexpr char number_of_shaves_message[] = "Optional. Specifies number o
 static constexpr char number_of_cmx_slices_message[] = "Optional. Specifies number of CMX slices."
                                                        " Should be set with \"VPU_NUMBER_OF_SHAVES\"."
                                                        " Overwrites value from config.";
-static constexpr char mock_device_message[] = "Optional. Allows to compile model without a device."
-                                                       " Supported values: NO/YES";
 static constexpr char tiling_cmx_limit_message[] = "Optional. Specifies CMX limit for data tiling."
                                                    " Value should be equal or greater than -1."
                                                    " Overwrites value from config.";
@@ -56,7 +54,7 @@ DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
-DEFINE_string(VPU_MOCK_DEVICE, "", mock_device_message);
+DEFINE_string(VPU_MOCK_DEVICE, "", "");
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
 
@@ -73,7 +71,6 @@ static void showUsage() {
     std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
     std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message     << std::endl;
-    std::cout << "    -VPU_MOCK_DEVICE             <value>     "   << mock_device_message          << std::endl;
     std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message << std::endl;
     std::cout << "    -VPU_TILING_CMX_LIMIT_KB     <value>     "   << tiling_cmx_limit_message     << std::endl;
     std::cout << std::endl;
@@ -109,16 +106,12 @@ static bool parseCommandLine(int *argc, char ***argv) {
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    IE_SUPPRESS_DEPRECATED_START
-        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = "VPU_MYRIAD_2480";
-    IE_SUPPRESS_DEPRECATED_END
-
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
         config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
     }
 
     if (!FLAGS_VPU_MOCK_DEVICE.empty()) {
-        config[InferenceEngine::MYRIAD_MOCK_DEVICE] = FLAGS_VPU_MOCK_DEVICE;
+        config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
     }
 
     if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
