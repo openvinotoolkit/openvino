@@ -15,12 +15,12 @@
 //*****************************************************************************
 
 #ifdef _WIN32
-# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
-# endif
-# include <windows.h>
+#if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#endif
+#include <windows.h>
 #elif defined(__linux) || defined(__APPLE__)
-# include <dlfcn.h>
+#include <dlfcn.h>
 #endif
 
 #include <sstream>
@@ -41,7 +41,7 @@ std::string runtime::Backend::s_backend_shared_library_search_directory;
 static string find_my_pathname()
 {
 #ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
-# ifdef _WIN32
+#ifdef _WIN32
     HMODULE hModule = GetModuleHandleW(L"ngraph.dll");
     WCHAR wpath[MAX_PATH];
     GetModuleFileNameW(hModule, wpath, MAX_PATH);
@@ -51,13 +51,13 @@ static string find_my_pathname()
     path = file_util::get_directory(path);
     path += "/";
     return path;
-# elif defined(__linux) || defined(__APPLE__)
+#elif defined(__linux) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
     return dl_info.dli_fname;
-# else
-#  error "Unsupported OS"  
-# endif
+#else
+#error "Unsupported OS"
+#endif
 #else
     return {};
 #endif

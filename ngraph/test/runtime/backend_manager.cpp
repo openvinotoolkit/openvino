@@ -167,7 +167,7 @@ DL_HANDLE runtime::BackendManager::open_shared_library(string type)
     DLERROR(); // Clear any pending errors
     handle = dlopen(library_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
 #else
-# error "Unsupported OS"
+#error "Unsupported OS"
 #endif
     string error = DLERROR();
     if (!handle)
