@@ -29,6 +29,7 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_parameter.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/ie_built_in_holder.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
@@ -123,6 +124,7 @@ add_library(${TARGET_NAME}_common_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_common_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 target_include_directories(${TARGET_NAME}_common_obj PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 

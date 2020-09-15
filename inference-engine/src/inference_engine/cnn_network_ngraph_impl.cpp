@@ -30,7 +30,7 @@
 #include "ie_itt.hpp"
 #include "network_serializer.hpp"
 #include "generic_ie.hpp"
-#include <legacy/shape_infer/built-in/ie_built_in_holder.hpp>
+#include "shape_infer/ie_built_in_holder.hpp"
 
 using namespace std;
 using namespace InferenceEngine;

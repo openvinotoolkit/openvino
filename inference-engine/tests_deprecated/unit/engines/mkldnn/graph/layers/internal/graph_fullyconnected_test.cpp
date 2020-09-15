@@ -325,8 +325,9 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
 
 TEST_P(MKLDNNGraphDynBatchFullyConnectedTests, TestsDynBatchFullyConnected) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchFullyConnected, MKLDNNGraphDynBatchFullyConnectedTests,
+        DISABLED_TestsDynBatchFullyConnected, MKLDNNGraphDynBatchFullyConnectedTests,
         ::testing::Values(
                 fc_test_params{{1, 3, 227, 227}, 96, 6, MKLDNNPlugin::impl_desc_type::gemm },
                 fc_test_params{{1, 4, 227, 227}, 8, 6, MKLDNNPlugin::impl_desc_type::gemm },

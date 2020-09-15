@@ -110,16 +110,18 @@ TEST_P(myriadLayersTestsConvertWithFP16_smoke, TestsConvertWithFP16)
 }
 
 std::vector<SizeVector> inputsDims = {
-    {       224, 224 },
-    {    3, 224, 224 },
+    // TODO: rewrite to ngraph to have reshape functionality
+    // {       224, 224 },
+    // {    3, 224, 224 },
     { 1, 1, 224, 224 },
     { 1, 1, 416, 416 },
     { 1, 1,  62,  62 },
     { 1, 1, 227, 227 },
     { 1, 3, 224, 224 },
 
+    // TODO: rewrite to ngraph to have reshape functionality
     // 5D case
-    { 2, 2, 3, 224, 224 },
+    // { 2, 2, 3, 224, 224 },
 };
 
 std::vector<SizeVector> inputsDims4D = {

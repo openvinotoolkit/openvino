@@ -14,7 +14,6 @@ using namespace Extensions;
 
 struct TestExtensionsHolder {
     std::map<std::string, Cpu::ext_factory> list;
-    std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
 

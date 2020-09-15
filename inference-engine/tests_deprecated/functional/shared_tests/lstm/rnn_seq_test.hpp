@@ -168,7 +168,7 @@ const auto workload = Combine(
         Values(2),                  // Batch
         Values(3),                  // Sequence size
         Values(0, 1),               // Axis of sequence
-        Values(RESH_NO, RESH_B)     // Reshape mode for batch, sequence or both
+        Values(RESH_NO /*, RESH_B TODO: migrate to ngraph reshape */)  // Reshape mode for batch, sequence or both
 );
 #endif
 
@@ -181,5 +181,5 @@ const auto dyn_seq_workload = Combine(
         Values(1, 8),               // Batch
         Values(3, 100),             // Sequence size
         Values(0, 1),               // Axis of sequence
-        Values(RESH_NO, RESH_B)     // Reshape mode for batch, sequence or both
+        Values(RESH_NO /*, RESH_B TODO: migrate to ngraph reshape */)     // Reshape mode for batch, sequence or both
 );

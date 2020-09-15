@@ -29,7 +29,6 @@
 #include "legacy/details/ie_cnn_network_tools.h"
 #include <legacy/cnn_network_impl.hpp>
 #include "network_serializer_v7.hpp"
-#include <shape_infer/ie_reshaper.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -364,31 +363,24 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
 
 StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                                    ResponseDesc* responseDesc) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->run(inputShapes);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc);
+    for (const auto& pair : _inputData) {
+        auto info = pair.second;
+        if (info) {
+            auto data = info->getInputData();
+            auto it = inputShapes.find(pair.first);
+            if (data && it != inputShapes.end()) {
+                auto newDims = it->second;
+                auto currentDims = data->getTensorDesc().getDims();
+                if (newDims != currentDims) {
+                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
+                        "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
+                        "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
+                        "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
+                }
+            }
+        }
     }
-    return OK;
-}
 
-StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                        InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->AddExtension(extension);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 

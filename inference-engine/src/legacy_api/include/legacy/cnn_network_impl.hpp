@@ -18,14 +18,12 @@
 #include "description_buffer.hpp"
 
 #include <legacy/ie_layers.h>
-#include <legacy/ie_ishape_infer_extension.hpp>
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
 
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
+
 namespace details {
 
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
@@ -126,9 +124,6 @@ public:
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
-    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept;
-
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
@@ -139,7 +134,6 @@ protected:
     std::map<std::string, DataPtr> _outputData;
     std::string _name;
     DataPtr _emptyData;
-    ShapeInfer::ReshaperPtr _reshaper;
 };
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
