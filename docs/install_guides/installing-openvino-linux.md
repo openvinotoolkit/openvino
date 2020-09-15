@@ -320,16 +320,21 @@ cd /opt/intel/openvino/install_dependencies/
 ```sh
 sudo -E su
 ```
-3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics:
+3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. Run the installation script with super user rights:
 ```sh
-./install_NEO_OCL_driver.sh
+sudo -E ./install_NEO_OCL_driver.sh
 ```
-You may see the following command line output:
-
+The drivers are not included in the package and the script downloads them. Make sure you have the 
+internet connection for this step.
+> **NOTES**: 
+> * If the driver version on the system is higher or equal to the current version, the script does 
+> not install a new driver. 
+> * If the version of the driver is lower than the current version, the script uninstalls the lower 
+> and installs the current version with your permission. 
+> * If the script fails to uninstall the driver, uninstall it manually.
+You may see the following command line output:  
 - Add OpenCL user to video group
-- Run script to install the 4.14 kernel script
-
-Ignore those suggestions and continue.
+Ignore this suggestion and continue.
 
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
