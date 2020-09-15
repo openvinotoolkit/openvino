@@ -73,6 +73,29 @@ namespace ngraph
 
             } // namespace error
 
+            static const std::vector<std::string> legacy_ops_to_fixup = {
+                "FakeQuantize", "DetectionOutput", "Normalize", "PriorBox"};
+
+            // There are some models with custom OPs (list above) that has the default domain set.
+            // So in order to load the models, we need overwrite the OPs' domain to the one they're
+            // registered
+            void fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto)
+            {
+                for (auto& node : *graph_proto->mutable_node())
+                {
+                    auto it = std::find(
+                        legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
+                    if (it != legacy_ops_to_fixup.end())
+                    {
+                        if (!node.has_domain() || node.domain().empty() ||
+                            node.domain() == "ai.onnx")
+                        {
+                            node.set_domain(OPENVINO_ONNX_DOMAIN);
+                        }
+                    }
+                }
+            }
+
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
@@ -119,6 +142,9 @@ namespace ngraph
                 }
 #endif
             }
+
+            detail::fixup_legacy_operators(model_proto.mutable_graph());
+
             return detail::convert_to_ng_function(model_proto);
         }
 
