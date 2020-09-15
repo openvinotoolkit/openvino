@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"
