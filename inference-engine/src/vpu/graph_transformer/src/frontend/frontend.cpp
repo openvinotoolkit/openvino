@@ -171,7 +171,7 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before ConstantFolding pass
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();

@@ -168,8 +168,8 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     }
 
     ngraph::pass::Manager manager;
-    // WA: ConvertPriorBox must be executed before ConstantFolding pass
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();

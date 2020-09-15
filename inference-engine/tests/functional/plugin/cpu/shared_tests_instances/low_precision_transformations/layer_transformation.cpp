@@ -81,8 +81,8 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::deta
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
-        // WA: ConvertPriorBox must be executed before ConstantFolding pass
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
