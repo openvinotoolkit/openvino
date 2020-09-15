@@ -17,7 +17,7 @@ import logging
 from run_executable import run_executable
 
 
-def test_run(instance, executable, niter):
+def test_executable(instance, executable, niter):
     """Parameterized test.
 
     :param instance: test instance
