@@ -23,31 +23,26 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
             return false;
         }
 
-        const auto& W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                lstm_sequence->input_value(4).get_node_shared_ptr());
-        if (!W) {
-            return false;
-        }
+        const auto& W = lstm_sequence->input_value(4);
+        const auto& R = lstm_sequence->input_value(5);
 
-        const auto& R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                lstm_sequence->input_value(5).get_node_shared_ptr());
-        if (!R) {
+        // Bidirectional cases are not supported
+        if (lstm_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-        }
 
         // for forward/reverse cases we can squeeze num_direction dimension
         auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(1).get_source_output(), axis_1);
-        auto in_2 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(2).get_source_output(), axis_1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input_value(1), axis_1);
+        auto in_2 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input_value(2), axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::OutputVector{W, R}, 2);
         auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
-        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input(6).get_source_output(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(lstm_sequence->input_value(6), axis_2);
         auto lstm_sequence_ie = std::make_shared<ngraph::op::LSTMSequenceIE>(
                 lstm_sequence->input(0).get_source_output(),  // X
                 in_1,  // initial_hidden_state
                 in_2,  // initial_cell_state
-                lstm_sequence->input(3).get_source_output(),
+                lstm_sequence->input_value(3),
                 in_3,  // WR
                 in_4,  // B
                 lstm_sequence->get_hidden_size(),
@@ -84,34 +79,25 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                gru_sequence->input_value(3).get_node_shared_ptr());
-        if (!W) {
-            return false;
-        }
+        auto W = gru_sequence->input_value(3);
+        auto R = gru_sequence->input_value(4);
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                gru_sequence->input_value(4).get_node_shared_ptr());
-        if (!R) {
-            return false;
-        }
-
-        // todo: add exception?
+        // Bidirectional cases are not supported
         if (gru_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
 
         // for forward/reverse cases we can squeeze num_direction dimension
         auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input(1).get_source_output(), axis_1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input_value(1), axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::OutputVector{W, R}, 2);
         auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
-        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input(5).get_source_output(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(gru_sequence->input_value(5), axis_2);
 
         auto gru_sequence_ie = std::make_shared<ngraph::op::GRUSequenceIE>(
-                gru_sequence->input(0).get_source_output(), // X
+                gru_sequence->input_value(0), // X
                 in_1,  // initial_hidden_state
-                gru_sequence->input(2).get_source_output(),
+                gru_sequence->input_value(2),
                 in_3,  // WR
                 in_4,  // B
                 gru_sequence->get_hidden_size(),
@@ -146,27 +132,22 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                rnn_sequence->input_value(3).get_node_shared_ptr());
-        if (!W) {
+        // Bidirectional cases are not supported
+        if (rnn_sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-        }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset4::Constant>(
-                rnn_sequence->input_value(4).get_node_shared_ptr());
-        if (!R) {
-            return false;
-        }
+        auto W = rnn_sequence->input_value(3);
+        auto R = rnn_sequence->input_value(4);
 
         // for forward/reverse cases we can squeeze num_direction dimension
         auto axis_1 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input(1).get_source_output(), axis_1);
-        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::NodeVector({W, R}), 2);
+        auto in_1 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input_value(1), axis_1);
+        auto concat = std::make_shared<ngraph::opset4::Concat>(ngraph::OutputVector{W, R}, 2);
         auto axis_2 = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto in_3 = std::make_shared<ngraph::opset4::Squeeze>(concat->output(0), axis_2);
-        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input(5).get_source_output(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset4::Squeeze>(rnn_sequence->input_value(5), axis_2);
         auto rnn_sequence_ie = std::make_shared<ngraph::op::RNNSequenceIE>(
-                rnn_sequence->input(0).get_source_output(),  // X
+                rnn_sequence->input_value(0),  // X
                 in_1,  // initial_hidden_state
                 rnn_sequence->input_value(2),
                 in_3,  // WR
