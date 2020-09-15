@@ -29,6 +29,12 @@ def pytest_addoption(parser):
         "--model_zoo_dir",
         default="",
         type=str,
+        help="location of the model zoo",
+    )
+    parser.addoption(
+        "--model_zoo_xfail",
+        action="store_true",
+        help="treat model zoo known issues as xfails instead of failures",
     )
 
 
@@ -36,6 +42,7 @@ def pytest_configure(config):
     backend_name = config.getvalue("backend")
     tests.BACKEND_NAME = backend_name
     tests.MODEL_ZOO_DIR = config.getvalue("model_zoo_dir")
+    tests.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
 
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
@@ -50,6 +57,7 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     backend_name = config.getvalue("backend")
     tests.MODEL_ZOO_DIR = config.getvalue("model_zoo_dir")
+    tests.MODEL_ZOO_XFAIL = config.getvalue("model_zoo_xfail")
 
     keywords = {
         "CPU": "skip_on_cpu",

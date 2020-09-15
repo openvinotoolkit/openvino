@@ -98,7 +98,7 @@ if len(zoo_models) > 0:
     backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR)
     test_cases = backend_test.test_cases["OnnxBackendValidationModelImportTest"]
     # flake8: noqa: E501
-    if True:
+    if tests.MODEL_ZOO_XFAIL:
         import_xfail_list = [
             "test_onnx_model_zoo_vision_classification_mnist_model_mnist_1_model_cpu",
             "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov2_model_tinyyolov2_1_model_cpu",
@@ -111,7 +111,7 @@ if len(zoo_models) > 0:
     del test_cases
 
     test_cases = backend_test.test_cases["OnnxBackendValidationModelExecutionTest"]
-    if True:
+    if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu",
             "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_bertsquad10_cpu",
