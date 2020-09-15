@@ -250,7 +250,7 @@ public:
                     createConstInputTo(layer, scalesBlob, "weights");
 
                 InferenceEngine::Blob::Ptr shiftBlob = layer->blobs["biases"];
-                if (scalesBlob != nullptr)
+                if (shiftBlob != nullptr)
                     createConstInputTo(layer, shiftBlob, "biases");
             } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
                 InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];

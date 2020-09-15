@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mkldnn_graph.h"
+#include "nodes/mkldnn_eltwise_node.h"
 #include <vector>
 
 namespace MKLDNNPlugin {
@@ -53,6 +54,9 @@ private:
     void FuseClampAndQuantize(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
+    bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);
+
+    void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
 };
 
 }  // namespace MKLDNNPlugin

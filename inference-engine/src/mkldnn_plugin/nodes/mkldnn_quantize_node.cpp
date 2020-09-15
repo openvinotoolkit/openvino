@@ -43,10 +43,6 @@ void MKLDNNQuantizeNode::init() {
             THROW_IE_EXCEPTION << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
     }
 
-    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
-        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
-    }
-
     auto initAxisIdx = [&](size_t edgeIdx) {
         auto edge = getParentEdgesAtPort(edgeIdx)[0];
 
@@ -319,6 +315,10 @@ std::vector<mkldnn::memory::format> MKLDNNQuantizeNode::getDataFormats() const {
 }
 
 void MKLDNNQuantizeNode::getSupportedDescriptors() {
+    if (getParentEdgesAtPort(0)[0]->getDims().ndims() < 1ul || getParentEdgesAtPort(0)[0]->getDims().ndims() > 5ul) {
+        THROW_IE_EXCEPTION << "Unsupported number of dimensions for input at edge 0 in Quantize layer " << getName();
+    }
+
     mkldnn::memory::data_type idt = MKLDNNExtensionUtils::IEPrecisionToDataType(getInputPrecision());
     mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
     mkldnn::memory::data_type ddt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOutputPrecision());

@@ -194,16 +194,6 @@ void MKLDNNGraphOptimizer::MergeConversions(MKLDNNGraph& graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableConvNode = [](MKLDNNNodePtr node) {
@@ -506,16 +496,6 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
     };
 
     auto MergeScaleShiftNodes = [&](MKLDNNNodePtr childNode1, MKLDNNNodePtr childNode2) {
-        auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-            auto& edges = graph.GetEdges();
-            for (auto it = edges.begin(); it != edges.end(); it++) {
-                if ((*it) == edge) {
-                    edges.erase(it);
-                    return;
-                }
-            }
-        };
-
         auto parentNode = childNode2->getParentEdgeAt(0)->getParent();
         auto ccNode2 = childNode2->getChildEdgeAt(0)->getChild();
 
@@ -568,16 +548,6 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto &graphNodes = graph.GetNodes();
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -612,15 +582,6 @@ void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
@@ -632,7 +593,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
         return eltwiseNode &&
             (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
-            isOneOf(eltwiseNode->getOpType(), {Relu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish})));
+            IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish})));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -682,25 +643,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -729,9 +671,9 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
             if (eltwiseNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get Eltwise node " << childNode->getName();
 
-            if (isOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp})) {
-                return false;
-            } else if (isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu})) {
+            if (IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp})) {
+                return true;
+            } else if (IsOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu})) {
                 if (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() != 2)
                     return false;
 
@@ -1027,16 +969,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
 #if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
 void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1090,25 +1022,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndQuantize(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1134,7 +1047,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
 
             return ((eltwiseNode->getOpType() == MulAdd && node->getCnnLayer()->blobs.size() == 2) ||
                     (eltwiseNode->getOpType() == Prelu) ||
-                    isOneOf(eltwiseNode->getOpType(), {Relu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish}));
+                    IsOneOf(eltwiseNode->getOpType(), {Relu, Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish}));
         }
 
         return false;
@@ -1172,16 +1085,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
 }
 
 void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1226,16 +1129,6 @@ void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) 
 }
 
 void MKLDNNGraphOptimizer::FusePoolingAndQuantize(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1359,15 +1252,6 @@ static bool is_data_dependency(const std::shared_ptr<MKLDNNNode> &parent,
 void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr> &graphNodes = graph.GetNodes();
 
-    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
         if (!activation->getCnnLayer())
             return false;
@@ -1377,7 +1261,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         return eltwiseNode &&
             (eltwiseNode->getOpType() == Relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
-             isOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish})));
+             IsOneOf(eltwiseNode->getOpType(), {Elu, Logistic, BoundedRelu, Clamp, Swish, Hswish, Mish})));
     };
 
     for (auto &graphNode : graphNodes) {
@@ -1508,16 +1392,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 #endif
 
 void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1588,16 +1462,6 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1666,16 +1530,6 @@ void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
@@ -1734,25 +1588,6 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
 }
 
 void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
-    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1778,7 +1613,7 @@ void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
             auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
             if (eltwiseNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get Eltwise node " << node->getName();
-            return isOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
+            return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
                                                       Hswish, Mish, Linear, Abs, Square, Sqrt}) ||
                     ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
                      (eltwiseNode->getOpType() == Prelu));
@@ -1819,25 +1654,6 @@ void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
-    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
@@ -1875,9 +1691,6 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
         }
 
         parentNode->fuseWith(childNode);
-//        for (auto node : childNode->getFusedWith())
-//            parentNode->fuseWith(node);
-//        childNode->clearFusedWith();
 
         if (childNode->getType() == Quantize) {
             auto parentEdges = childNode->parentEdges;
@@ -2178,6 +1991,25 @@ bool MKLDNNGraphOptimizer::IsOneOf(Type type, std::vector<Type> types) {
     return false;
 }
 
+bool MKLDNNGraphOptimizer::IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
+    for (auto a : algs) {
+        if (alg == a) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MKLDNNGraphOptimizer::removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
+    auto& edges = graph.GetEdges();
+    for (auto it = edges.begin(); it != edges.end(); it++) {
+        if ((*it) == edge) {
+            edges.erase(it);
+            return;
+        }
+    }
+}
+
 void MKLDNNGraphOptimizer::FuseBroadcastAndEltwise(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr>& graphNodes = graph.GetNodes();
 
@@ -2291,7 +2123,7 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
         if (eltwiseNode->getChildEdges().size() != 1)
             return false;
 
-        if (eltwiseNode->getOpType() != MulAdd || eltwiseNode->getCnnLayer()->blobs.size() == 2)
+        if (eltwiseNode->getOpType() != MulAdd)
             return false;
 
         return true;
@@ -2390,6 +2222,15 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
         if (!isSutableQuantizeNode(child)) continue;
 
         if (fuseScaleShiftAndQuantizeNodes(parent, child)) {
+            auto parentEdges = parent->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getCnnLayer()->type != "Const")
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+
             graph.DropNode(parent);
         }
     }

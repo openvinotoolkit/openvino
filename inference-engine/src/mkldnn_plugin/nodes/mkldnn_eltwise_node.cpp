@@ -31,7 +31,7 @@ using namespace Xbyak;
 
 template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_fq_generic)
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
     explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) : jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {
         Precision exec_prc = Precision::UNSPECIFIED;
@@ -100,9 +100,23 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             if (jep.src_size[i] != 1)
                 min_src_size = std::min(min_src_size, jep.src_size[i]);
         }
+        if (jep_.oc_size > 1)
+            min_src_size = std::min(min_src_size, jep_.oc_size);
 
         if (min_src_size != jep.dst_size) {
+            bool is_valid_configuration = true;
             if (jep.dst_size % min_src_size != 0)
+                is_valid_configuration = false;
+
+            for (int i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size)
+                    is_valid_configuration = false;
+            }
+
+            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size && jep_.oc_size != jep.dst_size)
+                is_valid_configuration = false;
+
+            if (!is_valid_configuration)
                 THROW_IE_EXCEPTION << "Eltwise jitter has invalid configuration for Eltwise node with name `" << eltwiseNode.getName() << "`";
 
             L(unroll_loop_label);
@@ -121,7 +135,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                     compute_eltwise_op();
 
-                    apply_post_ops(false);
+                    apply_post_ops(false, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
                     store_vector(ptr[reg_dst + j * vec_step * jep.dst_prc.size()], vmm_dst, exec_prc, jep.dst_prc);
                 }
@@ -135,7 +149,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                     compute_eltwise_op();
 
-                    apply_post_ops(true);
+                    apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
                     store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
                 }
@@ -146,7 +160,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                 add(reg_dst, jep.dst_prc.size() * loop_step);
                 sub(reg_work_amount, loop_step);
-                if (jep_.oc_step != 0)
+                if (jep_.oc_size > 1 && jep_.oc_size != min_src_size)
                     add(reg_oc_off, loop_step * sizeof(float));
 
                 jmp(unroll_loop_label, T_NEAR);
@@ -180,7 +194,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                 add(reg_dst, jep.dst_prc.size() * loop_step);
                 sub(reg_work_amount, loop_step);
-                if (jep_.oc_step != 0)
+                if (jep_.oc_size > 1)
                     add(reg_oc_off, loop_step * sizeof(float));
 
                 jmp(main_loop_label, T_NEAR);
@@ -213,7 +227,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
             add(reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, loop_step);
-            if (jep_.oc_step != 0)
+            if (jep_.oc_size > 1)
                 add(reg_oc_off, loop_step * sizeof(float));
 
             jmp(tail_loop_label, T_NEAR);
@@ -235,7 +249,7 @@ private:
     using Vmm = typename conditional3<isa == cpu::sse42, Xmm, isa == cpu::avx2, Ymm, Zmm>::type;
 
     Reg64 get_src_reg(int idx) {
-        return Reg64(r9.getIdx() + idx);
+        return Reg64(r8.getIdx() + idx);
     }
 
     Vmm get_vmm_reg(int idx) {
@@ -256,9 +270,9 @@ private:
     Reg64 reg_oc_off = abi_not_param1;
     Reg64 reg_params = abi_param1;
 
-    Reg8 reg_tmp_8 = r8b;
-    Reg32 reg_tmp_32 = r8d;
-    Reg64 reg_tmp_64 = r8;
+    Reg8 reg_tmp_8 = Reg8(r15.getIdx());
+    Reg32 reg_tmp_32 = Reg32(r15.getIdx());
+    Reg64 reg_tmp_64 = Reg64(r15.getIdx());
 
     Reg64 reg_d_weights = rbp;
     Reg64 reg_d_bias = rsi;
@@ -270,12 +284,12 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
-    std::shared_ptr<jit_emitter> eltwise_emitter;
-    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
+    std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
 
-    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
+    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors = {};
 
-    std::vector<Precision> exec_precisions_priority ={
+    std::vector<Precision> exec_precisions_priority = {
         Precision::U8,
         Precision::I8,
         Precision::U16,
@@ -365,7 +379,7 @@ private:
         eltwise_emitter->emit(in_idxs, out_idxs, aux_idxs);
     }
 
-    inline void apply_post_ops(bool is_scalar) {
+    inline void apply_post_ops(bool is_scalar, int offset = 0) {
         int input_idx = eltwise_emitter->get_inputs_num();
         int eltwise_post_op_idx = 0;
         int quantization_post_op_idx = 0;
@@ -393,13 +407,14 @@ private:
                 int s_idx = vmm_dst.getIdx();
 
                 quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_oc_off);
-                quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, 0, is_scalar, jep_.oc_step == 0);
+                quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
 
                 quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, is_scalar, jep_.oc_step == 0);
+                quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, offset, do_rounding,
+                                                                                            is_scalar, jep_.oc_size == 1);
 
                 quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, is_scalar, jep_.oc_step == 0);
+                quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
 
                 quantization_post_op_idx++;
             }
@@ -478,7 +493,7 @@ private:
                 movq(xmm_src, reg_tmp_64);
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown src_prc");
         }
 
         switch (dst_prc) {
@@ -616,7 +631,7 @@ private:
 };
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache), eltwiseOp(Add), eltiwse_kernel(nullptr) {
+        MKLDNNNode(layer, eng, cache) {
 }
 
 InferenceEngine::details::caseless_map<std::string, std::function<void(GenericLayer*, EltwiseOpType&, mkldnn::algorithm&, float&, float&)>>
@@ -1017,7 +1032,6 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
 
         for (int i = 0; i < inputNum; i++) {
-            dims_in[i].resize(maxInputSize, 1);
             size_t inRank = config.inConfs[i].desc.getBlockingDesc().getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
@@ -1079,8 +1093,40 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     };
 
+    auto collapseLastOffsets = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            if (dims[dims.size() - 1] > 0 || dims[i] > 0)
+                dims[dims.size() - 1] = std::max(dims[dims.size() - 1], static_cast<size_t>(1)) * std::max(dims[i], static_cast<size_t>(1));
+            else
+                dims[dims.size() - 1] *= dims[i];
+        }
+
+        for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            dims[i] = dims[i - dimsToCollapse];
+        }
+
+        for (int i = dimsToCollapse - 1; i >= 0; i--) {
+            dims[i] = 0;
+        }
+    };
+
     tensorRank = std::max(static_cast<size_t>(optimalTensorRank), config.outConfs[0].desc.getBlockingDesc().getBlockDims().size());
     initDims(tensorRank);
+
+    auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
+    size_t oc_size = 0;
+    offsets_oc.resize(tensorRank, 0);
+    if (isFusedWith(Quantize)) {
+        size_t offset_oc = 1;
+        for (int i = outOrder.size() - 1; i >= 0; i--) {
+            if (outOrder[i] == 1) {
+                int oc_dim_idx = i + (tensorRank - outOrder.size());
+                offsets_oc[oc_dim_idx] = offset_oc;
+                offset_oc *= dims_out[oc_dim_idx];
+            }
+        }
+        oc_size = offsets_oc[dims_out.size() - 1] != 0 ? dims_out[dims_out.size() - 1] : 1;
+    }
 
     fullWorkAmount = 1;
     for (int i = 0; i < dims_out.size(); i++) {
@@ -1090,16 +1136,34 @@ void MKLDNNEltwiseNode::createPrimitive() {
     size_t minimalConcurrency = parallel_get_max_threads();
     size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
-    int dimsToCollapse = 0;
+    int collapsedDims = 0;
+    bool hasDifferentDims = false;
     while (currentJitWorkAmount < minimalJitWorkAmount) {
-        if (dims_out.size() - dimsToCollapse - 2 < 0)
+        if (dims_out.size() - collapsedDims - 2 < 0)
             break;
+
+        for (int j = 1; j < dims_in.size(); j++) {
+            if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                hasDifferentDims = true;
+            }
+        }
+
+        if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
+            hasDifferentDims = true;
+        }
 
         bool canCollapse = true;
         for (int i = 0; i < dims_in.size(); i++) {
-            if (dims_in[i][dims_in[i].size() - dimsToCollapse - 2] != 1 && dims_in[i][dims_in[i].size() - dimsToCollapse - 1] == 1) {
-                canCollapse = false;
-                break;
+            if (dims_in[i][dims_in[i].size() - 2] != 1) {
+                if (dims_in[i][dims_in[i].size() - 1] == 1) {
+                    canCollapse = false;
+                    break;
+                }
+
+                if (hasDifferentDims) {
+                    canCollapse = false;
+                    break;
+                }
             }
         }
 
@@ -1107,24 +1171,26 @@ void MKLDNNEltwiseNode::createPrimitive() {
             break;
         }
 
-        size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[dims_out.size() - dimsToCollapse - 2];
+        size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[dims_out.size() - 2];
         if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
             currentJitWorkAmount = nextJitWorkAmount;
-            dimsToCollapse++;
+            collapsedDims++;
+
+            for (int i = 0; i < dims_in.size(); i++) {
+                collapseLastDims(dims_in[i], 1);
+            }
+            collapseLastDims(dims_out, 1);
+
+            if (isFusedWith(Quantize)) {
+                collapseLastOffsets(offsets_oc, 1);
+            }
         } else {
             break;
         }
     }
 
-    if (dimsToCollapse > 0) {
-        for (int i = 0; i < dims_in.size(); i++) {
-            collapseLastDims(dims_in[i], dimsToCollapse);
-        }
-        collapseLastDims(dims_out, dimsToCollapse);
-    }
-
     isDynBatchEnabled = config.dynBatchSupport;
-    batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + dimsToCollapse;
+    batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
     initOffsets(tensorRank);
@@ -1144,24 +1210,14 @@ void MKLDNNEltwiseNode::createPrimitive() {
     }
     jep.dst_offsets = offsets_out;
 
-    auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
-    offsets_oc.resize(tensorRank, 0);
-    size_t offset_oc = 1;
-    for (int i = outOrder.size() - 1; i >= 0; i--) {
-        if (outOrder[i] == 1) {
-            int oc_dim_idx = i + (tensorRank - outOrder.size());
-            offsets_oc[oc_dim_idx] = offset_oc;
-            offset_oc *= dims_out[oc_dim_idx];
-        }
-    }
-    jep.oc_step = isFusedWith(Quantize) ? offsets_oc[dims_out.size() - 1] : 0;
+    jep.oc_size = oc_size;
 
     if (mayiuse(cpu::avx512_common)) {
-        eltiwse_kernel.reset(new jit_uni_eltwise_generic<cpu::avx512_common>(jep, *this));
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::avx512_common>(jep, *this));
     } else if (mayiuse(cpu::avx2)) {
-        eltiwse_kernel.reset(new jit_uni_eltwise_generic<cpu::avx2>(jep, *this));
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::avx2>(jep, *this));
     } else if (mayiuse(cpu::sse42)) {
-        eltiwse_kernel.reset(new jit_uni_eltwise_generic<cpu::sse42>(jep, *this));
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::sse42>(jep, *this));
     }
 }
 
@@ -1266,7 +1322,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
             arg.oc_off = (i0 * offsets_oc[0] + i1 * offsets_oc[1] + i2 * offsets_oc[2] +
                           i3 * offsets_oc[3] + i4 * offsets_oc[4]) * sizeof(float);
 
-            (*eltiwse_kernel)(&arg);
+            (*eltwise_kernel)(&arg);
         });
     } else {
         parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -1307,7 +1363,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
                     arg.oc_off += counters[j] * offsets_oc[j] * sizeof(float);
                 }
 
-                (*eltiwse_kernel)(&arg);
+                (*eltwise_kernel)(&arg);
             }
         });
     }
@@ -1355,7 +1411,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
 
                 Blob::Ptr scalesBlob = getCnnLayer()->blobs["weights"];
                 if (scalesBlob == nullptr)
-                    THROW_IE_EXCEPTION << "Cannot get weights blob in Eltwise node with name `" << getName() << "'";
+                    THROW_IE_EXCEPTION << "Cannot get weights blob in Eltwise node with name `" << getName() << "`";
                 scales.resize(bufferSizeAligned, 0);
                 const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
                 for (int i = 0; i < bufferSize; i++) {
@@ -1374,7 +1430,7 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
 
             ops.append_depthwise(getAlgorithm(), &scales[0], shifts.empty() ? nullptr : &shifts[0]);
             break;
-        default: THROW_IE_EXCEPTION << "Appending Eltwise node with name `" << getName() << "' as post operation is not supported";
+        default: THROW_IE_EXCEPTION << "Appending Eltwise node with name `" << getName() << "` as post operation is not supported";
     }
 }
 
