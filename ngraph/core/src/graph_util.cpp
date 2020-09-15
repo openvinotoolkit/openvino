@@ -902,6 +902,8 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         if (has_result_output && !is_type<ngraph::op::Parameter>(replacement.get_node()))
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
+            // Update output tensor name
+            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
         }
         output.replace(replacement);
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
