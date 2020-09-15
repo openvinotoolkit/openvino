@@ -20,12 +20,8 @@
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset3.hpp>
-
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 
 #include "generic_ie.hpp"
 
@@ -37,32 +33,14 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     auto clonedNetwork = cloneNetwork(network);
-    if (auto function = clonedNetwork->getFunction()) {
-        ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::Manager manager;
-        manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<vpu::DynamicToStaticShape>();
-        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
-        manager.run_passes(function);
-
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(function);
-    }
-
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
-        _mvnc, _devicePool,
-        parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
