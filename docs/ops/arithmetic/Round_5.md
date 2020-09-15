@@ -26,12 +26,6 @@
 
 * *T*: any numeric type.
 
-*Round* does the following with the input tensor *a*:
-
-\f[
-a_{i} = round(a_{i})
-\f]
-
 **Example**
 
 ```xml
