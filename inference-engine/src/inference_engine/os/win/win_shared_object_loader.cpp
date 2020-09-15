@@ -48,6 +48,9 @@
 //  WINAPI_FAMILY_SYSTEM - FAIL
 //
 
+// TODO: move to cmake option
+#define IE_SKIP_CWD
+
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
 # error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
 #endif
@@ -69,7 +72,7 @@ private:
     // path was set to "" or NULL so reset it to "" to keep
     // aplication safe.
     void ExcludeCurrentDirectory() {
-#ifndef WINAPI_FAMILY
+#if !(defined(WINAPI_FAMILY) || defined(IE_SKIP_CWD))
         if (GetDllDirectoryA(0, NULL) <= 1) {
             SetDllDirectoryA("");
         }
@@ -78,7 +81,7 @@ private:
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     void ExcludeCurrentDirectoryW() {
-#ifndef WINAPI_FAMILY
+#if !(defined(WINAPI_FAMILY) || defined(IE_SKIP_CWD))
         if (GetDllDirectoryW(0, NULL) <= 1) {
             SetDllDirectoryW(L"");
         }

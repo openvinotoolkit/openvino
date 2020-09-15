@@ -32,9 +32,7 @@ endif()
 #
 function(ie_cpack_set_library_dir)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-    if(ARCH STREQUAL "x86_64" OR
-       # Windows detects Intel's 64-bit CPU as AMD64
-       ARCH STREQUAL "amd64")
+    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
         set(ARCH intel64)
     elseif(ARCH STREQUAL "i386")
         set(ARCH ia32)
