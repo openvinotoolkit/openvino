@@ -23,6 +23,9 @@ void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
     const auto reshape = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(target);
+    VPU_THROW_UNLESS(reshape != nullptr,
+                     "DynamicToStaticShape transformation for '{}' expects Reshape node",
+                     target->get_friendly_name());
     const auto outShapeDescriptor = reshape->input_value(1).get_node_shared_ptr();
 
     const auto replacement = ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptor)
