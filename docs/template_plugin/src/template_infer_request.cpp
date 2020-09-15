@@ -218,6 +218,7 @@ void TemplateInferRequest::inferPreprocess() {
     }
     // Go over all outputs in the model, not over all allocated blobs because for a part of the outputs
     // blobs may not be yet allocated due to unknown dimensions
+    // TODO: should we really go over all results in the network, or it is better to go over _networkOutputs?
     for (size_t index = 0; index < _results.size(); ++index) {
         _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
     }
@@ -246,13 +247,18 @@ void TemplateInferRequest::waitPipeline() {
 void TemplateInferRequest::inferPostprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
+    for (auto&& networkOutput : _networkOutputs) {
+        {
+            // Touch blob to allocate it
+            Blob::Ptr blob;
+            GetBlob(networkOutput.first.c_str(), blob);
+        }
+        auto outputBlob = _outputs.at(networkOutput.first);
+        auto networkOutputBlob = _networkOutputBlobs[networkOutput.first];
         // perform precision conversion of network output's precision and computational
         // graph output's precision are different
-        if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
-            blobCopy(networkOutput, outputBlob);
+        if (outputBlob->getTensorDesc().getPrecision() != networkOutputBlob->getTensorDesc().getPrecision()) {
+            blobCopy(networkOutputBlob, outputBlob);
         }
     }
     _durations[Postprocess] = Time::now() - start;
@@ -286,8 +292,16 @@ void TemplateInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
         }
     } else {
         data = _outputs[name];
-        const auto &dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name]
-                                                                         : foundInput->getTensorDesc().getDims();
+        SizeVector dims;
+        if (foundOutput->getTensorDesc().getPartialShape().is_static()) {
+            dims = foundOutput->getTensorDesc().getDims();
+        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
+            dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+        } else {
+            THROW_IE_EXCEPTION << "Output blob dimensions are not all known for output name " <<
+                name << " with partial shape: " << foundOutput->getTensorDesc().getPartialShape();
+        }
+
         if (!data) {
             auto &&results = _executableNetwork->_function->get_results();
             AllocateImplSingle(_outputs, _networkOutputBlobs, *_networkOutputs.find(name),

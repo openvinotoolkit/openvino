@@ -311,6 +311,7 @@ protected:
             element::Type type = node.get_element_type();
             std::stringstream ss;
             size_t element_count = shape_size(args[0]->get_shape());
+            out[0]->set_shape(args[0]->get_shape());
             switch (type)
             {
             case element::Type_t::boolean:
@@ -463,6 +464,7 @@ protected:
         {
             const op::CumSum* cumsum = static_cast<const op::CumSum*>(&node);
             auto axis_et = node.get_input_element_type(1);
+            out[0]->set_shape(node.get_output_shape(0));
             if (axis_et == element::i32)
             {
                 reference::cumsum<T, int32_t>(args[0]->get_data_ptr<const T>(),

@@ -343,7 +343,12 @@ protected:
                 if (foundOutputPair == std::end(_networkOutputs)) {
                     THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to find output with name: \'" << name << "\'";
                 }
-                dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundOutputPair->second->getTensorDesc().getDims();
+                if (foundOutputPair->second->getTensorDesc().getPartialShape().compatible(blob->getTensorDesc().getPartialShape())) {
+                    dims = blob->getTensorDesc().getDims();
+                } else {
+                    // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we need to immediately throw here
+                    dims = foundOutputPair->second->getTensorDesc().getDims();
+                }
                 refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR
                     ? details::product(dims)
                     : 1;

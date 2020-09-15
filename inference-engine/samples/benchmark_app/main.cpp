@@ -576,6 +576,15 @@ int main(int argc, char *argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
+        const auto outputs = exeNetwork.GetOutputsInfo();
+        // Touch all outputs
+        for (auto request : inferRequestsQueue.requests) {
+            for (auto output : outputs) {
+                auto outBlob = request->getBlob(output.first);
+                std::cout << "Acquired output blob " << output.first << " with shape: " << outBlob->getTensorDesc().getPartialShape() << '\n';
+            }
+        }
+
         double latency = getMedianValue<double>(inferRequestsQueue.getLatencies());
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / latency :

@@ -49,6 +49,7 @@ public:
     void GetBlob(const char* name, InferenceEngine::Blob::Ptr& data) override;
 
     void SetShape(const char* name, const InferenceEngine::SizeVector& dims) override {
+        // TODO: check partial shape compatibility
         m_realShapes[name] = dims;
     };
 
