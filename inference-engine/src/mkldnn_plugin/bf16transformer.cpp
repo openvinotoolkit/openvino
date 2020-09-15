@@ -67,6 +67,10 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
         if (_initbf16.find(iter->type) != _initbf16.end()) {
             for (size_t o = 0; o < iter->insData.size(); o++) {
                 if (inputs.find(iter->insData[o].lock()->getName()) != inputs.end()) {
+                    if (iter->insData[o].lock()->getPrecision() != Precision::FP32 &&
+                            iter->insData[o].lock()->getPrecision() != Precision::BF16) {
+                        break;
+                    }
                     // insert convert
                     std::string layerName = iter->insData[o].lock()->getName() + "_" + std::to_string(o);
                     LayerParams cnnLayerParams{ layerName, "Convert", Precision::FP32 };
