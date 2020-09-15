@@ -33,6 +33,7 @@ NGRAPH_OP(PriorBox, ngraph::op::v0)
 NGRAPH_OP(ReverseSequence, op::v0)
 NGRAPH_OP(RNNCell, op::v0)
 NGRAPH_OP(Selu, op::v0)
+NGRAPH_OP(Quantize, op::v0)
 
 NGRAPH_OP(AvgPool, op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)

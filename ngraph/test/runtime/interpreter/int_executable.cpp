@@ -21,6 +21,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/pass/visualize_tree.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -33,6 +34,8 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     , m_performance_counters_enabled{enable_performance_collection}
 {
     m_function = clone_function(*function);
+    auto p = pass::VisualizeTree("before.dot");
+    p.run_on_function(m_function);
     for (const auto& node : m_function->get_ordered_ops())
     {
         // TODO: WA because of references mismatch for the operation
@@ -69,8 +72,12 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
             }
             auto concat = std::make_shared<op::Concat>(convs, 1);
             replace_node(node, concat);
+        } else if (is_type<op::v0::FakeQuantize>(node)) {
+            replace_node(node, node->decompose_op());
         }
     }
+    auto p2 = pass::VisualizeTree("after.dot");
+    p2.run_on_function(m_function);
     for (auto node : m_function->get_ordered_ops())
     {
         m_nodes.push_back(node);

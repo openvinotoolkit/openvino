@@ -53,6 +53,7 @@
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
 #include "reference/selu.hpp"
+#include "ngraph/runtime/reference/quantize.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -436,29 +437,27 @@ namespace {
         return true;
     }
 
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::PriorBox>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& input)
-    {
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::PriorBox> &op,
+                  const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
         using T = typename element_type_traits<ET>::value_type;
         std::cout << "djdkldld" << std::endl;
-            std:: cout << input[0]->get_data_ptr<T>()[0] << " " << input[0]->get_data_ptr<T>()[1] << std::endl;
-            auto cons = dynamic_pointer_cast<op::v0::Constant>(op->input_value(0).get_node_shared_ptr());
-            auto vec = cons->get_vector<int64_t>();
+        std::cout << input[0]->get_data_ptr<T>()[0] << " " << input[0]->get_data_ptr<T>()[1] << std::endl;
+        auto cons = dynamic_pointer_cast<op::v0::Constant>(op->input_value(0).get_node_shared_ptr());
+        auto vec = cons->get_vector<int64_t>();
         runtime::reference::prior_box<T>(input[0]->get_data_ptr<T>(),
                                          input[1]->get_data_ptr<T>(),
                                          outputs[0]->get_data_ptr<float>(),
                                          outputs[0]->get_shape(),
-                                          op->get_attrs());
+                                         op->get_attrs());
         return true;
     }
 
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::Mod>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& input)
-    {
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::Mod> &op,
+                  const HostTensorVector &outputs,
+                  const HostTensorVector &input) {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::mod<T>(input[0]->get_data_ptr<T>(),
                                    input[1]->get_data_ptr<T>(),
@@ -820,6 +819,38 @@ namespace {
                                         op->get_input_shape(2),
                                         op->get_input_shape(3),
                                         inputs[1]->get_element_type());
+        return true;
+    }
+
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Quantize> &op,
+                  const HostTensorVector &outputs,
+                  const HostTensorVector &inputs) {
+        using T = typename element_type_traits<ET>::value_type;
+#define REF_CALL(U) \
+        runtime::reference::quantize<T>(inputs[0]->get_data_ptr<const T>(), \
+                                        inputs[1]->get_data_ptr<const T>(), \
+                                        inputs[2]->get_data_ptr<const U>(), \
+                                        outputs[0]->get_data_ptr<U>(), \
+                                        op->get_input_shape(0), \
+                                        op->get_input_shape(1), \
+                                        op->get_axes(), \
+                                        op->get_round_mode()); \
+        break;
+
+        switch (op->get_element_type()) {
+            case element::Type_t::u8:
+            REF_CALL(uint8_t)
+            case element::Type_t::i8:
+            REF_CALL(int8_t)
+            case element::Type_t::i32:
+            REF_CALL(int32_t)
+            default:
+                std::stringstream ss;
+                ss << "unsupported element type " << op->get_element_type() << " for op Quantize";
+                throw ngraph_error(ss.str());
+        }
+#undef REF_CALL
         return true;
     }
 
