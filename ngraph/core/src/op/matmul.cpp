@@ -212,7 +212,7 @@ namespace
         }
         return rc;
     }
-}
+} // namespace
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
@@ -233,18 +233,19 @@ void ngraph::op::v0::MatMul::validate_and_infer_types()
         get_input_element_type(1),
         ").");
 
-    const Rank& A_rank = get_input_partial_shape(0).rank();
-    const Rank& B_rank = get_input_partial_shape(1).rank();
+    const auto& input_A_matrix = get_input_partial_shape(0);
+    const auto& input_B_matrix = get_input_partial_shape(1);
 
-    if (A_rank.is_static() && B_rank.is_static())
+    if (input_A_matrix.rank().is_static() && input_B_matrix.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              (A_rank.get_length() >= 1) && (B_rank.get_length() >= 1),
+                              (input_A_matrix.rank().get_length() >= 1) &&
+                                  (input_B_matrix.rank().get_length() >= 1),
                               "Rank for input matrix shall be >= 1.");
 
         Shape output_shape;
-        Shape A_matrix = get_input_partial_shape(0).to_shape();
-        Shape B_matrix = get_input_partial_shape(1).to_shape();
+        const Shape A_matrix = input_A_matrix.to_shape();
+        const Shape B_matrix = input_B_matrix.to_shape();
 
         const bool transpose_a = get_transpose_a();
         const bool transpose_b = get_transpose_b();
