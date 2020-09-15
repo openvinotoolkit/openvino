@@ -300,13 +300,6 @@ DECLARE_CONFIG_VALUE(TUNING_UPDATE);
 DECLARE_CONFIG_VALUE(TUNING_RETUNE);
 
 /**
- * @brief 
- *
- */
-DECLARE_CONFIG_KEY(MYRIAD_MOCK_DEVICE);
-
-
-/**
  * @brief This key defines the tuning data filename to be created/used
  */
 DECLARE_CONFIG_KEY(TUNING_FILE);
