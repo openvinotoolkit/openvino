@@ -46,7 +46,7 @@ endif()
 # This version of PROTOBUF is required by Microsoft ONNX Runtime.
 set(NGRAPH_PROTOBUF_GIT_REPO_URL "https://github.com/protocolbuffers/protobuf")
 
-if(CMAKE_CROSSCOMPILING AND NOT (WINDOWS_STORE OR WINDOWS_PHONE))
+if(CMAKE_CROSSCOMPILING)
     find_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
