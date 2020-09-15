@@ -23,6 +23,7 @@ namespace {
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
+using namespace ngraph::builder::subgraph;
 
 class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
@@ -30,12 +31,16 @@ public:
     public:
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
+        FakeQuantizeOnData fakeQuantizeOnData2 = {};
+        DequantizationOperations dequantization2 = {};
     };
 
     class Expected {
     public:
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
+        FakeQuantizeOnData fakeQuantizeOnData2 = {};
+        DequantizationOperations dequantization2 = {};
     };
 
     ngraph::Shape inputShape;
@@ -50,19 +55,33 @@ public:
     void SetUp() override {
         const FuseSubtractToFakeQuantizeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-            testValues.inputShape,
-            testValues.actual.fakeQuantizeOnData,
-            testValues.actual.dequantization);
+        actualFunction = testValues.actual.fakeQuantizeOnData2.empty() ?
+            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+                testValues.inputShape,
+                testValues.actual.fakeQuantizeOnData,
+                testValues.actual.dequantization) :
+            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+                testValues.inputShape,
+                testValues.actual.fakeQuantizeOnData,
+                testValues.actual.dequantization,
+                testValues.actual.fakeQuantizeOnData2,
+                testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-            testValues.inputShape,
-            testValues.expected.fakeQuantizeOnData,
-            testValues.expected.dequantization);
+        referenceFunction = testValues.expected.fakeQuantizeOnData2.empty() ?
+            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+                testValues.inputShape,
+                testValues.expected.fakeQuantizeOnData,
+                testValues.expected.dequantization) :
+            ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+                testValues.inputShape,
+                testValues.expected.fakeQuantizeOnData,
+                testValues.expected.dequantization,
+                testValues.expected.fakeQuantizeOnData2,
+                testValues.expected.dequantization2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestValues> obj) {
@@ -72,7 +91,9 @@ public:
         result << testValues.params.updatePrecisions << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
-            testValues.expected.dequantization;
+            testValues.expected.dequantization << "_" <<
+            testValues.actual.fakeQuantizeOnData2 << "_" <<
+            testValues.expected.dequantization2;
         return result.str();
     }
 };
@@ -128,6 +149,22 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
             { {}, { 128.f }, {} },
         },
         {
+            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+            { {}, {}, {} },
+        }
+    },
+    {
+        Shape{1, 4, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+            { {}, { 128.f }, {} },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+            { {}, { 128.f }, {} },
+        },
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
+            { {}, {}, {} },
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
             { {}, {}, {} },
         }
