@@ -66,7 +66,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
         case CompareType::ABS:
             for (size_t i = 0; i < refSize; i++) {
                 float absDiff = std::abs(res[i] - ref[i]);
-                ASSERT_LT(absDiff, thr1) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                ASSERT_LE(absDiff, thr1) << "Relative comparison of values ref: " << ref[i] << " and res: "
                                                << res[i] << " , index in blobs: " << i << " failed!";
             }
             break;
@@ -74,7 +74,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
             for (size_t i = 0; i < refSize; i++) {
                 float absDiff = std::abs(res[i] - ref[i]);
                 float relDiff = absDiff / std::max(res[i], ref[i]);
-                ASSERT_LT(relDiff, thr2) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                ASSERT_LE(relDiff, thr2) << "Relative comparison of values ref: " << ref[i] << " and res: "
                                                << res[i] << " , index in blobs: " << i << " failed!";
             }
             break;
@@ -83,7 +83,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
                 float absDiff = std::abs(res[i] - ref[i]);
                 if (absDiff > thr1) {
                     float relDiff = absDiff / std::max(res[i], ref[i]);
-                    ASSERT_LT(relDiff, thr2) << "Comparison of values ref: " << ref[i] << " and res: "
+                    ASSERT_LE(relDiff, thr2) << "Comparison of values ref: " << ref[i] << " and res: "
                                                    << res[i] << " , index in blobs: " << i << " failed!";
                 }
             }
@@ -234,7 +234,7 @@ compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Bl
         float absDiff = std::abs(resVal - refVal);
         if (absDiff > max_diff) {
             float relDiff = absDiff / std::max(res_ptr[i], ref_ptr[i]);
-            ASSERT_LT(relDiff, max_diff) << "Relative comparison of values ref: " << ref_ptr[i] << " and res: "
+            ASSERT_LE(relDiff, max_diff) << "Relative comparison of values ref: " << ref_ptr[i] << " and res: "
                                          << res_ptr[i] << " , index in blobs: " << i << " failed!" << assertDetails;
         }
     }
