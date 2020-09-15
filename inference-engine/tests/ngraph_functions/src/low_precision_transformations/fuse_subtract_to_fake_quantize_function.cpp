@@ -33,6 +33,34 @@ std::shared_ptr<ngraph::Function> FuseSubtractToFakeQuantizeFunction::get(
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseSubtractToFakeQuantizeFunction");
 }
 
+std::shared_ptr<ngraph::Function> FuseSubtractToFakeQuantizeFunction::get(
+    const ngraph::Shape& inputShape,
+    const FakeQuantizeOnData& fqOnData,
+    const DequantizationOperations& dequantization,
+    const FakeQuantizeOnData& fqOnData2,
+    const DequantizationOperations& dequantization2) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape(inputShape));
+
+    const auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{}, 1ul);
+    const std::shared_ptr<Node> split = std::make_shared<ngraph::opset1::Split>(input, axis, 2ul);
+
+    const auto fakeQuantize = makeFakeQuantize(split->output(0), ngraph::element::f32, fqOnData);
+    fakeQuantize->set_friendly_name("fakeQuantize");
+    const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
+    lastDequantization->set_friendly_name("output");
+
+    const auto fakeQuantize2 = makeFakeQuantize(split->output(1), ngraph::element::f32, fqOnData);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
+    const auto lastDequantization2 = makeDequantization(fakeQuantize2, dequantization);
+    lastDequantization2->set_friendly_name("output2");
+
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(lastDequantization),
+        std::make_shared<ngraph::opset1::Result>(lastDequantization2)
+    };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseSubtractToFakeQuantizeFunction");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
