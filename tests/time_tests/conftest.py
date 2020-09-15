@@ -102,15 +102,19 @@ def pytest_sessionstart(session):
         Environment.env = yaml.load(env_conf, Loader=yaml.FullLoader)
 
 
-@pytest.fixture(scope="function", autouse=True)
-def db_report(request):
-    # TODO: add reporting to DB before and after test
-    instance = request.node.callspec.params["instance"]
-    funcargs = request.node.funcargs
+@pytest.mark.hookwrapper
+def pytest_runtest_makereport(item, call):
+    test_name = item.name
+    funcargs = item.funcargs
+    instance = funcargs["instance"]
     exe = funcargs["executable"]
     niter = funcargs["niter"]
     env = Environment.env
 
-    yield   # run test
-
-    b = 2
+    report = (yield).get_result()
+    if call.when == "setup":
+        # TODO: push all items to DB as "started"
+        pass
+    elif call.when == "call":
+        # TODO: push all items to DB with some status
+        exception_info = call.excinfo
