@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> inPrc = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
 };
@@ -56,16 +56,22 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 1})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(DISABLED_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 1})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 }  // namespace

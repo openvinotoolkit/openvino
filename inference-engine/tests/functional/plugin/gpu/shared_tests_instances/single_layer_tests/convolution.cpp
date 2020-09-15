@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> inPrc = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
 };
@@ -53,16 +53,22 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionLayerTest::getTestCaseName);
 /* ============= 3D Convolution ============= */
@@ -92,8 +98,11 @@ const auto conv3DParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Convolution3D_Basic1, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionLayerTest::getTestCaseName);
 }  // namespace

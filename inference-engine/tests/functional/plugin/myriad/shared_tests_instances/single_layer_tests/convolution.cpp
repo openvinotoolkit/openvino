@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> inPrc = {
         InferenceEngine::Precision::FP16
 };
 
@@ -63,23 +63,32 @@ const auto conv2DParams_BigDimensionValid = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
 INSTANTIATE_TEST_CASE_P(Convolution2D_BigDimensionValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_BigDimensionValid,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inPrc),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(std::vector<size_t >({1, 3, 1, 2500})),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConvolutionLayerTest::getTestCaseName);
 
