@@ -73,6 +73,8 @@ shared_ptr<runtime::Tensor> runtime::ie::IE_Backend::create_tensor(
     const element::Type& element_type, const Shape& shape, void* data)
 {
     shared_ptr<runtime::Tensor> tensor = make_shared<IETensor>(element_type, shape);
+    if (tensor == nullptr)
+        throw runtime_error("Cannot create IETensor!");
     tensor->write(data, shape_size(shape) * element_type.size());
     return tensor;
 }

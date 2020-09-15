@@ -150,7 +150,10 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
     }
 
     //  Prepare output blobs
-    string output_name = m_network.getOutputsInfo().begin()->first;
+    auto outInfo = m_network.getOutputsInfo();
+    if (outInfo.size() != 1)
+        THROW_IE_EXCEPTION << "Networks should contain only one output!";
+    string output_name = outInfo.begin()->first;
 
     infer_request.Infer();
     InferenceEngine::Blob::Ptr output = infer_request.GetBlob(output_name);

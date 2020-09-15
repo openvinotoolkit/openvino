@@ -193,6 +193,12 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
+    NGRAPH_CHECK(new_shape_of.get(),
+                 new_shape_of != nullptr,
+                 "Cannot clone ",
+                 description(),
+                 " operation with name ",
+                 get_friendly_name());
     new_shape_of->set_is_foldable(m_is_foldable);
     return new_shape_of;
 }

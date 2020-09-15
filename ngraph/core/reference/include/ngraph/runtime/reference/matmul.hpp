@@ -146,13 +146,14 @@ namespace ngraph
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
-                    return dot(arg0_update,
-                               arg1_update,
-                               out,
-                               wip_arg0_shape,
-                               wip_arg1_shape,
-                               out_shape,
-                               1);
+                    dot(arg0_update,
+                        arg1_update,
+                        out,
+                        wip_arg0_shape,
+                        wip_arg1_shape,
+                        out_shape,
+                        1);
+                    return;
                 }
 
                 // Check and perform auto-broadcast if needed

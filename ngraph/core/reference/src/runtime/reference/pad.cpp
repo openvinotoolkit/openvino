@@ -64,6 +64,8 @@ namespace ngraph
 
                 for (const Coordinate& in_coord : input_transform)
                 {
+                    if (output_it == output_transform.end())
+                        break;
                     const Coordinate& out_coord = *output_it;
 
                     std::fill(v.begin(), v.end(), 0);
