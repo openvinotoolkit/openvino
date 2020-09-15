@@ -38,7 +38,7 @@ using namespace vpu::MyriadPlugin;
 
 namespace {
 
-static void transformNGraphFunction(const std::shared_ptr<ngraph::Function>& function) {
+void transformNGraphFunction(const std::shared_ptr<ngraph::Function>& function) {
     ngraph::op::GenericIE::DisableReshape noReshape(function);
     ngraph::pass::Manager manager;
     manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
