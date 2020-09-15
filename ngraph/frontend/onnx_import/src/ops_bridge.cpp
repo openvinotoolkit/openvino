@@ -157,7 +157,6 @@ namespace ngraph
             const std::map<std::int64_t, Operator>::const_iterator
                 find(std::int64_t version, const std::map<std::int64_t, Operator>& map)
             {
-                std::map<std::int64_t, Operator>::const_iterator it{};
                 // Get the latest version.
                 if (version == -1)
                 {
@@ -165,13 +164,13 @@ namespace ngraph
                 }
                 while (version > 0)
                 {
-                    it = map.find(version--);
+                    std::map<std::int64_t, Operator>::const_iterator it = map.find(version--);
                     if (it != std::end(map))
                     {
                         return it;
                     }
                 }
-                return it;
+                return std::end(map);
             }
         }
 

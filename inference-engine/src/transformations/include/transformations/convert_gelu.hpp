@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API ConvertGELU;
 
 class ngraph::pass::ConvertGELU: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGELU() : GraphRewrite() {
         convert_gelu();
     }

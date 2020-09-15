@@ -378,7 +378,8 @@ protected:
 // NOTE: always auto_pad = same_upper. IR with zero_pads, pad from params is used for ref_conv after reshape
 #define case_si_1 conv_base_params({{1lu, 144lu, 75lu, 75lu}, {3lu, 3lu}, {2lu, 2lu}, {1lu, 1lu}, {0lu, 0lu}, {1lu, 1lu}, 144lu, 144lu, {1lu, 1lu}})
 
-TEST_P(smoke_ConvolutionReshapeTest, TestsReshapeConvolution) {
+// TODO: rewrite to ngraph to have reshape functionality
+TEST_P(smoke_ConvolutionReshapeTest, DISABLED_TestsReshapeConvolution) {
 }
 
 std::string getTestCaseName(testing::TestParamInfo<conv_test_params> obj) {
