@@ -347,8 +347,6 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
     }
 }
 
-
-
 std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
         const std::shared_ptr<Node>& op) const noexcept {
     std::queue<std::shared_ptr<Node>> notHandledChildren;
@@ -366,7 +364,7 @@ std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyEx
         const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
         notHandledChildren.pop();
 
-        if (!this->isPrecisionPreserved(operation)) {
+        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
             resultChildren.push_back(operation);
             continue;
         }

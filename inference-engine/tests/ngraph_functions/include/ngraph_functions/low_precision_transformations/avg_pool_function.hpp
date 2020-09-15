@@ -33,6 +33,7 @@ public:
         const ngraph::element::Type originalFunctionPrecision,
         const ngraph::Shape& inputShape,
         const bool addFQ,
+        const std::string additionalLayer,
         const ActualValues& values);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
@@ -44,6 +45,7 @@ public:
         const ngraph::element::Type originalFunctionPrecision,
         const ngraph::Shape& inputShape,
         const bool addFQ,
+        const std::string additionalLayer,
         const ExpectedValues& values);
 };
 

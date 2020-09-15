@@ -17,6 +17,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const bool addFQ,
+    const std::string additionalLayer,
     const ActualValues& values) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
@@ -46,6 +47,16 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         op::RoundingType::FLOOR);
 
     std::shared_ptr<Node> lastLayer = avgPool;
+
+    if (additionalLayer == "maxpool") {
+        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+            lastLayer,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            op::RoundingType::FLOOR);
+    }
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
@@ -85,6 +96,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const bool addFQ,
+    const std::string additionalLayer,
     const ExpectedValues& values) {
     auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
@@ -101,6 +113,16 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, avgPoolPrecision);
 
     parent = avgPool;
+
+    if (additionalLayer == "maxpool") {
+        parent = std::make_shared<ngraph::opset1::MaxPool>(
+            parent,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            op::RoundingType::FLOOR);
+    }
 
     if (avgPoolPrecision != originalFunctionPrecision) {
         const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
