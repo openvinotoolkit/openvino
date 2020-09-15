@@ -90,13 +90,11 @@ def pytest_generate_tests(metafunc):
     with open(metafunc.config.getoption('test_conf'), "r") as file:
         test_cases = yaml.load(file, Loader=yaml.FullLoader)
     if test_cases:
-        # TODO: prepare human-readable test id
-        # test_ids = []
-        # id = ""
-        # for case in test_cases:
-        #     id = "_".join([id] + ["{}-{}".format(key, val) for key, val in case.items()])
-        # metafunc.parametrize("instance", test_cases, ids=test_ids)
         metafunc.parametrize("instance", test_cases)
+
+
+def pytest_make_parametrize_id(config, val, argname):
+    return " {0}:{1} ".format(argname, val)
 
 
 def pytest_sessionstart(session):
