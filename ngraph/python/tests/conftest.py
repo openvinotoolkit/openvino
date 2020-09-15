@@ -26,7 +26,7 @@ def pytest_addoption(parser):
         help="Select target device",
     )
     parser.addoption(
-        "--additional_models",
+        "--model_zoo_dir",
         default="",
         type=str,
     )
@@ -35,7 +35,7 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     backend_name = config.getvalue("backend")
     tests.BACKEND_NAME = backend_name
-    tests.ADDITIONAL_MODELS_DIR = config.getvalue("additional_models")
+    tests.MODEL_ZOO_DIR = config.getvalue("model_zoo_dir")
 
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
@@ -49,7 +49,7 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     backend_name = config.getvalue("backend")
-    tests.ADDITIONAL_MODELS_DIR = config.getvalue("additional_models")
+    tests.MODEL_ZOO_DIR = config.getvalue("model_zoo_dir")
 
     keywords = {
         "CPU": "skip_on_cpu",
