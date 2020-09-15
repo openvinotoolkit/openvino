@@ -859,7 +859,8 @@ size_t NetworkHelper::getChildInputIndex(const std::shared_ptr<ngraph::Node>& pa
             return i;
         }
     }
-    THROW_IE_LPT_EXCEPTION(*child) << "child input index between " << parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
+    THROW_IE_LPT_EXCEPTION(*child) << "child input index between " <<
+        parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
 }
 
 size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
@@ -871,7 +872,8 @@ size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& 
             }
         }
     }
-    THROW_IE_LPT_EXCEPTION(*child) << "parent output index between " << parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
+    THROW_IE_LPT_EXCEPTION(*child) << "parent output index between " <<
+        parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
 }
 
 std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {
