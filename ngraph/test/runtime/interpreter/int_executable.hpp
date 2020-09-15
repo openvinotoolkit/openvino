@@ -132,7 +132,7 @@ public:
     {
         for(size_t i = 0; i < args.size(); ++i)
         {
-            auto output = node->output(i);
+            auto output = node->get_input_source_output(i);
             orig_shapes.push_back(output.get_partial_shape());
             output.get_tensor().set_partial_shape(args[i]->get_shape());
         }
@@ -142,7 +142,7 @@ public:
     {
         for(size_t i = 0; i < orig_shapes.size(); ++i)
         {
-            auto output = node->output(i);
+            auto output = node->get_input_source_output(i);
             output.get_tensor().set_partial_shape(orig_shapes[i]);
         }
     }
