@@ -370,7 +370,7 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
         }
 
         std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
-        const size_t inputIndex = NetworkHelper::getInputIndex(dequantization.multiply, node);
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 

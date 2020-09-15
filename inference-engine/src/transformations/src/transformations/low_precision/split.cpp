@@ -30,7 +30,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         inputs[i] = split->get_input_node_shared_ptr(i);
     }
 
-    const size_t dequantizationIndex = NetworkHelper::getInputIndex(dequantization.multiply, split);
+    const size_t dequantizationIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, split);
     inputs[dequantizationIndex] = dequantization.data;
 
     std::shared_ptr<ngraph::Node> newSplit = split->clone_with_new_inputs(inputs);
