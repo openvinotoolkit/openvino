@@ -4,5 +4,5 @@ omz_root:
 omz_models_out:
 omz_downloader_cache:
 
-out_dir: /tmp/out_dir
+out_dir: /tmp/out_dir   # TODO: questionable
 py_exe:  # TODO: questionable

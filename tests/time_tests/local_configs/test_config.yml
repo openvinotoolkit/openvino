@@ -1,7 +1,7 @@
 - device:
     name: "CPU"
   model:
-    path: "/home/vurusovs_local/work/openvino/tests/stress_tests/tmp_model/vgg16.xml"
+    path: "/home/vurusovs_local/work/openvino/tests/stress_tests/tmp_model/vgg16.xml" # TODO: add link to `test_data` repo model
 - device:
     name: "GPU"
   model:

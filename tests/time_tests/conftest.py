@@ -24,6 +24,8 @@ from pathlib import Path
 import yaml
 
 
+# -------------------- CLI options --------------------
+
 def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     parser.addoption(
@@ -31,6 +33,7 @@ def pytest_addoption(parser):
         type=Path,
         help="Path to test config",
         default=Path(".") / "local_configs" / "test_config.yml"
+        # TODO: test config in Python vs. .yml to support xfails ???
     )
     parser.addoption(
         "--env_conf",
@@ -51,6 +54,7 @@ def pytest_addoption(parser):
         help="Number of iterations to run executable and aggregate results",
         default=3
     )
+    # TODO: Parse args from a file via argparse (to avoid env_config)
 
 
 @pytest.fixture(scope="session")
@@ -76,8 +80,11 @@ def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
 
+# -------------------- CLI options --------------------
+
 
 class Environment:
+    """Class responsible for managing environment information."""
     env = {}
 
 
@@ -94,16 +101,25 @@ def pytest_generate_tests(metafunc):
 
 
 def pytest_make_parametrize_id(config, val, argname):
+    """Pytest hook for user-friendly test name representation"""
     return " {0}:{1} ".format(argname, val)
 
 
 def pytest_sessionstart(session):
+    """Pytest hook for session preparation.
+
+    Fill `Environment` global with information from environment config.
+    """
     with open(session.config.getoption('env_conf'), "r") as env_conf:
         Environment.env = yaml.load(env_conf, Loader=yaml.FullLoader)
 
 
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
+    """Pytest hook for report preparation.
+
+    Report tests' data to DB.
+    """
     test_name = item.name
     funcargs = item.funcargs
     instance = funcargs["instance"]
