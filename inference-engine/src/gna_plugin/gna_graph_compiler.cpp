@@ -1960,10 +1960,17 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     if (included == concat_connection.end()) {
                         gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
 
+                        size_t concatInputIdx = 0;
                         for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
-                            if (InferenceEngine::details::CaselessEq<std::string>()
-                                    (inputLayer.name, "input")) {
-                                inputDesc->bytes_allocated_for_input[inputLayer.name] = inputLayer.tensorSize;
+                            // skipping non functional and reshape layer, as in that case input might be not connected to anything
+                            auto realConcatInputs = CNNNetGetPrevLayersSkip(concat, [](CNNLayerPtr l) {
+                                return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
+                            }, concatInputIdx++);
+
+                            for (auto rInput :  realConcatInputs) {
+                                if (LayerInfo(rInput.first).isInput()) {
+                                    inputDesc->bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize;
+                                }
                             }
                         }
                         concatLayerInfoItem.input_allocated = true;
@@ -2006,7 +2013,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // real input not a memory input
     if (LayerInfo(prevLayer).isInput()) {
         if (0 == inputDesc->bytes_allocated_for_input[prevLayer->name]) {
-            // real allocation pointer will be kept in ptr not in ptf_inputs_global
+            // if request for allocation less that realTensorInput - we need to extend request
+            auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
+            if (num_data_bytes_in < minInput) {
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8);
+                num_data_bytes_in = ALIGN(minInput, 8);
+            }
+
+            // real allocation pointer will be kept in ptr not in ptr_inputs_global
             if (offset < 0) {
                 gnamem->push_value(ptr,
                                    static_cast<uint8_t>(0),
@@ -2018,7 +2032,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    num_data_bytes_in,
                                    64);
             }
-
             inputDesc->bytes_allocated_for_input[prevLayer->name] = num_data_bytes_in;
         }
         if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
