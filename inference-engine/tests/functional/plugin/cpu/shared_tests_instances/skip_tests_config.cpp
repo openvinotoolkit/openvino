@@ -50,6 +50,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 37862
-        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)"
+        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
+        R"(.*InterpolateLayerTest.*)"
     };
 }
