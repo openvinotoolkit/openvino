@@ -1107,14 +1107,17 @@ IE_CPU.onnx_resize11_sizes_linear
 
 # GRUCell/GRUSequence operation has a form that is not supported
 # (Constant W, B, R inputs are required)
-onnx_model_gru_defaults_fwd
-onnx_model_gru_fwd_activations
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_rev_clip
-onnx_model_gru_reverse
-onnx_model_gru_fwd_bias_initial_h
-onnx_model_gru_bidirectional
-onnx_model_gru_fwd_linear_before_reset
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+# Output values mismatch - seq_lengths not supported
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+
 
 # RNNCell/RNNSequence operation has a form that is not supported
 # (Constant W, B, R inputs are required)
@@ -1127,8 +1130,10 @@ IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 
 # Bidirectional decomposition
-# Squeeze op - "Provided axis value is invalid. Only axes of size 1 may be removed."
+# RNNSequence operation has a form that is not supported.
 IE_CPU.onnx_model_rnn_bidirectional_const
+# GRUSequence operation has a form that is not supported.
+IE_CPU.onnx_model_gru_bidirectional_const
 
 ## RNN/GRU Sequence - seq_lengths are not supported
 onnx_model_rnn_fwd_mixed_seq_len
