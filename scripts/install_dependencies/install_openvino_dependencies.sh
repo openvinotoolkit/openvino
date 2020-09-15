@@ -119,11 +119,12 @@ if [ -f /etc/lsb-release ]; then
                 libfdk-aac1
                 liblrdf0
                 libmjpegtools-dev
-                libopenni2-0
+                libopenni2-0Л
                 libmpeg2-4
                 libopencore-amrnb0
                 libopencore-amrwb0
                 liba52-0.7.4
+                python3-gi
         )
     fi
     apt update
