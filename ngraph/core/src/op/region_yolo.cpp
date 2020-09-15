@@ -17,6 +17,7 @@
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -61,6 +62,13 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
 void op::RegionYolo::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(
+        this,
+        input_et.is_real(),
+        "Type of input is expected to be a floating point type. Got: ",
+        input_et);
+
     if (get_input_partial_shape(0).is_static())
     {
         Shape input_shape = get_input_partial_shape(0).to_shape();
@@ -121,16 +129,61 @@ namespace
 {
     bool evaluate_region_yolo(const HostTensorPtr& input_tensor,
                               const HostTensorPtr& output_tensor,
-                              const size_t coords,
-                              const size_t classes,
-                              const size_t regions,
+                              const int coords,
+                              const int classes,
+                              const int regions,
                               const bool do_softmax,
                               const vector<int64_t>& mask,
                               const int axis,
                               const int end_axis,
                               const vector<float>& anchors)
     {
-        //runtime::reference::region_yolo();
+        switch(input_tensor->get_element_type())
+        {
+            case element::Type_t::bf16:
+                runtime::reference::evaluate_region_yolo<bfloat16>(input_tensor->get_data_ptr<bfloat16>(),
+                                                                   input_tensor->get_shape(),
+                                                                   coords,
+                                                                   classes,
+                                                                   regions,
+                                                                   do_softmax,
+                                                                   mask,
+                                                                   axis,
+                                                                   end_axis,
+                                                                   anchors,
+                                                                   output_tensor->get_data_ptr<bfloat16>(),
+                                                                   output_tensor->get_shape());
+                break;
+            case element::Type_t::f16:
+                runtime::reference::evaluate_region_yolo<float16>(input_tensor->get_data_ptr<float16>(),
+                                                                  input_tensor->get_shape(),
+                                                                  coords,
+                                                                  classes,
+                                                                  regions,
+                                                                  do_softmax,
+                                                                  mask,
+                                                                  axis,
+                                                                  end_axis,
+                                                                  anchors,
+                                                                  output_tensor->get_data_ptr<float16>(),
+                                                                  output_tensor->get_shape());
+                break;
+            case element::Type_t::f32:
+                runtime::reference::evaluate_region_yolo<float>(input_tensor->get_data_ptr<float>(),
+                                                                input_tensor->get_shape(),
+                                                                coords,
+                                                                classes,
+                                                                regions,
+                                                                do_softmax,
+                                                                mask,
+                                                                axis,
+                                                                end_axis,
+                                                                anchors,
+                                                                output_tensor->get_data_ptr<float>(),
+                                                                output_tensor->get_shape());
+                break;
+            default: NGRAPH_UNREACHABLE("unsupported input type for region_yolo");
+        }
         return true;
     }
 } // namespace
@@ -138,11 +191,8 @@ namespace
 bool ngraph::op::v0::RegionYolo::evaluate(const HostTensorVector& outputs,
                                           const HostTensorVector& inputs) const
 {
-    const auto& input = inputs[0];
-    const auto& output = outputs[0];
-
-    return evaluate_region_yolo(input,
-                                output,
+    return evaluate_region_yolo(inputs[0],
+                                outputs[0],
                                 m_num_coords,
                                 m_num_classes,
                                 m_num_regions,
