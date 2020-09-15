@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertPriorBox;
 
 class ngraph::pass::ConvertPriorBox: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertPriorBox() : GraphRewrite() {
         convert_prior_box();
         convert_prior_box_clustered();

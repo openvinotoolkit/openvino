@@ -28,5 +28,6 @@ class TRANSFORMATIONS_API SoftPlusToMishFusion;
  */
 class ngraph::pass::SoftPlusToMishFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SoftPlusToMishFusion();
 };

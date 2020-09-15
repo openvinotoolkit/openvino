@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertTopKToTopKIEMatcher;
 
 class ngraph::pass::ConvertTopKToTopKIEMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertTopKToTopKIEMatcher();
 };
