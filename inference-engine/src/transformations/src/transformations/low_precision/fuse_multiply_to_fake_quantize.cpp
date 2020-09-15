@@ -29,25 +29,30 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
         fakeQuantize = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
-    const auto constant = multiply->get_input_node_shared_ptr(1);
+    const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
 
     auto outputLowConst = fakeQuantize->get_input_node_shared_ptr(3);
     auto outputHighConst = fakeQuantize->get_input_node_shared_ptr(4);
 
-    const auto value = fold<opset1::Convert>(constant, outputLowConst->get_output_element_type(0));
+    const auto value = multiplyConstant->get_output_element_type(0) == outputLowConst->get_output_element_type(0) ?
+        multiplyConstant :
+        fold<opset1::Convert>(multiplyConstant, outputLowConst->get_output_element_type(0));
 
     outputLowConst = fold<opset1::Multiply>(outputLowConst, value);
     outputHighConst = fold<opset1::Multiply>(outputHighConst, value);
 
+    const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
+    const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
-            fakeQuantize->input(0).get_source_output(),
+            fakeQuantizeParent->output(parentIndex),
             fakeQuantize->input_value(1),
             fakeQuantize->input_value(2),
             outputLowConst,
             outputHighConst,
             fakeQuantize->get_levels()),
-        outputLowConst->get_output_element_type(0));
+        multiply->get_output_element_type(0));
 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);

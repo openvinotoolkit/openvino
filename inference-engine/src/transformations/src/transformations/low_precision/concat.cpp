@@ -339,7 +339,7 @@ void ConcatTransformation::addDequantizationLayers(
                         const std::shared_ptr<ngraph::Node> destination = child.shared_from_this();
 
                         if (!convertNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
+                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
                             std::shared_ptr<ngraph::Node> convert =
                                 convertNodes[0]->clone_with_new_inputs({ destination->get_input_source_output(sourceOutputIdx) });
                             insert_new_node_between(source, destination, convert);
@@ -348,7 +348,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                         // concatenation axis is 1
                         if (!subtractNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
+                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
                             std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<DequantizationSubtract>(
                                 destination->get_input_source_output(sourceOutputIdx),
                                 NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
@@ -359,7 +359,7 @@ void ConcatTransformation::addDequantizationLayers(
                         }
 
                         if (!multiplyNodes.empty()) {
-                            const size_t sourceOutputIdx = NetworkHelper::getInputIndex(source, destination);
+                            const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
                             std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
                                 destination->get_input_source_output(sourceOutputIdx),
                                 NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?

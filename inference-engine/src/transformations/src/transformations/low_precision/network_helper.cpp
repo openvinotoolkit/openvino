@@ -783,7 +783,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         inputs[i] = operation->get_input_node_shared_ptr(i);
     }
 
-    const size_t dequantizationIndex = getInputIndex(dequantization.multiply, operation);
+    const size_t dequantizationIndex = getChildInputIndex(dequantization.multiply, operation);
     inputs[dequantizationIndex] = moveSubtract ?
         dequantization.data :
         (dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract);
@@ -853,13 +853,25 @@ bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrec
     return convertCanBeRemoved;
 }
 
-size_t NetworkHelper::getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
+size_t NetworkHelper::getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
     for (size_t i = 0; i < child->get_input_size(); ++i) {
         if (parent.get() == child->get_input_node_ptr(i)) {
             return i;
         }
     }
-    THROW_IE_LPT_EXCEPTION(*child) << " input index for " << parent->get_friendly_name() << " was not found";
+    THROW_IE_LPT_EXCEPTION(*child) << "child input index between " << parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
+}
+
+size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
+    for (size_t i = 0; i < parent->get_output_size(); ++i) {
+        const auto& targetInputs = parent->output(i).get_target_inputs();
+        for (const auto& targetInput : targetInputs) {
+            if (targetInput.get_node() == child.get()) {
+                return i;
+            }
+        }
+    }
+    THROW_IE_LPT_EXCEPTION(*child) << "parent output index between " << parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
 }
 
 std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {
