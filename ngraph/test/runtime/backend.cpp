@@ -15,10 +15,10 @@
 //*****************************************************************************
 
 #ifdef _WIN32
-# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
-# endif
 # include <windows.h>
+# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+# error "Only WINAPI_PARTITION_DESKTOP is supported, because of GetModuleHandle[A|W]"
+# endif
 #elif defined(__linux) || defined(__APPLE__)
 # include <dlfcn.h>
 #endif
