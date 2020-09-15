@@ -2528,7 +2528,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
+// TODO: Issue: 37521
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_normalize)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.prototxt"));

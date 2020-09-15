@@ -31,6 +31,8 @@
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/select.hpp>
+#include <ngraph/runtime/reference/prior_box.hpp>
+#include <interpreter/reference/mod.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
@@ -431,6 +433,38 @@ namespace {
                                    outputs[0]->get_data_ptr<T>(),
                                    shape_size(input[0]->get_shape()),
                                    op->get_alpha());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::PriorBox>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& input)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        std::cout << "djdkldld" << std::endl;
+            std:: cout << input[0]->get_data_ptr<T>()[0] << " " << input[0]->get_data_ptr<T>()[1] << std::endl;
+            auto cons = dynamic_pointer_cast<op::v0::Constant>(op->input_value(0).get_node_shared_ptr());
+            auto vec = cons->get_vector<int64_t>();
+        runtime::reference::prior_box<T>(input[0]->get_data_ptr<T>(),
+                                         input[1]->get_data_ptr<T>(),
+                                         outputs[0]->get_data_ptr<float>(),
+                                         outputs[0]->get_shape(),
+                                          op->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::Mod>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& input)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::mod<T>(input[0]->get_data_ptr<T>(),
+                                   input[1]->get_data_ptr<T>(),
+                                   outputs[0]->get_data_ptr<T>(),
+                                   input[0]->get_shape(),
+                                   op->get_auto_broadcast());
         return true;
     }
 

@@ -243,7 +243,7 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
                             7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
     test_case.run();
 }
-// TODO: enable normalizeL2 tests after normalizeL2 reference implementation
+// TODO: Issue: 37521
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
     Shape data_shape{1, 2, 3, 4};
