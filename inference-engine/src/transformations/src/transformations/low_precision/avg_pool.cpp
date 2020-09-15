@@ -56,9 +56,11 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    const auto children = layer->get_output_target_inputs(0);
+    const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(layer);
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
     for (const auto& child : children) {
-        if (!is_type<opset1::FakeQuantize>(child.get_node()->shared_from_this())) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
             return true;
         }
     }
