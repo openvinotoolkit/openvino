@@ -1293,10 +1293,7 @@ void FuseMultipleIdentitiesPass::run() {
         auto isNonFunctional = [](CNNLayerPtr ptr) {
             return LayerInfo(ptr).isNonFunctional();
         };
-        auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
-        auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
-
-        if (eltwise != nullptr || concat != nullptr) {
+        if (LayerInfo(l).hasMultipleInputs()) {
             continue;
         }
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput()) {

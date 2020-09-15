@@ -385,7 +385,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-        //passes->registerPass<FuseMultipleIdentitiesPass>();
+        passes->registerPass<FuseMultipleIdentitiesPass>();
         passes->registerPass<BroadcastConstPass>();
         passIdx = passes->run(passIdx);
     };
