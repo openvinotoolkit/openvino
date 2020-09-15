@@ -29,18 +29,18 @@ class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        FakeQuantizeOnData fakeQuantizeOnData2 = {};
-        DequantizationOperations dequantization2 = {};
+        FakeQuantizeOnData fakeQuantizeOnData;
+        DequantizationOperations dequantization;
+        FakeQuantizeOnData fakeQuantizeOnData2;
+        DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        FakeQuantizeOnData fakeQuantizeOnData2 = {};
-        DequantizationOperations dequantization2 = {};
+        FakeQuantizeOnData fakeQuantizeOnData;
+        DequantizationOperations dequantization;
+        FakeQuantizeOnData fakeQuantizeOnData2;
+        DequantizationOperations dequantization2;
     };
 
     ngraph::Shape inputShape;
@@ -111,10 +111,14 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
             { {element::f32}, { 128.f }, {} },
+            {},
+            {}
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
             { {}, {}, {} },
+            {},
+            {}
         }
     },
     {
@@ -123,10 +127,14 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
             { {element::f32}, { 128.f }, {} },
+            {},
+            {}
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
             { {}, {}, {} },
+            {},
+            {}
         }
     },
     {
@@ -135,10 +143,14 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
             { {}, { 128.f }, {} },
+            {},
+            {}
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
             { {}, {}, {} },
+            {},
+            {}
         }
     },
     {
@@ -147,10 +159,14 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
             { {}, { 128.f }, {} },
+            {},
+            {}
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
             { {}, {}, {} },
+            {},
+            {}
         }
     },
     {
