@@ -124,8 +124,8 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {}, { { 128.f }, element::u8 }, {} },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
+            { {}, { 128.f }, {} },
         },
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
