@@ -273,23 +273,6 @@ namespace
                                                  pooling_mode);
             break;
         }
-        case element::Type_t::f64:
-        {
-            runtime::reference::roi_align<double>(feature_maps->get_data_ptr<double>(),
-                                                  rois->get_data_ptr<double>(),
-                                                  batch_indices_vec_scaled_up.data(),
-                                                  out->get_data_ptr<double>(),
-                                                  feature_maps->get_shape(),
-                                                  rois->get_shape(),
-                                                  batch_indices->get_shape(),
-                                                  out->get_shape(),
-                                                  pooled_height,
-                                                  pooled_width,
-                                                  sampling_ratio,
-                                                  spatial_scale,
-                                                  pooling_mode);
-            break;
-        }
         default: NGRAPH_UNREACHABLE("unsupported input type for roi_align");
         }
 

@@ -8,12 +8,12 @@ graph {
         output: "Y"
         op_type: "RoiAlign"
         attribute{
-            name: "pooled_h"
+            name: "output_height"
             i: 3
             type: INT
         }
         attribute{
-            name: "pooled_w"
+            name: "output_width"
             i: 4
             type: INT
         }
