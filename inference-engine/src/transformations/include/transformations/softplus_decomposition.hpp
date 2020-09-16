@@ -25,5 +25,6 @@ class TRANSFORMATIONS_API SoftPlusDecomposition;
  */
 class ngraph::pass::SoftPlusDecomposition: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     SoftPlusDecomposition();
 };

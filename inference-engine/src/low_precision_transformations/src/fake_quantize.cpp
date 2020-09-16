@@ -34,8 +34,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLa
         THROW_IE_EXCEPTION << "Layer '" << layer.insData.size() << "' has invalid inputs number. 5 is expected.";
     }
 
-    // CNNNetworkHelper::invertFakeQuantize(layer);
-
     // FakeQuantize on weights are used without dequantization ScaleShifts
     const bool onWeights = CNNNetworkHelper::onConstWeightsPath(layer) && CNNNetworkHelper::onWeights(layer);
     if (onWeights) {
@@ -77,8 +75,8 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLa
     printDequantizationValues(dequantizationScales, dequantizationShifts);
 #endif
 
-    CNNNetworkHelper::updateBlobs(layer, 3, dataPrecision.min);
-    CNNNetworkHelper::updateBlobs(layer, 4, dataPrecision.max);
+    CNNNetworkHelper::updateBlobs(context, layer, 3, dataPrecision.min);
+    CNNNetworkHelper::updateBlobs(context, layer, 4, dataPrecision.max);
 
     if (updatePrecisions) {
         CNNNetworkHelper::setOutDataPrecision(layer, dataPrecision.precision);

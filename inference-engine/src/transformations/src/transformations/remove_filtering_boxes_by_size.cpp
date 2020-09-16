@@ -10,6 +10,8 @@
 
 #include "transformations/remove_filtering_boxes_by_size.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
+
 void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() {
     // variadic split
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1000, 4});

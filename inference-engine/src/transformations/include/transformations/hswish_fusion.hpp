@@ -29,6 +29,7 @@ class TRANSFORMATIONS_API HSwishFusionWithClamp;
  */
 class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishFusion() {
         add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
         add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
@@ -41,8 +42,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6))) / 6 with a HSwish op.
  */
- class ngraph::pass::HSwishFusionWithReluDiv: public ngraph::pass::MatcherPass {
+class ngraph::pass::HSwishFusionWithReluDiv: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishFusionWithReluDiv();
 };
 
@@ -50,8 +52,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
  */
- class ngraph::pass::HSwishFusionWithReluMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::HSwishFusionWithReluMul: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishFusionWithReluMul();
 };
 
@@ -59,8 +62,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces a sub-graph x * (min(max(x + 3, 0), 6) / 6) with a HSwish op.
  */
- class ngraph::pass::HSwishFusionWithoutRelu: public ngraph::pass::MatcherPass {
+class ngraph::pass::HSwishFusionWithoutRelu: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishFusionWithoutRelu();
 };
 
@@ -70,5 +74,6 @@ public:
  */
 class ngraph::pass::HSwishFusionWithClamp: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     HSwishFusionWithClamp();
 };
