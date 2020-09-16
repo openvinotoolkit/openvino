@@ -67,15 +67,13 @@ namespace
         std::vector<Dimension> arg1_shape_update(arg1_rank);
         std::vector<Dimension> output_shape(max_rank);
 
+        std::vector<Dimension> arg0_shape_update1(arg0_shape);
+
         for (size_t i = 0; i < arg0_rank; i++)
-        {
             arg0_shape_update[i] = arg0_shape[i];
-        }
 
         for (size_t i = 0; i < arg1_rank; i++)
-        {
             arg1_shape_update[i] = arg1_shape[i];
-        }
 
         if (transpose_a)
         {
@@ -155,21 +153,19 @@ namespace
                                 low_size_matrix.end());
                 }
 
-                // get max value for all batches, COL_INDEX_DIM and ROW_INDEX_DIM are updated at the
-                // end
+                // get max value for all batches (max_rank - 2), COL_INDEX_DIM and ROW_INDEX_DIM are
+                // updated at the end
                 for (auto i = 0; i < max_rank - 2; i++)
                 {
                     if ((low_size_matrix[i].is_dynamic() || big_size_matrix[i].is_dynamic()))
                     {
-                        // non-dynamic value is asssigned to output when it is > 1, otherwise
+                        // non-dynamic value is assigned to output when it is > 1, otherwise
                         // dynamic dimension is forwarded to output
-                        auto output_value = low_size_matrix[i].is_dynamic()
-                                                ? big_size_matrix[i].get_length()
-                                                : low_size_matrix[i].get_length();
+                        Dimension::merge(merged_dimension, low_size_matrix[i], big_size_matrix[i]);
 
-                        if (output_value != 1)
+                        if (merged_dimension.is_static() && merged_dimension.get_length() > 1)
                         {
-                            output_shape[i] = output_value;
+                            output_shape[i] = merged_dimension;
                         }
                         else
                         {
@@ -190,7 +186,7 @@ namespace
             output_shape.at(output_shape.size() - 1) = arg1_shape_update.at(arg1_rank - 1);
         }
 
-        return PartialShape{output_shape};
+        return PartialShape(output_shape);
     }
 
     template <element::Type_t ET>
@@ -206,7 +202,7 @@ namespace
         Shape arg1_shape = Shape{arg1->get_shape()};
 
         PartialShape output_partial_shape = evaluate_matmul_output_shape(
-            PartialShape{arg0_shape}, PartialShape{arg1_shape}, transpose_a, transpose_b);
+            PartialShape(arg0_shape), PartialShape(arg1_shape), transpose_a, transpose_b);
         Shape output_shape = output_partial_shape.to_shape();
         output->set_element_type(arg0->get_element_type());
         output->set_shape(output_shape);

@@ -112,13 +112,14 @@ TEST(type_prop, matmul_4D_transpose_b)
 TEST(type_prop, matmul_dynamic_5D_transpose_b)
 {
     Dimension dynamic = Dimension::dynamic();
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, dynamic, dynamic, 6});
-    auto B = make_shared<op::Parameter>(element::f32, PartialShape{1, dynamic, 1, 4, 6});
+    auto A =
+        make_shared<op::Parameter>(element::f32, PartialShape{dynamic, 4, dynamic, dynamic, 6});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{1, dynamic, dynamic, 4, 6});
 
     auto matmul = make_shared<op::MatMul>(A, B, 0, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{2, 4, dynamic, dynamic, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{dynamic, 4, dynamic, dynamic, 4}));
 }
 
 TEST(type_prop, matmul_dynamic_2D_transpose_a)
