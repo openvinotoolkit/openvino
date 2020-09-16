@@ -16,6 +16,8 @@
 
 #include "transformations/low_precision/quantization_details.hpp"
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
+#include "transformations/low_precision/network_helper.hpp"
+
 
 namespace ngraph {
 namespace pass {
@@ -26,7 +28,8 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         return false;
     }
 
-    for (const Input<Node>& input : node->inputs()) {
+    const auto inputs = ngraph::pass::low_precision::NetworkHelper::getInputs(node);
+    for (const auto& input : inputs) {
         if (ngraph::is_type<opset1::Constant>(input.get_node())) {
             continue;
         }
