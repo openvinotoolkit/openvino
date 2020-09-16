@@ -62,7 +62,8 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
                                                                        constant->output(0),
                                                                        normalize->get_eps(),
                                                                        across_spatial,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(mul->get_friendly_name());
         ngraph::copy_runtime_info({normalize, mul}, normalize_ie);
@@ -103,7 +104,8 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
                                                                        scale->output(0),
                                                                        normalize->get_eps(),
                                                                        across_channels,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(normalize->get_friendly_name());
         ngraph::copy_runtime_info(normalize, normalize_ie);
