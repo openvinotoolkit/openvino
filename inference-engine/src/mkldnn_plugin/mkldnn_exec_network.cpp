@@ -97,7 +97,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
-    if (_cfg.enableDynamicBatch) {
+    if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
@@ -279,8 +279,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
-            type != Copy &&
-            type != MVN) {
+            type != Copy) {
             check_result = false;
         }
     }, false);

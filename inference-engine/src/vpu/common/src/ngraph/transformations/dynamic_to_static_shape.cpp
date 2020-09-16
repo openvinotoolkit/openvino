@@ -21,16 +21,13 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
 
+#include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
 #include "vpu/ngraph/operations/dynamic_non_max_suppression.hpp"
 
 namespace vpu {
-
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
-    stream << object.name << " ver. " << object.version;
-}
 
 namespace {
 
@@ -41,7 +38,7 @@ bool isDynamic(const Node& node) {
     return std::any_of(outputs.cbegin(), outputs.cend(), [](const Output<const Node>& output) {
         VPU_THROW_UNLESS(output.get_partial_shape().rank() != ngraph::Rank::dynamic(),
         "DynamicToStaticShape transformation: got dynamic rank for {} with type {} while only static is supported",
-        output.get_node_shared_ptr()->get_friendly_name(), output.get_node_shared_ptr()->get_type_name());
+        output.get_node_shared_ptr()->get_friendly_name(), output.get_node_shared_ptr()->get_type_info());
 
         return output.get_partial_shape().is_dynamic();
     });
@@ -51,7 +48,7 @@ bool validateStaticShapes(const ngraph::Function& function) {
     for (const auto& node : function.get_ordered_ops()) {
         VPU_THROW_UNLESS(!isDynamic(*node),
             "DynamicToStaticShape transformation: after all the transformations there is still dynamism in the network."
-            " First met node with dynamic output: {} (type: {})", node->get_friendly_name(), node->get_type_name());
+            " First met node with dynamic output: {} (type: {})", node->get_friendly_name(), node->get_type_info());
     }
     return true;
 }
