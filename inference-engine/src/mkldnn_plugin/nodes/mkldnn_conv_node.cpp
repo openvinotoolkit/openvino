@@ -309,7 +309,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         Layout layout = convLayer->input()->getLayout();
 
         if (layout == NCHW || layout == NHWC) {
-            if (inputDataType != memory::bf16 && (IC == 3 || IC == 1)) {
+            if (IC == 3 || IC == 1) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                                                 layout == NCHW ? memory::nchw : memory::nhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
@@ -333,7 +333,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         } else if (layout == NCDHW || layout == NDHWC) {
             in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                     layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            if (inputDataType != memory::bf16 && (IC == 3 || IC == 1)) {
+            if (IC == 3 || IC == 1) {
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
                 createDescriptor({in_candidate}, {out_candidate});
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);

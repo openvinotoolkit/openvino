@@ -2167,6 +2167,18 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
 }
 
 void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
+    auto reorderArgs = [](const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
+        std::string inArgs, outArgs;
+        if (parentDesc.getPrecision() != childDesc.getPrecision()) {
+            inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
+            outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
+        }
+        if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
+            inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
+            outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
+        }
+        return inArgs + "_" + outArgs;
+    };
     for (auto input : graph.GetNodes()) {
         if (input->getType() != Input) {
             continue;
@@ -2177,12 +2189,26 @@ void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
             if (convertCandidate->getType() != Generic) {
                 continue;
             }
+            std::unordered_set<std::string> uniqueLayerNames;
+            for (auto node : graph.GetNodes()) {
+                uniqueLayerNames.insert(node->getCnnLayer()->name);
+            }
             for (size_t j = 0; j < convertCandidate->getChildEdges().size(); j++) {
-                auto convertEdge = convertCandidate->getChildEdgeAt(j);
+                auto &convertEdge = convertCandidate->getChildEdgeAt(j);
                 auto convolCandidate = convertEdge->getChild();
                 if (convolCandidate->getType() == Convolution) {
                     // create reorder node
-                    CNNLayerPtr layer(new CNNLayer({convertCandidate->name,
+                    std::string basicLayerName = convertEdge->getParent()->getName() + "_" +
+                                                 reorderArgs(convertCandidate->getCnnLayer()->insData[0].lock()->getTensorDesc(),
+                                                             convertCandidate->getCnnLayer()->outData[0]->getTensorDesc()) + "_" +
+                                                 convertEdge->getChild()->getName();
+                    std::string layerName = basicLayerName;
+                    int idx = 0;
+                    while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+                        idx++;
+                        layerName = basicLayerName + "_" + std::to_string(idx);
+                    }
+                    CNNLayerPtr layer(new CNNLayer({layerName,
                                                     "Reorder",
                                                     convertCandidate->getCnnLayer()->outData[0]->getPrecision()}));
                     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.weightsCache));
