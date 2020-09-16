@@ -298,12 +298,6 @@ namespace ngraph
                                                                  const InfoForLinearMode& info,
                                                                  const Coordinate& index);
 
-                int64_t clip_coord(int64_t coord, float length)
-                {
-                    return std::max(static_cast<int64_t>(0),
-                                    std::min(coord, static_cast<int64_t>(length) - 1));
-                }
-
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
