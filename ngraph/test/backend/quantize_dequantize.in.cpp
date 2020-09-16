@@ -50,6 +50,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    // divide by scale                2  2  2  2  2  2  2  2  2  2  2   2
+    // equals (rounded)               0  0  1  2  2  2  3  4  4  4  5   6
+    // plus offset                    1  1  1  1  1  1  1  1  1  1  1   1
+    // equals                         1  1  2  3  3  3  4  5  5  5  6   7
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -76,6 +80,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{{1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7}};
+    // minus offset                   1  1  1  1  1  1  1  1  1  1  1  1
+    // eqauls                         0  0  1  2  2  2  3  4  4  4  5  6
+    // multiplied by scale            2  2  2  2  2  2  2  2  2  2  2  2
+    // equals                         0  0  2  4  4  4  6  8  8  8 10 12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -106,6 +114,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    // divide by scale                2  2  2  2  2  2  2  2  2  2  2   2
+    // equals (rounded)               0  0  1  2  2  2  3  4  4  4  5   6
+    // plus offset                    0  0  0  0  0  0  0  0  0  0  0   0
+    // equals                         0  0  1  2  2  2  3  4  4  4  5   6
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -132,6 +144,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_zero_offset)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6};
+    // minus offset                   0  0  0  0  0  0  0  0  0  0  0  0
+    // equals                         0  0  1  2  2  2  3  4  4  4  5  6
+    // multiplied by scale            2  2  2  2  2  2  2  2  2  2  2  2
+    // equals                         0  0  2  4  4  4  6  8  8  8 10 12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -160,7 +176,12 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
     auto quantize =
         make_shared<op::Quantize>(X, scale, offset, output_type, quantization_axes, round_mode);
     auto f = make_shared<Function>(quantize, ParameterVector{X});
+
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    // divided by scale               2  2  2  3  3  3  4  4  4  5  5   5
+    // equals (rounded)               0  1  1  1  1  2  2  2  2  2  2   2
+    // plus offset                   10 10 10 20 20 20 30 30 30 40 40  40
+    // equals                        10 11 11 21 21 22 32 32 32 42 42  42
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -188,6 +209,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_axes)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42};
+    // minus offset                   10  10  10  20  20  20  30  30  30  40  40  40
+    // equals                          0   1   1   1   1   2   2   2   2   2   2   2
+    // multiplied by scale             2   2   2   3   3   3   4   4   4   5   5   5
+    // equals                          0   2   2   3   3   6   8   8   8  10  10  10
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -218,6 +243,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
+    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
+    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
+    // plus offset                    1   1  1   1  1   1  1   1  1   1  1    1
+    // equals                         1   1  2  -1  3  -1  4  -3  5  -3  6   -5
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -245,6 +274,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
+    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
+    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
+    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
+    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -275,6 +308,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
+    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
+    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
+    // plus offset                    0   0  0   0  0   0  0   0  0   0  0    0
+    // equals                         0   0  1  -2  2  -2  3  -4  4  -4  5   -6
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -302,6 +339,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8_zero_offset)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
+    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
+    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
+    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
+    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -332,6 +373,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
+    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
+    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
+    // plus offset                    1   1  1   1  1   1  1   1  1   1  1    1
+    // equals                         1   1  2  -1  3  -1  4  -3  5  -3  6   -5
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -359,6 +404,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
+    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
+    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
+    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
+    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -389,6 +438,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11};
+    // divide by scale                2   2  2   2  2   2  2   2  2   2  2    2
+    // equals (rounded)               0   0  1  -2  2  -2  3  -4  4  -4  5   -6
+    // plus offset                    0   0  0   0  0   0  0   0  0   0  0    0
+    // equals                         0   0  1  -2  2  -2  3  -4  4  -4  5   -6
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -416,6 +469,10 @@ NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32_zero_offset)
     auto f = make_shared<Function>(dequantize, ParameterVector{X});
 
     std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
+    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
+    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
+    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
+    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -545,6 +602,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_ZERO)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   2   3  -2   -2   -3   3   3   4   -3   -3   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -575,6 +634,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_INFINITY)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   3   3  -2   -3   -3   3   4   4   -3   -4   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -605,6 +666,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_UPWARD)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   3   3  -2   -2   -3   3   4   4   -3   -3   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -635,6 +698,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_DOWNWARD)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   2   3  -2   -3   -3   3   3   4   -3   -4   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -665,6 +730,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_EVEN)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   2   3  -2   -2   -3   3   4   4   -3   -4   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -700,6 +767,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_INFINITY)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               3   3   3  -3   -3   -3   4   4   4   -4   -4   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -735,6 +804,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_ZERO)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   2   2  -2   -2   -2   3   3   3   -3   -3   -3
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -765,6 +836,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_UP)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               3   3   3  -2   -2   -2   4   4   4   -3   -3   -3
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -795,6 +868,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
     auto f = make_shared<Function>(quantize, ParameterVector{X});
 
     std::vector<input_c_type> x{9, 10, 11, -9, -10, -11, 13, 14, 15, -13, -14, -15};
+    // divide by scale                4   4   4   4    4    4   4   4   4    4    4    4
+    // equals (rounded)               2   2   2  -3   -3   -3   3   3   3   -4   -4   -4
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<input_c_type>({x});
@@ -856,6 +931,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)
     auto f = make_shared<Function>(quantize, ParameterVector{X, scale, offset});
 
     std::vector<input_c_type> x{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    // divide by scale                2  2  2  2  2  2  2  2  2  2  2   2
+    // equals (rounded)               0  0  1  2  2  2  3  4  4  4  5   6
+    // plus offset                    1  1  1  1  1  1  1  1  1  1  1   1
+    // equals                         1  1  2  3  3  3  4  5  5  5  6   7
     std::vector<input_c_type> Scale{2};
     std::vector<output_c_type> Offset{1};
 
