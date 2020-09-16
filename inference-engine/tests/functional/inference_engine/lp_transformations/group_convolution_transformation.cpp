@@ -267,11 +267,11 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         // ExpectedValues
         {
             ngraph::element::f32,
-            {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
+            {{}, {}, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}}
+            {}
         }
     },
     // depth-wise convolution, tensor quantization, with zero point
@@ -405,11 +405,11 @@ const std::vector<GroupConvolutionTestValues> testValues = {
         // ExpectedValues
         {
             ngraph::element::f32,
-            {},
-            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
-            {},
+            {{}, {}, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
+            {}
         }
     },
     // without dequantization operations
