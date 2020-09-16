@@ -42,6 +42,8 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
 
+tensors_map = {}
+layer_id = 0
 
 def replace_ext(name: str, old: str, new: str):
     base, ext = os.path.splitext(name)
@@ -94,11 +96,13 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 
 def prepare_ir(argv: argparse.Namespace):
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
+    # is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = False, False, False, False, False
+    is_pytorch = True
 
-    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
-                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
+    # if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+    #     raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
+    #                 'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -108,8 +112,8 @@ def prepare_ir(argv: argparse.Namespace):
                     '--input_symbol or --pretrained_model_name')
     elif is_caffe and not argv.input_model and not argv.input_proto:
         raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
-    elif (is_kaldi or is_onnx) and not argv.input_model:
-        raise Error('Path to input model is required: use --input_model.')
+    # elif (is_kaldi or is_onnx) and not argv.input_model:
+    #     raise Error('Path to input model is required: use --input_model.')
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
@@ -215,23 +219,128 @@ def prepare_ir(argv: argparse.Namespace):
 
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
-    if is_tf:
-        from mo.front.tf.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_caffe:
-        from mo.front.caffe.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_mxnet:
-        from mo.front.mxnet.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_kaldi:
-        argv.static_shape = True
-        from mo.front.kaldi.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx:
-        from mo.front.onnx.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    graph = unified_pipeline(argv)
+    # if is_tf:
+    #     from mo.front.tf.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    # elif is_caffe:
+    #     from mo.front.caffe.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    # elif is_mxnet:
+    #     from mo.front.mxnet.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    # elif is_kaldi:
+    #     argv.static_shape = True
+    #     from mo.front.kaldi.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    # elif is_onnx:
+    #     from mo.front.onnx.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    # elif is_pytorch:
+    #     from mo.front.onnx.register_custom_ops import get_front_classes
+    #     import_extensions.load_dirs('onnx', extensions, get_front_classes)
+    # graph = unified_pipeline(argv)
+    ######################################
+    import torch
+    print(torch.__version__)
+    import torch.nn as nn
+    from torch.autograd import Variable
+    import torchvision.models as models
+
+    from mo.graph.graph import Graph
+
+    model = models.alexnet(pretrained=True)
+
+    graph = Graph(cmd_params=argv, ir_version=10)
+
+    inp = Variable(torch.randn([1, 3, 227, 227]))
+
+    def myhook(self, inputs, output):
+        global layer_id
+        layer_type = self.__class__.__name__
+
+        # Create a unique name
+        name = '{}_{}'.format(layer_type, layer_id)
+        layer_id += 1
+
+        graph.add_node(name, kind='op', op=layer_type, type=layer_type, name=name, in_ports_count=1, shape=list(output.shape))
+
+        # Find all inputs
+        for inp in inputs:
+            h = hash(inp)
+            src_id = tensors_map[h]
+
+            edge_attrs = {
+                'out': 0,
+                'in': 0,
+                'name': src_id,
+                'fw_tensor_debug_info': [(src_id, src_id)],
+                'in_attrs': ['in', 'name'],
+                'out_attrs': ['out', 'name'],
+                'data_attrs': ['fw_tensor_debug_info']
+            }
+            print(src_id, name)
+            graph.add_edge(src_id, name, **edge_attrs)
+
+
+        out_hash = hash(output)
+        tensors_map[out_hash] = name
+
+    for module in model.modules():
+        if len([m for m in module.modules()]) != 1:
+            continue
+        module.register_forward_hook(myhook)
+
+    tensors_map = {hash(inp): 'input'}
+    graph.add_node('input', kind='op', op='Parameter', type='Parameter', name='input', out_ports_count=1, shape=list(inp.shape))
+    out = model(inp)
+
+    graph.add_node('output', kind='op', op='Result', type='Result', shape=list(out.shape))
+    edge_attrs = {
+        'out': 0,
+        'in': 0,
+        'name': 'Linear_20',
+        'fw_tensor_debug_info': [('Linear_20', 'Linear_20')],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge('Linear_20', 'output', **edge_attrs)
+
+
+    ######################################
+    from mo.utils import class_registration
+    from mo.front.extractor import create_tensor_nodes
+    from mo.front.extractor import extract_node_attrs
+
+    from mo.graph.graph import Node
+    def op_extractor(node: Node):
+        print('+++++++++++++++++')
+        # if not node.has_valid('pb'):
+        #     return True, node.graph.node[node.id]
+
+        # result = common_onnx_fields(node)
+        # supported = False
+        # op = result['op'].lower()
+        # if op in lowered_keys_map:
+        #     op = lowered_keys_map[op]
+        #     assert op in onnx_op_extractors
+        #     attrs = onnx_op_extractors[op](node)
+        #     if attrs:
+        #         result.update(attrs)
+        #         supported = True
+        print(node.graph.node[node.id]['shape'])
+        return True, {'shape': node.graph.node[node.id]['shape']}
+
+    extract_node_attrs(graph, lambda node: op_extractor(node))
+
+    create_tensor_nodes(graph)
+    class_registration.apply_replacements(graph, [
+        class_registration.ClassType.LOADER,
+        class_registration.ClassType.FRONT_REPLACER,
+        class_registration.ClassType.MIDDLE_REPLACER,
+        class_registration.ClassType.BACK_REPLACER
+    ])
+
     return graph
 
 

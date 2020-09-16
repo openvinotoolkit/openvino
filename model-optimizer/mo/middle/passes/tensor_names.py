@@ -26,6 +26,7 @@ def propagate_op_name_to_tensor(graph: Graph):
     for node in graph.nodes():
         node = Node(graph, node)
         if node.kind == 'op' and node.has_valid('name'):
+            print('>>>>>>>>>>>>>>', node.name)
             for out_node, edge in node.out_nodes_edges().values():
                 assert out_node.kind == 'data'
                 out_node['ie_tensor_name'] = node.name
