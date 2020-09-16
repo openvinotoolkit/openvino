@@ -382,7 +382,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
    downloaded by the CMake-based script to the `<openvino_repo>/inference-engine/temp/tbb/bin`
-   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
+   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.5.0/opencv/bin`
    folder.
 
 ### Additional Build Options
