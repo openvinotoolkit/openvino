@@ -173,8 +173,8 @@ INSTANTIATE_TEST_CASE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
             ::testing::Combine(
                 interpolateCasesNN,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 20, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 20, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
@@ -184,8 +184,8 @@ INSTANTIATE_TEST_CASE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTe
             ::testing::Combine(
                 interpolateCasesLinearOnnx,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 20, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 20, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
