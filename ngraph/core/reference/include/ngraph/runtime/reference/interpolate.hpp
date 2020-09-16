@@ -223,12 +223,12 @@ namespace ngraph
                     , m_scales{scales}
                 {
                     size_t input_rank = input_data_shape.size();
-                    std::vector<float> all_scales(input_rank, 1.0f);
+                    m_all_scales = std::vector<float>(input_rank, 1.0f);
                     size_t num_of_axes = axes.size();
 
                     for (size_t i = 0; i < num_of_axes; ++i)
                     {
-                        all_scales[axes[i]] = scales[i];
+                        m_all_scales[axes[i]] = scales[i];
                     }
 
                     m_all_scales = all_scales;
@@ -353,6 +353,8 @@ namespace ngraph
                                 T* out,
                                 const Shape& out_shape)
                 {
+                    assert(axes.size() == scales.size());
+
                     m_input_data_shape = input_data_shape;
                     m_axes = axes;
                     m_out_shape = out_shape;
