@@ -4,7 +4,7 @@ Using Shape Inference {#openvino_docs_IE_DG_ShapeInference}
 Inference Engine takes three kinds of a model description as an input, which are converted into an `InferenceEngine::CNNNetwork` object:
 1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
 2. [ONNX model](../IE_DG/OnnxImporterTutorial.md) through `InferenceEngine::Core::ReadNetwork`
-3. [nGraph::Function](../IE_DG/nGraph_Flow.md) through the constructor of `InferenceEngine::CNNNetwork`
+3. [nGraph::Function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.
 The object should have fully defined input shapes to be successfully loaded to the Inference Engine plugins.
@@ -51,7 +51,7 @@ Do not use runtime reshaping methods simultaneously, especially do not call the 
 The `InferenceEngine::CNNNetwork::setBatchSize` method causes irreversible conversion of the internal model representation into the legacy model representation.
 The method does not use nGraph for shape inference which leads to reduced reshape opportunities and may affect the performance of the model.
 
-There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../IE_DG/nGraphTutorial.md).
+There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
 

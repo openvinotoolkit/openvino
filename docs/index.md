@@ -19,6 +19,7 @@ OpenVINO™ toolkit includes the following components:
     - [Deep Learning Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) - A cross-platform command-line tool for importing models and
     preparing them for optimal execution with the Inference Engine. The Model Optimizer imports, converts, and optimizes models, which were trained in popular frameworks, such as Caffe*,
     TensorFlow*, MXNet*, Kaldi*, and ONNX*.
+    - [nGraph](nGraph_DG/nGraph_dg.md) - A unified API for graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows the run-time model construction without using Model Optimizer.
     - [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types
     including the following:  
         - Intel® CPU

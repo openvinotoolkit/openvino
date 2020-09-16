@@ -1,4 +1,4 @@
-# Writing ngraph transformations {#new_ngraph_transformation}
+# Writing nGraph transformations {#ngraph_transformation}
 
 This guide contains all necessary information that could help you to start writing nGraph transformations.
 
@@ -32,31 +32,18 @@ After you decided where to store your transformation code you can start develop 
 
 ## Table of Contents:
 
-### 1. [`ngraph::Function` and graph representation](#ngraph_function) 
-### 2. [Transformations types](#transformations_types)
-### 2.1 [Function pass](#function_pass)
-### 2.2 [Matcher pass](#matcher_pass)
-### 2.3 [GraphRewrite pass](#graph_rewrite_pass) 
-### 3. [Pattern matching](#pattern_matching)
-### 4. [Working with ngraph::Function](#working_with_ngraph_function)
-### 5. [Transformation writing essentials](#transformation_writing_essentials)
-### 6. [Common mistakes in transformations](#common_mistakes)
-### 7. [Using pass manager](#using_pass_manager)
-### 8. [How to debug transformations](#how_to_debug_transformations)
-### 9. [Disabling/Enabling specific transformations for plugin X](#disabling_transformation)
-### 10. [Transformations testing](#transformations_testing)
-
-## ngraph::Function and graph representation <a name="ngraph_function"></a>
-
-nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph. 
-All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result operation
-(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
-
-Below you can find examples how `ngraph::Function` can be created:
-
-@snippet example_ngraph_utils.cpp ngraph_utils:simple_function
-
-@snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
+### 1. [Transformations types](#transformations_types)
+### 1.1 [Function pass](#function_pass)
+### 1.2 [Matcher pass](#matcher_pass)
+### 1.3 [GraphRewrite pass](#graph_rewrite_pass) 
+### 2. [Pattern matching](#pattern_matching)
+### 3. [Working with ngraph::Function](#working_with_ngraph_function)
+### 4. [Transformation writing essentials](#transformation_writing_essentials)
+### 5. [Common mistakes in transformations](#common_mistakes)
+### 6. [Using pass manager](#using_pass_manager)
+### 7. [How to debug transformations](#how_to_debug_transformations)
+### 8. [Disabling/Enabling specific transformations for plugin X](#disabling_transformation)
+### 9. [Transformations testing](#transformations_testing)
 
 ## Transformations types <a name="transformations_types"></a>
 
