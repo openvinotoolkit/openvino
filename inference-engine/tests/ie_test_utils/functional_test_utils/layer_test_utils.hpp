@@ -113,6 +113,7 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
