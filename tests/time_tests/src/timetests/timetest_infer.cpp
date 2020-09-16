@@ -20,6 +20,7 @@ int runPipeline(const std::string &model, const std::string &device) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
+    InferRequest inferRequest;
 
     {
       SCOPED_TIMER(read_network);
@@ -28,7 +29,13 @@ int runPipeline(const std::string &model, const std::string &device) {
 
     {
       SCOPED_TIMER(load_network);
-      ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+      exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+    }
+
+    {
+      SCOPED_TIMER(first_inference);
+      inferRequest = exeNetwork.CreateInferRequest();
+      inferRequest.Infer();
     }
   };
 
