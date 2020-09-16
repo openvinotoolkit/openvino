@@ -274,6 +274,29 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {}
         }
     },
+    // group convolution, without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, {}, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}}
+        }
+    },
     // depth-wise convolution, tensor quantization, with zero point
     {
         LayerTransformation::createParamsU8I8(),
@@ -410,6 +433,29 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
             ngraph::element::f32,
             {}
+        }
+    },
+    // depth-wise convolution, without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 6, 218, 218 },
+        6ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{element::f32}, {}, { 0.02f }},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
+            ngraph::element::f32,
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
         }
     },
     // without dequantization operations
