@@ -5,7 +5,6 @@
 project(OpenCV_C_Wraper)
 set(TARGET_NAME opencv_c_wraper)
 
-#set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -27,5 +26,5 @@ target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER c_samples)
 
 if(COMMAND add_cpplint_target)
-	add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+    add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
