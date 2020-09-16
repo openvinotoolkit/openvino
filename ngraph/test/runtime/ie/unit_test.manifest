@@ -231,6 +231,7 @@ IE_CPU.onnx_model_rnn_bidirectional
 
 ## RNN/GRU Sequence - seq_lengths are not supported
 IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
 

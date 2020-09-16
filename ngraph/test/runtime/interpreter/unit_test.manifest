@@ -121,6 +121,7 @@ onnx_model_round_half_nearest_even
 onnx_model_gru_fwd_mixed_seq_len
 onnx_model_gru_fwd_mixed_seq_len_const
 onnx_model_rnn_fwd_mixed_seq_len
+onnx_model_rnn_fwd_mixed_seq_len_const
 
 # Unsupported op 'LSTMSequence': not FusedOp anymore, no reference implementation yet
 onnx_model_lstm_fwd_with_clip

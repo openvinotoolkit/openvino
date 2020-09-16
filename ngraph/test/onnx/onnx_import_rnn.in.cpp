@@ -1491,6 +1491,51 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
 }
 
+NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_mixed_seq_len_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(in_X);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f,  0.94002223f,
+            -0.97647303f, -0.9999884f,  0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,
+            0.7899921f,   0.92003024f,  -0.43116868f, 0.11219919f,  0.895327f,    0.21749747f,
+            0.6617017f,   0.99962795f,  0.37670398f,  0.7918401f,   -0.99966455f, 0.9961897f,
+            0.9995159f,   -0.84224236f, 0.92083716f,  -0.99834263f, 0.9435711f,   0.8485148f,
+            0.f,          0.f,          0.f,          0.f,          0.f,          0.75459063f,
+            0.8326433f,   -0.99705976f, 0.62511444f,  0.99979305f,  0.99925995f,  0.94032586f,
+            -0.86841005f, -0.8692311f,  0.9974319f,   0.f,          0.f,          0.f,
+            0.f,          0.f,          0.f,          0.f,          0.f,          0.f,
+            0.f,          -0.30979204f, 0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             0.11219919f,
+                                             0.895327f,
+                                             0.21749747f,
+                                             0.6617017f,
+                                             0.99962795f,
+                                             0.75459063f,
+                                             0.8326433f,
+                                             -0.99705976f,
+                                             0.62511444f,
+                                             0.99979305f,
+                                             -0.30979204f,
+                                             0.99138904f,
+                                             -0.10645419f,
+                                             -0.18203181f,
+                                             0.9996245f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+}
+
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)
 {
     auto function = onnx_import::import_onnx_model(
@@ -1538,6 +1583,51 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len)
                                              -0.10645419f,
                                              -0.18203181f,
                                              0.9996245f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+}
+
+NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_rev_clip_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_rev_clip_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(in_X);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            0.9416027f,   0.6461365f,   -0.8407804f,  -0.33646506f, 0.92833483f,  -0.9416027f,
+            0.65075886f,  0.9416027f,   -0.33576548f, -0.10364902f, -0.9416027f,  -0.832458f,
+            -0.18187332f, 0.5103179f,   0.5227027f,   -0.9416027f,  -0.90681225f, -0.9416027f,
+            0.5091027f,   0.8053496f,   0.6005076f,   0.92147183f,  0.9416027f,   -0.8985506f,
+            0.28120112f,  0.9416027f,   0.9416027f,   0.9416027f,   -0.92463756f, -0.9416027f,
+            0.79248047f,  0.9416027f,   -0.1611281f,  0.11231542f,  -0.8230629f,  -0.2566173f,
+            0.16398644f,  -0.36077273f, -0.70470357f, 0.8011706f,   -0.59314847f, -0.41942674f,
+            -0.20039755f, -0.6877927f,  -0.13850075f, -0.26959598f, -0.8372509f,  0.15711153f,
+            0.3000977f,   0.53072214f,  0.25092757f,  0.82264745f,  -0.72998637f, -0.13731742f,
+            0.17423475f,  0.43279397f,  0.9416027f,   -0.2988227f,  -0.4705984f,  -0.74036705f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             0.9416027f,
+                                             0.6461365f,
+                                             -0.8407804f,
+                                             -0.33646506f,
+                                             0.92833483f,
+                                             -0.9416027f,
+                                             0.65075886f,
+                                             0.9416027f,
+                                             -0.33576548f,
+                                             -0.10364902f,
+                                             -0.9416027f,
+                                             -0.832458f,
+                                             -0.18187332f,
+                                             0.5103179f,
+                                             0.5227027f,
                                          });
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
 }
@@ -1681,6 +1771,51 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse)
                                              0.5148814f,
                                          });
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
+}
+
+NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_bias_initial_h_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(in_X);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f,  0.94002223f,
+            -0.97647303f, -0.9999884f,  0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,
+            0.7899921f,   0.92003024f,  -0.43116868f, 0.11219919f,  0.895327f,    0.21749747f,
+            0.6617017f,   0.99962795f,  0.37670398f,  0.7918401f,   -0.99966455f, 0.9961897f,
+            0.9995159f,   -0.84224236f, 0.92083716f,  -0.99834263f, 0.9435711f,   0.8485148f,
+            0.699257f,    0.9983405f,   -0.87222385f, 0.05191362f,  0.9878634f,   0.75459063f,
+            0.8326433f,   -0.99705976f, 0.62511444f,  0.99979305f,  0.99925995f,  0.94032586f,
+            -0.86841005f, -0.8692311f,  0.9974319f,   -0.37055743f, -0.54580235f, -0.8618355f,
+            0.6927968f,   0.99997866f,  0.15482295f,  0.90996563f,  -0.9992051f,  0.784014f,
+            0.9999677f,   -0.30979204f, 0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             -0.37055743f,
+                                             -0.54580235f,
+                                             -0.8618355f,
+                                             0.6927968f,
+                                             0.99997866f,
+                                             0.15482295f,
+                                             0.90996563f,
+                                             -0.9992051f,
+                                             0.784014f,
+                                             0.9999677f,
+                                             -0.30979204f,
+                                             0.99138904f,
+                                             -0.10645419f,
+                                             -0.18203181f,
+                                             0.9996245f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h)
