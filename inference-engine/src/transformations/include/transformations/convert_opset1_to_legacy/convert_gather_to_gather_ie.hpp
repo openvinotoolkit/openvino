@@ -36,5 +36,6 @@ class TRANSFORMATIONS_API ConvertGatherToGatherIEMatcher;
 
 class ngraph::pass::ConvertGatherToGatherIEMatcher : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGatherToGatherIEMatcher();
 };

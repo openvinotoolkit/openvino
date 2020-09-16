@@ -21,5 +21,6 @@ class TRANSFORMATIONS_API ConvertMod;
 
 class ngraph::pass::ConvertMod: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMod();
 };

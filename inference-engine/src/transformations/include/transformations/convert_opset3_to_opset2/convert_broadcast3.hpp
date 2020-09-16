@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API ConvertBroadcast3;
 
 class ngraph::pass::ConvertBroadcast3: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertBroadcast3() : GraphRewrite() {
         convert_broadcast3();
     }

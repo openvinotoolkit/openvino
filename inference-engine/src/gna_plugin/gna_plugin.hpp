@@ -33,7 +33,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
  protected:
     std::string _pluginName = "GNA";
 
-    Config config;
+    Config config {};
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;

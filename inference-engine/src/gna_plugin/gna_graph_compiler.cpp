@@ -110,6 +110,12 @@ void GNAGraphCompiler::fillConcatConnections(InferenceEngine::CNNLayerPtr layer)
                 InferenceEngine::details::product(begin(dataInput->getDims()),
                                                   end(dataInput->getDims())) * dataInput->getPrecision().size();
 
+        // concat align layer can have additional padding, so the size of layer needs to be calculated
+        // based on original number of rows
+        if (ptrConcatLayerInput->CheckParamPresence("original_num_rows")) {
+            layer_size = ptrConcatLayerInput->GetParamAsInt("original_num_rows") * dataInput->getPrecision().size();
+        }
+
         layerInfoItem.concatInputLayers.emplace_back(GNAConcatLayer::ConcatConnectedLayerInfo{ptrConcatLayerInput->name, concat_size, layer_size});
 
         concat_size += layer_size;
@@ -398,6 +404,11 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         ptr_weights,
         ptr_biases);
 
+    if (inputs->getLayout() == Layout::NHWC) {
+        currentComponent.orientation_in  = kDnnInterleavedOrientation;
+        currentComponent.orientation_out = kDnnInterleavedOrientation;
+    }
+
     size_t num_data_bytes_out =
         InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
@@ -531,9 +542,11 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
 
         if (gnaFlags->sw_fp32) {
+            IE_ASSERT(quantized == nullptr);
             gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
             gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
+            IE_ASSERT(quantized != nullptr);
             auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
                 static_cast<float>(INT16_MAX)));
             auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
@@ -843,7 +856,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
 
-    if (ALIGN64(cropOffset) == cropOffset) {
+    if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
         GNAPluginNS::GNACropLayer cropLayerInfoItem(layer);
         std::string& id = layer->name;

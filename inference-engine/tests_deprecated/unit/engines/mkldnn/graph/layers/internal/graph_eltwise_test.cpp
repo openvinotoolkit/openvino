@@ -892,8 +892,9 @@ protected:
 
 TEST_P(MKLDNNGraphEltwiseDynBatchTests, TestsDynBatchEltwise) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchEltwise, MKLDNNGraphEltwiseDynBatchTests,
+        DISABLED_TestsDynBatchEltwise, MKLDNNGraphEltwiseDynBatchTests,
         ::testing::Values(
                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "", 3, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.0,1.0,1.0", 3, MKLDNNPlugin::impl_desc_type::ref},
