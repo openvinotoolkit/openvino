@@ -56,13 +56,14 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
         const Shape outputShape = node->get_output_shape(0);
 
-        std::vector<size_t> transposeConstant(outputShape.size());
+        std::vector<uint32_t> transposeConstant(outputShape.size());
         std::iota(transposeConstant.begin(), transposeConstant.end(), 0);
         std::swap(*(transposeConstant.end() - 1), *(transposeConstant.end() - 2));
 
+        auto order = opset1::Constant::create(element::u32, Shape{ transposeConstant.size() }, transposeConstant);
+
         std::shared_ptr<Node> transposedConstant = fold<ngraph::opset1::Transpose>(
-            node,
-            opset1::Constant::create(element::i64, Shape{ transposeConstant.size() }, transposeConstant));
+            node, order);
         return transposedConstant;
     };
 
