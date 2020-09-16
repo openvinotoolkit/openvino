@@ -26,8 +26,7 @@ const std::vector<std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVe
     std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>({ InferenceEngine::SizeVector({ 1, 16 }), InferenceEngine::SizeVector({ 16, 10 }) })
 };
 
-// LPT_SUPPORT: temporary disabling
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
