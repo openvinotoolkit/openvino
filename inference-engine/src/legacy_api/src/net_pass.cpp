@@ -398,8 +398,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
+    auto outData0InputsTo = getInputTo(cell->outData[0]);
     if (getCreatorLayer(cell->insData[0].lock()).lock() != rsp1 ||
-        getInputTo(cell->outData[0]).begin()->second != rsp2)
+            outData0InputsTo.empty() ||
+            outData0InputsTo.begin()->second != rsp2)
         return false;
 
     // Check port mapping

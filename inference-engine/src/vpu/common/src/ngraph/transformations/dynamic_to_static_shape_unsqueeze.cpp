@@ -29,6 +29,9 @@ void dynamicToStaticShapeUnsqueeze(std::shared_ptr<ngraph::Node> target) {
         target->get_friendly_name(), target->get_type_info(), ngraph::op::Constant::type_info, 1);
 
     const auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset3::Unsqueeze>(target);
+    VPU_THROW_UNLESS(unsqueeze != nullptr,
+                     "DynamicToStaticShape transformation for '{}' expects Unsqueeze node",
+                     target->get_friendly_name());
     const auto copied = unsqueeze->clone_with_new_inputs(target->input_values());
     const auto shape = dsr->input(1).get_source_output();
 
