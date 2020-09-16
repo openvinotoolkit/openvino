@@ -230,8 +230,6 @@ namespace ngraph
                     {
                         m_all_scales[axes[i]] = scales[i];
                     }
-
-                    m_all_scales = all_scales;
                 }
 
                 ~InterpolateEvalHelper() = default;
