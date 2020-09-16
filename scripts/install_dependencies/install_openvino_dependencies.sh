@@ -79,7 +79,6 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-
             PKGS+=( libglib2.0-0
                     gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
