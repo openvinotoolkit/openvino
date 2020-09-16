@@ -307,14 +307,12 @@ inline dst_type convert_value(src_type val) {
     return static_cast<dst_type>(val);
 }
 
-// We need to treat U64->I32 and U32->I32 as a separate case, because of C++'s implicit promotion from signed to unsigned.
-// So before comparing value to std::numeric_limits<int32_t>::lowest(), we need to cast it to the same width signed type.
+// We need to treat U64->I32 and U32->I32 as a separate case, because of C++'s implicit promotion from signed to unsigned,
+// and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
 template <>
 inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
     if (val > std::numeric_limits<int32_t>::max()) {
         return std::numeric_limits<int32_t>::max();
-    } else if (static_cast<int64_t>(val) < std::numeric_limits<int32_t>::lowest()) {
-        return std::numeric_limits<int32_t>::lowest();
     }
     return static_cast<int32_t>(val);
 }
@@ -323,8 +321,6 @@ template <>
 inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
     if (val > std::numeric_limits<int32_t>::max()) {
         return std::numeric_limits<int32_t>::max();
-    } else if (static_cast<int32_t>(val) < std::numeric_limits<int32_t>::lowest()) {
-        return std::numeric_limits<int32_t>::lowest();
     }
     return static_cast<int32_t>(val);
 }
