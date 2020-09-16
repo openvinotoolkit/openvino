@@ -95,7 +95,6 @@ namespace
 
     // Default is that we did nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Broadcast> node)
     {
         auto arg = node->input_value(0);

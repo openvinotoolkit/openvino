@@ -33,9 +33,9 @@ namespace ngraph
                      const op::AutoBroadcastSpec& broadcast_spec)
             {
                 autobroadcast_binop(
-                        arg0, arg1, out, arg_shape, arg_shape, broadcast_spec, [](T x, T y) -> T {
-                            return T(x - std::trunc(x / y) * y);
-                        });
+                    arg0, arg1, out, arg_shape, arg_shape, broadcast_spec, [](T x, T y) -> T {
+                        return T(x - std::trunc(x / y) * y);
+                    });
             }
         }
     }

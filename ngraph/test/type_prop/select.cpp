@@ -132,7 +132,7 @@ TEST(type_prop, select_elem_mismatch_bc)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Argument 1 and 2 element types are inconsistent"));
+                             std::string("Argument 1 and 2 element types must match"));
     }
     catch (...)
     {
@@ -167,7 +167,7 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mis
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Argument 1 and 2 element types are inconsistent"));
+                             std::string("Argument 1 and 2 element types must match"));
     }
     catch (...)
     {
