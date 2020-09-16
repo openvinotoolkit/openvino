@@ -71,7 +71,7 @@ def test_ngraph_function_api():
         np.int32,
         pytest.param(np.int64, marks=xfail_issue_35926),
         pytest.param(np.uint8, marks=xfail_issue_36479),
-        pytest.param(np.uint16, marks=xfail_issue_36479),
+        np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
         pytest.param(np.uint64, marks=xfail_issue_36478),
     ],
