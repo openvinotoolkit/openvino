@@ -49,7 +49,6 @@ namespace
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
     {
         auto replacement_node = ngraph::builder::opset1::make_broadcast(
@@ -151,7 +150,6 @@ namespace
         return replacement_node;
     }
 
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolution> node)
     {
         auto strides = node->get_window_movement_strides();
@@ -249,7 +247,6 @@ namespace
         return replacement_node;
     }
 
-
     shared_ptr<Node> op_cast(shared_ptr<op::Max> node)
     {
         bool keep_dims = false;
@@ -258,7 +255,6 @@ namespace
         replace_node(node, replacement_node);
         return replacement_node;
     }
-
 
     shared_ptr<Node> op_cast(shared_ptr<op::Min> node)
     {
@@ -275,7 +271,6 @@ namespace
         replace_node(node, replacement_node);
         return replacement_node;
     }
-
 
     shared_ptr<Node> op_cast(shared_ptr<op::OneHot> node)
     {

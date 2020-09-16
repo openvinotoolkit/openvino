@@ -40,6 +40,9 @@ shared_ptr<op::Constant> fold_constant_select(const shared_ptr<op::Constant>& se
                                       t->get_data_ptr<T>(),
                                       f->get_data_ptr<T>(),
                                       data_ptr,
+                                      shape_size(selection->get_shape()),
+                                      shape_size(t->get_shape()),
+                                      shape_size(f->get_shape()),
                                       shape_size(out_shape));
     }
     else if (auto select_v1 = as_type_ptr<op::v1::Select>(select))
