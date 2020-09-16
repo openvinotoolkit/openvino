@@ -32,7 +32,7 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="Path to test config",
-        default=Path(".") / "local_configs" / "test_config.yml"
+        default=Path(".") / "local_configs" / "test_config.py"
         # TODO: test config in Python vs. .yml to support xfails ???
     )
     parser.addoption(
@@ -94,8 +94,12 @@ def pytest_generate_tests(metafunc):
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
-    with open(metafunc.config.getoption('test_conf'), "r") as file:
-        test_cases = yaml.load(file, Loader=yaml.FullLoader)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("test_config", metafunc.config.getoption('test_conf').resolve())
+    test_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(test_config)
+    test_cases = test_config.test_cases
+
     if test_cases:
         metafunc.parametrize("instance", test_cases)
 
