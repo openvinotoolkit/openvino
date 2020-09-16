@@ -1085,7 +1085,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        // planar for 1.ref on machine without sse42(no fuse). 2.JIT kernel for f32 && avx2(gather).(with fuse)
+        // planar for 1.ref on machine without sse42(if no sse42, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
         if (!mayiuse(cpu::sse42))
             pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
 
@@ -1596,7 +1596,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
         SizeVector inShapeBlock = getBlockND(srcDim5d);
         SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
-        srcPadded = std::vector<uint8_t>(inShapePadBlock[0] * srcDataSize, 0);
+        srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
         uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
 
         parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
@@ -2090,9 +2090,6 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
 // nearest mode need to be strictly consistent with onnx calc manner(div scale, not multiply inverse),
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
 inline float MKLDNNInterpolateNode::coordTransToInput(int outCoord, float scale, int inShape, int outShape) {
-    if ((scale == 1.f) || (inShape == outShape)) {
-        return static_cast<float>(outCoord);
-    }
     if (mode == InterpolateMode::nearest) {
         scale = 1.f / scale;
         switch (coordTransMode) {
