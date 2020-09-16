@@ -97,10 +97,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         lastNewPrecision = precisionAfterDequantization;
     }
 
-    {
-        std::shared_ptr<Node> originalSubtractConstant = dequantization.subtract != nullptr ?
-            dequantization.subtract->get_input_node_shared_ptr(1) :
-            std::make_shared<opset1::Constant>(precisionAfterDequantization, Shape{}, std::vector<float>{0.f});
+    if (dequantization.subtract != nullptr) {
+        std::shared_ptr<Node> originalSubtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
 
         std::shared_ptr<Node> subtractConstant = fold<opset1::Multiply>(
             fold<opset1::Multiply>(
@@ -127,12 +125,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
             lastNew = std::make_shared<DequantizationAdd>(lastNew, subtractConstant);
         }
 
-        if (dequantization.subtract != nullptr) {
-            auto lastNewPtr = lastNew.get_node_shared_ptr();
-            NetworkHelper::copyInfo(dequantization.subtract, lastNewPtr);
-        } else {
-            lastNew.get_node_shared_ptr()->set_friendly_name(dequantization.multiply->get_friendly_name() + "/Add");
-        }
+        auto lastNewPtr = lastNew.get_node_shared_ptr();
+        NetworkHelper::copyInfo(dequantization.subtract, lastNewPtr);
 
         lastNewPrecision = precisionAfterDequantization;
     }
