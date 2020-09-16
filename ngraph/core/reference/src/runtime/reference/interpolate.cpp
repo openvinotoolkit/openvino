@@ -49,9 +49,9 @@ Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordi
                                               static_cast<float>(m_out_shape[i]),
                                               length_original);
         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_all_scales[i] < 1.0);
-        input_coord[i] =  std::max(static_cast<int64_t>(0),
-                                   std::min(nearest_pixel,
-                                            static_cast<int64_t>(length_original) - 1));
+        input_coord[i] =
+            std::max(static_cast<int64_t>(0),
+                     std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1));
     }
 
     return input_coord;
