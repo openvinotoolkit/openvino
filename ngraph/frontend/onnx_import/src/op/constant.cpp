@@ -45,8 +45,7 @@ namespace ngraph
                             NGRAPH_WARN << "Could not create an nGraph Constant for an ONNX "
                                            "Constant node. Detailed error:\n"
                                         << exc.what();
-                            constant =
-                                std::make_shared<default_opset::Constant>(type, Shape{}, 0);
+                            constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
                         }
 
                         return constant;
