@@ -106,12 +106,10 @@ static bool parseCommandLine(int *argc, char ***argv) {
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
+    config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
+
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
         config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
-    }
-
-    if (!FLAGS_VPU_MOCK_DEVICE.empty()) {
-        config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
     }
 
     if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {

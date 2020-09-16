@@ -146,9 +146,7 @@ static std::map<std::string, std::string> configure(const std::string &configFil
     auto config = parseConfig(configFile);
 
     if (std::string::npos != FLAGS_d.find("MYRIAD")) {
-        if (!FLAGS_VPU_MOCK_DEVICE.empty()) {
-            config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
-        }
+        config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
 
         if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
             config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
