@@ -9,13 +9,19 @@
 #include <string>
 #include <map>
 
-#include <legacy/ie_ishape_infer_extension.hpp>
 #include <ie_parameter.hpp>
 #include <ie_precision.hpp>
 
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/tensor_iterator.hpp>
 #include <ngraph/graph_util.hpp>
+
+namespace InferenceEngine {
+
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
+
+}
 
 namespace ngraph {
 namespace op {
