@@ -108,3 +108,39 @@ TEST(type_prop, matmul_4D_transpose_b)
     ASSERT_EQ(matmul->get_element_type(), element::f32);
     ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 4}));
 }
+
+TEST(type_prop, matmul_dynamic_5D_transpose_b)
+{
+    Dimension dynamic = Dimension::dynamic();
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, dynamic, dynamic, 6});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{1, dynamic, 1, 4, 6});
+
+    auto matmul = make_shared<op::MatMul>(A, B, 0, 1);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{2, 4, dynamic, dynamic, 4}));
+}
+
+TEST(type_prop, matmul_dynamic_2D_transpose_a)
+{
+    Dimension dynamic = Dimension::dynamic();
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{dynamic, 3});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{4, dynamic});
+
+    auto matmul = make_shared<op::MatMul>(A, B, 1, 0);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{3, dynamic}));
+}
+
+TEST(type_prop, matmul_dynamic_1D_3D)
+{
+    Dimension dynamic = Dimension::dynamic();
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{dynamic});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, dynamic});
+
+    auto matmul = make_shared<op::MatMul>(A, B);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{2, dynamic}));
+}

@@ -53,17 +53,29 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 
 namespace
 {
-    Shape evaluate_matmul_output_shape(const Shape& arg0_shape,
-                                       const Shape& arg1_shape,
-                                       bool transpose_a,
-                                       bool transpose_b)
+    PartialShape evaluate_matmul_output_shape(const PartialShape& arg0_shape,
+                                              const PartialShape& arg1_shape,
+                                              bool transpose_a,
+                                              bool transpose_b)
     {
-        Shape output_shape;
-        Shape arg0_shape_update = arg0_shape;
-        Shape arg1_shape_update = arg1_shape;
+        auto arg0_rank = arg0_shape.rank().get_length();
+        auto arg1_rank = arg1_shape.rank().get_length();
+        auto max_rank = std::max(arg0_rank, arg1_rank);
+        auto merged_dimension = Dimension::dynamic();
 
-        size_t arg0_rank = arg0_shape.size();
-        size_t arg1_rank = arg1_shape.size();
+        std::vector<Dimension> arg0_shape_update(arg0_rank);
+        std::vector<Dimension> arg1_shape_update(arg1_rank);
+        std::vector<Dimension> output_shape(max_rank);
+
+        for (size_t i = 0; i < arg0_rank; i++)
+        {
+            arg0_shape_update[i] = arg0_shape[i];
+        }
+
+        for (size_t i = 0; i < arg1_rank; i++)
+        {
+            arg1_shape_update[i] = arg1_shape[i];
+        }
 
         if (transpose_a)
         {
@@ -90,42 +102,44 @@ namespace
 
         if (arg0_rank == 1 && arg1_rank == 1)
         {
-            NGRAPH_CHECK(arg0_shape_update == arg1_shape_update, "Incompatible arg shapes");
-            output_shape = Shape{};
+            NGRAPH_CHECK(
+                Dimension::merge(merged_dimension, arg0_shape_update[0], arg1_shape_update[0]),
+                "Incompatible matrix dimensions");
+            output_shape.erase(output_shape.begin(), output_shape.end());
         }
         else if (arg0_rank == 1)
         {
             // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
-            NGRAPH_CHECK(arg0_shape_update[0] == arg1_shape_update[arg1_rank - 2],
-                         "Incompatible arg shapes");
+            NGRAPH_CHECK(Dimension::merge(merged_dimension,
+                                          arg0_shape_update[0],
+                                          arg1_shape_update[arg1_rank - 2]),
+                         "Incompatible matrix dimensions");
             arg1_shape_update.erase(arg1_shape_update.begin() + arg1_rank - 2);
             output_shape = arg1_shape_update;
         }
         else if (arg1_rank == 1)
         {
             // i.e., arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
-            NGRAPH_CHECK(arg1_shape_update[0] == arg0_shape_update[arg0_rank - 1],
-                         "Incompatible arg shapes");
+            NGRAPH_CHECK(Dimension::merge(merged_dimension,
+                                          arg1_shape_update[0],
+                                          arg0_shape_update[arg0_rank - 1]),
+                         "Incompatible matrix dimensions.");
             arg0_shape_update.erase(arg0_shape_update.begin() + arg0_rank - 1);
             output_shape = arg0_shape_update;
         }
         else
         {
-            NGRAPH_CHECK(arg0_shape_update[arg0_rank - 1] == arg1_shape_update[arg1_rank - 2],
-                         "Incompatible matrix dimensions, A dim = ",
-                         arg0_shape_update[arg0_rank - 1],
-                         ", B dim = ",
-                         arg1_shape_update[arg1_rank - 2]);
-
-            auto max_rank = std::max(arg0_rank, arg1_rank);
-            output_shape = Shape(max_rank);
+            NGRAPH_CHECK(Dimension::merge(merged_dimension,
+                                          arg0_shape_update[arg0_rank - 1],
+                                          arg1_shape_update[arg1_rank - 2]),
+                         "Incompatible matrix dimensions.");
 
             // handle batch size
             if (max_rank > 2)
             {
-                Shape low_size_matrix =
+                std::vector<Dimension> low_size_matrix =
                     arg0_rank > arg1_rank ? arg1_shape_update : arg0_shape_update;
-                Shape big_size_matrix =
+                std::vector<Dimension> big_size_matrix =
                     arg0_rank > arg1_rank ? arg0_shape_update : arg1_shape_update;
 
                 if (arg0_rank != arg1_rank)
@@ -145,7 +159,28 @@ namespace
                 // end
                 for (auto i = 0; i < max_rank - 2; i++)
                 {
-                    output_shape[i] = std::max(low_size_matrix[i], big_size_matrix[i]);
+                    if ((low_size_matrix[i].is_dynamic() || big_size_matrix[i].is_dynamic()))
+                    {
+                        // non-dynamic value is asssigned to output when it is > 1, otherwise
+                        // dynamic dimension is forwarded to output
+                        auto output_value = low_size_matrix[i].is_dynamic()
+                                                ? big_size_matrix[i].get_length()
+                                                : low_size_matrix[i].get_length();
+
+                        if (output_value != 1)
+                        {
+                            output_shape[i] = output_value;
+                        }
+                        else
+                        {
+                            output_shape[i] = Dimension::dynamic();
+                        }
+                    }
+                    else
+                    {
+                        output_shape[i] = std::max(low_size_matrix[i].get_length(),
+                                                   big_size_matrix[i].get_length());
+                    }
                 }
             }
 
@@ -155,7 +190,7 @@ namespace
             output_shape.at(output_shape.size() - 1) = arg1_shape_update.at(arg1_rank - 1);
         }
 
-        return output_shape;
+        return PartialShape{output_shape};
     }
 
     template <element::Type_t ET>
@@ -167,11 +202,12 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
 
-        Shape arg0_shape = arg0->get_shape();
-        Shape arg1_shape = arg1->get_shape();
+        Shape arg0_shape = Shape{arg0->get_shape()};
+        Shape arg1_shape = Shape{arg1->get_shape()};
 
-        Shape output_shape =
-            evaluate_matmul_output_shape(arg0_shape, arg1_shape, transpose_a, transpose_b);
+        PartialShape output_partial_shape = evaluate_matmul_output_shape(
+            PartialShape{arg0_shape}, PartialShape{arg1_shape}, transpose_a, transpose_b);
+        Shape output_shape = output_partial_shape.to_shape();
         output->set_element_type(arg0->get_element_type());
         output->set_shape(output_shape);
 
@@ -233,26 +269,19 @@ void ngraph::op::v0::MatMul::validate_and_infer_types()
         get_input_element_type(1),
         ").");
 
-    const auto& input_A_matrix = get_input_partial_shape(0);
-    const auto& input_B_matrix = get_input_partial_shape(1);
+    const auto& A_matrix = get_input_partial_shape(0);
+    const auto& B_matrix = get_input_partial_shape(1);
 
-    if (input_A_matrix.rank().is_static() && input_B_matrix.rank().is_static())
+    if (A_matrix.rank().is_static() && B_matrix.rank().is_static())
     {
-        NODE_VALIDATION_CHECK(this,
-                              (input_A_matrix.rank().get_length() >= 1) &&
-                                  (input_B_matrix.rank().get_length() >= 1),
-                              "Rank for input matrix shall be >= 1.");
-
-        Shape output_shape;
-        const Shape A_matrix = input_A_matrix.to_shape();
-        const Shape B_matrix = input_B_matrix.to_shape();
+        PartialShape output_shape;
 
         const bool transpose_a = get_transpose_a();
         const bool transpose_b = get_transpose_b();
 
         output_shape = evaluate_matmul_output_shape(A_matrix, B_matrix, transpose_a, transpose_b);
 
-        set_output_type(0, result_et, PartialShape(output_shape));
+        set_output_type(0, result_et, output_shape);
     }
     else
     {
