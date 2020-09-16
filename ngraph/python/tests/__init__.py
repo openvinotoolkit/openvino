@@ -29,6 +29,7 @@ MODEL_ZOO_DIR = None
 # test.MODEL_ZOO_XFAIL is a configuration variable which enable xfails for model zoo.
 MODEL_ZOO_XFAIL = False
 
+
 def xfail_test(reason="Mark the test as expected to fail", strict=True):
     return pytest.mark.xfail(reason=reason, strict=strict)
 
