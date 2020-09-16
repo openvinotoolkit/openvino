@@ -20,12 +20,8 @@
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset3.hpp>
-
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 
 #include "generic_ie.hpp"
 
@@ -54,22 +50,14 @@ void transformNGraphFunction(const std::shared_ptr<ngraph::Function>& function) 
 
 }  // namespace
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     auto clonedNetwork = cloneNetwork(network);
-    if (auto function = clonedNetwork->getFunction()) {
-        transformNGraphFunction(function);
-    }
-
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
-        _mvnc, _devicePool,
-        parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {

@@ -668,7 +668,8 @@ INSTANTIATE_TEST_CASE_P(accuracy_small_input_3, myriadLayerConvolution_smoke,
            )
  );
 
-TEST_F(myriadLayersTests_nightly, tests125) {
+// TODO: rewrite to ngraph to have reshape functionality
+TEST_F(myriadLayersTests_nightly, DISABLED_tests125) {
     std::string outName1 = "SecondStageFeatureExtractor/InceptionV2/Mixed_5a/Branch_1/Conv2d_0b_3x3/Conv2D";
     std::string outName2 = "SecondStageFeatureExtractor/InceptionV2/Mixed_5a/Branch_0/Conv2d_1a_3x3/Relu";
     InferenceEngine::TBlob<uint8_t>::Ptr weights(GenWeights(1697280 / sizeof(ie_fp16)));

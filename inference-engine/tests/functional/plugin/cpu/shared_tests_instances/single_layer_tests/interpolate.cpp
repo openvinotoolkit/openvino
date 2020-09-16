@@ -17,11 +17,11 @@ const std::vector<InferenceEngine::Precision> prc = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 4, 30, 30},
+        {1, 1, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 4, 40, 40},
+        {1, 1, 40, 40},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
@@ -55,7 +55,7 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode =
 };
 
 const std::vector<std::vector<size_t>> pads = {
-        {0, 0, 1, 1},
+        // {0, 0, 1, 1},
         {0, 0, 0, 0},
 };
 

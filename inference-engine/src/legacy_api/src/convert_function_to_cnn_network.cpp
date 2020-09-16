@@ -1111,10 +1111,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         i.second->setLayout(thisInputData.getLayout());
         i.second->getPreProcess() = thisInputData.getPreProcess();
     }
-
-    for (const auto &ext : ::ngraph::op::GenericIE::getExtensions(graph)) {
-        cnnNetworkImpl->AddExtension(ext, nullptr);
-    }
 }
 
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
