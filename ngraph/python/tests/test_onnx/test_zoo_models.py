@@ -26,7 +26,7 @@ from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 def _get_default_model_zoo_dir():
     onnx_home = os.path.expanduser(os.getenv("ONNX_HOME", os.path.join("~", ".onnx")))
-    return os.path.join(onnx_home, "model_zoo_dir")
+    return os.path.join(onnx_home, "model_zoo")
 
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
