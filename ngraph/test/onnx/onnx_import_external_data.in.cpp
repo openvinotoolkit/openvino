@@ -83,8 +83,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_file_not_found_exception)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception)
 {
+    try
+    {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/external_data_file_not_found.prototxt"));
+        FAIL() << "Incorrect path to external data not detected";
+    }
+    catch (const ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("not_existed_file.data, offset: 4096, lenght: 16, sha1_digest: 0"));
+    }
+    catch (...)
+    {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_page_size_warning)

@@ -57,8 +57,9 @@ namespace ngraph
                 const auto page_size = 4096;
                 if (m_offset != 0 && m_offset % page_size != 0)
                 {
-                    NGRAPH_WARN
-                        << "offset should be multiples 4096 (page size) to enable mmap support";
+                    NGRAPH_WARN << "offset should be multiples 4096 (page size) to enable mmap "
+                                   "support, current value is "
+                                << m_offset;
                 }
                 // default value of m_offset is 0
                 external_data_stream.seekg(m_offset, std::ios::beg);
