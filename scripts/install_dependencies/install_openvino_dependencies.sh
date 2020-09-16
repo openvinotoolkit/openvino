@@ -79,8 +79,7 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( libglib2.0-0
-                    gstreamer1.0-plugins-ugly
+            PKGS+=( gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
                     gstreamer1.0-doc
@@ -126,6 +125,7 @@ if [ -f /etc/lsb-release ]; then
                 libopencore-amrwb0
                 liba52-0.7.4
                 python3-gi
+                libglib2.0-0
         )
     fi
     apt update
