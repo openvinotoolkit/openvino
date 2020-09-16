@@ -24,14 +24,7 @@ from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 
-def _get_default_model_zoo_dir():
-    onnx_home = os.path.expanduser(os.getenv("ONNX_HOME", os.path.join("~", ".onnx")))
-    return os.path.join(onnx_home, "model_zoo")
-
-
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
-if len(MODELS_ROOT_DIR) == 0:
-    MODELS_ROOT_DIR = _get_default_model_zoo_dir()
 
 tolerance_map = {
     "arcface_lresnet100e_opset8": {"atol": 0.001, "rtol": 0.001},
@@ -75,13 +68,11 @@ tolerance_map = {
 zoo_models = []
 # rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
-    mdir, file = os.path.split(str(path))
-    if not file.startswith("."):
-        mdir = str(mdir)
-        if mdir.endswith("/"):
-            mdir = mdir[:-1]
-        model = {"model_name": path, "model_file": file, "dir": mdir}
-        basedir = os.path.basename(mdir)
+    mdir = path.parent
+    file_name = path.name
+    if path.is_file() and not file_name.startswith("."):
+        model = {"model_name": path, "model_file": file_name, "dir": mdir}
+        basedir = mdir.stem
         if basedir in tolerance_map:
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
@@ -96,7 +87,7 @@ if len(zoo_models) > 0:
 
     # import all test cases at global scope to make them visible to pytest
     backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR)
-    test_cases = backend_test.test_cases["OnnxBackendValidationModelImportTest"]
+    test_cases = backend_test.test_cases["OnnxBackendModelImportTest"]
     # flake8: noqa: E501
     if tests.MODEL_ZOO_XFAIL:
         import_xfail_list = [
@@ -110,7 +101,7 @@ if len(zoo_models) > 0:
             pytest.mark.xfail(getattr(test_cases, test_case))
     del test_cases
 
-    test_cases = backend_test.test_cases["OnnxBackendValidationModelExecutionTest"]
+    test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu",
