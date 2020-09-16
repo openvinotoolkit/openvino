@@ -218,6 +218,7 @@ macro(ie_add_sample)
 
     set(folder_name cpp_samples)
     if(IE_SAMPLE_NAME MATCHES ".*_c$")
+    	set(c_sample ON)
         set(folder_name c_samples)
     endif()
 
@@ -230,7 +231,11 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
-                                                    ${IE_SAMPLE_DEPENDENCIES} gflags)
+                                                    ${IE_SAMPLE_DEPENDENCIES})
+
+    if(NOT c_sample)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
+    endif()
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
@@ -239,7 +244,7 @@ macro(ie_add_sample)
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
     if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
-        if(folder_name STREQUAL "c_samples")
+        if(c_sample)
             set(custom_filters "-readability/casting")
         endif()
         add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
