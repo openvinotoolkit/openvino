@@ -669,6 +669,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
+        if (reduce_node == nullptr)
+            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of ArithmeticReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
@@ -678,6 +680,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ReduceLogicalAnd"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        if (reduce_node == nullptr)
+            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
@@ -687,6 +691,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ReduceLogicalOr"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->get_output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
+        if (reduce_node == nullptr)
+            THROW_IE_EXCEPTION << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
