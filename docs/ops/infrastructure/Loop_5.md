@@ -174,8 +174,8 @@ Loop operation description in the IR also has several special sections: `body`, 
     <input> ... </input>
     <output> ... </output>
     <port_map>
-        <input external_port_id="0" internal_operation_id="0" condition="True"/>
-        <input external_port_id="1" internal_operation_id="1"/>
+        <input external_port_id="0" internal_operation_id="0"/>
+        <input external_port_id="1" internal_operation_id="1" condition="True"/>
         ...
         <output external_port_id="3" internal_operation_id="2"/>
         ...
