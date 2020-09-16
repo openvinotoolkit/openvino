@@ -39,6 +39,7 @@
 #include <transformations/lin_op_sequence_fusoin.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");

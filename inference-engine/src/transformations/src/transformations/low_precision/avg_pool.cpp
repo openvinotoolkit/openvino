@@ -30,7 +30,18 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
+
+    const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(pooling);
+    bool updatePrecision = false;
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : children) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
+            updatePrecision = true;
+            break;
+        }
+    }
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
     return true;
 }
 
@@ -45,6 +56,14 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(layer);
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : children) {
+        if (!is_type<opset1::FakeQuantize>(child)) {
+            return true;
+        }
+    }
     return false;
 }
 

@@ -15,6 +15,7 @@
 #include <utility>
 #include <unordered_set>
 #include <vector>
+#include <queue>
 
 namespace ngraph {
 namespace pass {
@@ -346,6 +347,40 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
     }
 }
 
+std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
+        const std::shared_ptr<Node>& op) const noexcept {
+    std::queue<std::shared_ptr<Node>> notHandledChildren;
+
+    for (const auto& output : op->outputs()) {
+        for (const auto& input : output.get_target_inputs()) {
+            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
+            notHandledChildren.emplace(child);
+        }
+    }
+
+    std::vector<std::shared_ptr<Node>> resultChildren;
+
+    while (!notHandledChildren.empty()) {
+        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
+        notHandledChildren.pop();
+
+        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
+            resultChildren.push_back(operation);
+            continue;
+        }
+
+        for (const auto& output : operation->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
+                notHandledChildren.emplace(child);
+            }
+        }
+    }
+
+    return resultChildren;
+}
+
+
 std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
@@ -370,7 +405,7 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
         }
 
         std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
-        const size_t inputIndex = NetworkHelper::getInputIndex(dequantization.multiply, node);
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 

@@ -40,7 +40,6 @@ private:
         std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize);
 
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
-    std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptPrecisionPreserved(const std::shared_ptr<Node>& op) const noexcept;
 };
 
 } // namespace low_precision

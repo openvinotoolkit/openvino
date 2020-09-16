@@ -26,6 +26,10 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
     return output[0];
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::LinOpSequenceFusion, "LinOpSequenceFusion", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMultiplyFusion, "AddMultiplyFusion", 0);
+
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
@@ -39,6 +43,10 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
+
+        if (m_transformation_callback(add)) {
+            return false;
+        }
 
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul_const = label_to_output[m_mul_constant];
@@ -61,6 +69,8 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, "AddMultiplyFusion");
     this->register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::AddAddFusion, "AddAddFusion", 0);
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
     // Create Add->Add pattern where first Add has exactly one consumer
@@ -93,6 +103,8 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, "AddAddFusion");
     this->register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyMultiplyFusion, "MultiplyMultiplyFusion", 0);
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer

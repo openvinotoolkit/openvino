@@ -87,7 +87,7 @@ std::shared_ptr<Node> makeDequantization(
 }
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
-    const std::shared_ptr<Node>& input,
+    const Output<Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
     return as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(

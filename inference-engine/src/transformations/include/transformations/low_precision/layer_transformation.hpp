@@ -276,6 +276,8 @@ public:
 
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 
+    std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptPrecisionPreserved(const std::shared_ptr<Node>& op) const noexcept;
+
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     static void printDequantizationInfo(const std::shared_ptr<Node>& layer);

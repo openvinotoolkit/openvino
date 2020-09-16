@@ -29,5 +29,6 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
 
 class ngraph::pass::UnrollTensorIterator: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     UnrollTensorIterator();
 };

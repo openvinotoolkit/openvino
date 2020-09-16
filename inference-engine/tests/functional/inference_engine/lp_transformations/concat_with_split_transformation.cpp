@@ -225,8 +225,9 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
+// LPT_SUPPORT: temporary disabled
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

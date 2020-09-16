@@ -21,6 +21,28 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
+    if (node->outputs().size() > 1ul) {
+        return false;
+    }
+
+    for (const Input<Node>& input : node->inputs()) {
+        if (ngraph::is_type<opset1::Constant>(input.get_node())) {
+            continue;
+        }
+
+        const Shape& in = input.get_shape();
+        const Shape& out = node->output(0).get_shape();
+        for (size_t i = 0; i < 2; ++i) {
+            if (in[i] != out[i]) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 Subgraph::Subgraph(ngraph::pass::ILayerTransformationsManager* layerTransformationsManager) : layerTransformationsManager(layerTransformationsManager) {
 }
 
@@ -49,7 +71,7 @@ bool Subgraph::fillSubgraphForQuantization(
                 if (fakeQuantizeChild != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(child)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
                         if (!fillSubgraphForIntermediate(child, handledLayers)) {
                             return false;
                         }
@@ -86,7 +108,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 if (constant != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(parent)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(parent) && isQuantizationPerChannel(parent)) {
                         if (!fillSubgraphForIntermediate(parent, handledLayers)) {
                             return false;
                         }
@@ -117,7 +139,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeChild = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(child);
                 if (fakeQuantizeChild != nullptr) {
                     //
-                } else if (layerTransformationsManager->isPrecisionPreserved(child)) {
+                } else if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
                         return false;
                     }

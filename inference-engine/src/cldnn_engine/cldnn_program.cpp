@@ -397,6 +397,29 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , p_currentOutputs({}) {
     InitFormat(network);
 
+    bool fqFound = false;
+    bool allFQareSupported = true;
+    bool baselineIsFP16 = false;
+    if (config.enableInt8) {
+        auto it = details::CNNNetworkIterator(&network);
+        auto end = details::CNNNetworkIterator();
+        while (it != end) {
+            auto& layer = *it;
+            if (layer->precision == Precision::FP16) {
+                baselineIsFP16 = true;
+            }
+
+            if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
+                fqFound = true;
+                auto levels = layer->GetParamAsUInt("levels");
+                if (levels != 255 && levels != 256) {
+                    allFQareSupported = false;
+                }
+            }
+            it++;
+        }
+    }
+
     if (config.enableInt8 && (config.lptVersion == Config::LptVersion::cnnNetwork)) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                   true,  // quantizeOutputs
@@ -413,29 +436,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
                 .add<GemmTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 
-        bool fqFound = false;
-        bool allFQareSupported = true;
-        bool baselineIsFP16 = false;
-        {
-            auto it = details::CNNNetworkIterator(&network);
-            auto end = details::CNNNetworkIterator();
-            while (it != end) {
-                auto& layer = *it;
-                if (layer->precision == Precision::FP16) {
-                    baselineIsFP16 = true;
-                }
-
-                if (CaselessEq<std::string>()(layer->type, "FakeQuantize")) {
-                    fqFound = true;
-                    auto levels = layer->GetParamAsUInt("levels");
-                    if (levels != 255 && levels != 256) {
-                        allFQareSupported = false;
-                    }
-                }
-                it++;
-            }
-        }
-
         // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
         if (fqFound && allFQareSupported) {
             NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
@@ -443,19 +443,21 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
 
         LowPrecisionTransformer transformer(transforms);
         transformer.transform(network);
+    }
 
-        // [WA part2] Try to find non-quantized layers and convert them back to FP16
+    // [WA part2] Try to find non-quantized layers and convert them back to FP16
+    if (config.enableInt8) {
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
             auto layersSorted = BFSSort(network);
 
-            for (auto& layer : layersSorted) {
+            for (auto &layer : layersSorted) {
                 if (layer == nullptr)
                     continue;
 
                 if (layer->outData.empty() || layer->insData.empty())
                     continue;
 
-                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
+                auto canReduceOutputPrecision = [](const CNNLayerPtr &l) -> bool {
                     auto type = LayerTypeFromStr(l->type);
                     // Don't do conversion for outputs
                     auto next = GetNextLayers(l);
@@ -483,11 +485,11 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                     return false;
                 };
 
-                auto canReducePrecision = [](const CNNLayerPtr& l) -> bool {
+                auto canReducePrecision = [](const CNNLayerPtr &l) -> bool {
                     auto layerType = LayerTypeFromStr(l->type);
 
                     bool result = true;
-                    for (auto& in : l->insData) {
+                    for (auto &in : l->insData) {
                         auto input = in.lock();
                         auto precision = input->getPrecision();
                         auto in_type = LayerTypeFromStr(getCreatorLayer(input).lock()->type);

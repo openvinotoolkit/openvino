@@ -16,6 +16,8 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
+    const bool addFQ,
+    const std::string additionalLayer,
     const ActualValues& values) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
@@ -43,9 +45,27 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         Shape{ 2, 2 },
         true,
         op::RoundingType::FLOOR);
-    avgPool->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(avgPool) };
+    std::shared_ptr<Node> lastLayer = avgPool;
+
+    if (additionalLayer == "maxpool") {
+        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+            lastLayer,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            op::RoundingType::FLOOR);
+    }
+
+    if (addFQ) {
+        lastLayer = ngraph::builder::makeFakeQuantize(
+            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+    }
+
+    lastLayer->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastLayer) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
@@ -75,6 +95,8 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
+    const bool addFQ,
+    const std::string additionalLayer,
     const ExpectedValues& values) {
     auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
@@ -87,9 +109,25 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
         Shape{ 2, 2 },
         true,
         op::RoundingType::FLOOR);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, originalFunctionPrecision);
+    const auto avgPoolPrecision = addFQ ? originalFunctionPrecision : values.activationPrecision;
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, avgPoolPrecision);
 
     parent = avgPool;
+
+    if (additionalLayer == "maxpool") {
+        parent = std::make_shared<ngraph::opset1::MaxPool>(
+            parent,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            op::RoundingType::FLOOR);
+    }
+
+    if (avgPoolPrecision != originalFunctionPrecision) {
+        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
+        parent = convert;
+    }
 
     if (!values.subtractValues.empty()) {
         const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
@@ -102,9 +140,17 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-    multiply->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    std::shared_ptr<Node> lastLayer = multiply;
+
+    if (addFQ) {
+        lastLayer = ngraph::builder::makeFakeQuantize(
+            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+    }
+
+    lastLayer->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastLayer) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
 }
 

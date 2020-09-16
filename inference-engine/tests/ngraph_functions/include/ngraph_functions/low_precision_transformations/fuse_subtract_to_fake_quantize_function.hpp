@@ -22,6 +22,13 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData,
         const DequantizationOperations& dequantization);
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fqOnData,
+        const DequantizationOperations& dequantization,
+        const FakeQuantizeOnData& fqOnData2,
+        const DequantizationOperations& dequantization2);
 };
 
 }  // namespace subgraph
