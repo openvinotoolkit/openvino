@@ -13,18 +13,17 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        InferenceEngine::SizeVector,            // Input shapes
-        InferenceEngine::Precision,             // Input precision
-        bool,                                   // Across channels
-        bool,                                   // Normalize variance
-        double,                                 // Epsilon
-        std::string,                            // Device name
-        std::map<std::string, std::string>      // Config
-        > mvnParams;
+        InferenceEngine::SizeVector, // Input shapes
+        InferenceEngine::Precision,  // Input precision
+        bool,                        // Across channels
+        bool,                        // Normalize variance
+        double,                      // Epsilon
+        std::string> mvnParams;      // Device name
 
 class MvnLayerTest : public testing::WithParamInterface<mvnParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<mvnParams> obj);
+
 protected:
     void SetUp() override;
 };
