@@ -39,21 +39,6 @@ struct DeviceInformation {
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 
-class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
-public:
-    using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
-    explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
-                                     const InferenceEngine::OutputsDataMap& networkOutputs);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
-    void InferImpl() override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
-    // Multi-Device impl specific: sets the data (blobs from the device-less requets to the specific device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
-};
-
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 template <typename T>
 using ThreadSafeQueue = tbb::concurrent_queue<T>;
@@ -91,6 +76,11 @@ protected:
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public ITaskExecutor {
 public:
+    enum MultiDeviceSchedulingModes {
+        eRespectDevicePriorities = 0, /*default, legacy*/
+        eRespectDataAffinity
+    };
+
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
         InferenceEngine::InferRequest   _inferRequest;
@@ -125,7 +115,26 @@ public:
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
+    MultiDeviceSchedulingModes _schedulingMode = MultiDeviceSchedulingModes::eRespectDataAffinity;
+    std::atomic_size_t                                          _numRequestsCreated = {0};
 };
+
+class MultiDeviceInferRequest : public InferenceEngine::InferRequestInternal {
+    public:
+        using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
+        explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
+                                         const InferenceEngine::OutputsDataMap& networkOutputs,
+                                         MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr);
+        void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const override {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        }
+        void InferImpl() override {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        }
+        // Multi-Device impl specific: sets the data (blobs from the device-less request to the specific device request)
+        void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
+        MultiDeviceExecutableNetwork::WorkerInferRequest* _request_to_share_blobs_with = nullptr;
+    };
 
 class MultiDeviceAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
@@ -134,7 +143,8 @@ public:
     explicit MultiDeviceAsyncInferRequest(const MultiDeviceInferRequest::Ptr&           inferRequest,
                                           const bool                                    needPerfCounters,
                                           const MultiDeviceExecutableNetwork::Ptr&      multiDeviceExecutableNetwork,
-                                          const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
+                                          const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor,
+                                          MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequest = nullptr);
     void Infer_ThreadUnsafe() override;
     void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &_perfMap) const override;
     ~MultiDeviceAsyncInferRequest() override;

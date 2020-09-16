@@ -24,27 +24,37 @@ namespace MultiDevicePlugin {
     using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
-                                                 const OutputsDataMap&  networkOutputs)
-        : InferRequestInternal(networkInputs, networkOutputs) {
-    // Allocate all input blobs
-    for (const auto &it : networkInputs) {
-        Layout l = it.second->getLayout();
-        Precision p = it.second->getPrecision();
-        SizeVector dims = it.second->getTensorDesc().getDims();
+                                                 const OutputsDataMap&  networkOutputs,
+                                                 MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with)
+        : InferRequestInternal(networkInputs, networkOutputs), _request_to_share_blobs_with(request_to_share_blobs_with) {
+    if (request_to_share_blobs_with) {
+        // borrow device-friendly blobs from the request
+        for (const auto &it : _networkInputs)
+            _inputs[it.first] = request_to_share_blobs_with->_inferRequest.GetBlob(it.first);
+        for (const auto &it : _networkOutputs)
+            _outputs[it.first] = request_to_share_blobs_with->_inferRequest.GetBlob(it.first);
+        std::cout << "BORROW!!!" << std::endl;
+    } else {
+        // Allocate all input blobs
+        for (const auto &it : networkInputs) {
+            Layout l = it.second->getLayout();
+            Precision p = it.second->getPrecision();
+            SizeVector dims = it.second->getTensorDesc().getDims();
 
-        TensorDesc desc = TensorDesc(p, dims, l);
-        _inputs[it.first] = make_blob_with_precision(desc);
-        _inputs[it.first]->allocate();
-    }
-    // Allocate all output blobs
-    for (const auto &it : networkOutputs) {
-        Layout l = it.second->getLayout();
-        Precision p = it.second->getPrecision();
-        SizeVector dims = it.second->getTensorDesc().getDims();
+            TensorDesc desc = TensorDesc(p, dims, l);
+            _inputs[it.first] = make_blob_with_precision(desc);
+            _inputs[it.first]->allocate();
+        }
+        // Allocate all output blobs
+        for (const auto &it : networkOutputs) {
+            Layout l = it.second->getLayout();
+            Precision p = it.second->getPrecision();
+            SizeVector dims = it.second->getTensorDesc().getDims();
 
-        TensorDesc desc = TensorDesc(p, dims, l);
-        _outputs[it.first] = make_blob_with_precision(desc);
-        _outputs[it.first]->allocate();
+            TensorDesc desc = TensorDesc(p, dims, l);
+            _outputs[it.first] = make_blob_with_precision(desc);
+            _outputs[it.first]->allocate();
+        }
     }
 }
 
@@ -69,11 +79,13 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
     const MultiDeviceInferRequest::Ptr&         inferRequest,
     const bool                                  needPerfCounters,
     const MultiDeviceExecutableNetwork::Ptr&    multiDeviceExecutableNetwork,
-    const ITaskExecutor::Ptr&                   callbackExecutor) :
+    const ITaskExecutor::Ptr&                   callbackExecutor,
+    MultiDeviceExecutableNetwork::WorkerInferRequest* workerRequest) :
     AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
     _multiDeviceExecutableNetwork{multiDeviceExecutableNetwork},
     _inferRequest{inferRequest},
-    _needPerfCounters{needPerfCounters} {
+    _needPerfCounters{needPerfCounters},
+    _workerInferRequest(workerRequest) {
     struct ThisRequestExecutor : public ITaskExecutor {
         explicit ThisRequestExecutor(MultiDeviceAsyncInferRequest* _this_) : _this{_this_} {}
         void run(Task task) override {
@@ -83,12 +95,24 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         };
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {
-        {_multiDeviceExecutableNetwork, [this] {
-            _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
-            _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
-        }},
-        {std::make_shared<ThisRequestExecutor>(this), [this] {
+    _pipeline.clear();
+    // in the eRespectDevicePriorities mode the scheduling algo may select any device, so we shall:
+    //  1. accept the scheduling decision (actual workerRequest)
+    //  2. set the device-agnostic blobs to the actual (device-specific) request first
+    if (_multiDeviceExecutableNetwork->_schedulingMode == MultiDeviceExecutableNetwork::MultiDeviceSchedulingModes::eRespectDevicePriorities) {
+        _pipeline.push_back(
+                { /*TaskExecutor*/ _multiDeviceExecutableNetwork,
+                  /*task*/[this] {
+                    _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
+                    _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+                }});
+    }
+
+    // regardless of scheduling policy the ThisRequestExecutor shall start the inference so the task is to check for the result
+    // this pipeline stage is common for any  scheduling mode
+    _pipeline.push_back(
+            { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this),
+              /*task*/ [this] {
             auto status = _workerInferRequest->_status;
             if (InferenceEngine::StatusCode::OK != status) {
                 if (nullptr != InferenceEngine::CurrentException()) {
@@ -100,8 +124,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
             if (_needPerfCounters) {
                 _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
             }
-        }}
-    };
+        }});
 }
 
 void MultiDeviceAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -175,19 +198,31 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
             workerRequest._inferRequest = network.CreateInferRequest();
             auto* workerRequestPtr = &workerRequest;
             idleWorkerRequests.push(workerRequestPtr);
-            workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                [workerRequestPtr, this, device, idleWorkerRequestsPtr] (InferRequest , StatusCode status) mutable {
-                    IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                    workerRequestPtr->_status = status;
-                    {
-                        auto capturedTask = std::move(workerRequestPtr->_task);
-                        capturedTask();
-                    }
-                    if (!_terminate) {
-                        idleGuard.Release()->push(workerRequestPtr);
-                        ScheduleToWorkerInferRequest();
-                    }
-                });
+            if (_schedulingMode == MultiDeviceExecutableNetwork::MultiDeviceSchedulingModes::eRespectDevicePriorities) {
+                workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
+                        [workerRequestPtr, this, idleWorkerRequestsPtr](InferRequest,
+                                                                                StatusCode status) mutable {
+                            IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                            workerRequestPtr->_status = status;
+                            {
+                                auto capturedTask = std::move(workerRequestPtr->_task);
+                                capturedTask();
+                            }
+                            if (!_terminate) {
+                                idleGuard.Release()->push(workerRequestPtr);
+                                ScheduleToWorkerInferRequest();
+                            }
+                        });
+            } else {
+                workerRequest._inferRequest.SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
+                        [workerRequestPtr] (InferRequest , StatusCode status) mutable {
+                            workerRequestPtr->_status = status;
+                            {
+                                auto capturedTask = std::move(workerRequestPtr->_task);
+                                capturedTask();
+                            }
+                        });
+                }
         }
     }
 }
@@ -234,16 +269,25 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
+    auto num = _numRequestsCreated++;
+    size_t sum = 0;
+    for (auto&& requests : _workerRequests) {
+        sum += requests.second.size();
+        if (num < sum)
+            return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, &requests.second.at(sum-num-1));
+    }
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs);
 }
 
 void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    auto multiSyncRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncTreadSafeImpl = std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
+
+    auto asyncTreadSafeImpl = std::make_shared<MultiDeviceAsyncInferRequest>(multiSyncRequest,
                                                                              _needPerfCounters,
                                                                              std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
-                                                                             _callbackExecutor);
+                                                                             _callbackExecutor, multiSyncRequest->_request_to_share_blobs_with);
     asyncRequest.reset(new InferRequestBase<MultiDeviceAsyncInferRequest>(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
