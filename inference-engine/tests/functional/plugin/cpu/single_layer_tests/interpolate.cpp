@@ -84,7 +84,7 @@ protected:
     std::string selectedType;
 };
 
-TEST_P(InterpolateLayerCPUTest, DISABLED_CompareWithRefs) {
+TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();

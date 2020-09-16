@@ -86,7 +86,7 @@ void InterpolateLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
 
-TEST_P(InterpolateLayerTest, DISABLED_CompareWithRefs) {
+TEST_P(InterpolateLayerTest, CompareWithRefs) {
     Run();
 }
 }  // namespace LayerTestsDefinitions
