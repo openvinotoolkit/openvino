@@ -9,15 +9,22 @@ The operation has similar semantic to the ONNX* Loop [operation](https://github.
 
 **Detailed description**
 
-The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count" and "termination condition" and inputs of Loop body called "current iteration" and "termination condition".
+The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "termination condition" and inputs of Loop body called "current iteration".
 
-The Loop inputs have the following meaning:
-1. Trip count input is an integer scalar input specifying maximum number of iterations. To simulate infinite loop provide Constant `-1` as input.
-2. Loop termination condition input is a boolean scalar input specifying whether to run the current loop iteration or not. Note, that the body of the Loop must yield the termination condition value.
+These Loop operation inputs have the following meaning:
+1. Trip count is an integer scalar input specifying maximum number of iterations. To simulate infinite loop Constant `-1` can be provided as input.
+2. Loop termination condition input is a boolean scalar input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the termination condition value for the consecutive iterations.
 
 There are several combinations of these two inputs `(trip_count, condition)` which are described in the following code snippet:
 
 ```
+  input (-1, true) // infinite loop
+      bool cond = true;
+      for (int i = 0; cond; ++i) 
+      {
+          cond = true; // sub-graph calculating condition must always return "true"!
+      }
+
   input (-1, cond) // while loop
       bool cond = ...;
       for (int i = 0; cond; ++i) 
@@ -49,9 +56,8 @@ There are several combinations of these two inputs `(trip_count, condition)` whi
       }
 ```
 
-The body graph inputs have the following meaning:
-1. The "current iteration" number which is an integer scalar number. The iteration number starts from 0 and incremented by one for each iteration.
-2. The "termination condition" which is a boolean scalar value. This value is provided from the corresponding input of the Loop operation for the first iteration and calculated in the body graph for the consequent iterations.
+1. The body graph first input called "current iteration" is an integer scalar number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration.
+1. The body graph first output called "termination condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
 
 Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify termination condition(s).
 Loop operation description in the IR also has several special sections: `body`, `port_map` and `back_edges` similar to the ones from the TensorIterator operation but having some important features described below.
@@ -95,7 +101,7 @@ Loop operation description in the IR also has several special sections: `body`, 
 
         * *axis*
 
-            * **Description**: *axis* is an axis to concatenate the body `Result` output across all iterations. Can be specified for `output` edges only.
+            * **Description**: *axis* is an axis to concatenate the body `Result` output across all iterations. Can be specified for `output` entry only.
             * **Range of values**: an integer
             * **Type**: `int`
             * **Default value**: None
@@ -139,8 +145,6 @@ Loop operation description in the IR also has several special sections: `body`, 
 **Body Inputs**
 
 * **Current iteration**: A scalar tensor of `int64` type specifying the current iteration number. *Required*.
-
-* **Termination condition**: A scalar tensor of `boolean` type specifying whether to execute the current iteration or not. *Required*.
 
 * **Multiple other inputs**: tensors of different types and shapes. *Optional*.
 
