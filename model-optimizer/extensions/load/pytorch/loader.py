@@ -55,7 +55,7 @@ class PyTorchLoader(Loader):
             name = '{}_{}'.format(layer_type, layer_id)
             layer_id += 1
 
-            graph.add_node(name, kind='op', op=layer_type, name=name, in_ports_count=1, shape=list(output.shape))
+            graph.add_node(name, kind='op', op=layer_type, name=name, shape=list(output.shape), module=self)
 
             # Find all inputs
             for inp in inputs:
@@ -74,6 +74,23 @@ class PyTorchLoader(Loader):
                 print(src_id, name)
                 graph.add_edge(src_id, name, **edge_attrs)
 
+            for key, value in self.state_dict().items():
+                assert key == 'weight' or key == 'bias', 'Unknown parameter: ' + key
+
+                param_name = name + '/' + key
+                graph.add_node(param_name, kind='op', op='Const', module=self)
+                edge_attrs = {
+                    'out': 0,
+                    'in': 1 if key == 'weight' else 2,
+                    'name': param_name,
+                    'fw_tensor_debug_info': [(param_name, param_name)],
+                    'in_attrs': ['in', 'name'],
+                    'out_attrs': ['out', 'name'],
+                    'data_attrs': ['fw_tensor_debug_info']
+                }
+                print(param_name, name)
+                graph.add_edge(src_id, name, **edge_attrs)
+
 
             out_hash = hash(output)
             tensors_map[out_hash] = name
@@ -87,7 +104,7 @@ class PyTorchLoader(Loader):
         graph.add_node('input', kind='op', op='Parameter', name='input', shape=list(inp.shape))
         out = model(inp)
 
-        graph.add_node('output', kind='op', op='Result', type='Result', shape=list(out.shape))
+        graph.add_node('output', kind='op', op='Result', shape=list(out.shape))
         edge_attrs = {
             'out': 0,
             'in': 0,
