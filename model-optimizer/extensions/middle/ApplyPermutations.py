@@ -47,6 +47,7 @@ class ApplyPermutation(MiddleReplacementPattern):
         self.permute_op_nodes_attrs(graph)
         self.shape_of_sub_graph_reinference(graph)
         self.permute_input_data(graph)
+        graph.graph['layout'] = 'NCHW'
 
     @staticmethod
     def merge_nodes_permutations(graph: Graph):
