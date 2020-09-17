@@ -45,6 +45,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
                     reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
             break;
+        case InferenceEngine::Precision::BF16:
+            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, ngraph::bfloat16(threshold));
+            break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
@@ -97,7 +101,13 @@ void LayerTestsCommon::ConfigureNetwork() const {
 }
 
 void LayerTestsCommon::LoadNetwork() {
+    using namespace InferenceEngine;
+    if (configuration.find(PluginConfigParams::KEY_ENFORCE_BF16) == configuration.end()) {
+        // Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+        configuration[PluginConfigParams::KEY_ENFORCE_BF16] = PluginConfigParams::NO;
+    }
     cnnNetwork = InferenceEngine::CNNNetwork{function};
+
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
@@ -124,6 +134,10 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16
     // IE converts f16 to f32
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
+
+    // The same idea for bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
     function->validate_nodes_and_infer_types();
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
@@ -146,16 +160,17 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         ieOutPrc = actualOutputs[0]->getTensorDesc().getPrecision();
     }
 
-    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc);
+    const auto& inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+    const auto& outConvertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc);
     std::vector<std::vector<std::uint8_t>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, inType, outConvertType);
             break;
         }
         case CONSTANT_FOLDING: {
             const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
+            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, outConvertType);
             break;
         }
         case IE: {
@@ -170,7 +185,7 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
             m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
             m.register_pass<ngraph::pass::ConvertBatchToSpace>();
             m.run_passes(cloned_function);
-            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, inType, outConvertType);
             break;
         }
     }
@@ -207,9 +222,49 @@ void LayerTestsCommon::Validate() {
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     Compare(expectedOutputs, actualOutputs);
+
+    CheckExpectedPrecision();
 }
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
 }
+
+void LayerTestsCommon::CheckExpectedPrecision() const {
+    // verification of performance counters
+    if (!expectedPrecisions.empty()) {
+        std::pair<std::string, std::string> wrongLayer;
+        const auto& perfCounts = inferRequest.GetPerformanceCounts();
+
+        for (const auto& e : expectedPrecisions) {
+            auto it = perfCounts.find(e.first);
+            if (it == perfCounts.end()) {
+                wrongLayer = std::pair<std::string, std::string>(e.first, "NOT_FOUND_IN_PERF_COUNTS");
+                break;
+            }
+            // get the latest n symbols by number of e.second
+            std::string execType = it->second.exec_type;
+
+            if (it->second.status == InferenceEngine::InferenceEngineProfileInfo::NOT_RUN) {
+                // The testing layer is fused with another one. Since this test is a single-layer test, we can suppose that the next perf
+                // counter belongs to the layer that the testing one is fused with. So let's check its precision.
+
+                execType = (++it)->second.exec_type;
+            }
+            std::string pfPrecision = execType.substr(execType.length() - e.second.length(), e.second.length());
+
+            if (pfPrecision != e.second) {
+                wrongLayer = std::pair<std::string, std::string>(e.first, pfPrecision);
+                break;
+            }
+        }
+
+        if (!wrongLayer.first.empty()) {
+            std::string layerInPerfCounts = wrongLayer.first + " " + wrongLayer.second;
+            std::string layerExpected = wrongLayer.first + " " + expectedPrecisions.at(wrongLayer.first);
+            ASSERT_EQ(layerInPerfCounts, layerExpected);
+        }
+    }
+}
+
 }  // namespace LayerTestsUtils

@@ -91,7 +91,7 @@ void EltwiseLayerTest::SetUp() {
         eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
         eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
         std::vector<float> data(ngraph::shape_size(shape_input_secondary));
-        data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary));
+        data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
         for (float &i : data) {
             if (i == 0) {
                 i = 1;
@@ -106,6 +106,12 @@ void EltwiseLayerTest::SetUp() {
     }
 
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
+    eltwise->set_friendly_name("Eltwise");
+    if (netPrecision == InferenceEngine::Precision::BF16) {
+        inPrc = outPrc = netPrecision;
+        expectedPrecisions["Eltwise"] = "BF16";
+    }
+
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }
 

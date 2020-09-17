@@ -26,6 +26,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::BF16
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <gtest/gtest.h>
+#include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
 
 #include <ie_blob.h>
@@ -154,8 +155,10 @@ void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint3
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-        if (typeid(dataType) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+        if (PRC == InferenceEngine::Precision::FP16) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
+        } else if (PRC == InferenceEngine::Precision::BF16) {
+            rawBlobDataPtr[i] = ngraph::bfloat16(value).to_bits();
         } else {
             rawBlobDataPtr[i] = value;
         }
@@ -212,6 +215,14 @@ void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::
                                                                int32_t start_from,
                                                                const int32_t k, const int seed) {
     fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k, seed);
+}
+
+template<>
+void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k, const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::BF16>(blob, range, start_from, k, seed);
 }
 
 }  // namespace CommonTestUtils

@@ -95,6 +95,8 @@ protected:
 
     void LoadNetwork();
 
+    void CheckExpectedPrecision() const;
+
     virtual void Infer();
 
     TargetDevice targetDevice;
@@ -117,6 +119,7 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
+    std::map<std::string, std::string> expectedPrecisions;
 
 private:
     RefMode refMode = RefMode::INTERPRETER;

@@ -43,11 +43,18 @@ void ActivationLayerTest::SetUp() {
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
 
+    if (netPrecision == InferenceEngine::Precision::BF16) {
+        inPrc = outPrc = netPrecision;
+    }
+
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+    std::string friendlyName = "Activation";
+    activation->set_friendly_name(friendlyName);
+    setActivationExpectedPrc(friendlyName, netPrecision);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
@@ -104,7 +111,28 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
                                             32768);
 }
 
-ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
+void ActivationLayerTest::setActivationExpectedPrc(std::string name, InferenceEngine::Precision netPrc) {
+    if (netPrc != InferenceEngine::Precision::BF16) {
+        return;
+    }
+
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::Relu:
+        case ngraph::helpers::ActivationTypes::Gelu:
+        case ngraph::helpers::ActivationTypes::Elu:
+        case ngraph::helpers::ActivationTypes::Sigmoid:
+        case ngraph::helpers::ActivationTypes::Tanh:
+        case ngraph::helpers::ActivationTypes::Exp:
+        case ngraph::helpers::ActivationTypes::Clamp:
+        case ngraph::helpers::ActivationTypes::Swish:
+        case ngraph::helpers::ActivationTypes::HSwish:
+        case ngraph::helpers::ActivationTypes::PReLu: {
+            expectedPrecisions[std::move(name)] = "BF16";
+        }
+    }
+}
+
+    ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
             auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
@@ -182,6 +210,10 @@ void ActivationParamLayerTest::SetUp() {
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
     std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
 
+    if (InferenceEngine::Precision::BF16 == netPrecision) {
+        inPrc = outPrc = netPrecision;
+    }
+
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -192,6 +224,10 @@ void ActivationParamLayerTest::SetUp() {
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
+    std::string friendlyName = "Activation";
+    activation->set_friendly_name(friendlyName);
+    setActivationExpectedPrc(friendlyName, netPrecision);
+
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
 

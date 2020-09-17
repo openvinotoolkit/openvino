@@ -46,6 +46,7 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::BF16
 };
 
 std::map<std::string, std::string> additional_config = {};
