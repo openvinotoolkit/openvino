@@ -84,13 +84,14 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             "Parsing layer {} of type {} failed: if input with index {} (of name {}) has not a producer, it must have Input "
             "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
     } else {
-        VPU_THROW_UNLESS(shape->usage() == DataUsage::Intermediate,
+        VPU_THROW_UNLESS(shape->usage() == DataUsage::Intermediate || shape->usage() == DataUsage::Output,
             "Parsing layer {} of type {} failed: if input with index {} (of name {}) has a producer, it must have Intermediate "
-            "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
+            "or Output (if already has been associated with other output data) data usage, actual: {}",
+            layer->name, layer->type, 1, shape->name(), shape->usage());
     }
 
     auto shapeDataObject = shape;
-    if (dataOutput->usage() == DataUsage::Output) {
+    if (dataOutput->usage() == DataUsage::Output && shapeDataObject->usage() != DataUsage::Output) {
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
         bindData(shapeOutput, shape->origData());
