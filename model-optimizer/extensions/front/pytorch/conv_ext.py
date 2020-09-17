@@ -29,52 +29,28 @@ class Conv2dFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        # # Extract pads attribute
-        # # In case if pads is not specified it will be set in default (1) in infer function
-        # pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-        # assert pads is None or len(pads) % 2 == 0
-        # pads = np.array(node.module.padding, dtype=np.int64).reshape(2, -1)
+        # Extract pads attribute
         pads = np.array(node.module.padding, dtype=np.int64).reshape(1, 2)
         pads = np.repeat(pads, 2, axis=0)
         final_pads = np.array([[0, 0], [0, 0], *pads], dtype=np.int64)
 
-        # # Extract dilations attribute
-        # # In case if dilations is not specified it will be set in default (1) in infer function
-        # dilations = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-        # final_dilations = np.array([1, 1, *dilations], dtype=np.int64) if dilations is not None else None
-        #
-        # # Extract dilations attribute
-        # # In case if dilations is not specified it will be set in default (1) in infer function
+        # Extract strides attribute
         strides = node.module.stride
         final_strides = np.array([1, 1, *strides], dtype=np.int64)
-        #
-        # kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None)
-        # auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
-        # group = onnx_attr(node, 'group', 'i', default=1, dst_type=lambda x: np.array(x, dtype=np.int64))
-        #
+
         attrs = {
             'op': __class__.op,
-            # 'auto_pad': auto_pad,
-            # 'bias_addable': True,
-            # 'bias_term': None,
             'pad': final_pads,
-            # 'pad_spatial_shape': np.array(pads, dtype=np.int64) if pads is not None else None,
-            # 'dilation': final_dilations,
-            # 'output_spatial_shape': None,
-            # 'output_shape': None,
             'stride': final_strides,
-            # 'group': group,
-            # 'output': None,
+            'group': 1,
             'kernel_spatial': np.array(node.module.kernel_size, dtype=np.int64),
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,
-            # 'kernel_spatial_idx': None,  # Will be calculated in infer function (np.array([2, 3]))
-            #
-            # 'spatial_dims': None,  # Will be calculated in infer function
+
             'channel_dims': np.array([1], dtype=np.int64),
             'batch_dims': np.array([0], dtype=np.int64),
-            # 'layout': 'NCHW'
+            'layout': 'NCHW',
         }
 
         # update the attributes of the node

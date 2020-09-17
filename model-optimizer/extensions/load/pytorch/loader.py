@@ -34,6 +34,7 @@ class PyTorchLoader(Loader):
 
     def load(self, graph: Graph):
         graph.graph['fw'] = 'pytorch'
+        graph.graph['layout'] = 'NCHW'
 
         update_extractors_with_extensions(pytorch_op_extractors)
 
@@ -76,6 +77,10 @@ class PyTorchLoader(Loader):
 
             for key, value in self.state_dict().items():
                 assert key == 'weight' or key == 'bias', 'Unknown parameter: ' + key
+
+                # TODO: enable bias
+                if key == 'bias':
+                    continue
 
                 param_name = name + '/' + key
                 graph.add_node(param_name, kind='op', op='Const', value=value.numpy())
