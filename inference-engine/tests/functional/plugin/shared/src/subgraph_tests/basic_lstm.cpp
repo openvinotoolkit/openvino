@@ -103,7 +103,6 @@ void Basic_LSTM_S::SetUp() {
 void Basic_LSTM_S::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
     LoadNetwork();
     Infer();
 
