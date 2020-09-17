@@ -30,9 +30,6 @@ protected:
     std::unordered_map<std::string, DataShape> m_shapes;
     ngraph::ParameterVector m_parameterVector;
 
-    std::shared_ptr<ngraph::Function> m_testFunction;
-    std::shared_ptr<ngraph::Function> m_refFunction;
-
     std::shared_ptr<ngraph::opset3::Parameter> createParameter(
             const ngraph::element::Type& element_type,
             const ngraph::PartialShape& shape) {
@@ -40,7 +37,7 @@ protected:
         return m_parameterVector.back();
     }
 
-    std::shared_ptr<ngraph::Node> createInputSubgraphWithDSR(
+    virtual std::shared_ptr<ngraph::Node> createInputSubgraphWithDSR(
             const DataType& inDataType, const DataShapeWithUpperBound& shapes) {
         const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
                 inDataType, shapes.upperBoundShape);
@@ -53,22 +50,12 @@ protected:
         m_parameterVector.push_back(inDataShapeParam);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
-                inDataParam, inDataShapeParam);
+                inDataParam, inDataShapeParam, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
 
         return dsr;
     }
 
     virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
-
-    static void switchDSRMode(const std::shared_ptr<ngraph::Function>& function,
-                              const ngraph::vpu::op::DynamicShapeResolverMode& mode) {
-        for (const auto& op : function->get_ordered_ops()) {
-            if (const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(op)) {
-                dsr->setMode(mode);
-            }
-        }
-        function->validate_nodes_and_infer_types();
-    }
 
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
@@ -83,17 +70,10 @@ protected:
             results.emplace_back(std::make_shared<ngraph::opset3::Result>(output));
         }
 
-        m_testFunction = std::make_shared<ngraph::Function>(
+        function = std::make_shared<ngraph::Function>(
                 results,
                 m_parameterVector,
                 "DSR-" + std::string(testedOp->get_type_name()));
-        m_refFunction = ngraph::clone_function(*m_testFunction);
-
-        // Propagate dynamism through the function to handle it in DTS transformations.
-        switchDSRMode(m_refFunction, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
-        switchDSRMode(m_testFunction, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
-
-        function = m_testFunction;
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
@@ -111,11 +91,6 @@ protected:
         }
 
         return blob;
-    }
-
-    void Validate() override {
-        function = m_refFunction;
-        LayerTestsCommon::Validate();
     }
 };
 
