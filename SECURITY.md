@@ -2,8 +2,7 @@
 
 ## Report a Vulnerability
 
-Please report about security issues or vulnerabilities you find to the
-[Intel® Security Center].
+Please report security issues or vulnerabilities to the [Intel® Security Center].
 
 For more information on how Intel® works to resolve security issues, see
 [Vulnerability Handling Guidelines].
