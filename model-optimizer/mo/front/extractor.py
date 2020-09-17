@@ -349,7 +349,6 @@ def create_tensor_nodes(graph: Graph):
         graph.node[node]['kind'] = 'op'
 
         # the Result nodes are just marker operations so we don't need to create output tensors for them
-        print('---', node)
         if node_attr['op'] == 'Result':
             continue
         # out_edges is a list of (u, v, d), where d is a dict of edge attributes

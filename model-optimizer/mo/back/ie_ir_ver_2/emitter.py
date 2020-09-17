@@ -131,22 +131,18 @@ def xml_shape(shape: np.ndarray, element: Element):
 def xml_ports(node: Node, element: Element, edges: Element):
     # input ports
     inputs = None  # will create input section only if at least one input is available
-    print('aa')
     for u, d in node.get_sorted_inputs():
         if 'bin' not in d and ('xml_skip' not in d or not d['xml_skip']):
             if inputs is None:
                 inputs = SubElement(element, 'input')
             port = SubElement(inputs, 'port')
             port.set('id', str(d['in']))
-            print('a')
             assert node.graph.node[u]['shape'] is not None, 'Input shape is not calculated properly for node {}'.format(
                 node.id)
             xml_shape(node.graph.node[u]['shape'], port)
             # u is a data node that has a single producer, let's find it
-            print('b')
             assert (node.graph.node[u]['kind'] == 'data')
             in_nodes = list(node.graph.in_edges(u, data=True))
-            print('c')
             assert (len(in_nodes) <= 1)
             if len(in_nodes) == 1:
                 src, _, out_attrs = in_nodes[0]
@@ -159,7 +155,6 @@ def xml_ports(node: Node, element: Element, edges: Element):
 
     # output ports
     outputs = None
-    print('ab')
     for v, d in node.get_sorted_outputs():
         if 'xml_skip' not in d or not d['xml_skip']:
             if outputs is None:
@@ -168,15 +163,12 @@ def xml_ports(node: Node, element: Element, edges: Element):
             port.set('id', str(d['out']))
             port_id = d['out'] - len(node.in_nodes())
             data_type = node.out_port(port_id).get_data_type()
-            print('a')
             assert data_type is not None, 'The precision is not defined for the output port {} of node {}' \
                                           ''.format(port_id, node.soft_get('name'))
 
             port.set('precision', node.soft_get('force_type', np_data_type_to_precision(data_type)))
-            print('b', v, node.name, node.graph.node[v])
             assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
                                                             ''.format(node.id)
-            print('c')
             xml_shape(node.graph.node[v]['shape'], port)
 
 
@@ -267,35 +259,25 @@ def serialize_node_attributes(
         return
     try:
         for s in schema:
-            print(1)
             if not isinstance(s, tuple):
-                print(2)
                 if s == '@ports':
                     try:
                         # TODO make sure that edges are generated regardless of the existence of @ports
-                        print(33)
                         xml_ports(node, parent_element, edges)
-                        print(34)
                     except Exception as e:
                         raise Error(('Unable to create ports for node with id {}. ' +
                                      refer_to_faq_msg(3)).format(node.id)) from e
                 elif s == '@consts':
-                    print(12)
                     xml_consts(graph, node, parent_element)
-                    print(13)
                 else:
                     log.warning('Unknown xml schema tag: {}'.format(s))
             else:
-                print(3)
                 name = s[0]
                 if name == '@list':
-                    print(4)
                     serialize_meta_list(graph, node, s, parent_element, edges, unsupported)
                 elif name == '@network':
-                    print(5)
                     serialize_network(node[s[1]], parent_element, unsupported)
                 else:
-                    print(6)
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
     except Exception as e:
         raise Error(
