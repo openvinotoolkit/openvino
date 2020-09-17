@@ -45,9 +45,9 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
-
-        ie_developer_export_targets(${TARGET_NAME})
     endif()
+
+    ie_developer_export_targets(${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
                                          PRIVATE openvino::itt)
