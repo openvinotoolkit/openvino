@@ -63,7 +63,9 @@ namespace ngraph
         ///             the function throws an ngraph_error exception.
         ///
         /// \param[in]  stream     The input stream (e.g. file stream, memory stream, etc).
-        /// \param[in]  model_path path to imported onnx model. ADD MORE
+        /// \param[in]  model_path The path to the imported onnx model.
+        ///                        It is required if the imported model uses data saved in external
+        ///                        files.
         ///
         /// \return     An nGraph function that represents a single output from the created graph.
         ONNX_IMPORTER_API

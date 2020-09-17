@@ -96,7 +96,9 @@ namespace ngraph
                 }
             }
 
-            // TODO ADD DESCRIPTION
+            // The paths to external data files are stored as relative to model path.
+            // The helper function below combines them and replaces the original relative path.
+            // As a result in futher processing data from external files can be read directly.
             void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
                                             const std::string& model_path)
             {
@@ -104,7 +106,6 @@ namespace ngraph
                 auto graph_proto = model_proto.mutable_graph();
                 for (auto& initializer_tensor : *graph_proto->mutable_initializer())
                 {
-                    // Set full paths to external data
                     const auto location_key_value_index = 0;
                     if (initializer_tensor.has_data_location() &&
                         initializer_tensor.data_location() ==
@@ -115,6 +116,8 @@ namespace ngraph
                             initializer_tensor.external_data(location_key_value_index).value();
                         const auto external_data_full_path =
                             model_dir_path + R"(/)" + external_data_relative_path;
+
+                        // Set full paths to the external file
                         initializer_tensor.mutable_external_data(location_key_value_index)
                             ->set_value(external_data_full_path);
                     }
