@@ -126,11 +126,13 @@ class TemporaryOverrideOutputs
 {
     std::shared_ptr<Node> node;
     std::vector<PartialShape> orig_shapes;
-public:
 
-    TemporaryOverrideOutputs (std::shared_ptr<Node> node, const std::vector<std::shared_ptr<HostTensor>>& args) : node(node)
+public:
+    TemporaryOverrideOutputs(std::shared_ptr<Node> node,
+                             const std::vector<std::shared_ptr<HostTensor>>& args)
+        : node(node)
     {
-        for(size_t i = 0; i < args.size(); ++i)
+        for (size_t i = 0; i < args.size(); ++i)
         {
             auto output = node->get_input_source_output(i);
             orig_shapes.push_back(output.get_partial_shape());
@@ -140,7 +142,7 @@ public:
 
     ~TemporaryOverrideOutputs()
     {
-        for(size_t i = 0; i < orig_shapes.size(); ++i)
+        for (size_t i = 0; i < orig_shapes.size(); ++i)
         {
             auto output = node->get_input_source_output(i);
             output.get_tensor().set_partial_shape(orig_shapes[i]);
@@ -211,7 +213,7 @@ protected:
         std::shared_ptr<Node> node_ptr = const_cast<Node&>(orig_node).shared_from_this();
         TemporaryOverrideOutputs overrider(node_ptr, args);
         OutputVector outputs;
-        for(size_t i = 0; i < node_ptr->inputs().size(); ++i)
+        for (size_t i = 0; i < node_ptr->inputs().size(); ++i)
         {
             outputs.push_back(node_ptr->get_input_source_output(i));
         }

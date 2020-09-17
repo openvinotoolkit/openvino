@@ -181,8 +181,6 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
 
-
-
 bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     unordered_map<Node*, HeightMap> height_maps;
