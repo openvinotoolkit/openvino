@@ -21,8 +21,6 @@ set SCRIPT_NAME=%~nx0
 set "INTEL_OPENVINO_DIR=%ROOT%"
 set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
 
-where /q libmmd.dll || echo Warning: libmmd.dll couldn't be found in %%PATH%%. Please check if the redistributable package for Intel(R) C++ Compiler is installed and the library path is added to the PATH environment variable. System reboot can be required to update the system environment.
-
 :: OpenCV
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
@@ -52,14 +50,14 @@ set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 )
 
 :: Check if Python is installed
-python --version 2>NUL
+python3 --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.5. or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
 :: Check Python version
-for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
+for /F "tokens=* USEBACKQ" %%F IN (`python3 --version 2^>^&1`) DO (
    set version=%%F
 )
 
@@ -69,18 +67,18 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 )
 
 if "%Major%" geq "3" (
-   if "%Minor%" geq "5" (
+   if "%Minor%" geq "6" (
       set python_ver=okay
    )
 )
 
 if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
 :: Check Python bitness
-python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
+python3 -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
 if errorlevel 1 (
    echo Error^: Error during installed Python bitness detection
    exit /B 1
@@ -91,7 +89,7 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
