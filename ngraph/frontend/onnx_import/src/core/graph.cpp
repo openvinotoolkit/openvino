@@ -90,7 +90,7 @@ namespace ngraph
                     }
                     catch (const error::invalid_external_data&)
                     {
-                        // invalid external data make initializers creation impossible
+                        // invalid external data makes initializers creation impossible
                         throw;
                     }
                     catch (const ngraph::ngraph_error& exc)

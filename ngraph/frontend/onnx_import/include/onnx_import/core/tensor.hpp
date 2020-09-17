@@ -159,6 +159,16 @@ namespace ngraph
                             return std::vector<T>(
                                 it, it + (raw_data.size() / __get_onnx_data_size(onnx_data_type)));
                         }
+
+                        template <typename T>
+                        inline std::vector<T>
+                            get_external_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                        {
+                            const auto external_data_info = ExternalDataInfo(tensor);
+                            const auto external_data = external_data_info.load_external_data();
+
+                            return detail::__get_raw_data<T>(external_data, tensor.data_type());
+                        }
                     }
                 }
 
@@ -176,10 +186,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<double>(external_data, tensor.data_type());
+                        return detail::get_external_data<double>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -216,10 +223,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<float>(external_data, tensor.data_type());
+                        return detail::get_external_data<float>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -252,10 +256,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<float16>(external_data, tensor.data_type());
+                        return detail::get_external_data<float16>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -276,10 +277,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<int8_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<int8_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -300,10 +298,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<int16_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<int16_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -324,10 +319,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<int32_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<int32_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -348,10 +340,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<int64_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<int64_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -372,10 +361,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<uint8_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<uint8_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -396,10 +382,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<uint16_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<uint16_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -420,10 +403,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<uint32_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<uint32_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -444,10 +424,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<uint64_t>(external_data, tensor.data_type());
+                        return detail::get_external_data<uint64_t>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {
@@ -470,10 +447,7 @@ namespace ngraph
                         tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
                                                       TensorProto_DataLocation_EXTERNAL)
                     {
-                        const auto external_data_info = ExternalDataInfo(tensor);
-                        const auto external_data = external_data_info.load_external_data();
-
-                        return detail::__get_raw_data<char>(external_data, tensor.data_type());
+                        return detail::get_external_data<char>(tensor);
                     }
                     if (tensor.has_raw_data())
                     {

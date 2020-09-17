@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "ngraph/except.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/onnx.hpp"
@@ -102,7 +103,7 @@ namespace ngraph
             void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
                                             const std::string& model_path)
             {
-                const auto model_dir_path = model_path.substr(0, model_path.find_last_of(R"(/)"));
+                const auto model_dir_path = file_util::get_directory(model_path);
                 auto graph_proto = model_proto.mutable_graph();
                 for (auto& initializer_tensor : *graph_proto->mutable_initializer())
                 {
@@ -115,7 +116,7 @@ namespace ngraph
                         const auto external_data_relative_path =
                             initializer_tensor.external_data(location_key_value_index).value();
                         const auto external_data_full_path =
-                            model_dir_path + R"(/)" + external_data_relative_path;
+                            file_util::path_join(model_dir_path, external_data_relative_path);
 
                         // Set full paths to the external file
                         initializer_tensor.mutable_external_data(location_key_value_index)

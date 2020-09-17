@@ -35,7 +35,7 @@ namespace ngraph
                 /// \note       If read data from external file fails,
                 ///             the invalid_external_data is thrown
                 ///
-                /// \return     External data binanery saved in std::string
+                /// \return     External binary data loaded into a std::string
                 std::string load_external_data() const;
 
                 /// \brief      Represets parameter of external data as string
