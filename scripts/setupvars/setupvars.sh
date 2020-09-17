@@ -107,17 +107,24 @@ if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" 
     echo "[setupvars.sh] 64 bitness for Python" $python_version "is requred"
 fi
 
-MINIMUM_REQUIRED_PYTHON_VERSION="3.6"    
+MINIMUM_REQUIRED_PYTHON_VERSION="3.6"
+MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8') 
 if [[ ! -z "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
-    echo "[setupvars.sh] Unsupported Python version. Please install Python 3.6 or higher (64-bit) from https://www.python.org/downloads/"
+    echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python 3.6-${MAX_SUPPORTED_PYTHON_VERSION} (64-bit) from https://www.python.org/downloads/"
+    return 1
 fi
+
 
 if [ ! -z "$python_version" ]; then
     # add path to OpenCV API for Python 3.x
     export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
-    if [[ -e $INTEL_OPENVINO_DIR/python/python$python_version ]]; then
+    pydir=$INTEL_OPENVINO_DIR/python/python$python_version
+    if [[ -d $pydir ]]; then
         # add path to Inference Engine Python API
-        export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python$python_version:$PYTHONPATH"
+        export PYTHONPATH="${pydir}:${PYTHONPATH}"
+    else
+        echo "[setupvars.sh] ERROR: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
+        return 1
     fi
 fi
 

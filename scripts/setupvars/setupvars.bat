@@ -50,14 +50,14 @@ set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 )
 
 :: Check if Python is installed
-python3 --version 2>NUL
+python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
 :: Check Python version
-for /F "tokens=* USEBACKQ" %%F IN (`python3 --version 2^>^&1`) DO (
+for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
    set version=%%F
 )
 
@@ -73,12 +73,12 @@ if "%Major%" geq "3" (
 )
 
 if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
 :: Check Python bitness
-python3 -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
+python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
 if errorlevel 1 (
    echo Error^: Error during installed Python bitness detection
    exit /B 1
@@ -89,7 +89,7 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install Python 3.6 or higher ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
