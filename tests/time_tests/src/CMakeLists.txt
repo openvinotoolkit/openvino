@@ -5,9 +5,9 @@
 # add dummy `time_tests` target combines all time tests
 add_custom_target(time_tests)
 
-# Build test from every source file matchs *-pipeline.cpp.
+# Build test from every source file.
 # Test target name is source file name without extension.
-FILE(GLOB tests "*-pipeline.cpp")
+FILE(GLOB tests "*.cpp")
 
 foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
