@@ -38,14 +38,14 @@ const auto combinations = testing::Combine(
         testing::Values(
 // JIRA: 33925           MatMulTestCase{{{1024}, false, 1, {}, {}, 0}, {{1024, 1000}, false, 0, {}, {}, 1}},
 // JIRA: 33925           MatMulTestCase{{{1024}, true, 1, {1, 0}, {}, 0}, {{1, 1000}, false, 0, {}, {}, 1}},
-        MatMulTestCase{{{3, 10, 1024}, {5, 10, 1024}, false},
-                       {{1024, 800}, {1024, 1000}, false}},
-        MatMulTestCase{{{2, 10, 1024}, {5, 10, 1024}, false},
-                       {{1, 1024, 500}, {1, 1024, 1000}, false}},
-        MatMulTestCase{{{1, 10, 1024}, {5, 10, 1024}, false},
-                       {{1, 800, 1024}, {1, 1000, 1024}, true}},
-        MatMulTestCase{{{3, 10, 1024}, {3, 10, 1024}, false},
-                       {{2, 1, 1000, 1024}, {5, 1, 1000, 1024}, true}}),
+        MatMulTestCase{{{3, 10, 128}, {5, 10, 128}, false},
+                       {{128, 80}, {128, 100}, false}},
+        MatMulTestCase{{{2, 10, 128}, {5, 10, 128}, false},
+                       {{1, 128, 50}, {1, 128, 100}, false}},
+        MatMulTestCase{{{1, 10, 128}, {5, 10, 128}, false},
+                       {{1, 80, 128}, {1, 100, 128}, true}},
+        MatMulTestCase{{{3, 10, 128}, {3, 10, 128}, false},
+                       {{2, 1, 100, 128}, {5, 1, 100, 128}, true}}),
         testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 
@@ -91,9 +91,7 @@ protected:
                 NGRAPH_UNREACHABLE("UNKNOWN DYNAMISM MODE for MatMul DSR graph comparison test");
         }
 
-        const auto matMul = std::make_shared<ngraph::opset3::MatMul>(inputA, inputB, matmul_setup.A.transpose, matmul_setup.B.transpose);
-
-        return matMul;
+        return std::make_shared<ngraph::opset3::MatMul>(inputA, inputB, matmul_setup.A.transpose, matmul_setup.B.transpose);
     }
 };
 

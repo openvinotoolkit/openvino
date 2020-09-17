@@ -54,8 +54,7 @@ protected:
         targetDevice = std::get<3>(parameters);
 
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
-        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(inDataType, inDataShapes.rhs.shape);
-        m_parameterVector.push_back(input1);
+        const auto input1 = createParameter(inDataType, inDataShapes.rhs.shape);
 
         const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
 

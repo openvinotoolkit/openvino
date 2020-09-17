@@ -67,8 +67,7 @@ protected:
 
         const auto inputDataSubgraph = createInputSubgraphWithDSR(inDataType, gatherSetup.inputShapes);
 
-        const auto indicesParam = std::make_shared<ngraph::opset3::Parameter>(idxType, gatherSetup.indexShape.shape);
-        m_parameterVector.push_back(indicesParam);
+        const auto indicesParam = createParameter(idxType, gatherSetup.indexShape.shape);
         m_indicesInputNames.insert(indicesParam->get_friendly_name());
 
         const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
