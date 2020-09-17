@@ -24,6 +24,11 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         if (sub->output(0).get_target_inputs().empty()) {
             return false;
         }
+
+        if (sub->input(0).get_element_type() != sub->input(1).get_element_type()) {
+            return false;
+        }
+
         std::shared_ptr<Node> child = sub->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
         if (child->output(0).get_target_inputs().empty()) {
             return false;

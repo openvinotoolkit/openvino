@@ -143,7 +143,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
             // Create FullyConnected
             std::vector<float> bias_value(O, 0);
-            auto fc_bias = opset1::Constant::create(matmul->get_input_element_type(0), Shape {O}, bias_value);
+            auto fc_bias = opset1::Constant::create(matmul->get_output_element_type(0), Shape {O}, bias_value);
 
             auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, matmul->output(0).get_element_type());
             fc->set_friendly_name(matmul->get_friendly_name());

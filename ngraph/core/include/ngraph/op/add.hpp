@@ -81,29 +81,21 @@ namespace ngraph
                 {
                 }
 
-/// \brief Constructs an addition operation.
-///
-/// \param arg0 Output that produces the first input tensor.<br>
-/// `[d0, ...]`
-/// \param arg1 Output that produces the second input tensor.<br>
-/// `[d0, ...]`
-/// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
-///                       implicit broadcasting.
-///
-/// Output `[d0, ...]`
-///
-#ifdef LPT_SUPPORT
-                Add(const Output<Node>& arg0,
-                    const Output<Node>& arg1,
-                    const AutoBroadcastSpec& auto_broadcast =
-                        AutoBroadcastSpec(AutoBroadcastType::NUMPY),
-                    const bool multi_type = BinaryElementwiseArithmetic::multi_type_global);
-#else
+                /// \brief Constructs an addition operation.
+                ///
+                /// \param arg0 Output that produces the first input tensor.<br>
+                /// `[d0, ...]`
+                /// \param arg1 Output that produces the second input tensor.<br>
+                /// `[d0, ...]`
+                /// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
+                ///                       implicit broadcasting.
+                ///
+                /// Output `[d0, ...]`
+                ///
                 Add(const Output<Node>& arg0,
                     const Output<Node>& arg1,
                     const AutoBroadcastSpec& auto_broadcast =
                         AutoBroadcastSpec(AutoBroadcastType::NUMPY));
-#endif
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

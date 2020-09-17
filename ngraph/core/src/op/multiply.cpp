@@ -97,16 +97,6 @@ bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
 
 NGRAPH_RTTI_DEFINITION(op::v1::Multiply, "Multiply", 1, util::BinaryElementwiseArithmetic);
 
-#ifdef LPT_SUPPORT
-op::v1::Multiply::Multiply(const Output<Node>& arg0,
-                           const Output<Node>& arg1,
-                           const AutoBroadcastSpec& auto_broadcast,
-                           const bool multi_type)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, multi_type)
-{
-    constructor_validate_and_infer_types();
-}
-#else
 op::v1::Multiply::Multiply(const Output<Node>& arg0,
                            const Output<Node>& arg1,
                            const AutoBroadcastSpec& auto_broadcast)
@@ -114,7 +104,6 @@ op::v1::Multiply::Multiply(const Output<Node>& arg0,
 {
     constructor_validate_and_infer_types();
 }
-#endif
 
 shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -122,71 +111,11 @@ shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v1::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-#ifdef LPT_SUPPORT
-// replace low precision tensor to fp32
-template <typename T>
-std::shared_ptr<HostTensor> to_float(std::shared_ptr<HostTensor> original)
-{
-    T* data = static_cast<T*>(original->get_data_ptr());
-    const size_t shapeVolume = shape_size(original->get_shape());
-    std::shared_ptr<HostTensor> tensor =
-        std::make_shared<HostTensor>(element::f32, original->get_shape());
-
-    float* memory = static_cast<float*>(tensor->get_data_ptr());
-    for (auto i = 0; i < shapeVolume; ++i)
-    {
-        memory[i] = static_cast<float>(data[i]);
-    }
-
-    return tensor;
-}
-#endif
-
 bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#ifdef LPT_SUPPORT
-    // replace low precision tensor to fp32
-    auto to_float_by_index = [](const HostTensorVector& inputs,
-                                const size_t targetIndex,
-                                const size_t otherIndex) -> std::shared_ptr<HostTensor> {
-        std::shared_ptr<HostTensor> input;
-        if ((inputs[otherIndex]->get_element_type() == element::f32) &&
-            (inputs[targetIndex]->get_element_type() == element::i8))
-        {
-            input = to_float<int8_t>(inputs[targetIndex]);
-        }
-        else if ((inputs[otherIndex]->get_element_type() == element::f32) &&
-                 (inputs[targetIndex]->get_element_type() == element::u8))
-        {
-            input = to_float<uint8_t>(inputs[targetIndex]);
-        }
-        else
-        {
-            input = inputs[targetIndex];
-        }
-
-        return input;
-    };
-
-    auto input0 = to_float_by_index(inputs, 0, 1);
-    auto input1 = to_float_by_index(inputs, 1, 0);
-
-    auto s1 = shape_size(input0->get_shape());
-    auto s2 = shape_size(input1->get_shape());
-    if ((shape_size(input0->get_shape()) == 1ul) && (shape_size(input1->get_shape()) > 1ul))
-    {
-        auto tmp = input0;
-        input0 = input1;
-        input1 = tmp;
-    }
-
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
-    return evaluate_multiply(input0, input1, outputs[0], get_autob());
-#else
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
     return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
-#endif
 }
 
 // -----------------------------------------------------------------------------

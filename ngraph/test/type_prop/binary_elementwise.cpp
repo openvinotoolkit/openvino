@@ -83,7 +83,7 @@ void test_binary(std::string /* node_type */,
 }
 
 // LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, add_bad_arguments)
+TEST(type_prop, add_bad_arguments)
 {
     test_binary("Add",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
@@ -92,7 +92,7 @@ TEST(DISABLED_type_prop, add_bad_arguments)
 }
 
 // LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, divide_bad_arguments)
+TEST(type_prop, divide_bad_arguments)
 {
     test_binary("Divide",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
@@ -101,7 +101,7 @@ TEST(DISABLED_type_prop, divide_bad_arguments)
 }
 
 // LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, multiply_bad_arguments)
+TEST(type_prop, multiply_bad_arguments)
 {
     test_binary("Multiply",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
@@ -110,7 +110,7 @@ TEST(DISABLED_type_prop, multiply_bad_arguments)
 }
 
 // LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, subtract_bad_arguments)
+TEST(type_prop, subtract_bad_arguments)
 {
     test_binary("Subtract",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
