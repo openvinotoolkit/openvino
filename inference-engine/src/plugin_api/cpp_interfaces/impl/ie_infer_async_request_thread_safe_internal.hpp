@@ -229,7 +229,7 @@ protected:
      */
     virtual void SetBatch_ThreadUnsafe(int batch) = 0;
 
-    virtual void SetShape_ThreadUnsafe(const char* name, const SizeVector& dims) = 0;
+    virtual void SetShape_ThreadUnsafe(const char* name, const SizeVector& dims) { /* TODO: throw here or modify dependent APIs to override */ }
 };
 
 }  // namespace InferenceEngine

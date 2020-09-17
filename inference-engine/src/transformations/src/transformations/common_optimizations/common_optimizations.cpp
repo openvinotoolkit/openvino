@@ -30,6 +30,21 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     ngraph::pass::Manager manager;
 
+#if 1
+    // Hack for validation of dynamic shapes: make all input dimensions dynamic
+    for (auto op : f->get_parameters()) {
+        PartialShape shape = op->get_partial_shape();
+        if (shape.rank().is_static()) {
+            size_t rank = shape.rank().get_length();
+            for (size_t i = 0; i < rank; ++i) {
+                shape[i] = Dimension();
+            }
+        }
+        op->set_partial_shape(shape);
+    }
+    f->validate_nodes_and_infer_types();
+#endif
+
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertPriorBox>();  // WA: ConvertPriorBox must be executed before CF
