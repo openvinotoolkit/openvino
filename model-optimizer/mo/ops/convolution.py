@@ -168,8 +168,6 @@ class Convolution(Op):
             node['stride'] = np.full([len(input_shape)], 1, dtype=np.int64)
         if not node.has_valid('pad'):
             node['pad'] = int64_array([[0, 0]] * len(input_shape))
-        print(node.pad)
-        print(node.spatial_dims)
         node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
         if not node.has_valid('output_padding'):

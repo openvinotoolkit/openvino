@@ -31,7 +31,7 @@ class DecomposeBias(MiddleReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['Conv', 'ConvTranspose', 'Conv2D',
+                ('op', dict(kind='op', op=lambda op: op in ['Conv', 'ConvTranspose', 'Conv2D', 'Conv2d',
                                                             'Conv3D', 'Conv2DBackpropInput', 'MatMul',
                                                             'Conv3DBackpropInputV2', 'Convolution',
                                                             'Deconvolution', 'ConvND', 'Conv2D', 'Deconv2D']))],

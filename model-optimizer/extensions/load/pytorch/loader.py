@@ -72,15 +72,10 @@ class PyTorchLoader(Loader):
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
                 }
-                print(src_id, name)
                 graph.add_edge(src_id, name, **edge_attrs)
 
             for key, value in self.state_dict().items():
                 assert key == 'weight' or key == 'bias', 'Unknown parameter: ' + key
-
-                # TODO: enable bias
-                if key == 'bias':
-                    continue
 
                 param_name = name + '/' + key
                 graph.add_node(param_name, kind='op', op='Const', value=value.numpy())
@@ -93,7 +88,6 @@ class PyTorchLoader(Loader):
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']
                 }
-                print(param_name, name)
                 graph.add_edge(param_name, name, **edge_attrs)
 
 

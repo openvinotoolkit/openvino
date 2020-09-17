@@ -98,6 +98,7 @@ def prepare_ir(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = False, False, False, False, False
     is_pytorch = True
     argv.framework = 'pytorch'
+    argv.model_name = 'alexnet'
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, is_pytorch]):
         raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
