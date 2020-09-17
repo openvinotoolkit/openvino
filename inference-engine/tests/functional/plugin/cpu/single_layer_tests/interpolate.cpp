@@ -88,7 +88,7 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "interpolate", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Interpolate", inFmts, outFmts, selectedType);
 }
 
 namespace {
@@ -97,14 +97,19 @@ namespace {
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {nChw16c}, {}, "unknown"});
+        resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
+    } else if (with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
     } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {}, "unknown"});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42_FP32"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref_FP32"});
     }
-    if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {}, "unknown"});
-    }
-    resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {}, "unknown"});
     return resCPUParams;
 }
 /* ========== */
@@ -168,8 +173,8 @@ INSTANTIATE_TEST_CASE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
             ::testing::Combine(
                 interpolateCasesNN,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 20, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 20, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
@@ -179,8 +184,8 @@ INSTANTIATE_TEST_CASE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTe
             ::testing::Combine(
                 interpolateCasesLinearOnnx,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 20, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 20, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);

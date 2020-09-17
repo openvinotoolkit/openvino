@@ -1047,48 +1047,53 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto scalesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
-    auto pushDesc = [&](memory::format dataFormat) {
+    auto pushDesc = [&](memory::format dataFormat, impl_desc_type implDetail) {
         config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), inputDataType, dataFormat);
         config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(TARGET_SHAPE_ID)->getDims(), targetShapeType, memory::x);
         config.inConfs[SCALES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(SCALES_ID)->getDims(), scalesType, memory::x);
         if (isAxesSpecified)
             config.inConfs[AXES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXES_ID)->getDims(), axesType, memory::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, dataFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, dataFormat});
+        supportedPrimitiveDescriptors.push_back({config, implDetail, dataFormat});
     };
 
     if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
         // blk and by_channel JIT kernel on sse42 or above machine
         if (mayiuse(cpu::sse42)) {
             if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
-                pushDesc(memory::nhwc);
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nChw16c);
+                    pushDesc(memory::nhwc, jit_avx512);
+                    pushDesc(memory::nChw16c, jit_avx512);
+                } else if (mayiuse(cpu::avx2)) {
+                    pushDesc(memory::nhwc, jit_avx2);
+                    pushDesc(memory::nChw8c, jit_avx2);
                 } else {
-                    pushDesc(memory::nChw8c);
+                    pushDesc(memory::nhwc, jit_sse42);
+                    pushDesc(memory::nChw8c, jit_sse42);
                 }
             } else if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 5 && mode == InterpolateMode::nearest) {
-                pushDesc(memory::ndhwc);
                 if (mayiuse(cpu::avx512_common)) {
-                    pushDesc(memory::nCdhw16c);
+                    pushDesc(memory::ndhwc, jit_avx512);
+                    pushDesc(memory::nCdhw16c, jit_avx512);
+                } else if (mayiuse(cpu::avx2)) {
+                    pushDesc(memory::ndhwc, jit_avx2);
+                    pushDesc(memory::nCdhw8c, jit_avx2);
                 } else {
-                    pushDesc(memory::nCdhw8c);
+                    pushDesc(memory::ndhwc, jit_sse42);
+                    pushDesc(memory::nCdhw8c, jit_sse42);
                 }
             }
-            if (fusedWith.empty()) {
-                pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
-            }
         }
 
-        // planar for 1.ref on machine without sse42(no fuse). 2.JIT kernel for f32 && avx2(gather).(with fuse)
+        // planar for 1.ref on machine without sse42(if no sse42, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
         if (!mayiuse(cpu::sse42))
-            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
 
         if (mayiuse(cpu::avx2) && inputPrec == Precision::FP32) {
-            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), jit_avx2);
         }
     } else if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic) {
-        pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()));
+        pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
     }
 }
 
@@ -1194,16 +1199,16 @@ int clipCoord(int pos, int length) {
 void MKLDNNInterpolateNode::buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstDim5d,
                                         std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = srcDim.size();
-    float fz = (dimSize == 5) ? (1.f / dataScales[dimSize - 3]) : 1.f;
-    float fy = 1.f / dataScales[dimSize - 2];
-    float fx = 1.f / dataScales[dimSize - 1];
+    float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
+    float fy = dataScales[dimSize - 2];
+    float fx = dataScales[dimSize - 1];
     size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     indexTable.resize(OD + OH + OW);
-    bool isDDownsample = (fz > 1) ? true : false;
-    bool isHDownsample = (fy > 1) ? true : false;
-    bool isWDownsample = (fx > 1) ? true : false;
+    bool isDDownsample = (fz < 1) ? true : false;
+    bool isHDownsample = (fy < 1) ? true : false;
+    bool isWDownsample = (fx < 1) ? true : false;
     for (int oz = 0; oz < OD; oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         indexTable[oz] = nearestRound(iz, isDDownsample);
@@ -1224,8 +1229,8 @@ void MKLDNNInterpolateNode::buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstD
 void MKLDNNInterpolateNode::buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVector& dstDim5d,
                                                 std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = srcDim.size();
-    float fy = 1.f / dataScales[dimSize - 2];
-    float fx = 1.f / dataScales[dimSize - 1];
+    float fy = dataScales[dimSize - 2];
+    float fx = dataScales[dimSize - 1];
     int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     int OH = dstDim5d[3], OW = dstDim5d[4];
     if (layout == InterpolateLayoutType::planar) {
@@ -1337,20 +1342,20 @@ static inline float triangleCoeff(float x) {
 void MKLDNNInterpolateNode::buidTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d,
                                             std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = srcDim.size();
-    float fz = (dimSize == 5) ? (1.f / dataScales[dimSize - 3]) : 1.f;
-    float fy = 1.f / dataScales[dimSize - 2];
-    float fx = 1.f / dataScales[dimSize - 1];
+    float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
+    float fy = dataScales[dimSize - 2];
+    float fx = dataScales[dimSize - 1];
     size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     if (!(IW == OW && IH == OH && ID == OD)) {
-        float ax = 1.0f / (antialias ? fx : 1.0f);
-        float ay = 1.0f / (antialias ? fy : 1.0f);
-        float az = 1.0f / (antialias ? fz : 1.0f);
+        float ax = antialias ? fx : 1.0f;
+        float ay = antialias ? fy : 1.0f;
+        float az = antialias ? fz : 1.0f;
 
-        int rx = (fx < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
-        int ry = (fy < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
-        int rz = (fz < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
+        int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
+        int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
+        int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
 
         int diaOD = 2 * rz + 1;
         int diaOH = 2 * ry + 1;
@@ -1427,8 +1432,8 @@ std::vector<float> MKLDNNInterpolateNode::getCubicCoeffs(float mantissa, float a
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
 void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff) {
     int dimSize = srcDim.size();
-    float fy = 1.f / dataScales[dimSize - 2];
-    float fx = 1.f / dataScales[dimSize - 1];
+    float fy = dataScales[dimSize - 2];
+    float fx = dataScales[dimSize - 1];
     int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     int OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -1591,7 +1596,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
         SizeVector inShapeBlock = getBlockND(srcDim5d);
         SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
-        srcPadded = std::vector<uint8_t>(inShapePadBlock[0] * srcDataSize, 0);
+        srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
         uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
 
         parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
@@ -1611,9 +1616,6 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     if (dimSize > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         THROW_IE_EXCEPTION << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
-    float fz = (dimSize == 5) ? (1.f / dataScales[dimSize - 3]) : 1.f;
-    float fy = 1.f / dataScales[dimSize - 2];
-    float fx = 1.f / dataScales[dimSize - 1];
     Layout layout = getParentEdgeAt(DATA_ID)->getDesc().getLayout();
     bool isPlanar = (layout == NC || layout == NCHW || layout == NCDHW) ? true : false;
 
@@ -1621,17 +1623,21 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         case InterpolateMode::nearest: {
             if (interpolateKernel) {
                 if (isPlanar) {
-                    NNPlanar(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                    NNPlanar(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
                 } else {
-                    NNCGathered(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                    NNCGathered(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
                 }
             } else {
-                NNRef(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW);
+                NNRef(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
             }
             break;
         }
         case InterpolateMode::linear: {
-            bool isDownsample = (fx > 1) || (fy > 1) || (fz > 1);
+            float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
+            float fy = dataScales[dimSize - 2];
+            float fx = dataScales[dimSize - 1];
+
+            bool isDownsample = (fx < 1.f) || (fy < 1.f) || (fz < 1.f);
             int kernel_width = 2;
             linearInterpolation(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width, isDownsample && antialias);
             break;
@@ -1639,17 +1645,17 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         case InterpolateMode::linear_onnx: {
             if (interpolateKernel) {
                 if (isPlanar) {
-                    linearOnnxPlanar(src_data, dst_data, N, C, IH, IW, fx, fy, OH, OW);
+                    linearOnnxPlanar(src_data, dst_data, N, C, IH, IW, OH, OW);
                 } else {
-                    linearOnnxCGathered(src_data, dst_data, N, C, IH, IW, fx, fy, OH, OW);
+                    linearOnnxCGathered(src_data, dst_data, N, C, IH, IW, OH, OW);
                 }
             } else {
-                linearOnnxRef(src_data, dst_data, N, C, IH, IW, fx, fy, OH, OW);
+                linearOnnxRef(src_data, dst_data, N, C, IH, IW, OH, OW);
             }
             break;
         }
         case InterpolateMode::cubic: {
-            cubic(src_data, dst_data, N, C, IH, IW, fx, fy, OH, OW, cubeCoeff);
+            cubic(src_data, dst_data, N, C, IH, IW, OH, OW, cubeCoeff);
             break;
         }
         default: {
@@ -1660,8 +1666,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -1715,20 +1720,19 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
     }  // batch end
 }
 
-void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
 
-    // index_h * IW * srcDataSize
+    std::vector<int> index_kernel(OH + OW);
+    // index_h * IW * srcDataSize to reduce and simplify redundant compute
     for (int oh = 0; oh < OH; oh++) {
-        index_h[oh] *= IW;
-        index_h[oh] *= srcDataSize;
+        index_kernel[oh] = index_h[oh] * IW * srcDataSize;
     }
     // index_w * srcDataSize
     for (int ow = 0; ow < OW; ow++) {
-        index_w[ow] *= srcDataSize;
+        index_kernel[OH + ow] = index_w[ow] * srcDataSize;
     }
 
     parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
@@ -1738,15 +1742,14 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
         auto arg = jit_interpolate_call_args();
         arg.src = in_ptr;
         arg.dst = out_ptr;
-        arg.index = index_h;  // need index_h and index_w in kernel, it's in continous memory so one param
+        arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
         arg.oc_off = static_cast<size_t>(c);
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
         (*interpolateKernel)(&arg);
     });
 }
 
-void MKLDNNInterpolateNode::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -1765,8 +1768,7 @@ void MKLDNNInterpolateNode::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int
     });
 }
 
-void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW,
-                                          float fx, float fy, int OH, int OW) {
+void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     int *index = static_cast<int*>(&indexTable[0]);
     int eltInGrid = 4;
     int scratchLen = rnd_up(eltInGrid * OW * OH, 16);
@@ -1786,8 +1788,7 @@ void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *ou
     });
 }
 
-void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW,
-                                          float fx, float fy, int OH, int OW) {
+void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     // left:OW right:OW Top:OH Bottom:OH
     size_t scratchLen = rnd_up(OW + OW + OH + OH, 16);
     int *indexLeft = static_cast<int*>(&indexTable[0]);
@@ -1844,8 +1845,7 @@ void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t 
     }
 }
 
-void MKLDNNInterpolateNode::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW,
-                                          float fx, float fy, int OH, int OW) {
+void MKLDNNInterpolateNode::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     int eltInGrid = 4;
     int scratchLen = rnd_up(eltInGrid * OW * OH, 16);
 
@@ -1896,13 +1896,13 @@ void MKLDNNInterpolateNode::linearInterpolation(const uint8_t *in_ptr_, uint8_t 
         return;
     }
 
-    float ax = 1.0f / (antialias ? fx : 1.0f);
-    float ay = 1.0f / (antialias ? fy : 1.0f);
-    float az = 1.0f / (antialias ? fz : 1.0f);
+    float ax = antialias ? fx : 1.0f;
+    float ay = antialias ? fy : 1.0f;
+    float az = antialias ? fz : 1.0f;
 
-    int rx = (fx < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
-    int ry = (fy < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
-    int rz = (fz < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
+    int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
+    int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
+    int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
 
     int diaOD = 2 * rz + 1;
     int diaOH = 2 * ry + 1;
@@ -1992,9 +1992,7 @@ void MKLDNNInterpolateNode::linearInterpolation(const uint8_t *in_ptr_, uint8_t 
     });
 }
 
-
-void MKLDNNInterpolateNode::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW,
-                                    float fx, float fy, int OH, int OW, float a) {
+void MKLDNNInterpolateNode::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW, float a) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
     float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
@@ -2082,79 +2080,40 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
     }
 }
 
-// scale is float(inShape) / float(outShape)
-// nearest mode need to be strictly consistent with onnx calc manner(div scale, not multiply inverse),
+// scale is float(outShape) / float(inShape)
+// strictly consistent with onnx calc manner(div scale, not multiply inverse),
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
 inline float MKLDNNInterpolateNode::coordTransToInput(int outCoord, float scale, int inShape, int outShape) {
-    if ((scale == 1.f) || (inShape == outShape)) {
-        return static_cast<float>(outCoord);
-    }
-    if (mode == InterpolateMode::nearest) {
-        scale = 1.f / scale;
-        switch (coordTransMode) {
-            case InterpolateCoordTransMode::half_pixel: {
-                return (outCoord + 0.5f) / scale - 0.5f;
-                break;
-            }
-            case InterpolateCoordTransMode::pytorch_half_pixel: {
-                if (outShape > 1)
-                    return (outCoord + 0.5f) / scale - 0.5f;
-                else
-                    return 0;
-                break;
-            }
-            case InterpolateCoordTransMode::asymmetric: {
-                return static_cast<float>(outCoord) / scale;
-                break;
-            }
-            case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-                return (outCoord + 0.5f) / scale;
-                break;
-            }
-            case InterpolateCoordTransMode::align_corners: {
-                if (outShape > 1)
-                    return outCoord * static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1);
-                else
-                    return 0;
-                break;
-            }
-            default: {
-                THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support specified coordinate transformation mode";
-                break;
-            }
+    switch (coordTransMode) {
+        case InterpolateCoordTransMode::half_pixel: {
+            return (outCoord + 0.5f) / scale - 0.5f;
+            break;
         }
-    } else {
-        switch (coordTransMode) {
-            case InterpolateCoordTransMode::half_pixel: {
-                return (outCoord + 0.5f) * scale - 0.5f;
-                break;
-            }
-            case InterpolateCoordTransMode::pytorch_half_pixel: {
-                if (outShape > 1)
-                    return (outCoord + 0.5f) * scale - 0.5f;
-                else
-                    return 0;
-                break;
-            }
-            case InterpolateCoordTransMode::asymmetric: {
-                return outCoord * scale;
-                break;
-            }
-            case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-                return (outCoord + 0.5f) * scale;
-                break;
-            }
-            case InterpolateCoordTransMode::align_corners: {
-                if (outShape > 1)
-                    return outCoord * static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1);
-                else
-                    return 0;
-                break;
-            }
-            default: {
-                THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support specified coordinate transformation mode";
-                break;
-            }
+        case InterpolateCoordTransMode::pytorch_half_pixel: {
+            if (outShape > 1)
+                return (outCoord + 0.5f) / scale - 0.5f;
+            else
+                return 0;
+            break;
+        }
+        case InterpolateCoordTransMode::asymmetric: {
+            return static_cast<float>(outCoord) / scale;
+            break;
+        }
+        case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
+            return (outCoord + 0.5f) / scale;
+            break;
+        }
+        case InterpolateCoordTransMode::align_corners: {
+            if (outShape > 1)
+                return outCoord * static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1);
+            else
+                return 0;
+            break;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support specified coordinate transformation mode";
+            break;
         }
     }
 }

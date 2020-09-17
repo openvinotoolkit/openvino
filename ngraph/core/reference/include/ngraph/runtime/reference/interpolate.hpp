@@ -152,10 +152,6 @@ namespace ngraph
                                  float length_resized,
                                  float length_original) const
                 {
-                    if ((x_scale == 1.0f) || (length_resized == length_original))
-                    {
-                        return x_resized;
-                    }
                     return m_func(x_resized, x_scale, length_resized, length_original);
                 }
 
@@ -226,6 +222,14 @@ namespace ngraph
                     , m_out_shape{out_shape}
                     , m_scales{scales}
                 {
+                    size_t input_rank = input_data_shape.size();
+                    m_all_scales = std::vector<float>(input_rank, 1.0f);
+                    size_t num_of_axes = axes.size();
+
+                    for (size_t i = 0; i < num_of_axes; ++i)
+                    {
+                        m_all_scales[axes[i]] = scales[i];
+                    }
                 }
 
                 ~InterpolateEvalHelper() = default;
@@ -292,12 +296,6 @@ namespace ngraph
                                                                  const InfoForLinearMode& info,
                                                                  const Coordinate& index);
 
-                int64_t clip_coord(int64_t coord, float length)
-                {
-                    return std::max(static_cast<int64_t>(0),
-                                    std::min(coord, static_cast<int64_t>(length) - 1));
-                }
-
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
@@ -310,6 +308,7 @@ namespace ngraph
                 Shape m_out_shape;
 
                 std::vector<float> m_scales;
+                std::vector<float> m_all_scales;
             };
 
             /// \brief Class to perform interpolation calculation.
@@ -346,6 +345,8 @@ namespace ngraph
                                 T* out,
                                 const Shape& out_shape)
                 {
+                    assert(axes.size() == scales.size());
+
                     m_input_data_shape = input_data_shape;
                     m_axes = axes;
                     m_out_shape = out_shape;

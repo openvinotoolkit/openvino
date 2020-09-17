@@ -273,6 +273,11 @@ class InterpolateCalculation:
         else:
             self.scales = scales
 
+        if self.mode == 'nearest':
+            self.all_scales = np.ones(rank).astype(np.float)
+            for i, axis in enumerate(self.axes):
+                self.all_scales[axis] = self.scales[i]
+
         self.input_shape = padded_data.shape
         return self.func(padded_data)
 
@@ -446,9 +451,9 @@ class InterpolateCalculation:
         num_of_axes = len(self.axes)
         for coordinates in np.ndindex(tuple(self.output_shape)):
             input_coords = np.array(coordinates, dtype=np.int64)
-            for i, axis in enumerate(self.axes):
-                in_coord = self.get_original_coordinate(coordinates[axis], self.scales[i], self.output_shape[axis], self.input_shape[axis])
-                nearest_pixel = self.get_nearest_pixel(in_coord, self.scales[i] < 1)
+            for axis, scale in enumerate(self.all_scales):
+                in_coord = self.get_original_coordinate(coordinates[axis], scale, self.output_shape[axis], self.input_shape[axis])
+                nearest_pixel = self.get_nearest_pixel(in_coord, scale < 1)
                 input_coords[axis] = max(0, min(nearest_pixel, self.input_shape[axis] - 1))
             result[coordinates] = input_data[tuple(input_coords)]
 
