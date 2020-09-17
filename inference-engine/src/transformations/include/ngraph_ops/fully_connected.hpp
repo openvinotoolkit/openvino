@@ -36,7 +36,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_out_size() { return m_output_size; }
+    size_t get_out_size() const { return m_output_size; }
+
+    element::Type get_output_type() const { return m_output_type; }
 
 private:
     size_t m_output_size = 0;

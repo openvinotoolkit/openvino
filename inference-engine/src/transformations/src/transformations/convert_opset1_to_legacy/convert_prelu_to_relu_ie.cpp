@@ -33,7 +33,7 @@ ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
                 return false;
             }
 
-            auto relu_ie = std::make_shared<ngraph::op::ReLUIE>(prelu->input(0).get_source_output(), value);
+            auto relu_ie = std::make_shared<ngraph::op::ReLUIE>(prelu->input(0).get_source_output(), value, prelu->output(0).get_element_type());
             relu_ie->set_friendly_name(prelu->get_friendly_name());
             ngraph::copy_runtime_info(prelu, relu_ie);
             ngraph::replace_node(prelu, relu_ie);

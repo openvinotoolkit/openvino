@@ -24,15 +24,8 @@ namespace ngraph
     {
         namespace util
         {
-#ifdef LPT_SUPPORT
-            std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-                Node* node,
-                const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec(),
-                const bool multi_type = false);
-#else
             std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
                 Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-#endif
         }
     }
 }

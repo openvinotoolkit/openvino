@@ -21,14 +21,9 @@
 
 using namespace ngraph;
 
-#ifdef LPT_SUPPORT
-std::tuple<element::Type, PartialShape> ngraph::op::util::validate_and_infer_elementwise_args(
-    Node* node, const op::AutoBroadcastSpec& autob, const bool multi_type)
-#else
 std::tuple<element::Type, PartialShape>
     ngraph::op::util::validate_and_infer_elementwise_args(Node* node,
                                                           const op::AutoBroadcastSpec& autob)
-#endif
 {
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
     element::Type element_type = node->get_input_element_type(0);
@@ -38,26 +33,10 @@ std::tuple<element::Type, PartialShape>
     {
         for (size_t i = 1; i < node->get_input_size(); ++i)
         {
-#ifdef LPT_SUPPORT
-            if (!ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global)
-            {
-                NODE_VALIDATION_CHECK(node,
-                                      element::Type::merge(element_type,
-                                                           element_type,
-                                                           node->get_input_element_type(i)),
-                                      "Argument element types are inconsistent.");
-            }
-            else
-            {
-                element::Type::merge(element_type, element_type, node->get_input_element_type(i));
-            }
-
-#else
             NODE_VALIDATION_CHECK(
                 node,
                 element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
                 "Argument element types are inconsistent.");
-#endif
 
             if (autob.m_type == op::AutoBroadcastType::NONE)
             {
