@@ -27,7 +27,9 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
@@ -168,6 +170,9 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpu::DynamicToStaticShape>();
