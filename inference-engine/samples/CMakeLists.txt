@@ -145,6 +145,8 @@ endif()
 # exactly the same OpenCV_DIR path which was used for the InferenceEngine build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
     add_subdirectory(common/format_reader)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wraper")
+    add_subdirectory(common/opencv_c_wraper)
 endif()
 
 # samples build can be switched off during whole IE build
