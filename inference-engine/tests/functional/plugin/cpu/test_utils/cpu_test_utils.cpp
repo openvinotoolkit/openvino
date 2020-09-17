@@ -15,6 +15,7 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == nCdhw8c) return "nCdhw8c";
     if (v == nCdhw16c) return "nCdhw16c";
     if (v == ndhwc) return "ndhwc";
+    if (v == nc) return "nc";
     if (v == x) return "x";
     assert(!"unknown fmt");
     return "undef";
@@ -34,6 +35,7 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(nCdhw8c);
     CASE(nCdhw16c);
     CASE(ndhwc);
+    CASE(nc);
     CASE(x);
 #undef CASE
     assert(!"unknown memory format");
@@ -45,7 +47,9 @@ std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t> &fmts)
     for (auto &fmt : fmts) {
         ((str += "cpu:") += cpu_fmt2str(fmt)) += ",";
     }
-    str.erase(str.end() - 1);
+    if (!str.empty()) {
+        str.pop_back();
+    }
     return str;
 }
 
@@ -54,7 +58,9 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     for (auto &impl : priority) {
         ((str += "cpu:") += impl) += ",";
     }
-    str.erase(str.end() - 1);
+    if (!str.empty()) {
+        str.pop_back();
+    }
     return str;
 }
 
@@ -62,6 +68,8 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
                                 std::vector<cpu_memory_format_t> inputMemoryFormats,
                                 std::vector<cpu_memory_format_t> outputMemoryFormats, std::string selectedType) {
     IE_SUPPRESS_DEPRECATED_START
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
+    bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
@@ -84,6 +92,7 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
         };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+            isNodeFound = true;
             ASSERT_LE(inputMemoryFormats.size(), node->get_input_size());
             ASSERT_LE(outputMemoryFormats.size(), node->get_output_size());
             for (int i = 0; i < inputMemoryFormats.size(); i++) {
@@ -103,6 +112,7 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
             ASSERT_EQ(selectedType, primType);
         }
     }
+    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
     IE_SUPPRESS_DEPRECATED_END
 }
 
@@ -112,13 +122,19 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::vector<std::string> priority;
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
-    result << "_inFmts=" << fmts2str(inFmts);
-    result << "_outFmts=" << fmts2str(outFmts);
-    result << "_primitive=" << selectedType;
+//    if (!inFmts.empty()) {
+        result << "_inFmts=" << fmts2str(inFmts);
+//    }
+    if (!outFmts.empty()) {
+        result << "_outFmts=" << fmts2str(outFmts);
+    }
+    if (!selectedType.empty()) {
+        result << "_primitive=" << selectedType;
+    }
     return result.str();
 }
 
-std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::setCPUInfo(std::vector<cpu_memory_format_t> inFmts,
+std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                                                                  std::vector<cpu_memory_format_t> outFmts,
                                                                                  std::vector<std::string> priority) {
     std::map<std::string, std::shared_ptr<ngraph::Variant>> cpuInfo;

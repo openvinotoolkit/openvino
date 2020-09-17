@@ -211,7 +211,8 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           element::Type_t convertType = element::Type_t::undefined);
+                                                           element::Type_t inType = element::Type_t::undefined,
+                                                           element::Type_t outConvertType = element::Type_t::undefined);
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output
@@ -231,7 +232,7 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
 std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_info,
                                                const ngraph::OutputVector &outputVector);
 
-std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output,
+std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t> &output,
                                                  const element::Type_t &fromPrecision,
                                                  const element::Type_t &toPrecision,
                                                  const size_t elementsCount);
