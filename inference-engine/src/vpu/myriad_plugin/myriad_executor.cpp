@@ -261,7 +261,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
             });
 
         // Return mock device. If try infer with it, exception will be thrown
-        if ((availableDevices.empty()) {
+        if (availableDevices.empty()) {
             DeviceDesc device;
             device._platform = config.platform();
             device._protocol = config.protocol();
