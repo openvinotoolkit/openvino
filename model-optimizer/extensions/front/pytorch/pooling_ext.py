@@ -19,12 +19,12 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
-from mo.ops.convolution import Convolution
+from mo.ops.pooling import Pooling
 from mo.utils.error import Error
 
 
-class Conv2dFrontExtractor(FrontExtractorOp):
-    op = 'Conv2d'
+class MaxPool2dFrontExtractor(FrontExtractorOp):
+    op = 'MaxPool2d'
     enabled = True
 
     @classmethod
@@ -34,7 +34,10 @@ class Conv2dFrontExtractor(FrontExtractorOp):
         # pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
         # assert pads is None or len(pads) % 2 == 0
         # pads = np.array(node.module.padding, dtype=np.int64).reshape(2, -1)
-        pads = np.array(node.module.padding, dtype=np.int64).reshape(1, 2)
+
+        print(node.module.kernel_size)
+
+        pads = np.array([node.module.padding, node.module.padding], dtype=np.int64).reshape(1, 2)
         pads = np.repeat(pads, 2, axis=0)
         final_pads = np.array([[0, 0], [0, 0], *pads], dtype=np.int64)
 
@@ -45,38 +48,35 @@ class Conv2dFrontExtractor(FrontExtractorOp):
         #
         # # Extract dilations attribute
         # # In case if dilations is not specified it will be set in default (1) in infer function
-        strides = node.module.stride
+        strides = [node.module.stride, node.module.stride]
         final_strides = np.array([1, 1, *strides], dtype=np.int64)
-        #
-        # kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None)
-        # auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
-        # group = onnx_attr(node, 'group', 'i', default=1, dst_type=lambda x: np.array(x, dtype=np.int64))
-        #
+        print(final_strides)
+
+        kernel_shape = [node.module.kernel_size, node.module.kernel_size]
+        final_kernel_shape = np.array([1, 1, *kernel_shape], dtype=np.int64)
+        print(final_kernel_shape)
+
         attrs = {
-            'op': __class__.op,
+            'op': node.op,
             # 'auto_pad': auto_pad,
-            # 'bias_addable': True,
-            # 'bias_term': None,
+            'window': final_kernel_shape,
+            'stride': final_strides,
             'pad': final_pads,
             # 'pad_spatial_shape': np.array(pads, dtype=np.int64) if pads is not None else None,
-            # 'dilation': final_dilations,
+            'pool_method': 'max',
+            # 'exclude_pad': 'true' if exclude_pad else 'false',
+            # 'global_pool': global_pooling,
             # 'output_spatial_shape': None,
-            # 'output_shape': None,
-            'stride': final_strides,
-            # 'group': group,
-            # 'output': None,
-            'kernel_spatial': np.array(node.module.kernel_size, dtype=np.int64),
-
-            'input_feature_channel': 1,
-            'output_feature_channel': 0,
-            # 'kernel_spatial_idx': None,  # Will be calculated in infer function (np.array([2, 3]))
+            # 'rounding_type': rt,
             #
-            # 'spatial_dims': None,  # Will be calculated in infer function
+            # 'spatial_dims': None,
             'channel_dims': np.array([1], dtype=np.int64),
             'batch_dims': np.array([0], dtype=np.int64),
-            # 'layout': 'NCHW'
+            # 'layout': 'NCHW',
+            #
+            # 'pooling_convention': pooling_convention
         }
 
         # update the attributes of the node
-        Convolution.update_node_stat(node, attrs)
+        Pooling.update_node_stat(node, attrs)
         return cls.enabled

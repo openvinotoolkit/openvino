@@ -78,7 +78,7 @@ class PyTorchLoader(Loader):
                 assert key == 'weight' or key == 'bias', 'Unknown parameter: ' + key
 
                 param_name = name + '/' + key
-                graph.add_node(param_name, kind='op', op='Const', module=self)
+                graph.add_node(param_name, kind='op', op='Const', value=value.numpy())
                 edge_attrs = {
                     'out': 0,
                     'in': 1 if key == 'weight' else 2,
@@ -89,7 +89,7 @@ class PyTorchLoader(Loader):
                     'data_attrs': ['fw_tensor_debug_info']
                 }
                 print(param_name, name)
-                graph.add_edge(src_id, name, **edge_attrs)
+                graph.add_edge(param_name, name, **edge_attrs)
 
 
             out_hash = hash(output)
