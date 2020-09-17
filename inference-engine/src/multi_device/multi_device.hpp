@@ -31,6 +31,7 @@ namespace MultiDevicePlugin {
 using DeviceName = std::string;
 
 struct DeviceInformation {
+    DeviceName deviceName;
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
 };
@@ -99,7 +100,7 @@ public:
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                  networksPerDevice,
-                                          const DeviceMap<DeviceInformation>&                                        networkDevices,
+                                          const std::vector<DeviceInformation>&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
 
@@ -117,7 +118,7 @@ public:
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
-    DeviceMap<DeviceInformation>                                _devicePriorities;
+    std::vector<DeviceInformation>                              _devicePriorities;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
@@ -163,7 +164,7 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    DeviceMap<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
+    std::vector<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                   const std::map<std::string, std::string> & config) const;
 
 protected:

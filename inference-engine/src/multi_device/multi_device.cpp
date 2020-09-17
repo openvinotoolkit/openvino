@@ -141,7 +141,7 @@ struct IdleGuard {
 };
 
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                 networksPerDevice,
-                                                           const DeviceMap<DeviceInformation>&                                  networkDevices,
+                                                           const std::vector<DeviceInformation>&                                networkDevices,
                                                            const std::unordered_map<std::string, InferenceEngine::Parameter>&   config,
                                                            const bool                                                           needPerfCounters) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
@@ -154,7 +154,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& device  = networkValue.first;
         auto& network = networkValue.second;
 
-        auto itNumRequests = _devicePriorities.find(device);
+        auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
+                [&device](const DeviceInformation& d){ return d.deviceName == device;});
         unsigned int optimalNum = 0;
         try {
             optimalNum = network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
@@ -165,7 +166,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                     << "Failed to query the metric for the " << device << " with error:" << iie.what();
         }
         const auto numRequests = (_devicePriorities.end() == itNumRequests ||
-            itNumRequests->second.numRequestsPerDevices == -1) ? optimalNum : itNumRequests->second.numRequestsPerDevices;
+            itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
         auto& workerRequests = _workerRequests[device];
         auto& idleWorkerRequests = _idleWorkerRequests[device];
         workerRequests.resize(numRequests);
@@ -197,7 +198,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
         return _devicePriorities;
     }();
     for (auto&& device : devices) {
-        auto& idleWorkerRequests = _idleWorkerRequests[device.first];
+        auto& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
         WorkerInferRequest* workerRequestPtr = nullptr;
         if (idleWorkerRequests.try_pop(workerRequestPtr)) {
             IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
@@ -258,8 +259,8 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         assert(multiPlugin != nullptr);
         auto metaDevices = multiPlugin->ParseMetaDevices(priorities->second, {});
 
-        if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const std::pair<DeviceName, DeviceInformation> & kvp) {
-                return kvp.second.numRequestsPerDevices != -1;
+        if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
+                return kvp.numRequestsPerDevices != -1;
             })) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << "You can only change device priorities but not number of requests"
                      <<" with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
@@ -268,9 +269,10 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         {
             std::lock_guard<std::mutex> lock{_mutex};
             for (auto && device : metaDevices) {
-                if (_networksPerDevice.find(device.first) == _networksPerDevice.end()) {
+                if (_networksPerDevice.find(device.deviceName) == _networksPerDevice.end()) {
                     THROW_IE_EXCEPTION << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
-                        << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. " << device.first <<
+                        << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
+                        << device.deviceName <<
                             " device was not in the original device list!";
                 }
             }
@@ -353,9 +355,9 @@ std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfi
     return supportedConfig;
 }
 
-DeviceMap<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
+std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
-    DeviceMap<DeviceInformation> metaDevices;
+    std::vector<DeviceInformation> metaDevices;
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devicesWithRequests;
@@ -399,12 +401,13 @@ DeviceMap<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const 
         }
 
         // create meta device
-        metaDevices[deviceName] = { getDeviceConfig(deviceName), numRequests };
+        auto cfg = getDeviceConfig(deviceName);
         std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         if (std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))
             != std::end(supportedConfigKeys)) {
-            metaDevices[deviceName].config.emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
+            cfg.emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
         }
+        metaDevices.push_back({ deviceName, cfg, numRequests });
     }
 
     return metaDevices;
@@ -470,7 +473,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
         THROW_IE_EXCEPTION << "KEY_MULTI_DEVICE_PRIORITIES key is not set for MULTI device";
     }
 
-    DeviceMap<DeviceInformation> metaDevices = ParseMetaDevices(priorities->second, fullConfig);
+    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
 
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
@@ -478,9 +481,8 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
 
     DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
     for (auto& p : metaDevices) {
-        auto & deviceName = p.first;
-        auto & metaDevice = p.second;
-        auto & deviceConfig = metaDevice.config;
+        auto & deviceName = p.deviceName;
+        auto & deviceConfig = p.config;
         auto clonedNetwork = cloneNetwork(network);
         executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig) });
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
@@ -514,16 +516,14 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
         THROW_IE_EXCEPTION << "KEY_MULTI_DEVICE_PRIORITIES key is not set for MULTI device";
     }
 
-    DeviceMap<DeviceInformation> metaDevices = ParseMetaDevices(priorities->second, fullConfig);
+    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
 
     auto allSupportsNgraph =
         std::all_of(std::begin(metaDevices), std::end(metaDevices),
-            [&] (const DeviceMap<DeviceInformation>::value_type & value) -> bool {
-                auto& deviceName = value.first;
-                auto& metaDevice = value.second;
+            [&] (const DeviceInformation& value) -> bool {
                 auto clonedNetwork = cloneNetwork(network);
-                try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config); }
+                try { GetCore()->QueryNetwork(*clonedNetwork, value.deviceName, value.config); }
                 catch (const InferenceEngine::details::InferenceEngineException & ex) {
                     std::string message = ex.what();
                     return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
@@ -532,12 +532,9 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
             });
 
     for (auto&& value : metaDevices) {
-        auto& deviceName = value.first;
-        auto& metaDevice = value.second;
-
         auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
             auto clonedNetwork = cloneNetwork(networkObject);
-            auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config);
+            auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, value.deviceName, value.config);
             std::unordered_set<std::string> deviceSupportedLayers;
             for (auto&& layerQr : deviceQr.supportedLayersMap) {
                 deviceSupportedLayers.emplace(layerQr.first);
