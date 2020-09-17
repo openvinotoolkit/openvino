@@ -26,7 +26,7 @@ public:
                 float eps,
                 bool across_spatial,
                 bool channel_shared,
-                ngraph::element::Type output_type);
+                const ngraph::element::Type output_type);
 
     float get_eps() const { return m_eps; }
     bool get_channel_shared() const  { return m_channel_shared;}
