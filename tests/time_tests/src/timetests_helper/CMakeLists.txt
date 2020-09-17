@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "time-testhelper")
+set (TARGET_NAME "timetests_helper")
 
 find_package(gflags REQUIRED)
 

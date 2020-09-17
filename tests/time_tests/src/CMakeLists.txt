@@ -3,4 +3,4 @@
 #
 
 add_subdirectory(timetests)
-add_subdirectory(time-testhelper)
+add_subdirectory(timetests_helper)
