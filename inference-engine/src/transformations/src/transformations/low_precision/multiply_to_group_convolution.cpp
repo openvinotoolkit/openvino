@@ -111,6 +111,9 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         inputIndex = 0;
         constShape = operation->get_input_shape(1);
+        if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
+            return false;
+        }
     } else if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
         inputIndex = 1;
         constShape = operation->get_input_shape(0);
@@ -136,6 +139,8 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
             return false;
         }
     }
+
+
 
     return true;
 }
