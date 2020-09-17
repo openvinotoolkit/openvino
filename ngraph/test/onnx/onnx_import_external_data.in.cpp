@@ -91,18 +91,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception)
             file_util::path_join(SERIALIZED_ZOO, "onnx/external_data_file_not_found.prototxt"));
         FAIL() << "Incorrect path to external data not detected";
     }
-    catch (const ngraph_error& e)
+    catch (const ngraph_error& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("not_existed_file.data, offset: 4096, lenght: 16, sha1_digest: 0"));
+        EXPECT_PRED_FORMAT2(
+            testing::IsSubstring,
+            std::string("not_existed_file.data, offset: 4096, data_lenght: 16, sha1_digest: 0)"),
+            error.what());
     }
     catch (...)
     {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_page_size_warning)
-{
 }

@@ -21,6 +21,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_import/core/node.hpp"
+#include "onnx_import/utils/external_data_info.hpp"
 
 namespace ngraph
 {
@@ -40,6 +41,16 @@ namespace ngraph
                                           const Node& node,
                                           const std::string& explanation)
                     : CheckFailure(check_loc_info, detail::get_error_msg_prefix(node), explanation)
+                {
+                }
+            };
+
+            struct invalid_external_data : ngraph_error
+            {
+                invalid_external_data(
+                    const onnx_import::detail::ExternalDataInfo& external_data_info)
+                    : ngraph_error{std::string{"invalid external data: "} +
+                                   external_data_info.to_string()}
                 {
                 }
             };

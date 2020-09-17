@@ -15,10 +15,11 @@
 //*****************************************************************************
 
 #include <fstream>
-#include <iostream>
+#include <sstream>
 
 #include "external_data_info.hpp"
 #include "ngraph/log.hpp"
+#include "onnx_import/exceptions.hpp"
 
 namespace ngraph
 {
@@ -44,9 +45,9 @@ namespace ngraph
             std::string ExternalDataInfo::load_external_data() const
             {
                 std::ifstream external_data_stream(m_data_location,
-                                                   std::ios::binary | std::ios::in);
+                                                   std::ios::binary | std::ios::in | std::ios::ate);
                 if (external_data_stream.fail())
-                    throw invalid_external_data{*this};
+                    throw error::invalid_external_data{*this};
 
                 std::streamsize read_data_lenght;
                 if (m_data_lenght == 0) // read entire file
@@ -75,6 +76,17 @@ namespace ngraph
                 external_data_stream.close();
 
                 return read_data;
+            }
+
+            std::string ExternalDataInfo::to_string() const
+            {
+                std::stringstream s;
+                s << "ExternalDataInfo(";
+                s << "location: " << m_data_location;
+                s << ", offset: " << m_offset;
+                s << ", data_lenght: " << m_data_lenght;
+                s << ", sha1_digest: " << m_sha1_digest << ")";
+                return s.str();
             }
         }
     }

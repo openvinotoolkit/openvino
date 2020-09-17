@@ -18,8 +18,6 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "except.hpp"
-
 namespace ngraph
 {
     namespace onnx_import
@@ -29,29 +27,10 @@ namespace ngraph
             class ExternalDataInfo
             {
             public:
-                ExternalDataInfo() = delete;
-                explicit ExternalDataInfo(const ONNX_NAMESPACE::TensorProto& tensor);
-
-                ExternalDataInfo(const ExternalDataInfo&) = default;
-                ExternalDataInfo(ExternalDataInfo&&) = default;
-
-                ExternalDataInfo& operator=(const ExternalDataInfo&) = delete;
-                ExternalDataInfo& operator=(ExternalDataInfo&&) = delete;
+                ExternalDataInfo(const ONNX_NAMESPACE::TensorProto& tensor);
 
                 std::string load_external_data() const;
-
-                struct invalid_external_data : ngraph_error
-                {
-                    invalid_external_data(const ExternalDataInfo& external_data_info)
-                        : ngraph_error{std::string{"invalid external data - "} + "location: " +
-                                       external_data_info.m_data_location + ", offset: " +
-                                       std::to_string(external_data_info.m_offset) + ", lenght: " +
-                                       std::to_string(external_data_info.m_data_lenght) +
-                                       ", sha1_digest: " +
-                                       std::to_string(external_data_info.m_sha1_digest)}
-                    {
-                    }
-                };
+                std::string to_string() const;
 
             private:
                 std::string m_data_location;
