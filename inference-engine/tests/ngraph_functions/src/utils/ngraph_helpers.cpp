@@ -79,7 +79,9 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
     return outs;
 }
 
-std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
+std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
+                                                           const std::vector<std::vector<std::uint8_t>> &inputs,
+                                                           element::Type_t inType,
                                                            const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -98,7 +100,12 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
         const auto &parameterType = parameter->get_element_type();
         const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
 
-        const auto &input = inputs[parameterIndex];
+        auto input = inputs[parameterIndex];
+
+        if (inType != element::undefined && inType != parameterType) {
+            input = convertOutputPrecision(input, inType, parameter->get_element_type(), shape_size(parameter->get_shape()));
+        }
+
         const auto &inputSize = input.size();
         NGRAPH_CHECK(parameterSize == inputSize,
                      "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
@@ -250,7 +257,7 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
 }
 
 template <typename fromPrec, typename toPrec>
-std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, const size_t elementsCount, const size_t elementSize) {
+std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t> &buffer, const size_t elementsCount, const size_t elementSize) {
     std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
     const fromPrec *src = reinterpret_cast<const fromPrec *>(buffer.data());
     toPrec *dst = reinterpret_cast<toPrec *>(convertedData.data());
@@ -270,8 +277,10 @@ bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
     return false;
 }
 
-std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
-                                                                                                                                const size_t elementsCount) {
+std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t> &output,
+                                                 const element::Type_t &fromPrecision,
+                                                 const element::Type_t &toPrecision,
+                                                 const size_t elementsCount) {
     switch (fromPrecision) {
         case element::Type_t::u8: {
             switch (toPrecision) {
@@ -520,6 +529,12 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
             case element::Type_t::u64: {
                 return convertPrecision<float, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::bf16: {
+                return convertPrecision<float, ngraph::bfloat16>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::boolean: {
+                return convertPrecision<float, char>(output, elementsCount, element::Type(toPrecision).size());
+            }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                                                                                         element::Type(toPrecision).get_type_name());
@@ -548,12 +563,52 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
             case element::Type_t::f32: {
                 return convertPrecision<char, float>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::bf16: {
+                return convertPrecision<char, ngraph::bfloat16>(output, elementsCount, element::Type(toPrecision).size());
+            }
             case element::Type_t::u64: {
                 return convertPrecision<char, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
                                          element::Type(toPrecision).get_type_name());
+            }
+        }
+        case element::Type_t::bf16: {
+            switch (toPrecision) {
+                case element::Type_t::u8: {
+                    return convertPrecision<ngraph::bfloat16, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::u16: {
+                    return convertPrecision<ngraph::bfloat16, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::i8: {
+                    return convertPrecision<ngraph::bfloat16, int8_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::i16: {
+                    return convertPrecision<ngraph::bfloat16, int16_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::i32: {
+                    return convertPrecision<ngraph::bfloat16, int32_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::i64: {
+                    return convertPrecision<ngraph::bfloat16, int64_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::f32: {
+                    return convertPrecision<ngraph::bfloat16, float>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::u64: {
+                    return convertPrecision<ngraph::bfloat16, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::bf16: {
+                    return convertPrecision<ngraph::bfloat16, ngraph::bfloat16>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                case element::Type_t::boolean: {
+                    return convertPrecision<ngraph::bfloat16, char>(output, elementsCount, element::Type(toPrecision).size());
+                }
+                default:
+                    throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
+                                             element::Type(toPrecision).get_type_name());
             }
         }
         default:

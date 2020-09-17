@@ -15,6 +15,7 @@
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/type/bfloat16.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -162,6 +163,11 @@ protected:
     typename std::enable_if<std::is_unsigned<T>::value, T>::type
     static ie_abs(const T &val) {
         return val;
+    }
+
+    static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
+        static const uint16_t mask = 0x8000;
+        return ngraph::bfloat16::from_bits(val.to_bits() ^ 0x8000);
     }
 
     template<class T>
