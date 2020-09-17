@@ -327,14 +327,14 @@ sudo -E ./install_NEO_OCL_driver.sh
 The drivers are not included in the package and the script downloads them. Make sure you have the 
 internet connection for this step.
 > **NOTES**: 
-> * If the driver version on the system is higher or equal to the current version, the script does 
+> - If the driver version on the system is higher or equal to the current version, the script does 
 > not install a new driver. 
-> * If the version of the driver is lower than the current version, the script uninstalls the lower 
+> - If the version of the driver is lower than the current version, the script uninstalls the lower 
 > and installs the current version with your permission. 
-> * If the script fails to uninstall the driver, uninstall it manually.
-   You may see the following command line output:  
-   - Add OpenCL user to video group
-   Ignore this suggestion and continue.
+> - If the script fails to uninstall the driver, uninstall it manually.    
+You may see the following command line output:  
+   - Add OpenCL user to video group    
+Ignore this suggestion and continue.    
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
