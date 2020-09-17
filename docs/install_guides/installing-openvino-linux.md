@@ -332,10 +332,9 @@ internet connection for this step.
 > * If the version of the driver is lower than the current version, the script uninstalls the lower 
 > and installs the current version with your permission. 
 > * If the script fails to uninstall the driver, uninstall it manually.
-You may see the following command line output:  
-- Add OpenCL user to video group
-Ignore this suggestion and continue.
-
+   You may see the following command line output:  
+   - Add OpenCL user to video group
+   Ignore this suggestion and continue.
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
