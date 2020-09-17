@@ -149,6 +149,8 @@ namespace ngraph
                 auto out_outer_coord_iter = out_outer_transform.begin();
                 for (const Coordinate& params_outer_coord : params_outer_transform)
                 {
+                    if (out_outer_coord_iter == out_outer_transform.end())
+                        break;
                     const T* params_prime =
                         &params[params_outer_transform.index(params_outer_coord)];
                     T* out_outer = &out[out_outer_transform.index(*out_outer_coord_iter)];
@@ -156,6 +158,8 @@ namespace ngraph
                     auto out_inner_coord_iter = out_inner_transform.begin();
                     for (const Coordinate& indices_outer_coord : indices_outer_transform)
                     {
+                        if (out_inner_coord_iter == out_inner_transform.end())
+                            break;
                         const U* indices_prime =
                             &indices[indices_outer_transform.index(indices_outer_coord)];
                         T* out_prime = &out_outer[out_inner_transform.index(*out_inner_coord_iter)];
