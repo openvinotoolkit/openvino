@@ -67,8 +67,6 @@ namespace
         std::vector<Dimension> arg1_shape_update(arg1_rank);
         std::vector<Dimension> output_shape(max_rank);
 
-        std::vector<Dimension> arg0_shape_update1(arg0_shape);
-
         for (size_t i = 0; i < arg0_rank; i++)
             arg0_shape_update[i] = arg0_shape[i];
 
