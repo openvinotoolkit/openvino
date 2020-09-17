@@ -166,9 +166,9 @@ def transpose(op_node: Node, port_info: str, input_port: int):
 
     transpose_name = op_node.soft_get('name', op_node.id) + '/Transpose'
     from mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
-    transpose = create_op_with_const_inputs(graph, Transpose, {1: permutation.perm}, {'name': transpose_name})
+    transpose = create_op_with_const_inputs(
+        graph, Transpose, {1: permutation.perm}, {'name': transpose_name, 'override_output_shape': True})
     op_node.in_port(input_port).get_connection().insert_node(transpose)
-    transpose.infer(transpose)
 
 
 class PermuteInputs:

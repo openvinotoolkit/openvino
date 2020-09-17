@@ -161,7 +161,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         while len(deque_of_in_ports):
             in_port = deque_of_in_ports.popleft()
             source_node = in_port.get_source().node
-            if in_port in visited_ports or source_node in visited_nodes:
+            if in_port in visited_ports:  # do not check visited_nodes as search is based on ports
                 continue
             visited_ports.update({in_port, in_port.get_source()})
             if in_port.get_source() in out_ports:  # reached source marked to stop the search
@@ -208,7 +208,5 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         shape_sources = {shape_of.out_port(0) for shape_of in graph.get_op_nodes(type='ShapeOf')}
         end_points = LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
             [shape.out_port(0) for shape in graph.get_op_nodes(type='ShapeOf')])
-        for end in end_points:
-            print(end.node.type)
         ports, nodes = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(end_points, shape_sources)
         return ports, nodes
