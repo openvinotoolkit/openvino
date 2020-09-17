@@ -17,7 +17,6 @@
 #pragma once
 
 #include <algorithm>
-#include <iostream>
 #include <limits>
 #include <vector>
 #include "ngraph/coordinate_transform.hpp"

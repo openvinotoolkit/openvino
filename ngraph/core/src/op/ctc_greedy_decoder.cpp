@@ -117,17 +117,6 @@ namespace
                                                           ctc_merge_repeated);
             break;
         }
-        case element::Type_t::f64:
-        {
-            runtime::reference::ctc_greedy_decoder<double>(data->get_data_ptr<double>(),
-                                                           sequence_masks->get_data_ptr<double>(),
-                                                           out->get_data_ptr<double>(),
-                                                           data->get_shape(),
-                                                           sequence_masks->get_shape(),
-                                                           out->get_shape(),
-                                                           ctc_merge_repeated);
-            break;
-        }
         default: NGRAPH_UNREACHABLE("unsupported input type for ctc_greedy_decoder");
         }
         return true;
