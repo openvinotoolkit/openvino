@@ -24,6 +24,7 @@ from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForC
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import get_node_with_permutation
 from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
@@ -136,7 +137,11 @@ class ApplyPermutation(MiddleReplacementPattern):
                 direction, port = port_info.split(':')
                 port = int(port)
                 port_to_check = node.in_port(port) if direction == 'input' else node.out_port(port)
-                if not is_input_data_in_correct_layout(node, in_port) and len(port_to_check.data.get_shape()) >= 4:
+                permutation_data_node = get_node_with_permutation(node, port_info)
+
+                if permutation_data_node.has_and_set('permutation') and \
+                        not is_input_data_in_correct_layout(node, in_port) and \
+                        len(port_to_check.data.get_shape()) >= 4:
                     permutation(node, port_info, in_port)
 
     @staticmethod

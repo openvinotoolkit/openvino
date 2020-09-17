@@ -265,7 +265,6 @@ class Convolution(Op):
                                                        ('output_feature_channel', 'input:{}'.format(weights_index)),
                                                        ])
 
-        if node.has_valid('get_weights_permute'):
-            PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.get_weights_permute)
-            PermuteInputs().set_input_permutation(
-                node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')
+        PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
+        PermuteInputs().set_input_permutation(
+            node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')

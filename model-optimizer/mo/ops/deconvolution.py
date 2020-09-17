@@ -113,9 +113,8 @@ class Deconvolution(Op):
                                                        ('output_feature_channel', 'input:1'),
                                                        ])
 
-        if node.has_valid('get_weights_permute'):
-            PermuteAttrs.set_permutation(node.in_node(1), node, node.get_weights_permute)
-            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'transpose')
+        PermuteAttrs.set_permutation(node.in_node(1), node, node.soft_get('get_weights_permute', None))
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'transpose')
         PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
 
         node['force_precision_in_ports'] = {2: 'int64'}
