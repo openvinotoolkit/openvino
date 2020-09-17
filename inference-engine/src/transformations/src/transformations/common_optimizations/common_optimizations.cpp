@@ -7,7 +7,6 @@
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp"
 #include "transformations/depth_to_space_fusion.hpp"
 #include "transformations/optimize_strided_slice.hpp"
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
@@ -35,8 +34,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::ConvertPriorBox>();  // WA: ConvertPriorBox must be executed before CF
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
