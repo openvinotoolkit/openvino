@@ -34,11 +34,11 @@ graph_node_attrs_for_2d_case_1_opset4_case = {
     'size_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([660])
     },
-    'size_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_1_data': {'value': int64_array([660]), 'shape': [1], 'kind': 'data'},
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([3.0])
     },
-    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_1_data': {'value': np.array([3.0]), 'shape': [1], 'kind': 'data'},
     'axes_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
     },
@@ -55,11 +55,11 @@ graph_node_attrs_for_2d_case_1_opset4_case = {
     'size_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
     },
-    'size_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_2_data': {'value': int64_array([700]), 'shape': [1], 'kind': 'data'},
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([2.0])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': np.array([2.0]), 'shape': [1], 'kind': 'data'},
     'axes_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
     },
@@ -76,11 +76,11 @@ graph_node_attrs_for_2d_case_1_opset4_case = {
     'size_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1320])
     },
-    'size_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_3_data': {'value': int64_array([1320]), 'shape': [1], 'kind': 'data'},
     'scale_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([2.0])
     },
-    'scale_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_3_data': {'value': np.array([2.0]), 'shape': [1], 'kind': 'data'},
     'axes_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
     },
@@ -234,7 +234,7 @@ graph_node_attrs_for_2d_case_1 = {
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([660])
     },
-    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_1_data': {'value': int64_array([660]), 'shape': [1], 'kind': 'data'},
     'interpolate_1': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -247,7 +247,7 @@ graph_node_attrs_for_2d_case_1 = {
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': int64_array([700]), 'shape': [1], 'kind': 'data'},
     'interpolate_2': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -260,7 +260,7 @@ graph_node_attrs_for_2d_case_1 = {
     'scale_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1320])
     },
-    'scale_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_3_data': {'value': int64_array([1320]), 'shape': [1], 'kind': 'data'},
     'interpolate_3': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -405,11 +405,11 @@ new_graph_node_attrs_for_2d_case_4_opset4_case = {
     'size_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2200])
     },
-    'size_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_1_data': {'value': int64_array([2200]), 'shape': [1], 'kind': 'data'},
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([10.0])
     },
-    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_1_data': {'value': np.array([10.0]), 'shape': [1], 'kind': 'data'},
     'axes_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
     },
@@ -430,11 +430,11 @@ new_graph_node_attrs_for_2d_case_4_opset4_case = {
     'size_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
     },
-    'size_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_2_data': {'value': int64_array([700]), 'shape': [1], 'kind': 'data'},
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([2.0])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': np.array([2.0]), 'shape': [1], 'kind': 'data'},
     'axes_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
     },
@@ -627,7 +627,7 @@ graph_node_attrs_for_2d_case_4 = {
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2200])
     },
-    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_1_data': {'value': int64_array([2200]), 'shape': [1], 'kind': 'data'},
     'interpolate_1': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -644,7 +644,7 @@ graph_node_attrs_for_2d_case_4 = {
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': int64_array([700]), 'shape': [1], 'kind': 'data'},
     'interpolate_2': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -802,11 +802,11 @@ new_graph_node_attrs_for_3d_case_1_opset4_case = {
     'size_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4096, 2400])
     },
-    'size_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'size_1_data': {'value': int64_array([4096, 2400]), 'shape': [2], 'kind': 'data'},
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([4.0, 3.0])
     },
-    'scale_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'scale_1_data': {'value': np.array([4.0, 3.0]), 'shape': [2], 'kind': 'data'},
     'axes_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2, 4])
     },
@@ -823,11 +823,11 @@ new_graph_node_attrs_for_3d_case_1_opset4_case = {
     'size_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1280])
     },
-    'size_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_2_data': {'value': int64_array([1280]), 'shape': [1], 'kind': 'data'},
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([5.0])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': np.array([5.0]), 'shape': [1], 'kind': 'data'},
     'axes_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
     },
@@ -844,11 +844,11 @@ new_graph_node_attrs_for_3d_case_1_opset4_case = {
     'size_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([512])
     },
-    'size_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_3_data': {'value': int64_array([512]), 'shape': [1], 'kind': 'data'},
     'scale_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([512.0 / 2400.0])
     },
-    'scale_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_3_data': {'value': np.array([512.0 / 2400.0]), 'shape': [1], 'kind': 'data'},
     'axes_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4])
     },
@@ -881,7 +881,7 @@ graph_node_attrs_for_3d_case_1 = {
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4096, 2400])
     },
-    'scale_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'scale_1_data': {'value': int64_array([4096, 2400]), 'shape': [2], 'kind': 'data'},
     'interpolate_1': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -894,7 +894,7 @@ graph_node_attrs_for_3d_case_1 = {
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1280])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': int64_array([1280]), 'shape': [1], 'kind': 'data'},
     'interpolate_2': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -907,7 +907,7 @@ graph_node_attrs_for_3d_case_1 = {
     'scale_3': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([512])
     },
-    'scale_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_3_data': {'value': int64_array([512]), 'shape': [1], 'kind': 'data'},
     'interpolate_3': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -1059,11 +1059,11 @@ new_graph_node_attrs_for_3d_case_4_opset4_case = {
     'size_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4599, 133120])
     },
-    'size_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'size_1_data': {'value': int64_array([4599, 133120]), 'shape': [2], 'kind': 'data'},
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([4599.0 / 511.0, 133120.0 / 10240.0])
     },
-    'scale_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'scale_1_data': {'value': np.array([4599.0 / 511.0, 133120.0 / 10240.0]), 'shape': [2], 'kind': 'data'},
     'axes_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2, 4])
     },
@@ -1081,11 +1081,11 @@ new_graph_node_attrs_for_3d_case_4_opset4_case = {
     'size_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([912])
     },
-    'size_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'size_2_data': {'value': int64_array([912]), 'shape': [1], 'kind': 'data'},
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': np.array([912.0 / 416.0])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': np.array([912.0 / 416.0]), 'shape': [1], 'kind': 'data'},
     'axes_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
     },
@@ -1119,7 +1119,7 @@ graph_node_attrs_for_3d_case_4 = {
     'scale_1': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4599, 133120])
     },
-    'scale_1_data': {'value': None, 'shape': [2], 'kind': 'data'},
+    'scale_1_data': {'value': int64_array([4599, 133120]), 'shape': [2], 'kind': 'data'},
     'interpolate_1': {
         'type': 'Interpolate',
         'kind': 'op',
@@ -1136,7 +1136,7 @@ graph_node_attrs_for_3d_case_4 = {
     'scale_2': {
         'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([912])
     },
-    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'scale_2_data': {'value': int64_array([912]), 'shape': [1], 'kind': 'data'},
     'interpolate_2': {
         'type': 'Interpolate',
         'kind': 'op',

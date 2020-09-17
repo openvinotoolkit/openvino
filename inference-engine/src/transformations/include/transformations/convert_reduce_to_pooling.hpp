@@ -29,6 +29,12 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 }  // namespace pass
 }  // namespace ngraph
 
+class ConvertReduceBase : public ngraph::pass::MatcherPass {
+public:
+    template <class T>
+    ngraph::matcher_pass_callback convert_reduce_to_pooling();
+};
+
 class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
 public:
     ConvertReduceToPooling() {
@@ -38,10 +44,7 @@ public:
     }
 };
 
-template <class T>
-ngraph::matcher_pass_callback convert_reduce_to_pooling();
-
-class ngraph::pass::ConvertReduceMeanToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMeanToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMean>(), "ConvertReduceMean");
@@ -49,7 +52,7 @@ public:
     }
 };
 
-class ngraph::pass::ConvertReduceMaxToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMaxToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMax>(), "ConvertReduceMax");
@@ -57,7 +60,7 @@ public:
     }
 };
 
-class ngraph::pass::ConvertReduceSumToPooling: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     ConvertReduceSumToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceSum>(), "ConvertReduceSum");
@@ -66,10 +69,11 @@ public:
 };
 
 template <class T>
-ngraph::matcher_pass_callback convert_reduce_to_pooling() {
-    return [](ngraph::pattern::Matcher& m) {
+ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
+    return [&](ngraph::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
-        if (!reduce) {
+
+        if (!reduce || m_transformation_callback(reduce)) {
             return false;
         }
 
@@ -227,21 +231,34 @@ ngraph::matcher_pass_callback convert_reduce_to_pooling() {
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
         } else if (std::is_same<T, ngraph::opset1::ReduceSum>()) {
+            // Fallback to real type because of potential data loss in case of integer AVG Pool
+            bool fallback_to_real = input.get_element_type().is_integral();
+
+            if (fallback_to_real) {
+                input = std::make_shared<ngraph::opset1::Convert>(input, ngraph::element::f32);
+                new_ops.push_back(input.get_node_shared_ptr());
+            }
+
             input = std::make_shared<ngraph::opset1::AvgPool>(input,
-                                                              strides,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              kernel,
-                                                              true,
-                                                              ngraph::op::RoundingType::FLOOR);
+                    strides,
+                    pads_begin,
+                    pads_end,
+                    kernel,
+                    true,
+                    ngraph::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
 
             input = std::make_shared<ngraph::opset1::Multiply>(input,
-                    ngraph::opset1::Constant::create(reduce->input(0).get_element_type(), ngraph::Shape{1}, {reduction_dims_count}));
+                    ngraph::opset1::Constant::create(input.get_element_type(), ngraph::Shape{1}, {reduction_dims_count}));
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
             new_ops.push_back(input.get_node_shared_ptr());
+
+            if (fallback_to_real) {
+                input = std::make_shared<ngraph::opset1::Convert>(input, reduce->output(0).get_element_type());
+                new_ops.push_back(input.get_node_shared_ptr());
+            }
         } else {
             return false;
         }

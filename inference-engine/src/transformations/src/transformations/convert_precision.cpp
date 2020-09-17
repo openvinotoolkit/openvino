@@ -72,6 +72,8 @@ bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::e
     return false;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
+
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
@@ -179,7 +181,9 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
     for (auto &node : f->get_ordered_ops()) {
         if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
-            if (convert->input(0).get_element_type() == convert->get_convert_element_type()) {
+            // WA for topK, dont remove fake convert
+            if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
+                convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
                 replace_output_update_name(convert->output(0), convert->input_value(0));
             }
         }
@@ -298,17 +302,22 @@ std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
-    std::vector<src_type> data(std::move(constant->get_vector<src_type>()));
+    const auto * src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
+
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+    auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+
     std::vector<dst_type> final_data;
-    std::transform(data.begin(), data.end(), std::back_inserter(final_data),
-                   [](src_type val) {
-                       if (val > std::numeric_limits<dst_type>::max()) {
-                           return std::numeric_limits<dst_type>::max();
-                       } else {
-                           return static_cast<dst_type>(val);
-                       }
-                   });
-    return std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape(), final_data);
+    for (size_t i = 0; i < size; ++i) {
+        const auto & val = src_data[i];
+        if (val > std::numeric_limits<dst_type>::max()) {
+            dst_data[i] = std::numeric_limits<dst_type>::max();
+        } else {
+            dst_data[i] = static_cast<dst_type>(val);
+        }
+    }
+    return new_constant;
 }
 
 bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const std::vector<Input<Node>> & consumers) {

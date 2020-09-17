@@ -19,7 +19,6 @@ from extensions.ops.ONNXResize11 import ONNXResize11Op
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
 from mo.graph.graph import Node
-from mo.utils.error import Error
 
 
 class ResizeExtractor(FrontExtractorOp):

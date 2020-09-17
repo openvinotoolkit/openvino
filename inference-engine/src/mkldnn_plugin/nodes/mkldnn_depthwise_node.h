@@ -21,6 +21,7 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void initOptimalPrimitiveDescriptor() override;
     void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
 
@@ -36,6 +37,10 @@ private:
     size_t realBiasSize = 0;
     bool withBiases = false;
     bool broadcast = false;
+
+    std::shared_ptr<MKLDNNDescriptor> specificDesc5DPtr;
+    void createSpecificDescriptor5D();
+    void specificPrepareMemory5D(mkldnn::primitive_desc_iterator& itpd);
 };
 
 }  // namespace MKLDNNPlugin

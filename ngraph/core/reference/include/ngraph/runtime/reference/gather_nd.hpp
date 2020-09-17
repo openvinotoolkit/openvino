@@ -94,6 +94,8 @@ namespace ngraph
                                                          params_end_corner,
                                                          params_strides,
                                                          params_axis_order);
+                    if (out_coord_iter == out_transform.end())
+                        break;
                     auto out_index = out_transform.index(*out_coord_iter);
                     for (const Coordinate& params_coord : params_transform)
                     {

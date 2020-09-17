@@ -32,6 +32,7 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
  */
 class ngraph::pass::UselessStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
@@ -43,6 +44,7 @@ public:
  */
 class ngraph::pass::SharedStridedSliceEraser: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
@@ -54,6 +56,7 @@ public:
  */
 class ngraph::pass::GroupedStridedSliceOptimizer: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 
@@ -64,6 +67,7 @@ public:
  */
 class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
         bool rewritten = UselessStridedSliceEraser().run_on_function(f);
         rewritten |= SharedStridedSliceEraser().run_on_function(f);

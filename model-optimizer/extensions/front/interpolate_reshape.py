@@ -1,12 +1,9 @@
 """
  Copyright (C) 2018-2020 Intel Corporation
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
-
       http://www.apache.org/licenses/LICENSE-2.0
-
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,7 +24,6 @@ from mo.ops.shape import Shape
 class InterpolateWithConcat(FrontReplacementPattern):
     """
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
-
     BEFORE:
             input                   Const
     shape=[1, 3, 30, 40]      value=[60, 160]
@@ -52,7 +48,6 @@ class InterpolateWithConcat(FrontReplacementPattern):
                         \                   /
                            Concat(axis=1)
                         shape=[1, 7, 60, 160]
-
     1. Searches for Interpolate operation which output is connected to Concat (through identity operation or directly).
         Interpolate -- [identity] --> Concat
     2. Checks that Interpolate has positive  axes parameter
@@ -64,10 +59,7 @@ class InterpolateWithConcat(FrontReplacementPattern):
     7. Otherwise, we take the first Concat source from the (5) item.
         Taking ShapeOf of this source and Gather'ing dimensions by the Interpolate::axes indices
         we connect them to the second Interpolate input
-
         This is how we get updated Interpolate second input that will fit the following Concat operation restrictions.
-
-
     We perform this transformation of the FRONT phase for MO to be able to reshape this Interpolate layer too.
     There is a similar transformation with less restrictions on the BACK phase.
     """
@@ -120,10 +112,13 @@ class InterpolateWithConcat(FrontReplacementPattern):
         or through identity operation sequence. Returns the list of Concat sources that satisfy the condition.
         """
         assert concat.soft_get('type') == 'Concat'
-        sources = []
+        sources, ports_to_omit = [], []
+        if concat.has_valid('N'):
+            # TODO: should be removed after Concat operation normalization
+            ports_to_omit.append(concat.N)
 
         for in_port in concat.in_ports().values():
-            if in_port.disconnected():
+            if in_port.disconnected() or in_port.idx in ports_to_omit:
                 continue
             next_node = in_port.get_source().node
             while next_node.soft_get('type') != 'Interpolate' and next_node.has_and_set('identity'):
@@ -164,11 +159,8 @@ class InterpolateWithConcat(FrontReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate'):
-            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
+        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
-                continue
-            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
                 continue
 
             # Interpolate could be connected to Concat through identity operations, skipping them

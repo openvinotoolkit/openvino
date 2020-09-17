@@ -27,6 +27,8 @@ namespace ngraph
 {
     namespace onnx_import
     {
+        std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
+
         class Model
         {
         public:
