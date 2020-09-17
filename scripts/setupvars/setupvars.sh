@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2018-2019 Intel Corporation
+# Copyright (c) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,8 +71,8 @@ if [ -e "$INSTALLDIR/opencv" ]; then
         source "$INSTALLDIR/opencv/setupvars.sh"
     else
         export OpenCV_DIR="$INSTALLDIR/opencv/share/OpenCV"
-        export LD_LIBRARY_PATH=$INSTALLDIR/opencv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=$INSTALLDIR/opencv/share/OpenCV/3rdparty/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH="$INSTALLDIR/opencv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export LD_LIBRARY_PATH="$INSTALLDIR/opencv/share/OpenCV/3rdparty/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     fi
 fi
 
@@ -81,8 +81,8 @@ if [ -f "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh" ]; th
     source "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh"
 fi
 
-export PATH=$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}
-export PYTHONPATH=$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}
+export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
+export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
 
 if [ -e $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker ]; then

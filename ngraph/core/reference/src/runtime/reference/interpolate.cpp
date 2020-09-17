@@ -39,18 +39,19 @@ std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
 
 Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord)
 {
-    std::size_t num_of_axes = m_axes.size();
+    std::size_t input_rank = m_input_data_shape.size();
     auto input_coord = output_coord;
-    for (std::size_t i = 0; i < num_of_axes; ++i)
+    for (std::size_t i = 0; i < input_rank; ++i)
     {
-        int64_t axis = m_axes[i];
-        float length_original = static_cast<float>(m_input_data_shape[axis]);
-        float in_coord = m_get_original_coord(static_cast<float>(output_coord[axis]),
-                                              m_scales[i],
-                                              static_cast<float>(m_out_shape[axis]),
+        float length_original = static_cast<float>(m_input_data_shape[i]);
+        float in_coord = m_get_original_coord(static_cast<float>(output_coord[i]),
+                                              m_all_scales[i],
+                                              static_cast<float>(m_out_shape[i]),
                                               length_original);
-        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_scales[i] < 1.0);
-        input_coord[axis] = clip_coord(nearest_pixel, length_original);
+        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_all_scales[i] < 1.0);
+        input_coord[i] =
+            std::max(static_cast<int64_t>(0),
+                     std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1));
     }
 
     return input_coord;

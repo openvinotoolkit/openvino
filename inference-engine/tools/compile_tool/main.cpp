@@ -39,9 +39,9 @@ static constexpr char tiling_cmx_limit_message[] = "Optional. Specifies CMX limi
                                                        " Value should be equal or greater than -1."
                                                        " Overwrites value from config.";
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network."
-                                                   " Supported values: FP32, FP16, U8. Default value: FP16.";
+                                                   " Supported values: FP32, FP16, U8. Default value: FP32.";
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the network."
-                                                    " Supported values: FP32, FP16, U8. Default value: FP16.";
+                                                    " Supported values: FP32, FP16, U8. Default value: FP32.";
 static constexpr char iop_message[] = "Optional. Specifies precision for input and output layers by name.\n"
 "                                             By default, all inputs and outputs have the FP16 precision.\n"
 "                                             Available precisions: FP32, FP16, U8.\n"
@@ -312,7 +312,10 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
 }
 
 static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network) {
-    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
+    const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
+    const bool isMyriad = FLAGS_d.find("MYRIAD") != std::string::npos;
+
+    if (isMyriad) {
         const InferenceEngine::Precision fp16 = InferenceEngine::Precision::FP16;
 
         for (auto &&layer : network.getInputsInfo()) {
@@ -324,6 +327,23 @@ static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network) {
         for (auto &&layer : network.getOutputsInfo()) {
             if (isFP32(layer.second->getPrecision())) {
                 layer.second->setPrecision(fp16);
+            }
+        }
+    }
+
+    if (isVPUX) {
+        const InferenceEngine::Precision input = InferenceEngine::Precision::U8;
+        const InferenceEngine::Precision output = InferenceEngine::Precision::FP32;
+
+        for (auto &&layer : network.getInputsInfo()) {
+            if (isFP32(layer.second->getPrecision())) {
+                layer.second->setPrecision(input);
+            }
+        }
+
+        for (auto &&layer : network.getOutputsInfo()) {
+            if (isFP32(layer.second->getPrecision())) {
+                layer.second->setPrecision(output);
             }
         }
     }

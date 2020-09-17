@@ -36,6 +36,23 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
+namespace {
+
+void transformNGraphFunction(const std::shared_ptr<ngraph::Function>& function) {
+    ngraph::op::GenericIE::DisableReshape noReshape(function);
+    ngraph::pass::Manager manager;
+    manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<vpu::DynamicToStaticShape>();
+    manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+    manager.run_passes(function);
+
+    ngraph::pass::Manager ti_manager;
+    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
+    ti_manager.run_passes(function);
+}
+
+}  // namespace
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const ICNNNetwork& network,
@@ -47,17 +64,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 
     auto clonedNetwork = cloneNetwork(network);
     if (auto function = clonedNetwork->getFunction()) {
-        ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::Manager manager;
-        manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<vpu::DynamicToStaticShape>();
-        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
-        manager.run_passes(function);
-
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(function);
+        transformNGraphFunction(function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork,
@@ -110,6 +117,9 @@ void Engine::QueryNetwork(
         }
 
         auto clonedNetwork = cloneNetwork(network);
+
+        transformNGraphFunction(clonedNetwork->getFunction());
+
         auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
 
         std::unordered_set<std::string> supported;

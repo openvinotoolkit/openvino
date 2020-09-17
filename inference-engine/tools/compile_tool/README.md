@@ -29,8 +29,8 @@ compile_tool [OPTIONS]
     -d                           <value>     Required. Target device name.
     -o                           <value>     Optional. Path to the output file. Default value: "<model_xml_file>.blob".
     -c                           <value>     Optional. Path to the configuration file. Default value: "config".
-    -ip                          <value>     Optional. Specifies precision for all input layers of the network. Supported values: FP32, FP16, U8. Default value: FP16.
-    -op                          <value>     Optional. Specifies precision for all output layers of the network. Supported values: FP32, FP16, U8. Default value: FP16.
+    -ip                          <value>     Optional. Specifies precision for all input layers of the network. Supported values: FP32, FP16, U8. Default value: FP32.
+    -op                          <value>     Optional. Specifies precision for all output layers of the network. Supported values: FP32, FP16, U8. Default value: FP32.
     -iop                        "<value>"    Optional. Specifies precision for input and output layers by name.
                                              By default, all inputs and outputs have the FP16 precision.
                                              Available precisions: FP32, FP16, U8.
