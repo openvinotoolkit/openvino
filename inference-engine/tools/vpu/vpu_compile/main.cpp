@@ -54,7 +54,6 @@ DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
-DEFINE_string(VPU_MOCK_DEVICE, "", "");
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
 
@@ -105,8 +104,6 @@ static bool parseCommandLine(int *argc, char ***argv) {
 
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
-
-    config[InferenceEngine::MYRIAD_MOCK_DEVICE] = "YES";
 
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
         config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;

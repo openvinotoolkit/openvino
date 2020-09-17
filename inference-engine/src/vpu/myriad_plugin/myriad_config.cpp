@@ -33,7 +33,6 @@ IE_SUPPRESS_DEPRECATED_START
         CONFIG_KEY(DEVICE_ID),
 
         ie::MYRIAD_ENABLE_FORCE_RESET,
-        ie::MYRIAD_MOCK_DEVICE,
 
         ie::MYRIAD_PROTOCOL,
         ie::MYRIAD_WATCHDOG,
@@ -70,11 +69,6 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
-    static const std::unordered_map<std::string, bool> mock = {
-        { CONFIG_VALUE(YES), true },
-        { CONFIG_VALUE(NO), false }
-    };
-
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_map<std::string, ncDevicePlatform_t> platformsDeprecated = {
         { VPU_MYRIAD_CONFIG_VALUE(2450), NC_MYRIAD_2 },
@@ -129,8 +123,6 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_pluginLogFilePath,                       config, ie::MYRIAD_PLUGIN_LOG_FILE_PATH);
     setOption(_deviceName,                              config, CONFIG_KEY(DEVICE_ID));
     setOption(_forceReset,       switches,              config, ie::MYRIAD_ENABLE_FORCE_RESET);
-    setOption(_mockDevice,       mock,                  config, ie::MYRIAD_MOCK_DEVICE);
-
     setOption(_protocol,         protocols,             config, ie::MYRIAD_PROTOCOL);
     setOption(_watchdogInterval, watchdogIntervals,     config, ie::MYRIAD_WATCHDOG);
     setOption(_deviceConnectTimeout,                    config, ie::MYRIAD_DEVICE_CONNECT_TIMEOUT, parseSeconds);
@@ -150,9 +142,6 @@ IE_SUPPRESS_DEPRECATED_END
     }
     if (const auto envVar = std::getenv("IE_VPU_MYRIAD_FORCE_RESET")) {
         _forceReset = std::stoi(envVar);
-    }
-    if (const auto envVar = std::getenv("IE_VPU_MYRIAD_MOCK_DEVICE")) {
-        _mockDevice = std::stoi(envVar);
     }
     if (const auto envVar = std::getenv("IE_VPU_MYRIAD_WATCHDOG_INTERVAL")) {
         _watchdogInterval = std::chrono::milliseconds(std::stoi(envVar));

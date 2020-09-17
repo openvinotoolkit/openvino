@@ -64,7 +64,6 @@ struct DeviceDesc {
     }
 
     Platform revision() const {
-        VPU_THROW_UNLESS(_platform != NC_ANY_PLATFORM, "Cannot get a revision from not booted device");
         return _platform == NC_MYRIAD_2 ? Platform::MYRIAD_2 : Platform::MYRIAD_X;
     }
 };
