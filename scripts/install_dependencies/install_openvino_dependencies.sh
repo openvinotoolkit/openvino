@@ -79,8 +79,7 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( libglib2.0-0
-                    gstreamer1.0-plugins-ugly
+            PKGS+=( gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
                     gstreamer1.0-doc
@@ -100,8 +99,7 @@ if [ -f /etc/lsb-release ]; then
                     libpython3.8
                 )
         elif [ "$system_ver" = "18.04" ]; then
-            PKGS+=( libglib2.0
-                    libfluidsynth1
+            PKGS+=( libfluidsynth1
                     libnettle6
                     libopenexr22
                     gstreamer1.0-plugins-ugly
@@ -126,6 +124,8 @@ if [ -f /etc/lsb-release ]; then
                 libopencore-amrnb0
                 libopencore-amrwb0
                 liba52-0.7.4
+                python3-gi
+                libglib2.0-0
         )
     fi
     apt update
