@@ -314,7 +314,10 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::
         ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
-        ngraph::opset3::Subtract::type_info),
+        ngraph::opset3::Subtract::type_info,
+        ngraph::opset3::Maximum::type_info,
+        ngraph::opset3::Minimum::type_info,
+        ngraph::opset3::Less::type_info),
     testing::Values(
         EltwiseParams{DataDims{1000}, DataDims{1}, DynamicToStaticShapeEltwise::reference_simple},
         EltwiseParams{DataDims{1000, 1, 1}, DataDims{1000, 1, 1}, DynamicToStaticShapeEltwise::reference_simple},
@@ -338,7 +341,10 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcastSingleDSR, DynamicToStaticShapeEltwiseSi
         ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
-        ngraph::opset3::Subtract::type_info),
+        ngraph::opset3::Subtract::type_info,
+        ngraph::opset3::Maximum::type_info,
+        ngraph::opset3::Minimum::type_info,
+        ngraph::opset3::Less::type_info),
     testing::Values(
         EltwiseParams{DataDims{1000}, DataDims{1}, DynamicToStaticShapeEltwiseSingleDSR::reference_simple},
         EltwiseParams{DataDims{1000, 1, 1}, DataDims{1000, 1, 1}, DynamicToStaticShapeEltwiseSingleDSR::reference_simple},
