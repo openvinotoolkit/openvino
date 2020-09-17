@@ -130,11 +130,15 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int
         THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
         return nullptr;
     }
-    auto prev = CNNNetPrevLayer(layer, idx);
 
     /// using upper search simplified version
-    if (shouldSkip(prev)) {
-        return CNNNetPrevLayerSkipCertain(prev, 0, shouldSkip);
+    auto prev = CNNNetPrevLayer(layer, idx);
+    while (shouldSkip(prev)) {
+        if (!CNNNetHasPrevLayer(prev.get(), idx)) {
+            THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
+            return nullptr;
+        }
+        prev = CNNNetPrevLayer(prev, idx);
     }
 
     return prev;
