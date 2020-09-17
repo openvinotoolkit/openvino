@@ -25,10 +25,10 @@ namespace ngraph
         namespace detail
         {
             /// \brief  Helper class used to load tensor data from external files
-            class ExternalDataInfo
+            class TensorExternalData
             {
             public:
-                ExternalDataInfo(const ONNX_NAMESPACE::TensorProto& tensor);
+                TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor);
 
                 /// \brief      Load external data from tensor passed to constructor
                 ///
@@ -40,7 +40,7 @@ namespace ngraph
 
                 /// \brief      Represets parameter of external data as string
                 ///
-                /// \return     State of ExternalDataInfo as string representation
+                /// \return     State of TensorExternalData as string representation
                 std::string to_string() const;
 
             private:

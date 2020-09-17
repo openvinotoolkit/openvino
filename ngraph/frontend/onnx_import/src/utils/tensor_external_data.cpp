@@ -17,9 +17,9 @@
 #include <fstream>
 #include <sstream>
 
-#include "external_data_info.hpp"
 #include "ngraph/log.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "tensor_external_data.hpp"
 
 namespace ngraph
 {
@@ -27,7 +27,7 @@ namespace ngraph
     {
         namespace detail
         {
-            ExternalDataInfo::ExternalDataInfo(const ONNX_NAMESPACE::TensorProto& tensor)
+            TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor)
             {
                 for (const auto& entry : tensor.external_data())
                 {
@@ -42,7 +42,7 @@ namespace ngraph
                 }
             }
 
-            std::string ExternalDataInfo::load_external_data() const
+            std::string TensorExternalData::load_external_data() const
             {
                 std::ifstream external_data_stream(m_data_location,
                                                    std::ios::binary | std::ios::in | std::ios::ate);
@@ -78,7 +78,7 @@ namespace ngraph
                 return read_data;
             }
 
-            std::string ExternalDataInfo::to_string() const
+            std::string TensorExternalData::to_string() const
             {
                 std::stringstream s;
                 s << "ExternalDataInfo(";

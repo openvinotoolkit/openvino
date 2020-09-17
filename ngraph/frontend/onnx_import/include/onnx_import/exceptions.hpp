@@ -21,7 +21,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/utils/external_data_info.hpp"
+#include "onnx_import/utils/tensor_external_data.hpp"
 
 namespace ngraph
 {
@@ -47,10 +47,9 @@ namespace ngraph
 
             struct invalid_external_data : ngraph_error
             {
-                invalid_external_data(
-                    const onnx_import::detail::ExternalDataInfo& external_data_info)
+                invalid_external_data(const onnx_import::detail::TensorExternalData& external_data)
                     : ngraph_error{std::string{"invalid external data: "} +
-                                   external_data_info.to_string()}
+                                   external_data.to_string()}
                 {
                 }
             };

@@ -20,10 +20,10 @@
 #include <utility>
 #include <vector>
 
-#include "external_data_info.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "tensor_external_data.hpp"
 
 namespace ngraph
 {
@@ -164,10 +164,10 @@ namespace ngraph
                         inline std::vector<T>
                             get_external_data(const ONNX_NAMESPACE::TensorProto& tensor)
                         {
-                            const auto external_data_info = ExternalDataInfo(tensor);
-                            const auto external_data = external_data_info.load_external_data();
+                            const auto tensor_external_data = TensorExternalData(tensor);
+                            const auto raw_data = tensor_external_data.load_external_data();
 
-                            return detail::__get_raw_data<T>(external_data, tensor.data_type());
+                            return detail::__get_raw_data<T>(raw_data, tensor.data_type());
                         }
                     }
                 }
