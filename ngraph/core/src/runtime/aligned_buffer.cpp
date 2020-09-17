@@ -37,7 +37,7 @@ runtime::AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment)
     size_t allocation_size = m_byte_size + alignment;
     m_allocated_buffer = static_cast<char*>(ngraph_malloc(allocation_size));
     m_aligned_buffer = m_allocated_buffer;
-    size_t mod = size_t(m_aligned_buffer) % alignment;
+    size_t mod = (alignment != 0) ? size_t(m_aligned_buffer) % alignment : 0;
 
     if (mod != 0)
     {
@@ -67,6 +67,10 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
 {
     if (this != &other)
     {
+        if (m_allocated_buffer != nullptr)
+        {
+            free(m_allocated_buffer);
+        }
         m_allocated_buffer = other.m_allocated_buffer;
         m_aligned_buffer = other.m_aligned_buffer;
         m_byte_size = other.m_byte_size;
