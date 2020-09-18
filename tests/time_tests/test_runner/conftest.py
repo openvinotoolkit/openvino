@@ -32,14 +32,13 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="Path to test config",
-        default=Path(".") / "local_configs" / "test_config.py"
-        # TODO: test config in Python vs. .yml to support xfails ???
+        default=Path(".") / "test_config.py"
     )
     parser.addoption(
         "--env_conf",
         type=Path,
         help="Path to environment config",
-        default=Path(".") / "local_configs" / "env_config.yml"
+        default=Path(".") / "env_config.yml"
     )
     parser.addoption(
         "--exe",
