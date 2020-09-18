@@ -82,7 +82,6 @@ void test_binary(std::string /* node_type */,
     test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
 }
 
-// LPT_SUPPORT: temporary disabled
 TEST(type_prop, add_bad_arguments)
 {
     test_binary("Add",
@@ -91,7 +90,6 @@ TEST(type_prop, add_bad_arguments)
                 });
 }
 
-// LPT_SUPPORT: temporary disabled
 TEST(type_prop, divide_bad_arguments)
 {
     test_binary("Divide",
@@ -100,7 +98,6 @@ TEST(type_prop, divide_bad_arguments)
                 });
 }
 
-// LPT_SUPPORT: temporary disabled
 TEST(type_prop, multiply_bad_arguments)
 {
     test_binary("Multiply",
@@ -109,7 +106,6 @@ TEST(type_prop, multiply_bad_arguments)
                 });
 }
 
-// LPT_SUPPORT: temporary disabled
 TEST(type_prop, subtract_bad_arguments)
 {
     test_binary("Subtract",
@@ -528,8 +524,7 @@ TEST(type_prop, binary_elementwise_arithmetic_right_et_dynamic)
     ASSERT_EQ(add->get_output_element_type(0), element::i64);
 }
 
-// LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, logic_arith_compare_partial_et)
+TEST(type_prop, logic_arith_compare_partial_et)
 {
     auto test_arith = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
         auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});

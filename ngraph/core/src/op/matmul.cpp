@@ -31,7 +31,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
-#ifdef LPT_SUPPORT
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
@@ -44,18 +43,6 @@ op::MatMul::MatMul(const Output<Node>& A,
 {
     constructor_validate_and_infer_types();
 }
-#else
-op::MatMul::MatMul(const Output<Node>& A,
-                   const Output<Node>& B,
-                   const bool& transpose_a,
-                   const bool& transpose_b)
-    : FusedOp(OutputVector{A, B})
-    , m_transpose_a{transpose_a}
-    , m_transpose_b{transpose_b}
-{
-    constructor_validate_and_infer_types();
-}
-#endif
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
@@ -66,12 +53,8 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 
 void op::MatMul::pre_validate_and_infer_types()
 {
-#ifdef LPT_SUPPORT
-    const element::Type inputElementType0 = get_input_element_type(0);
-    const element::Type inputElementType1 = get_input_element_type(1);
     element::Type result_et;
-    if ((inputElementType0 != element::u8) && (inputElementType1 != element::i8))
-    {
+    if (m_output_type == element::undefined) {
         NODE_VALIDATION_CHECK(
             this,
             element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
@@ -80,33 +63,13 @@ void op::MatMul::pre_validate_and_infer_types()
             ", arg1 element type: ",
             get_input_element_type(1),
             ").");
+    } else {
+        result_et = m_output_type;
     }
-#else
-    element::Type result_et;
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
-#endif
 
     const Rank& A_rank = get_input_partial_shape(0).rank();
     const Rank& B_rank = get_input_partial_shape(1).rank();
 
-#ifdef LPT_SUPPORT
-    if (A_rank.is_static() && B_rank.is_static())
-    {
-        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-        set_output_type(0,
-                        ((inputElementType0 != element::u8) && (inputElementType1 != element::i8))
-                            ? result_et
-                            : element::f32,
-                        PartialShape::dynamic(max_rank));
-    }
-#else
     if (A_rank.is_static() && B_rank.is_static())
     {
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
@@ -116,7 +79,6 @@ void op::MatMul::pre_validate_and_infer_types()
     {
         set_output_type(0, result_et, PartialShape::dynamic());
     }
-#endif
 }
 
 OutputVector op::MatMul::decompose_op() const
@@ -152,7 +114,7 @@ OutputVector op::MatMul::decompose_op() const
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
+    return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b, m_output_type);
 }
 
 namespace
@@ -282,13 +244,3 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
-
-#ifdef LPT_SUPPORT
-void op::MatMul::set_output_type(size_t i,
-                                 const element::Type& element_type,
-                                 const PartialShape& pshape)
-{
-    FusedOp::set_output_type(
-        i, m_output_type == element::undefined ? element_type : m_output_type, pshape);
-}
-#endif
