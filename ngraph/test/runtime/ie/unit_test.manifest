@@ -1211,6 +1211,12 @@ IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
 
+IE_GPU.ctc_greedy_decoder
+IE_GPU.ctc_greedy_decoder_multiple_batches
+IE_GPU.ctc_greedy_decoder_single_batch_short_sequence
+IE_GPU.ctc_greedy_decoder_merge
+IE_GPU.ctc_greedy_decoder_single_no_merge
+IE_GPU.ctc_greedy_decoder_multiple_sequences
 IE_GPU.tanh
 IE_GPU.tan
 IE_GPU.sum_to_scalar

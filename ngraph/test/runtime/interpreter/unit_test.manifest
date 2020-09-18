@@ -79,6 +79,12 @@ INTERPRETER.fused_clamp_uint16
 INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
+INTERPRETER.ctc_greedy_decoder
+INTERPRETER.ctc_greedy_decoder_multiple_batches
+INTERPRETER.ctc_greedy_decoder_single_batch_short_sequence
+INTERPRETER.ctc_greedy_decoder_merge
+INTERPRETER.ctc_greedy_decoder_single_no_merge
+INTERPRETER.ctc_greedy_decoder_multiple_sequences
 
 # Backward conv
 INTERPRETER.convolution_2d_1item

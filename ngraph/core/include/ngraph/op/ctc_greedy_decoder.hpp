@@ -45,9 +45,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_ctc_merge_repeated() const { return m_ctc_merge_repeated; }
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
             private:
                 bool m_ctc_merge_repeated;
             };
