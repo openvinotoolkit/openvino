@@ -1,0 +1,4 @@
+# Rust build directory
+target
+# IDE project files
+.idea

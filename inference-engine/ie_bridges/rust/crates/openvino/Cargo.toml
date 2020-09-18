@@ -1,0 +1,14 @@
+[package]
+name = "openvino"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "High-level bindings for OpenVINO."
+authors = ["OpenVINO Project Developers"]
+repository = "https://github.com/openvinotoolkit/openvino"
+homepage = "https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/ie_bridges/rust"
+documentation = "https://docs.rs/openvino"
+edition = "2018"
+
+[dependencies]
+openvino-sys = { path = "../openvino-sys", version = "0.1.0" }
+thiserror = "1.0.20"

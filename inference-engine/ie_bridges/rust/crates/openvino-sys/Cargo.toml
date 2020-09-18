@@ -1,0 +1,32 @@
+[package]
+name = "openvino-sys"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "Low-level bindings for OpenVINO (use the `openvino` crate for easier-to-use bindings)."
+authors = ["OpenVINO Project Developers"]
+repository = "https://github.com/openvinotoolkit/openvino"
+homepage = "https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/ie_bridges/rust"
+documentation = "https://docs.rs/openvino-sys"
+edition = "2018"
+exclude = [
+    "upstream/bin",
+    "upstream/build",
+    "upstream/inference-engine/temp",
+    "upstream/ngraph/test/models/tensorflow", # This directory contains unused models with names too long for Cargo to package.
+]
+# Note: OpenVINO downloads dependencies during its CMake build which change files outside of OUT_DIR; this means the
+# crate must be published with --no-verify. See https://github.com/openvinotoolkit/openvino/issues/2316.
+
+[build-dependencies]
+bindgen = "0.55.1"
+cmake = "0.1.44"
+
+[features]
+default = ["cpu"]
+all = ["cpu", "gpu", "gna", "hetero", "multi", "myriad"]
+cpu = []
+gpu = []
+gna = []
+hetero = []
+multi = []
+myriad = []
