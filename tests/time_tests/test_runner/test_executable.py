@@ -25,7 +25,8 @@ def test_executable(instance, executable, niter):
     # Prepare model to get model_path
     model_path = ""
     if instance["model"].get("source") == "omz":
-        # TODO: call OMZ and fill model_path (it may be done by parsing MO log)
+        # TODO: add OMZ support
+        # call OMZ and fill model_path (it may be done by parsing MO log)
         retcode = 1
         msg = "OMZ models aren't supported yet"
         assert retcode == 0, msg

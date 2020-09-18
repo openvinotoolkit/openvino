@@ -35,12 +35,6 @@ def pytest_addoption(parser):
         default=Path(".") / "test_config.py"
     )
     parser.addoption(
-        "--env_conf",
-        type=Path,
-        help="Path to environment config",
-        default=Path(".") / "env_config.yml"
-    )
-    parser.addoption(
         "--exe",
         required=True,
         dest="executable",
@@ -53,7 +47,7 @@ def pytest_addoption(parser):
         help="Number of iterations to run executable and aggregate results",
         default=3
     )
-    # TODO: Parse args from a file via argparse (to avoid env_config)
+    # TODO: add support of --mo, --omz etc. required for OMZ support
 
 
 @pytest.fixture(scope="session")
@@ -82,11 +76,6 @@ def niter(request):
 # -------------------- CLI options --------------------
 
 
-class Environment:
-    """Class responsible for managing environment information."""
-    env = {}
-
-
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
 
@@ -108,15 +97,6 @@ def pytest_make_parametrize_id(config, val, argname):
     return " {0}:{1} ".format(argname, val)
 
 
-def pytest_sessionstart(session):
-    """Pytest hook for session preparation.
-
-    Fill `Environment` global with information from environment config.
-    """
-    with open(session.config.getoption('env_conf'), "r") as env_conf:
-        Environment.env = yaml.load(env_conf, Loader=yaml.FullLoader)
-
-
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
     """Pytest hook for report preparation.
@@ -128,7 +108,6 @@ def pytest_runtest_makereport(item, call):
     instance = funcargs["instance"]
     exe = funcargs["executable"]
     niter = funcargs["niter"]
-    env = Environment.env
 
     report = (yield).get_result()
     if call.when == "setup":
