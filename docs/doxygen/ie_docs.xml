@@ -94,6 +94,7 @@
                 <!-- IR -->
                 <tab type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
                     <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                        <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
                         <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                         <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>
                         <tab type="user" title="opset2 Specification" url="@ref openvino_docs_ops_opset2"/>
@@ -147,6 +148,7 @@
                         <tab type="user" title="Floor_1" url="@ref openvino_docs_ops_arithmetic_Floor_1"/>
                         <tab type="user" title="GRN-1" url="@ref openvino_docs_ops_normalization_GRN_1"/>
                         <tab type="user" title="GRUCell-3" url="@ref openvino_docs_ops_sequence_GRUCell_3"/>
+                        <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                         <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                         <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
                         <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
@@ -213,6 +215,7 @@
                         <tab type="user" title="Reverse" url="@ref openvino_docs_ops_movement_Reverse_1"/>
                         <tab type="user" title="ReverseSequence-1" url="@ref openvino_docs_ops_movement_ReverseSequence_1"/>
                         <tab type="user" title="RNNCell-3" url="@ref openvino_docs_ops_sequence_RNNCell_3"/>
+                        <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                         <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                         <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
                         <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
