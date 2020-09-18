@@ -38,6 +38,7 @@
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/lin_op_sequence_fusoin.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -83,13 +84,20 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
 
+    // CF is required after all decompositions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    // TODO: here should be Convolution + Multiply fusion
+    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
