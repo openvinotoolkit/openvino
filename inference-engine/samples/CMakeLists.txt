@@ -218,7 +218,7 @@ macro(ie_add_sample)
 
     set(folder_name cpp_samples)
     if(IE_SAMPLE_NAME MATCHES ".*_c$")
-    	set(c_sample ON)
+        set(c_sample ON)
         set(folder_name c_samples)
     endif()
 
@@ -232,7 +232,6 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
                                                     ${IE_SAMPLE_DEPENDENCIES})
-
     if(NOT c_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()

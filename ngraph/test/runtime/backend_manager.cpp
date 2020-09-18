@@ -161,11 +161,13 @@ DL_HANDLE runtime::BackendManager::open_shared_library(string type)
         file_util::get_directory(Backend::get_backend_shared_library_search_directory());
     string library_path = file_util::path_join(my_directory, library_name);
 #ifdef _WIN32
-    SetDllDirectory((LPCSTR)my_directory.c_str());
-    handle = LoadLibrary(library_path.c_str());
-#else
+    SetDllDirectoryA((LPCSTR)my_directory.c_str());
+    handle = LoadLibraryA(library_path.c_str());
+#elif defined(__APPLE__) || defined(__linux__)
     DLERROR(); // Clear any pending errors
     handle = dlopen(library_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+#else
+#error "Unsupported OS"
 #endif
     string error = DLERROR();
     if (!handle)

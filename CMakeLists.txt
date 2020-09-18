@@ -73,7 +73,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT ANDROID)
+    if(NOT (ANDROID OR WINDOWS_STORE))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)

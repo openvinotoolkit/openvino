@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <cstdlib>
 #include <tuple>
 #include <string>
 #include <unordered_map>
@@ -732,7 +733,7 @@ bool PreprocEngine::useGAPI() {
     static const bool NO_GAPI = [](const char *str) -> bool {
         std::string var(str ? str : "");
         return var == "N" || var == "NO" || var == "OFF" || var == "0";
-    } (std::getenv("USE_GAPI"));
+    } (getenv("USE_GAPI"));
 
     return !NO_GAPI;
 }

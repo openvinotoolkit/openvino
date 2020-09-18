@@ -174,8 +174,8 @@ target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
                       inference_engine_transformations mkldnn)
 
-## Cross compiled function
-## TODO: The same for proposal, proposalONNX, topk
+# Cross compiled function
+# TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SSE42 ANY
                     nodes/argmax_imp.cpp
