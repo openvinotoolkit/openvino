@@ -28,7 +28,7 @@ int runPipeline(const std::string &model, const std::string &device) {
       }
       {
         SCOPED_TIMER(create_exenetwork);
-        if (fileExt(model) == "blob") {
+        if (TimeTest::fileExt(model) == "blob") {
           SCOPED_TIMER(import_network);
           exeNetwork = ie.ImportNetwork(model, device);
         }
