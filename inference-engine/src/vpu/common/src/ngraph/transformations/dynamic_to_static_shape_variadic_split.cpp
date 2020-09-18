@@ -73,7 +73,7 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
         }
 
         const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), dsrShapeInput);
-        outDSR->set_friendly_name(target->get_friendly_name() + "." + std::to_string(target->output(0).get_index()));
+        outDSR->set_friendly_name(target->get_friendly_name() + "." + std::to_string(i));
         target->output(i).replace(outDSR);
     }
 }

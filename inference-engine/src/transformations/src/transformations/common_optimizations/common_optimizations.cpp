@@ -21,6 +21,7 @@
 #include "transformations/hswish_fusion.hpp"
 #include "transformations/normalize_l2_fusion.hpp"
 #include "transformations/convert_quantize_dequantize.hpp"
+#include "transformations/bidirectional_sequences_decomposition.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -50,6 +51,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::HSwishFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+    manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+    manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
