@@ -80,7 +80,8 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     checkGna2Status(status1);
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2);
-    scheduledReqIds.push_back(reqId);
+    wasAnyRequestScheduled = true;
+    lastSheduledRequestId = reqId;
     return reqId;
 }
 
@@ -377,9 +378,9 @@ void GNADeviceHelper::close() {
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
-    if (scheduledReqIds.size() != 0) {
+    if (wasAnyRequestScheduled) {
         try {
-            wait(scheduledReqIds.back());
+            wait(lastSheduledRequestId);
         } catch (...) {}
     }
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
