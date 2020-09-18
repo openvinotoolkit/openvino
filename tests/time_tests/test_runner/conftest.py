@@ -1,5 +1,4 @@
 """
-TODO: rewrite
 Basic high-level plugin file for pytest.
 
 See [Writing plugins](https://docs.pytest.org/en/latest/writing_plugins.html)
@@ -7,21 +6,15 @@ for more information.
 
 This plugin adds the following command-line options:
 
-* `--modules` - Paths to modules to be run by pytest (these can contain tests,
-  references, etc.). Format: Unix style pathname patterns or .py files.
-* `--env_conf` - Path to environment configuration file. Used to initialize test
-  environment. Format: yaml file.
-* `--test_conf` - Path to test configuration file. Used to parameterize tests.
-  Format: yaml file.
-* `--dry_run` - Specifies that reference collection should not store collected
-  results to filesystem.
-* `--bitstream` - Path to bitstream to ran tests with.
+* `--test_conf` - Path to test configuration file. Used to parametrize tests.
+  Format: Python file.
+* `--exe` - Path to a binary to execute.
+* `--niter` - Number of iterations to run executable and aggregate results.
 """
 
 # pylint:disable=import-error
 import pytest
 from pathlib import Path
-import yaml
 
 
 # -------------------- CLI options --------------------

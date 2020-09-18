@@ -1,12 +1,12 @@
-"""Main entry-point to run E2E OSS tests.
+"""Main entry-point to run timetests tests.
 TODO: update
 Default run:
-$ pytest test.py
+$ pytest test_executable.py
 
 Options[*]:
---modules       Paths to tests
---env_conf      Path to environment config
 --test_conf     Path to test config
+--exe           Path to binary to execute
+--niter         Number of times to run executable
 
 [*] For more information see conftest.py
 """
@@ -21,6 +21,8 @@ def test_executable(instance, executable, niter):
     """Parameterized test.
 
     :param instance: test instance
+    :param executable: binary executable to run
+    :param niter: number of times to run executable
     """
     # Prepare model to get model_path
     model_path = ""
@@ -43,7 +45,7 @@ def test_executable(instance, executable, niter):
         "niter": niter
     }
     retcode, aggr_stats = run_executable(exe_args, log=logging)
-    assert retcode == 0, "Run of executable failed"     # TODO: update
+    assert retcode == 0, "Run of executable failed"
     instance["statistics"] = aggr_stats     # Save statistics to dump to DB
 
     # Compare with references
