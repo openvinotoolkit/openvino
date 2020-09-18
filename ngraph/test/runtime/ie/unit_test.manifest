@@ -1080,10 +1080,6 @@ IE_CPU.acosh
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape
 
-# Interpolate-1 in linear mode
-# 2.666666507720947266 is not close to 3 at index 1
-# IE_CPU.interpolate_down_scales_const_linear
-
 # GRUCell operation has a form that is not supported
 onnx_model_gru_defaults_fwd
 onnx_model_gru_fwd_activations
@@ -1095,15 +1091,7 @@ onnx_model_gru_bidirectional
 onnx_model_gru_fwd_linear_before_reset
 
 # Not implemented Interpolate-4:
-IE_CPU.onnx_model_round
-IE_CPU.onnx_upsample9_scales_const_linear_infer
-IE_CPU.onnx_upsample9_scales_const_nearest_infer
-IE_CPU.onnx_upsample8_nearest_infer
-IE_CPU.onnx_upsample8_linear_infer
 IE_CPU.interpolate_down_scales_const_linear
-IE_CPU.onnx_upsample8_import_only
-IE_CPU.onnx_upsample9_scales_const_import_only
-IE_CPU.onnx_empty_initializers_handling
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # RNNCell operation has a form that is not supported
