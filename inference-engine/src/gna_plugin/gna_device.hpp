@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <vector>
 #include <thread>
 
 #include <ie_common.h>
@@ -49,11 +50,11 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-
 #define MAX_TIMEOUT 500000
 #endif
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
+    std::vector<uint32_t> unwaitedRequestIds;
 public:
 #if GNA_LIB_VER == 1
     explicit GNADeviceHelper(uint8_t lib_async_n_threads = 1,
