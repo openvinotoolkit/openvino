@@ -12,11 +12,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
-
-#ifdef LPT_SUPPORT
-#include "ngraph/opsets/opset1.hpp"
 #include "transformations/low_precision/common/dequantization_op.hpp"
-#endif
 
 namespace ngraph {
 namespace op {
