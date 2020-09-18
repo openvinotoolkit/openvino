@@ -1067,6 +1067,30 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
             value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+    } else if (name.rfind(METRIC_SUBGRAPH_TAG, 0) == 0) {
+        std::string partition_index_str = "";
+        unsigned int partition_index;
+        unsigned int i;
+        // retrieve a continuous string of numbers specifying the index of the partition
+        // for which the metric is requested for
+        for (i = strlen(METRIC_SUBGRAPH_TAG); i < name.length(); i++) {
+            if ( isdigit(name[i] ) ) {
+                partition_index_str += name[i];
+            } else if ( name[i] != '_' ) {
+                break;
+            }
+        }
+        std::string metric_name = name.substr(i);
+        if (partition_index_str.length()) {
+            partition_index = std::stoi(partition_index_str);
+            // auto value = networks[partition_index]._network.GetMetric(metric_name).as<double>();
+            result = networks[partition_index]._network.GetMetric(metric_name);
+            // if (METRIC_KEY(ESTIMATED_THROUGHPUT) == metric_name) {
+            //     result = IE_SET_METRIC(ESTIMATED_THROUGHPUT, value);
+            // }
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        }
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : networks) {

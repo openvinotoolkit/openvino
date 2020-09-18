@@ -98,6 +98,10 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
 
 INSTANTIATE_TEST_CASE_P(
+        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUBGRAPH_METRIC,
+        ::testing::Values("HETERO:CPU"));
+
+INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU"));
 

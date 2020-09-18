@@ -156,6 +156,18 @@ DECLARE_METRIC_KEY(DEVICE_THERMAL, float);
  */
 DECLARE_EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS, unsigned int);
 
+/**
+ * @brief Metric to get for a specific subgraph.
+ */
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define METRIC_SUBGRAPH_TAG TOSTRING(METRIC_SUBGRAPH_)
+
+/**
+ * @brief Metric to get the number of partitions in a hetero executable network.
+ */
+DECLARE_EXEC_NETWORK_METRIC_KEY(NUMBER_OF_NETWORK_SUBGRAPHS, unsigned int);
+
 }  // namespace Metrics
 
 /**

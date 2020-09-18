@@ -163,6 +163,7 @@ using IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClassBaseT
 using IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = IEClassBaseTestP;
 using IEClassExecutableNetworkGetMetricTest_NETWORK_NAME = IEClassBaseTestP;
 using IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = IEClassBaseTestP;
+using IEClassExecutableNetworkGetMetricTest_SUBGRAPH_METRIC = IEClassBaseTestP;
 using IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported = IEClassBaseTestP;
 using IEClassExecutableNetworkGetConfigTest = IEClassBaseTestP;
 using IEClassExecutableNetworkSetConfigTest = IEClassBaseTestP;
@@ -947,6 +948,22 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
     unsigned int value = p;
 
     std::cout << "Optimal number of Inference Requests: " << value << std::endl;
+    ASSERT_GE(value, 1u);
+    ASSERT_EXEC_METRIC_SUPPORTED(EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
+}
+
+TEST_P(IEClassExecutableNetworkGetMetricTest_SUBGRAPH_METRIC, GetMetricNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+    Parameter p;
+
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
+
+    std::string partition_metric = METRIC_SUBGRAPH_TAG + std::to_string(0) + "_OPTIMAL_NUMBER_OF_INFER_REQUESTS";
+
+    ASSERT_NO_THROW(p = exeNetwork.GetMetric(partition_metric));
+    unsigned int value = p;
+
     ASSERT_GE(value, 1u);
     ASSERT_EXEC_METRIC_SUPPORTED(EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
 }

@@ -160,6 +160,10 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
+        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUBGRAPH_METRIC,
+        ::testing::Values("HETERO:TEMPLATE"));
+
+INSTANTIATE_TEST_CASE_P(
         nightly_IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, IEClassExecutableNetworkGetMetricTest,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 //
