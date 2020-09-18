@@ -582,7 +582,6 @@ extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
-extensions/middle/wights_permute_normalizer.py
 extensions/ops/__init__.py
 extensions/ops/accum.py
 extensions/ops/activation_ops.py

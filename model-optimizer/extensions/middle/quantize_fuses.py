@@ -125,16 +125,3 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
                     fuse_node_duplicate.infer(fuse_node_duplicate)
 
                     first_port_fusion = False
-
-            if 'permutation' in quantize_node.in_edge(0):
-                permutation = quantize_node.in_edge(0)['permutation']
-                if permutation is None:
-                    continue
-
-                perm_rank = permutation.perm.size
-
-                if not all([quantize_node.in_port(i).data.get_shape().size == perm_rank for i in range(1, 5)]):
-                    continue
-
-                for i in range(1, 5):
-                    quantize_node.in_edge(i)['permutation'] = permutation
