@@ -3,12 +3,7 @@
 #
 
 # [cmake:main]
-if (APPLE)
-    # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-    cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(InferenceEngineTemplatePlugin)
 

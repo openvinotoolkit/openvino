@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Defines the CMake commands/policies
-cmake_minimum_required (VERSION 3.3)
+cmake_minimum_required (VERSION 3.13)
 
 # Set the project name
 project (ie_python_api)
