@@ -25,7 +25,7 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="Path to test config",
-        default=Path(".") / "test_config.py"
+        default=Path(__file__).parent / "test_config.py"
     )
     parser.addoption(
         "--exe",

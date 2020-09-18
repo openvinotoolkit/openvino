@@ -50,14 +50,14 @@ def test_executable(instance, executable, niter):
 
     # Compare with references
     comparison_status = 0
-    for step_name, references in instance["references"]:
+    for step_name, references in instance["references"].items():
         for metric, reference_val in references.items():
             if aggr_stats[step_name][metric] > reference_val:
-                logging.error("Comparison failed for '{}' step. Reference: {}. Current values: {}"
-                              .format(step_name, reference_val, aggr_stats[step_name][metric]))
+                logging.error("Comparison failed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
+                              .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
                 comparison_status = 1
             else:
-                logging.info("Comparison passed for '{}' step. Reference: {}. Current values: {}"
-                             .format(step_name, reference_val, aggr_stats[step_name][metric]))
+                logging.info("Comparison passed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
+                             .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
 
     assert comparison_status == 0, "Comparison with references failed"
