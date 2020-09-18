@@ -15,7 +15,7 @@
 5.  Delete `b` from `B`.
 6.  If the score `s` is greater or equal than `score_threshold`  then add `b` to `D` else go to step 8.
 7.  For each input box `b_i` from `B` and the corresponding score `s_i`, set `s_i = s_i * func(IOU(b_i, b))` and go to step 3.
-8.  Return `D` and a collection of the corresponding scores `S`.
+8.  Return `D`, a collection of the corresponding scores `S`, and the number of elements in `D`.
 
 Here `func(iou) = iou if iou <= iou_threshold else 0` when `soft_nms_sigma == 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma) if iou <= iou_threshold else 0`.
 
