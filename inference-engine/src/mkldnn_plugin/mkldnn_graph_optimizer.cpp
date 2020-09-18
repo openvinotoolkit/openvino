@@ -2188,7 +2188,8 @@ void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
         MemoryOutput,
         MemoryInput,
     };
-    for (auto input : graph.GetNodes()) {
+    for (int ind = 0; ind < graph.GetNodes().size(); ind++) {
+        auto input = graph.GetNodes().at(ind);
         if (input->getType() != Input) {
             continue;
         }
