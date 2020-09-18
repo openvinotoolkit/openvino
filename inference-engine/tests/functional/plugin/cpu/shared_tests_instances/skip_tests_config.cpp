@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 31845
         R"(.*(FakeQuantizeLayerTest).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
-        // TODO: Issue 32756
-        R"(.*Transpose.*inputOrder=\(\).*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
@@ -51,7 +49,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
-        // TODO: Issue: 30999 (Implement Interpolate reference in NGraph)
-        R"(.*InterpolateLayerTest.*)"
+        // TODO: Issue: 37862
+        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)"
     };
 }

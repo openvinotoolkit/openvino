@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -344,14 +344,6 @@ struct layout {
     tensor get_pitches() const {
         auto sizes = get_buffer_size().sizes(format);
 
-        if (format == format::byxf_af32) {
-            sizes[3] = align_to(sizes[3], 32);
-        }
-
-        if (format == format::byx8_f4) {
-            sizes[3] = align_to(sizes[3], 4);
-            sizes[2] = align_to(sizes[2], 8);
-        }
         std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
         std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
         return {format, pitches};
@@ -394,15 +386,7 @@ struct layout {
             sizes[block_axis] = align_to(sizes[block_axis], block_size);
         }
 
-        if (this->format == cldnn::format::bf8_xy16 && !(is_aligned_to(sizes[1], 8) && is_aligned_to(sizes[2] * sizes[3], 16))) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 16);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::byxf_af32 && !(is_aligned_to(sizes[1], 32))) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::byx8_f4 && (!is_aligned_to(sizes[1], 4) || !is_aligned_to(sizes[2], 8))) {
-            sizes[1] = align_to(sizes[1], 4);
-            sizes[2] = align_to(sizes[2], 8);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
+        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32))) {
             sizes[0] = align_to(sizes[0], 8);
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32))) {
@@ -422,6 +406,26 @@ struct layout {
             sizes[1] = align_to(sizes[1], 32);
         } else if (this->format == cldnn::format::image_2d_rgba) {
             sizes[1] = 4;
+        } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
+            sizes[1] = align_to(sizes[1], 32);
+        } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
         }
         size_t total = std::accumulate(
             sizes.begin(),

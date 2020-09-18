@@ -19,6 +19,7 @@ extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
+extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
@@ -120,13 +121,13 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
-extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
 extensions/front/GeLUMerger_Erf.py
 extensions/front/GeLUMerger_Tanh.py
 extensions/front/global_pooling_to_reduce.py
+extensions/front/HSwish_fusion.py
 extensions/front/image_scaler.py
 extensions/front/input_cut.py
 extensions/front/instance_normalization.py
@@ -150,6 +151,7 @@ extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
+extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
 extensions/front/mxnet/__init__.py
 extensions/front/mxnet/activation.py
@@ -326,12 +328,13 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
-extensions/front/softplus.py
+extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/standalone_const_eraser.py
 extensions/front/sub.py
+extensions/front/Swish_fusion.py
 extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
@@ -375,6 +378,7 @@ extensions/front/tf/fifo_queue_v2_ext.py
 extensions/front/tf/fifo_replacer.py
 extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
+extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
 extensions/front/tf/GatherTree_ext.py
@@ -534,13 +538,14 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
-extensions/middle/NasNet.py
+extensions/middle/ONNXResize11ToInterpolateV4.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
+extensions/middle/RandomUniformReplacer.py
 extensions/middle/ReluQuantizeFuse.py
 extensions/middle/RemoveDuplicationMemory.py
 extensions/middle/RemoveIdentity.py
@@ -557,6 +562,7 @@ extensions/middle/ReverseTransposeNormalization.py
 extensions/middle/ReverseV2ToReverseSequence.py
 extensions/middle/RNNSequenceNormalizeToIE.py
 extensions/middle/ScaleInput.py
+extensions/middle/SequenceLengthToMask.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
@@ -606,6 +612,7 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
@@ -634,6 +641,7 @@ extensions/ops/non_zero.py
 extensions/ops/normalize.py
 extensions/ops/normalize_l2.py
 extensions/ops/one_hot.py
+extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
@@ -866,7 +874,6 @@ mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
 mo/middle/passes/leaky_relu.py
-mo/middle/passes/mean_scale_values.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
@@ -938,6 +945,7 @@ mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
+mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
@@ -949,6 +957,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
 mo/utils/ir_reader/extenders/shape_of_extender.py

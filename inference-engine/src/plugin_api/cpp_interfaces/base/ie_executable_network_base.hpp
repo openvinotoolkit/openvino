@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <ie_iexecutable_network.hpp>
+#include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/base/ie_memory_state_base.hpp>
 #include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 #include <map>
@@ -111,11 +111,11 @@ private:
 };
 
 template <class T>
-inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(std::shared_ptr<T> impl) {
+inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
         p->Release();
     });
-    return net;
+    return InferenceEngine::ExecutableNetwork(net);
 }
 
 }  // namespace InferenceEngine

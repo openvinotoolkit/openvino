@@ -10,6 +10,7 @@
 #include <set>
 #include <cassert>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -157,7 +158,7 @@ public:
                 splitter(work_amount_dst, nthr, ithr, start, end);
                 src_idx = initter(start, CNTR_SIZE, counters, own_dims, ownStrides);
                 for (size_t iwork = start, dst_idx = start * dataLength; iwork < end; ++iwork, dst_idx += dataLength) {
-                    memcpy(&dst_data[dst_idx], &src_data[dataLength * src_idx], sizeof(T) * dataLength);
+                    cpu_memcpy(&dst_data[dst_idx], &src_data[dataLength * src_idx], sizeof(T) * dataLength);
                     src_idx = updater(src_idx, CNTR_SIZE, counters, own_dims, ownStrides);
                 }
             });

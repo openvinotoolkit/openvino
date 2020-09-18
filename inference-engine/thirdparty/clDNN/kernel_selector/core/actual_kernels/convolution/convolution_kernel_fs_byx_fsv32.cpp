@@ -139,6 +139,10 @@ bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_pa
     if (cp.output.Feature().pad.before % fsv != 0)
         return false;
 
+    // Input feature padding must be multiple of fsv to keep block alignment
+    if (cp.inputs[0].Feature().pad.before % fsv != 0)
+        return false;
+
     return true;
 }
 

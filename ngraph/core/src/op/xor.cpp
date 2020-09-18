@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/xor.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/xor.hpp"
 

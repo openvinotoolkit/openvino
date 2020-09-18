@@ -29,7 +29,6 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -81,8 +80,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
@@ -282,9 +285,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
         auto clonedNetwork = cloneNetwork(network);
         Transformation(clonedNetwork);
@@ -310,6 +311,24 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
+
+        for (auto&& node : function->get_ops()) {
+            if (!contains(unsupported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
         for (auto&& layerName : supported) {
             if (!contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());

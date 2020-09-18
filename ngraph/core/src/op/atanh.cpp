@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/atanh.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/atanh.hpp"

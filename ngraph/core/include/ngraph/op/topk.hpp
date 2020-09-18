@@ -30,8 +30,11 @@ namespace ngraph
         {
             // \brief Computes indices of top k maximum/minimum index along a specified axis for a
             //        given tensor
-            class NGRAPH_API TopK : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::TopK instead of it.") NGRAPH_API TopK : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 using SortType = TopKSortType;
 
@@ -112,6 +115,7 @@ namespace ngraph
                 Shape compute_output_shape(const Shape input_shape,
                                            const int64_t k,
                                            const size_t axis) const;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
@@ -258,6 +262,8 @@ namespace ngraph
             };
         } // namespace v3
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::TopK;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // op
 } // ngraph

@@ -293,3 +293,14 @@ TEST(type_prop, transpose_input_order_et_wrong)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, transpose_with_empty_order)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 300});
+    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), std::vector<size_t>());
+
+    auto r = make_shared<op::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape({300, 1})));
+}

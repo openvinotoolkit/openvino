@@ -22,10 +22,11 @@ void MockPlugin::SetConfig(const std::map<std::string, std::string>& config) {
     this->config = config;
 }
 
-void MockPlugin::LoadNetwork(IExecutableNetwork::Ptr &ret, const ICNNNetwork &network,
-                             const std::map<std::string, std::string> &config) {
+ExecutableNetwork
+MockPlugin::LoadNetwork(const ICNNNetwork &network,
+                        const std::map<std::string, std::string> &config) {
     if (_target) {
-        _target->LoadNetwork(ret, network, config);
+        return _target->LoadNetwork(network, config);
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }

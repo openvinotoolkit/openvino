@@ -10,6 +10,10 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
+
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
@@ -76,6 +80,8 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
     return lhs_plan == rhs_plan;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
+
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
 
@@ -98,6 +104,8 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
     }
     return graph_rewritten;
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
@@ -194,10 +202,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         auto i = 0;
         NodeVector ops_to_replace;
         for (auto & record : output_to_size) {
-            if (record.first == fake_output) {
-                auto& results = const_cast<::ngraph::ResultVector&>(f->get_results());
-                results.push_back(std::make_shared<ngraph::opset1::Result>(variadic_split->output(i)));
-            } else {
+            if (record.first != fake_output) {
                 record.first.replace(variadic_split->output(i));
                 ops_to_replace.push_back(record.first.get_node_shared_ptr());
             }

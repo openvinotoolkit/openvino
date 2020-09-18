@@ -19,6 +19,11 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+if(ENABLE_V7_SERIALIZE)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_impl.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_V7_SERIALIZE)
+endif()
+
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT

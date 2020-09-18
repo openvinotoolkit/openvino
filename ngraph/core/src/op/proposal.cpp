@@ -90,35 +90,20 @@ shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
 {
-    //    temporary workaround, remove after #35906 is fixed
-    //    visitor.on_attribute("attrs", m_attrs);
-    visitor.on_attribute("the_proposal", m_attrs);
-    return true;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::ProposalAttrs>::type_info;
-
-AttributeAdapter<op::ProposalAttrs>::AttributeAdapter(op::ProposalAttrs& ref)
-    : m_ref(ref)
-{
-}
-
-bool AttributeAdapter<op::ProposalAttrs>::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("base_size", m_ref.base_size);
-    visitor.on_attribute("pre_nms_topn", m_ref.pre_nms_topn);
-    visitor.on_attribute("post_nms_topn", m_ref.post_nms_topn);
-    visitor.on_attribute("nms_thresh", m_ref.nms_thresh);
-    visitor.on_attribute("feat_stride", m_ref.feat_stride);
-    visitor.on_attribute("min_size", m_ref.min_size);
-    visitor.on_attribute("ratio", m_ref.ratio);
-    visitor.on_attribute("scale", m_ref.scale);
-    visitor.on_attribute("clip_before_nms", m_ref.clip_before_nms);
-    visitor.on_attribute("clip_after_nms", m_ref.clip_after_nms);
-    visitor.on_attribute("normalize", m_ref.normalize);
-    visitor.on_attribute("box_size_scale", m_ref.box_size_scale);
-    visitor.on_attribute("box_coordinate_scale", m_ref.box_coordinate_scale);
-    visitor.on_attribute("framework", m_ref.framework);
+    visitor.on_attribute("base_size", m_attrs.base_size);
+    visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
+    visitor.on_attribute("post_nms_topn", m_attrs.post_nms_topn);
+    visitor.on_attribute("nms_thresh", m_attrs.nms_thresh);
+    visitor.on_attribute("feat_stride", m_attrs.feat_stride);
+    visitor.on_attribute("min_size", m_attrs.min_size);
+    visitor.on_attribute("ratio", m_attrs.ratio);
+    visitor.on_attribute("scale", m_attrs.scale);
+    visitor.on_attribute("clip_before_nms", m_attrs.clip_before_nms);
+    visitor.on_attribute("clip_after_nms", m_attrs.clip_after_nms);
+    visitor.on_attribute("normalize", m_attrs.normalize);
+    visitor.on_attribute("box_size_scale", m_attrs.box_size_scale);
+    visitor.on_attribute("box_coordinate_scale", m_attrs.box_coordinate_scale);
+    visitor.on_attribute("framework", m_attrs.framework);
     return true;
 }
 
@@ -140,10 +125,11 @@ void op::v4::Proposal::validate_and_infer_types()
     const auto& class_probs_pshape = get_input_partial_shape(0);
     const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
     const auto& image_shape_pshape = get_input_partial_shape(2);
-    auto batch_size = class_probs_pshape.to_shape()[0];
+    auto batch_size = class_probs_pshape[0];
     if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
         image_shape_pshape.is_static())
-        set_output_type(1, get_input_element_type(0), Shape{batch_size * m_attrs.post_nms_topn});
+        set_output_type(
+            1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
     else
         set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
 }

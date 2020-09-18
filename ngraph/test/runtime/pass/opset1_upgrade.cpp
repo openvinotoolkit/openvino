@@ -30,6 +30,8 @@
 #include "op/convolution.hpp"
 #include "op/group_conv.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -536,12 +538,14 @@ namespace
 
     DispatchMap& get_dispatch_map()
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         static DispatchMap dispatch_map{
 #define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, op_cast_thunk<NAMESPACE::NAME>},
 #include "opset0_tbl.hpp"
 #undef NGRAPH_OP
         };
         return dispatch_map;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 } // namespace
 

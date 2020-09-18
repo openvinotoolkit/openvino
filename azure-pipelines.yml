@@ -94,7 +94,7 @@ jobs:
   - script: |
       export DATA_PATH=$(WORK_DIR)/testdata
       export MODELS_PATH=$(WORK_DIR)/testdata
-      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json -- --gtest_print_time=1
     workingDirectory: $(WORK_DIR)
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -334,12 +334,12 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata & gtest-parallel'
     # Add for gtest-parallel, it hangs now (CVS-33386)
-    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json -- --gtest_print_time=1
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |

@@ -100,6 +100,7 @@ namespace ngraph
     NGRAPH_API
     NodeVector as_node_vector(const OutputVector& values);
     /// Returns a ResultVector referencing values.
+    NGRAPH_API
     ResultVector as_result_vector(const OutputVector& values);
 
     /// Alias useful for cloning

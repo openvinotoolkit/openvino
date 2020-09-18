@@ -67,9 +67,6 @@ namespace ngraph
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/descriptor/tensor.hpp"
@@ -78,7 +75,6 @@ namespace ngraph
 #include "ngraph/except.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/lambda.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/partial_shape.hpp"

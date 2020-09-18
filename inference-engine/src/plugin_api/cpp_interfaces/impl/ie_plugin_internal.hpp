@@ -56,16 +56,14 @@ protected:
     ~InferencePluginInternal() override = default;
 
 public:
-    void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
-                     const std::map<std::string, std::string>& config) override {
-        LoadNetworkImplPrivate(executableNetwork, network, config);
+    ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+                                  const std::map<std::string, std::string>& config) override {
+        return LoadNetworkImplPrivate(network, config);
     }
 
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) override {
-        IExecutableNetwork::Ptr executableNetworkPtr;
-        LoadNetworkImplPrivate(executableNetworkPtr, network, config, context);
-        return ExecutableNetwork(executableNetworkPtr);
+        return LoadNetworkImplPrivate(network, config, context);;
     }
 
     IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
@@ -141,14 +139,14 @@ private:
     /**
      * @brief A helper method which clones a ICNNNetwork object, keeps InputsDataMap and OutputsDataMap data maps,
      * and creates an IExecutableNetwork object
-     * @param executableNetwork An output executable network object
      * @param network An input ICNNNetwork object used to create an executable network object
      * @param config A map of string -> string configuration options.
      * @param context An optional pointer to RemoteContext
+     * @return An output executable network object
      */
-    void LoadNetworkImplPrivate(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
-                                 const std::map<std::string, std::string>& config,
-                                 RemoteContext::Ptr context = nullptr) {
+    ExecutableNetwork LoadNetworkImplPrivate(const ICNNNetwork& network,
+                                             const std::map<std::string, std::string>& config,
+                                             RemoteContext::Ptr context = nullptr) {
         InputsDataMap networkInputs, networkInputsCloned;
         OutputsDataMap networkOutputs, networkOutputsCloned;
         network.getInputsInfo(networkInputs);
@@ -166,9 +164,8 @@ private:
         impl->setNetworkOutputs(networkOutputsCloned);
         impl->SetPointerToPlugin(shared_from_this());
 
-        executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(impl), [](details::IRelease* p) {
-            p->Release();
-        });
+        auto executableNetwork = make_executable_network(impl);
+        return ExecutableNetwork(executableNetwork);
     }
 
 protected:
@@ -176,7 +173,7 @@ protected:
      * @brief Creates an executable network from a parsed network object, users can create as many networks as they need
      *        and use them simultaneously (up to the limitation of the HW resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(IExecutableNetwork::Ptr&, const ICNNNetwork&, const std::map<std::string, std::string>&)
+     * InferencePluginInternal::LoadNetwork(const ICNNNetwork&, const std::map<std::string, std::string>&)
      * which performs common steps first and calls this plugin-dependent method implementation after.
      * @param network A network object
      * @param config string-string map of config parameters relevant only for this load operation
@@ -196,7 +193,8 @@ protected:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network, RemoteContext::Ptr context,
+    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
+                                                              RemoteContext::Ptr context,
                                                               const std::map<std::string, std::string>& config) {
         (void)network;
         (void)context;

@@ -12,7 +12,7 @@
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
 #include "bf16transformer.h"
-
+#include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
 
 using namespace mkldnn;
@@ -633,9 +633,15 @@ private:
         for (int i = 0; i < p.len_; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
+                if (eltwise_injectors.size() <= eltwise_inj_idx
+                        || eltwise_injectors[eltwise_inj_idx] == nullptr)
+                    assert(!"Invalid eltwise injectors.");
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
+                if (depthwise_injectors.size() <= depthwise_inj_idx
+                        || depthwise_injectors[depthwise_inj_idx] == nullptr)
+                    assert(!"Invalid depthwise injectors.");
                 mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
                 mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
@@ -644,6 +650,9 @@ private:
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
+                if (quantization_injectors.size() <= quantization_inj_idx
+                        || quantization_injectors[quantization_inj_idx] == nullptr)
+                    assert(!"Invalid quantization injectors.");
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_dt == memory::f32 || i != p.len_ - 1;
 
@@ -1317,7 +1326,7 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
     // post ops for tails: post-ops params is padding.
     std::vector<float> weights_padding(CB * blk_size);
     if (!channel_shared) {
-        memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
+        cpu_memcpy(static_cast<float*>(&weights_padding[0]), weights, C * sizeof(float));
     }
 
     for (size_t b = 0lu; b < B; b++) {

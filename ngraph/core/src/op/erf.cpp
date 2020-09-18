@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/erf.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/util.hpp"
 

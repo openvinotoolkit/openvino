@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,11 +51,7 @@ enum DataLayout {
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_f_bsv8__af8,         // for optimized FC
     bs_f_bsv16__af8,        // for optimized FC
-    bf8_xy16,               // for optimized conv1x1
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
-    byxf_af32,              // for MMAD convolution
-    byx8_f4,                // for MMAD convolution
-    fs_bs_yx_bsv4_fsv32,    // for batched MMAD
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     bfzyx,                  // batch+feature+3D spatial
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
@@ -81,8 +77,8 @@ enum WeightsLayout {
     os_iyx_osv32__ai32,
     os_iyx_osv64,
     os_is_zyx_isv16_osv16,
-    is_os_zyx_osv16_isv16,
-    is_os_yx_osv16_isv16,
+    is_os_zyx_isv16_osv16,
+    is_os_yx_isv16_osv16,
     os_is_zyx_isv8_osv16_isv2,
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
@@ -92,6 +88,7 @@ enum WeightsLayout {
     os_i_osv16__ai8,
     os_i_osv16,
     os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
     i_yxs_os_yxsv2_osv16,
@@ -123,6 +120,7 @@ enum WeightsLayout {
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
+    os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
@@ -137,11 +135,12 @@ enum WeightsLayout {
     gs_oiyx_gsv32,
     g_os_iyx_osv16_rotate_180,
     gi_yxs_os_yxsv2_osv16,
-    g_is_os_zyx_osv16_isv16,
-    g_is_os_yx_osv16_isv16,
+    g_is_os_zyx_isv16_osv16,
+    g_is_os_yx_isv16_osv16,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
+    g_os_is_zyx_osv16_isv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
     g_os_is_yx_isv16_osv16,

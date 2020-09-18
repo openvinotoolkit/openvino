@@ -25,8 +25,12 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise subtraction operation.
-            class NGRAPH_API Subtract : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Subtract instead of it.") NGRAPH_API Subtract
+                : public util::BinaryElementwiseArithmetic
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Subtract", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -49,6 +53,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
 
         } // namespace v0
@@ -83,9 +88,12 @@ namespace ngraph
             };
         } // namespace v1
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Subtract;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 
+    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
     NGRAPH_API
     std::shared_ptr<ngraph::Node> operator-(const Output<ngraph::Node> arg0,
                                             const Output<ngraph::Node> arg1);

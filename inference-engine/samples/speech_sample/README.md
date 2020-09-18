@@ -155,6 +155,8 @@ feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
 for comparison.
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Sample Output
 

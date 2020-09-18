@@ -66,6 +66,8 @@ auto network = core.ReadNetwork("Model.xml");
 auto executable_network = core.LoadNetwork(network, "HETERO:FPGA,CPU");
 ```
 
+> **NOTE**: `InferenceEngine::Core::QueryNetwork` does not depend on affinities set by a user, but queries for layer support based on device capabilities.
+
 
 ## Details of Splitting Network and Execution
 During loading of the network to heterogeneous plugin, network is divided to separate parts and loaded to dedicated plugins.

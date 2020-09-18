@@ -1,4 +1,5 @@
 #distutils: language=c++
+#cython: embedsignature=True
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -736,6 +737,8 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
+        warnings.warn("'creator_layer' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
+                      DeprecationWarning)
         cdef C.CNNLayerWeakPtr _l_ptr
         cdef IENetLayer creator_layer
 
@@ -752,6 +755,8 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
+        warnings.warn("'input_to' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
+                      DeprecationWarning)
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         cdef IENetLayer input_to
 

@@ -16,11 +16,11 @@
 #include <memory>
 #include <numeric>
 
+#include "itt.hpp"
 #include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/matmul_factory.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
@@ -68,6 +68,10 @@ void op::MatMul::pre_validate_and_infer_types()
     {
         Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
         set_output_type(0, result_et, PartialShape::dynamic(max_rank));
+    }
+    else
+    {
+        set_output_type(0, result_et, PartialShape::dynamic());
     }
 }
 

@@ -18,7 +18,7 @@
 #include <functional>
 #include <set>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/squeeze.hpp"

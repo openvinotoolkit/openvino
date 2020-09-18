@@ -13,6 +13,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
+
 ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
     auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -21,7 +23,7 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
             return false;
         }
 
-        const auto function = ti->get_body()->to_function();
+        const auto function = ti->get_body();
         auto num_iter = ti->get_num_iterations();
 
         // negative value means inconsistent TI

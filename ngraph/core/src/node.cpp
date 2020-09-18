@@ -19,9 +19,9 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -556,14 +556,14 @@ std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
     if (depth == 0)
     {
-        out << get_name();
+        out << get_friendly_name();
     }
     else
     {
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_name()
-            << "(";
+        out << "v" << get_type_info().version << "::" << get_type_info().name << " "
+            << get_friendly_name() << " (";
         string sep = "";
-        for (auto arg : input_values())
+        for (const auto& arg : input_values())
         {
             out << sep << arg;
             sep = ", ";

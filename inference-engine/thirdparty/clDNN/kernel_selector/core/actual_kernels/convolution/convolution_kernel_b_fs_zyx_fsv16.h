@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,13 +37,13 @@ public:
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override {
         bool is_3d_case = params.inputs[0].GetLayout() != DataLayout::bs_fs_yx_bsv16_fsv16;
-        if (params.inputs[0].Feature().v == 3) {
+        if (params.inputs[0].Feature().v == 3 && params.inputs[0].GetLayout() == DataLayout::bfzyx) {
             return WeightsLayout::os_zyxi_osv16;
         } else if (use_data_type == Datatype::F32 && params.inputs[0].Batch().v % 16 == 0) {
             if (is_3d_case)
-                return (params.groups > 1) ? WeightsLayout::g_is_os_zyx_osv16_isv16 : WeightsLayout::is_os_zyx_osv16_isv16;
+                return (params.groups > 1) ? WeightsLayout::g_is_os_zyx_isv16_osv16 : WeightsLayout::is_os_zyx_isv16_osv16;
             else
-                return (params.groups > 1) ? WeightsLayout::g_is_os_yx_osv16_isv16 : WeightsLayout::is_os_yx_osv16_isv16;
+                return (params.groups > 1) ? WeightsLayout::g_is_os_yx_isv16_osv16 : WeightsLayout::is_os_yx_isv16_osv16;
         } else if (use_data_type == Datatype::F16 && params.inputs[0].Batch().v % 32 == 0) {
             if (is_3d_case)
                 return (params.groups > 1) ? WeightsLayout::g_os_is_zyx_isv8_osv16_isv2 : WeightsLayout::os_is_zyx_isv8_osv16_isv2;

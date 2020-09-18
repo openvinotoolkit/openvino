@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_logical_and.hpp"
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/eval_helpers.hpp"

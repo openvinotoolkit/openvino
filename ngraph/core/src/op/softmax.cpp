@@ -18,9 +18,9 @@
 
 #include <algorithm>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -29,6 +29,8 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/util.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

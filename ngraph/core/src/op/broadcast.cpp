@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -25,6 +25,8 @@
 #include <numeric>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

@@ -65,7 +65,9 @@ namespace ngraph
                 {
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
+                    NGRAPH_SUPPRESS_DEPRECATED_START
                     m_map[OpInput::B] = split_bias.at(0) + split_bias.at(1);
+                    NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 else
                 {

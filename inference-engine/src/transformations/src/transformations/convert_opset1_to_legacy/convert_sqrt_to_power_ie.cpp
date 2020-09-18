@@ -13,6 +13,8 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSqrtToPowerIEMatcher, "ConvertSqrtToPowerIEMatcher", 0);
+
 ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto sqrt = std::make_shared<ngraph::opset1::Sqrt>(input_0);

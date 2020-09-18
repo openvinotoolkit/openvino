@@ -15,8 +15,11 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

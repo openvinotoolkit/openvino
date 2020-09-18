@@ -9,21 +9,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
-bool check_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
-    if (!constant) {
-        return false;
-    }
-    if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
-        auto data = constant->cast_vector<float>();
-        if (data.size() != 1 || data[0] != 1.0) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
+#include "transformations/utils/utils.hpp"
 
 bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
     // check that the constant for beta contains only one distinct element
@@ -40,6 +26,10 @@ bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant)
     }
     return true;
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusion, "SwishFusion", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoid, "SwishFusionWithSigmoid", 0);
 
 ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
@@ -64,6 +54,8 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidFusion");
     register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoidWithBeta, "SwishFusionWithSigmoidWithBeta", 0);
 
 ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
@@ -108,6 +100,8 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithBeta, "SwishFusionWithBeta", 0);
+
 ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
     auto input = ngraph::pattern::any_input();
@@ -124,7 +118,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!check_constant_value(constant)) {
+        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 
@@ -147,6 +141,8 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithoutBeta, "SwishFusionWithoutBeta", 0);
+
 ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
     auto input = ngraph::pattern::any_input();
@@ -161,7 +157,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto exp_input = pattern_to_output.at(input);
 
         auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        if (!check_constant_value(constant)) {
+        if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
 

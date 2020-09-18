@@ -639,6 +639,18 @@ void copyRow_32F(const float in[], float out[], int length) {
     copyRow_32F_impl(in, out, length);
 }
 
+void calcRowLinear_32F(float *dst[],
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                               int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
+}
+
 }  // namespace avx512
 }  // namespace kernels
 }  // namespace gapi
