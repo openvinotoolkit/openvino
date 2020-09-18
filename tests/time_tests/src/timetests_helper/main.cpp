@@ -4,7 +4,7 @@
 
 #include "cli.h"
 #include "statistics_writer.h"
-#include "time-testhelper/timer.h"
+#include "timetests_helper/timer.h"
 
 #include <iostream>
 

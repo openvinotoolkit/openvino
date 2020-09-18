@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "time-testhelper/timer.h"
+#include "timetests_helper/timer.h"
 #include <chrono>
 #include <fstream>
 #include <memory>

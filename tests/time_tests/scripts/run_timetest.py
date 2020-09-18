@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """
-This script runs TimeTests executable several times to aggregate
+This script runs timetest executable several times and aggregate
 collected statistics.
 """
 
@@ -86,11 +86,11 @@ def generate_tmp_path():
     return path
 
 
-def run_executable(args: dict, log=None):
+def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
     if log is None:
-        log = logging.getLogger('run_executable')
+        log = logging.getLogger('run_timetest')
 
     cmd_common = prepare_executable_cmd(args)
 
@@ -114,7 +114,7 @@ def run_executable(args: dict, log=None):
 
 def cli_parser():
     """parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Run TimeTests executable')
+    parser = argparse.ArgumentParser(description='Run timetest executable')
     parser.add_argument('executable',
                         type=Path,
                         help='binary to execute')
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, aggr_stats = run_executable(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, aggr_stats = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file
