@@ -14,7 +14,7 @@ using namespace GNAPluginNS::runtime;
 
 void FP::infer() {
     if (!dnn) {
-        THROW_GNA_EXCEPTION << "[GNA FLOAT RUNTIME] not initialized";
+        THROW_GNA_EXCEPTION << "[GNA FP32 RUNTIME] not initialized";
     }
 
     for (uint32_t i = 0; i < dnn->component.size(); i++) {
@@ -33,16 +33,21 @@ void FP::infer() {
         }
 
         switch (comp->operation) {
-            case kDnnAffineOp :ApplyAffineTransform(comp, ptr_active_outputs, num_active_outputs);
+            case kDnnAffineOp : {
+                ApplyAffineTransform(comp, ptr_active_outputs, num_active_outputs);
                 break;
-            case kDnnDiagonalOp:ApplyDiagonalTransform(comp);
+            }
+            case kDnnDiagonalOp: {
+                ApplyDiagonalTransform(comp);
                 break;
-            case kDnnRecurrentOp:
+            }
+            case kDnnRecurrentOp: {
                 if ((i < dnn->component.size() - 1) && (dnn->component[i + 1].operation == kDnnPiecewiselinearOp)) {
                     intel_dnn_component_t *comp_pwl = &dnn->component[i + 1];
                     for (uint32_t j = 0; j < comp->num_rows_in; j++) {
                         void *ptr_feedbacks =
-                            reinterpret_cast<void *>(reinterpret_cast<int32_t *>(comp->op.recurrent.ptr_feedbacks) + j * comp_pwl->num_columns_out);
+                            reinterpret_cast<void *>(reinterpret_cast<int32_t *>(comp->op.recurrent.ptr_feedbacks)
+                                + j * comp_pwl->num_columns_out);
                         ApplyRecurrentTransform(comp, j, ptr_feedbacks);
                         ApplyPiecewiseLinearTransform(comp_pwl, kDnnFloat, num_active_outputs, j);
                     }
@@ -51,20 +56,33 @@ void FP::infer() {
                     THROW_GNA_EXCEPTION << "Missing PiecewiseLinear component after Recurrent component in Propagate!";
                 }
                 break;
-            case kDnnConvolutional1dOp:ApplyConvolutional1DTransform(comp);
+            }
+            case kDnnConvolutional1dOp: {
+                ApplyConvolutional1DTransform(comp);
                 break;
-            case kDnnPiecewiselinearOp:ApplyPiecewiseLinearTransform(comp, kDnnFloat, num_active_outputs);
+            }
+            case kDnnPiecewiselinearOp: {
+                ApplyPiecewiseLinearTransform(comp, kDnnFloat, num_active_outputs);
                 break;
-            case kDnnMaxPoolOp:ApplyMaxPoolTransform(comp, kDnnFloat);
+            }
+            case kDnnMaxPoolOp: {
+                ApplyMaxPoolTransform(comp, kDnnFloat);
                 break;
-            case kDnnInterleaveOp:ApplyTranspose(comp);
+            }
+            case kDnnInterleaveOp: {
+                ApplyTranspose(comp);
                 break;
-            case kDnnDeinterleaveOp:ApplyTranspose(comp);
+            }
+            case kDnnDeinterleaveOp: {
+                ApplyTranspose(comp);
                 break;
-            case kDnnCopyOp:ApplyCopy(comp);
+            }
+            case kDnnCopyOp: {
+                ApplyCopy(comp);
                 break;
+            }
             default:
-                THROW_GNA_EXCEPTION << "[FR RUNTIME] Bad operation " << comp->operation;
+                THROW_GNA_EXCEPTION << "[GNA FP32 RUNTIME] Bad operation " << comp->operation;
         }
     }
 }
