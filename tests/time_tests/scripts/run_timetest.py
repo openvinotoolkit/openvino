@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """
-This script runs timetest executable several times to aggregate
+This script runs timetest executable several times and aggregate
 collected statistics.
 """
 
