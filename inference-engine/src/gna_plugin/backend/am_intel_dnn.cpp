@@ -309,6 +309,65 @@ void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel
     }
 }
 
+void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_component_t &comp,
+                                                                      uint32_t num_rows_in,
+                                                                      uint32_t num_columns_in,
+                                                                      uint32_t num_bytes_per_input,
+                                                                      uint32_t num_bytes_per_output,
+                                                                      float output_scale_factor,
+                                                                      void *&ptr_inputs,
+                                                                      void *&ptr_outputs,
+                                                                      bool postInitMem) {
+    comp.num_rows_in = num_rows_in;
+    comp.num_columns_in = num_columns_in;
+    comp.num_rows_out = num_columns_in;
+    comp.num_columns_out = num_rows_in;
+    comp.num_bytes_per_input = num_bytes_per_input;
+    comp.num_bytes_per_output = num_bytes_per_output;
+    comp.operation = kDnnInterleaveOp;
+    comp.macro_operation = kDnnMacroOpNone;
+    comp.orientation_in = kDnnNonInterleavedOrientation;
+    comp.orientation_out = kDnnInterleavedOrientation;
+    comp.output_scale_factor = output_scale_factor;
+    comp.input_scale_factor = output_scale_factor;
+    if (!postInitMem) {
+        comp.ptr_inputs = ptr_inputs;
+        comp.ptr_outputs = ptr_outputs;
+    } else {
+        ptr_inputs = &comp.ptr_inputs;
+        ptr_outputs = &comp.ptr_outputs;
+    }
+}
+
+void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dnn_component_t &comp,
+                                                                        uint32_t num_rows_in,
+                                                                        uint32_t num_columns_in,
+                                                                        uint32_t num_bytes_per_input,
+                                                                        uint32_t num_bytes_per_output,
+                                                                        float output_scale_factor,
+                                                                        void *&ptr_inputs,
+                                                                        void *&ptr_outputs,
+                                                                        bool postInitMem) {
+    comp.num_rows_in = num_rows_in;
+    comp.num_columns_in = num_columns_in;
+    comp.num_rows_out = num_columns_in;
+    comp.num_columns_out = num_rows_in;
+    comp.num_bytes_per_input = num_bytes_per_input;
+    comp.num_bytes_per_output = num_bytes_per_output;
+    comp.operation = kDnnDeinterleaveOp;
+    comp.macro_operation = kDnnMacroOpNone;
+    comp.orientation_in = kDnnInterleavedOrientation;
+    comp.orientation_out = kDnnInterleavedOrientation;
+    comp.output_scale_factor = output_scale_factor;
+    comp.input_scale_factor = output_scale_factor;
+    if (!postInitMem) {
+        comp.ptr_inputs = ptr_inputs;
+        comp.ptr_outputs = ptr_outputs;
+    } else {
+        ptr_inputs = &comp.ptr_inputs;
+        ptr_outputs = &comp.ptr_outputs;
+    }
+}
 
 void GNAPluginNS::backend::AMIntelDNN::Propagate() {
     for (uint32_t i = 0; i < component.size(); i++) {
@@ -1928,17 +1987,17 @@ std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefix(const std::strin
 #else
             '/';
 #endif
-    return std::string(".") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
+    return folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefixGNA() {
-    return getDumpFilePrefix("/data/local/tmp/gna_layers");
+    return getDumpFilePrefix("/tmp/gna_layers");
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getDumpFolderName() {
-    return getDumpFilePrefix("/data/local/tmp/layers");
+    return getDumpFilePrefix("/tmp/layers");
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getRefFolderName() {
-    return getDumpFilePrefix("/data/local/tmp/ref_layers");
+    return getDumpFilePrefix("/tmp/ref_layers");
 }
