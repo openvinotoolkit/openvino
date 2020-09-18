@@ -35,6 +35,7 @@ def test_executable(instance, executable, niter):
 
     assert model_path, "Model path is empty"
 
+    # Run executable
     exe_args = {
         "executable": Path(executable),
         "model": Path(model_path),
@@ -43,3 +44,18 @@ def test_executable(instance, executable, niter):
     }
     retcode, aggr_stats = run_executable(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"     # TODO: update
+    instance["statistics"] = aggr_stats     # Save statistics to dump to DB
+
+    # Compare with references
+    comparison_status = 0
+    for step_name, references in instance["references"]:
+        for metric, reference_val in references.items():
+            if aggr_stats[step_name][metric] > reference_val:
+                logging.error("Comparison failed for '{}' step. Reference: {}. Current values: {}"
+                              .format(step_name, reference_val, aggr_stats[step_name][metric]))
+                comparison_status = 1
+            else:
+                logging.info("Comparison passed for '{}' step. Reference: {}. Current values: {}"
+                             .format(step_name, reference_val, aggr_stats[step_name][metric]))
+
+    assert comparison_status == 0, "Comparison with references failed"
