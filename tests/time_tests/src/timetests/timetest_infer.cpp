@@ -16,32 +16,33 @@ using namespace InferenceEngine;
  */
 int runPipeline(const std::string &model, const std::string &device) {
   auto pipeline = [](const std::string &model, const std::string &device) {
-    SCOPED_TIMER(first_time_to_inference);
-
     Core ie;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
 
     {
-      SCOPED_TIMER(load_plugin);
-      ie.GetVersions(device);
-    }
-    {
-      SCOPED_TIMER(create_exenetwork);
-      if (fileExt(model) == "blob") {
-        SCOPED_TIMER(import_network);
-        exeNetwork = ie.ImportNetwork(model, device);
+      SCOPED_TIMER(first_inference_latency);
+      {
+        SCOPED_TIMER(load_plugin);
+        ie.GetVersions(device);
       }
-      else {
-        CNNNetwork cnnNetwork;
-        {
-          SCOPED_TIMER(read_network);
-          cnnNetwork = ie.ReadNetwork(model);
+      {
+        SCOPED_TIMER(create_exenetwork);
+        if (fileExt(model) == "blob") {
+          SCOPED_TIMER(import_network);
+          exeNetwork = ie.ImportNetwork(model, device);
         }
+        else {
+          CNNNetwork cnnNetwork;
+          {
+            SCOPED_TIMER(read_network);
+            cnnNetwork = ie.ReadNetwork(model);
+          }
 
-        {
-          SCOPED_TIMER(load_network);
-          exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+          {
+            SCOPED_TIMER(load_network);
+            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+          }
         }
       }
     }
