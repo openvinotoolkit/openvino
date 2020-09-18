@@ -32,6 +32,9 @@ namespace ngraph
             {
                 namespace
                 {
+                    // This function creates a shape to which we need to reshape the input
+                    // before normalization.
+                    // If data shape is [N, C, H, W], then this function returns [N, num_groups, C // num_groups, H, W]
                     std::shared_ptr<ngraph::Node>
                         create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
                     {
@@ -62,6 +65,9 @@ namespace ngraph
                             0);
                     }
 
+                    // This function creates shape for scale/bias to match input's rank size
+                    // E.g. if node's shape is [C], then returned shape is [1, C, 1, 1]
+                    // Another example: [1, C] -> [1, C, 1, 1]
                     std::shared_ptr<ngraph::Node>
                         create_scale_bias_shape(const Output<ngraph::Node>& node,
                                                 size_t expected_rank_size)
