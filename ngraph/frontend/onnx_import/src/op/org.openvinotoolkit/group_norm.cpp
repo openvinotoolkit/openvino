@@ -21,6 +21,7 @@
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/utils/common.hpp"
+#include "onnx_import/utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -41,13 +42,17 @@ namespace ngraph
                     {
                         const auto& pshape = data.get_partial_shape();
                         size_t rank_size = pshape.rank().get_length();
-                        NGRAPH_CHECK(rank_size == 4, "Only 4-D input tensors supported");
+                        NGRAPH_CHECK(rank_size >= 4, "4-D and above tensors supported only");
 
                         if (pshape.is_static())
                         {
                             const auto& shape = pshape.to_shape();
                             std::vector<size_t> new_shape{
                                 shape[0], num_groups, shape[1] / num_groups, shape[2], shape[3]};
+                            for (size_t i = 4; i < rank_size; i++)
+                            {
+                                new_shape.push_back(shape[i]);
+                            }
                             return default_opset::Constant::create(
                                 element::i64, Shape{new_shape.size()}, new_shape);
                         }
@@ -56,72 +61,17 @@ namespace ngraph
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
                             default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
-                        return std::make_shared<default_opset::Concat>(
-                            NodeVector{splits[0].get_node_shared_ptr(),
-                                       num_groups_const,
-                                       std::make_shared<default_opset::Divide>(splits[1],
-                                                                               num_groups_const),
-                                       splits[2].get_node_shared_ptr(),
-                                       splits[3].get_node_shared_ptr()},
-                            0);
-                    }
-
-                    // This function creates shape for scale/bias to match input's rank size
-                    // E.g. if node's shape is [C], then returned shape is [1, C, 1, 1]
-                    // Another example: [1, C] -> [1, C, 1, 1]
-                    std::shared_ptr<ngraph::Node>
-                        create_scale_bias_shape(const Output<ngraph::Node>& node,
-                                                size_t expected_rank_size)
-                    {
-                        const auto& pshape = node.get_partial_shape();
-                        size_t rank_size = pshape.rank().get_length();
-                        if (pshape.is_static())
+                        NodeVector new_shape{
+                            splits[0].get_node_shared_ptr(),
+                            num_groups_const,
+                            std::make_shared<default_opset::Divide>(splits[1], num_groups_const),
+                            splits[2].get_node_shared_ptr(),
+                            splits[3].get_node_shared_ptr()};
+                        for (size_t i = 4; i < rank_size; i++)
                         {
-                            const auto& shape = pshape.to_shape();
-                            std::vector<size_t> new_shape;
-                            if (rank_size == 1)
-                            {
-                                new_shape.push_back(1);
-                                new_shape.push_back(shape[0]);
-                            }
-                            else
-                            {
-                                for (size_t i = 0; i < rank_size; i++)
-                                {
-                                    new_shape.push_back(shape[i]);
-                                }
-                            }
-                            auto i = new_shape.size();
-                            for (; i < expected_rank_size; i++)
-                            {
-                                new_shape.push_back(1);
-                            }
-                            return default_opset::Constant::create(
-                                element::i64, Shape{expected_rank_size}, new_shape);
+                            new_shape.push_back(splits[i].get_node_shared_ptr());
                         }
-
-                        auto shape = std::make_shared<default_opset::ShapeOf>(node);
-                        auto splits = builder::opset1::split(shape, rank_size);
-                        auto one = default_opset::Constant::create(element::i64, Shape{1}, {1});
-                        NodeVector dims;
-                        if (rank_size == 1)
-                        {
-                            dims.push_back(one);
-                            dims.push_back(splits[0].get_node_shared_ptr());
-                        }
-                        else
-                        {
-                            for (size_t i = 0; i < rank_size; i++)
-                            {
-                                dims.push_back(splits[i].get_node_shared_ptr());
-                            }
-                        }
-                        auto i = dims.size();
-                        for (; i < expected_rank_size; i++)
-                        {
-                            dims.push_back(one);
-                        }
-                        return std::make_shared<default_opset::Concat>(dims, 0);
+                        return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
                 }
             } // detail
@@ -131,7 +81,9 @@ namespace ngraph
                 OutputVector group_norm(const Node& node)
                 {
                     auto inputs = node.get_ng_inputs();
-                    NGRAPH_CHECK(inputs.size() == 3, "Invalid number of inputs");
+                    NGRAPH_CHECK(inputs.size() == 3,
+                                 "Invalid number of inputs. Expected 3, actual " +
+                                     std::to_string(inputs.size()));
 
                     auto data = inputs[0];
                     auto scale = inputs[1];
@@ -172,25 +124,15 @@ namespace ngraph
                         std::make_shared<default_opset::Add>(variance, eps_node));
 
                     auto data_rank_size = data.get_partial_shape().rank().get_length();
-                    auto scale_rank_size = scale.get_partial_shape().rank().get_length();
-                    if (scale_rank_size < data_rank_size)
-                    {
-                        scale = std::make_shared<default_opset::Reshape>(
-                            scale, detail::create_scale_bias_shape(scale, data_rank_size), true);
-                    }
-                    auto bias_rank_size = bias.get_partial_shape().rank().get_length();
-                    if (bias_rank_size < data_rank_size)
-                    {
-                        bias = std::make_shared<default_opset::Reshape>(
-                            bias, detail::create_scale_bias_shape(bias, data_rank_size), true);
-                    }
 
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Divide>(diff, sqrt);
                     result =
                         std::make_shared<default_opset::Reshape>(result, data_shape_node, true);
-                    result = std::make_shared<default_opset::Multiply>(scale, result);
-                    result = std::make_shared<default_opset::Add>(result, bias);
+                    result = std::make_shared<default_opset::Multiply>(
+                        reshape::reshape_scale_or_bias(scale, data_rank_size), result);
+                    result = std::make_shared<default_opset::Add>(
+                        result, reshape::reshape_scale_or_bias(bias, data_rank_size));
 
                     return {result};
                 }

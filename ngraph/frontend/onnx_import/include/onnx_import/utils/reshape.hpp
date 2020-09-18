@@ -61,6 +61,20 @@ namespace ngraph
             ///
             Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node);
 
+            /// \brief      Reshape scale or bias from shape {C} to {1, C, 1, 1,...}
+            ///
+            /// \note       Usually scale or bias to BatchNorm or related operators are
+            ///             nodes of shape {C}. This function will reshape the input node
+            ///             with a shape of {C} into a node with Shape{1, C, 1, 1, ..}.
+            ///
+            /// \param[in]  scale_or_bias   Node to reshape.
+            /// \param[in]  expected_rank   Expected rank size
+            ///
+            /// \return     Original node or a node representing a reshape of the original.
+            ///
+            Output<ngraph::Node> reshape_scale_or_bias(const Output<ngraph::Node>& scale_or_bias,
+                                                       size_t expected_rank);
+
         } // namespace  reshape
     }     // namespace onnx_import
 } // namespace ngraph
