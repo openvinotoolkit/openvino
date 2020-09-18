@@ -22,20 +22,23 @@ int runPipeline(const std::string &model, const std::string &device) {
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
 
-    if (fileExt(model) == "blob") {
-      SCOPED_TIMER(import_network);
-      exeNetwork = ie.ImportNetwork(model, device);
-    }
-    else {
-      CNNNetwork cnnNetwork;
-      {
-        SCOPED_TIMER(read_network);
-        cnnNetwork = ie.ReadNetwork(model);
+    {
+      SCOPED_TIMER(create_exenetwork);
+      if (fileExt(model) == "blob") {
+        SCOPED_TIMER(import_network);
+        exeNetwork = ie.ImportNetwork(model, device);
       }
+      else {
+        CNNNetwork cnnNetwork;
+        {
+          SCOPED_TIMER(read_network);
+          cnnNetwork = ie.ReadNetwork(model);
+        }
 
-      {
-        SCOPED_TIMER(load_network);
-        exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        {
+          SCOPED_TIMER(load_network);
+          exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        }
       }
     }
 
