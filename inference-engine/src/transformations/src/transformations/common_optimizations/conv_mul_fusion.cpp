@@ -15,27 +15,6 @@
 
 #include <transformations/utils/utils.hpp>
 
-#ifdef LPT_SUPPORT
-#include "ngraph/opsets/opset1.hpp"
-bool IsConvInLowPrecision(const std::shared_ptr<ngraph::Node>& conv) {
-    auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
-        const ngraph::element::Type inputType = node->get_input_element_type(index);
-        return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
-    };
-
-    if (isLowPrecision(conv, 0) || isLowPrecision(conv, 1)) {
-        return true;
-    }
-
-    const std::shared_ptr<ngraph::opset1::Subtract> subtract = ngraph::as_type_ptr<ngraph::opset1::Subtract>(conv->get_input_node_shared_ptr(0));
-    if (subtract == nullptr) {
-        return false;
-    }
-
-    return isLowPrecision(subtract, 0) || isLowPrecision(subtract, 1);
-}
-#endif
-
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionMultiplyFusion, "ConvolutionMultiplyFusion", 0);
 
 ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
@@ -52,11 +31,6 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         const auto & m_const = pattern_to_output.at(mul_const);
         const auto & m_input = pattern_to_output.at(input);
         const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-#ifdef LPT_SUPPORT
-        if (IsConvInLowPrecision(m_conv)) {
-            return false;
-        }
-#endif
         const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
         const auto & channel_dim = m_weights.get_partial_shape()[0].get_length();
@@ -121,11 +95,6 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         const auto & m_input = pattern_to_output.at(input);
         const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
         const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
-#ifdef LPT_SUPPORT
-        if (IsConvInLowPrecision(m_conv)) {
-            return false;
-        }
-#endif
 
         const auto & G = m_weights.get_partial_shape()[0].get_length();
         const auto & O = m_weights.get_partial_shape()[1].get_length();
