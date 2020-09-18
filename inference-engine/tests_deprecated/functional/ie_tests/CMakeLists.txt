@@ -28,4 +28,4 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${EXPORT_DEPENDENCIES})
+ie_developer_export_targets(${TARGET_NAME} ${EXPORT_DEPENDENCIES} ieTestHelpers_s)
