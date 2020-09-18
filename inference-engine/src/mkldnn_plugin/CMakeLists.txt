@@ -174,22 +174,22 @@ target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
                       inference_engine_transformations mkldnn)
 
-## Cross compiled function
-## TODO: The same for proposal, proposalONNX, topk
-# cross_compiled_file(${TARGET_NAME}
-#         ARCH AVX512F AVX2 SSE42 ANY
-#                     nodes/argmax_imp.cpp
-#         API         nodes/argmax_imp.hpp
-#         NAME        arg_max_execute
-#         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-# )
-# cross_compiled_file(${TARGET_NAME}
-#         ARCH AVX2 ANY
-#                     nodes/proposal_imp.cpp
-#         API         nodes/proposal_imp.hpp
-#         NAME        proposal_exec
-#         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-# )
+# Cross compiled function
+# TODO: The same for proposal, proposalONNX, topk
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 SSE42 ANY
+                    nodes/argmax_imp.cpp
+        API         nodes/argmax_imp.hpp
+        NAME        arg_max_execute
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX2 ANY
+                    nodes/proposal_imp.cpp
+        API         nodes/proposal_imp.hpp
+        NAME        proposal_exec
+        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+)
 
 #  add test object library
 
