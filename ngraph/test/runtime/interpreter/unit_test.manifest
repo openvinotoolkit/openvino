@@ -12,7 +12,6 @@ reduce_sum_keep_large_1d_to_scalar
 
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
-INTERPRETER.onnx_resize11_scales_down_linear
 INTERPRETER.interpolate_down_scales_const_linear
 INTERPRETER.onnx_resize10_up_scales_const_nearest
 INTERPRETER.onnx_resize10_up_scales_const_linear
