@@ -187,9 +187,9 @@ void file_util::iterate_files(const string& path,
     vector<string> files;
     vector<string> dirs;
 #ifdef _WIN32
-    string file_match = path_join(path, "*");
-    WIN32_FIND_DATA data;
-    HANDLE hFind = FindFirstFile(file_match.c_str(), &data);
+    std::string file_match = path_join(path, "*");
+    WIN32_FIND_DATAA data;
+    HANDLE hFind = FindFirstFileA(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE)
     {
         do
@@ -212,7 +212,7 @@ void file_util::iterate_files(const string& path,
                 string file_name = path_join(path, data.cFileName);
                 func(file_name, false);
             }
-        } while (FindNextFile(hFind, &data));
+        } while (FindNextFileA(hFind, &data));
         FindClose(hFind);
     }
 #else
