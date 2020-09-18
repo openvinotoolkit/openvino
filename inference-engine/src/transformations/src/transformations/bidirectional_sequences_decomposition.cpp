@@ -20,14 +20,17 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
             return false;
         }
 
-        auto axis_0 = ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = ngraph::opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H = std::make_shared<opset5::Split>(lstm_sequence->input_value(1), axis_1, 2);
-        auto C = std::make_shared<opset5::Split>(lstm_sequence->input_value(2), axis_1, 2);
-        auto W = std::make_shared<opset5::Split>(lstm_sequence->input_value(4), axis_0, 2);
-        auto R = std::make_shared<opset5::Split>(lstm_sequence->input_value(5), axis_0, 2);
-        auto B = std::make_shared<opset5::Split>(lstm_sequence->input_value(6), axis_0, 2);
-        auto lstm_sequence_forward = std::make_shared<ngraph::opset5::LSTMSequence>(
+        if (lstm_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
+        auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
+        auto H = std::make_shared<opset4::Split>(lstm_sequence->input_value(1), axis_1, 2);
+        auto C = std::make_shared<opset4::Split>(lstm_sequence->input_value(2), axis_1, 2);
+        auto W = std::make_shared<opset4::Split>(lstm_sequence->input_value(4), axis_0, 2);
+        auto R = std::make_shared<opset4::Split>(lstm_sequence->input_value(5), axis_0, 2);
+        auto B = std::make_shared<opset4::Split>(lstm_sequence->input_value(6), axis_0, 2);
+        auto lstm_sequence_forward = std::make_shared<ngraph::op::v5::LSTMSequence>(
                 lstm_sequence->input_value(0),
                 H->output(0),
                 C->output(0),
@@ -85,13 +88,16 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
             return false;
         }
 
-        auto axis_0 = ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = ngraph::opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H = std::make_shared<opset5::Split>(gru_sequence->input_value(1), axis_1, 2);
-        auto W = std::make_shared<opset5::Split>(gru_sequence->input_value(3), axis_0, 2);
-        auto R = std::make_shared<opset5::Split>(gru_sequence->input_value(4), axis_0, 2);
-        auto B = std::make_shared<opset5::Split>(gru_sequence->input_value(5), axis_0, 2);
-        auto gru_sequence_forward = std::make_shared<ngraph::opset5::GRUSequence>(
+        if (gru_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
+        auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
+        auto H = std::make_shared<opset4::Split>(gru_sequence->input_value(1), axis_1, 2);
+        auto W = std::make_shared<opset4::Split>(gru_sequence->input_value(3), axis_0, 2);
+        auto R = std::make_shared<opset4::Split>(gru_sequence->input_value(4), axis_0, 2);
+        auto B = std::make_shared<opset4::Split>(gru_sequence->input_value(5), axis_0, 2);
+        auto gru_sequence_forward = std::make_shared<ngraph::op::v5::GRUSequence>(
                 gru_sequence->input_value(0),
                 H->output(0),
                 gru_sequence->input_value(2),
@@ -146,13 +152,16 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
             return false;
         }
 
-        auto axis_0 = ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = ngraph::opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H = std::make_shared<opset5::Split>(rnn_sequence->input_value(1), axis_1, 2);
-        auto W = std::make_shared<opset5::Split>(rnn_sequence->input_value(3), axis_0, 2);
-        auto R = std::make_shared<opset5::Split>(rnn_sequence->input_value(4), axis_0, 2);
-        auto B = std::make_shared<opset5::Split>(rnn_sequence->input_value(5), axis_0, 2);
-        auto rnn_sequence_forward = std::make_shared<ngraph::opset5::RNNSequence>(
+        if (rnn_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
+        auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
+        auto H = std::make_shared<opset4::Split>(rnn_sequence->input_value(1), axis_1, 2);
+        auto W = std::make_shared<opset4::Split>(rnn_sequence->input_value(3), axis_0, 2);
+        auto R = std::make_shared<opset4::Split>(rnn_sequence->input_value(4), axis_0, 2);
+        auto B = std::make_shared<opset4::Split>(rnn_sequence->input_value(5), axis_0, 2);
+        auto rnn_sequence_forward = std::make_shared<ngraph::op::v5::RNNSequence>(
                 rnn_sequence->input_value(0),
                 H->output(0),
                 rnn_sequence->input_value(2),
