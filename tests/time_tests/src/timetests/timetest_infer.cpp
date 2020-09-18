@@ -23,6 +23,10 @@ int runPipeline(const std::string &model, const std::string &device) {
     InferRequest inferRequest;
 
     {
+      SCOPED_TIMER(load_plugin);
+      ie.GetVersions(device);
+    }
+    {
       SCOPED_TIMER(create_exenetwork);
       if (fileExt(model) == "blob") {
         SCOPED_TIMER(import_network);
