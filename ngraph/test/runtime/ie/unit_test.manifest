@@ -63,6 +63,7 @@ onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
+IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
 onnx_model_sum_one_input
@@ -1090,8 +1091,8 @@ onnx_model_gru_fwd_bias_initial_h
 onnx_model_gru_bidirectional
 onnx_model_gru_fwd_linear_before_reset
 
-# Not implemented Interpolate-4:
-IE_CPU.interpolate_down_scales_const_linear
+# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # RNNCell operation has a form that is not supported
