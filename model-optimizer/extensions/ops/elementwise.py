@@ -49,12 +49,13 @@ class Elementwise(Op):
     operation = None
     op = None
     op_type = None
+    version = 'opset1'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op_type,
-            'version': 'opset1',
+            'version': self.version,
             'infer': lambda node: eltwise_infer(node, self.operation),
             'type_infer': self.type_infer,
             'can_be_bias': True,
@@ -205,9 +206,17 @@ class Minimum(Elementwise):
 class Round(Elementwise):
     enabled = False
     op = 'Round'
-    op_type = None
-    version = 'extension'
+    op_type = 'Round'
+    version = 'opset4'
     operation = staticmethod(lambda a: np.round(a))
+    def __init__(self, graph: Graph, attrs):
+        elu_attrs = {'in_ports_count': 1}
+        elu_attrs.update(attrs)
+        super().__init__(graph, elu_attrs)
+
+    @staticmethod
+    def type_infer(node):
+        copy_type_infer(node)
 
 
 class LogicalOr(LogicalElementwise):
