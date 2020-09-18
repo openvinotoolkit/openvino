@@ -34,7 +34,8 @@ namespace ngraph
                 {
                     // This function creates a shape to which we need to reshape the input
                     // before normalization.
-                    // If data shape is [N, C, H, W], then this function returns [N, num_groups, C // num_groups, H, W]
+                    // If data shape is [N,C,H,W], the function returns
+                    // [N, num_groups, C // num_groups, H, W]
                     std::shared_ptr<ngraph::Node>
                         create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
                     {
