@@ -200,6 +200,8 @@ ngraph::graph_rewrite_callback get_callback() {
                 power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., value, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
                 power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., value, 0., lin_op->get_output_element_type(0));
+            } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., -value, lin_op->get_output_element_type(0));
             } else {
                 return false;
             }
