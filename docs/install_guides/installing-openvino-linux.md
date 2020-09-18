@@ -322,7 +322,7 @@ sudo -E su
 ```
 3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. Run the installation script with super user rights:
 ```sh
-sudo -E ./install_NEO_OCL_driver.sh
+./install_NEO_OCL_driver.sh
 ```
 The drivers are not included in the package and the script downloads them. Make sure you have the 
 internet connection for this step.
@@ -331,7 +331,8 @@ The script compares the driver version on the system to the current version.
 If the driver version on the system is higher or equal to the current version, the script does 
 not install a new driver. 
 If the version of the driver is lower than the current version, the script uninstalls the lower 
-and installs the current version with your permission. 
+and installs the current version with your permission:
+![](../img/NEO_check_agreement.png)
 If the script fails to uninstall the driver, uninstall it manually.    
 You may see the following command line output:  
    - Add OpenCL user to video group    
