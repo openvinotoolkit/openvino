@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_binary_elementwise.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
@@ -53,6 +54,19 @@ bool validateStaticShapes(const ngraph::Function& function) {
     return true;
 }
 
+bool propagateUpperBoundFromExistingDSR(std::shared_ptr<ngraph::Function>& function) {
+    bool function_changed = false;
+    for (const auto& op : function->get_ordered_ops()) {
+        if (const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(op)) {
+            dsr->setMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
+            dsr->validate_and_infer_types();
+            function_changed = true;
+        }
+    }
+
+    return function_changed;
+}
+
 const Transformations& getDefaultTransformations() {
     static const Transformations transformations = {
         {ngraph::opset3::Add::type_info,                       dynamicToStaticShapeBinaryEltwise},
@@ -63,6 +77,9 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Equal::type_info,                     dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Greater::type_info,                   dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Power::type_info,                     dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Maximum::type_info,                   dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Minimum::type_info,                   dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset3::Less::type_info,                      dynamicToStaticShapeBinaryEltwise},
         {ngraph::vpu::op::DynamicNonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
         {ngraph::opset3::NonZero::type_info,                   dynamicToStaticShapeNonZero},
         {ngraph::opset3::TopK::type_info,                      dynamicToStaticShapeTopK},
@@ -78,6 +95,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Softmax::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Exp::type_info,                       dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Sqrt::type_info,                      dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::LogicalNot::type_info,                dynamicToStaticUnaryElementwise},
         {ngraph::opset3::StridedSlice::type_info,              dynamicToStaticShapeStridedSlice},
         {ngraph::opset3::Squeeze::type_info,                   dynamicToStaticShapeSqueeze},
         {ngraph::opset3::Gather::type_info,                    dynamicToStaticShapeGather},
@@ -116,6 +134,11 @@ DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransf
 
 bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> function) {
     bool function_changed = false;
+
+    // Ensure that existing DSRs in function propagate upper-bound shapes, not dynamism.
+    // Basically this is possible in test cases, when the function is initially configured with DSR as inputs.
+    function_changed |= propagateUpperBoundFromExistingDSR(function);
+
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {
             continue;

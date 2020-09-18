@@ -19,6 +19,9 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
             return false;
         }
 
+        if (lstm_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
         auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
         auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
         auto H = std::make_shared<opset4::Split>(lstm_sequence->input_value(1), axis_1, 2);
@@ -84,6 +87,9 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
             return false;
         }
 
+        if (gru_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
+
         auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
         auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
         auto H = std::make_shared<opset4::Split>(gru_sequence->input_value(1), axis_1, 2);
@@ -144,6 +150,9 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
         if (!rnn_sequence) {
             return false;
         }
+
+        if (rnn_sequence->get_direction() != ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+            return false;
 
         auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
         auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
