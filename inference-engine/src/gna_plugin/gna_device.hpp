@@ -49,7 +49,7 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-
+    std::vector<uint32_t> scheduledReqIds;
 #define MAX_TIMEOUT 500000
 #endif
     bool isPerformanceMeasuring = false;
