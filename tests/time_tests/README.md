@@ -15,7 +15,8 @@ To build and run the tests, open a terminal and run the commands below:
 
 1. Build tests:
 ``` bash
-cmake .. -DInferenceEngineDeveloperPackage_DIR=../../../build && make time-tests
+mkdir build && cd build
+cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && make time_tests
 ```
 
 2. Run test:
