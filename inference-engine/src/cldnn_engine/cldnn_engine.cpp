@@ -170,10 +170,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
 
             transformer.transform(nGraphFunc);
-
-#ifdef LPT_SUPPORT
-            ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
-#endif
         }
 
         {

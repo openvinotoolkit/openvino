@@ -145,10 +145,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
-
-#ifdef LPT_SUPPORT
-        ngraph::op::util::BinaryElementwiseArithmetic::multi_type_global = true;
-#endif
     }
 
     {

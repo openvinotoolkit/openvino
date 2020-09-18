@@ -23,10 +23,6 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseArithmetic, "BinaryElementwiseArithmetic", 0);
 
-#ifdef LPT_SUPPORT
-bool op::util::BinaryElementwiseArithmetic::multi_type_global = false;
-#endif
-
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob)
 {
@@ -44,7 +40,6 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
     const op::AutoBroadcastSpec& autob)
 {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
-
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
