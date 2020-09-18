@@ -18,6 +18,48 @@ VPU_DECLARE_ENUM(ResampleType,
     Cubic = 2
 )
 
+VPU_DECLARE_ENUM(ResampleShapeCalcMode,
+    // nearest neighbor 
+    sizes = 0,
+    // cubic interpolation
+    scales = 1
+)
+
+VPU_DECLARE_ENUM(ResampleCoordTransMode,
+    // the coordinate in the original tensor axis `x` is calculated as `((x_resized + 0.5) / scale[x]) - 0.5`
+    half_pixel = 0,
+    // the coordinate in the original tensor axis `x` is calculated by `(x_resized + 0.5) / scale[x] - 0.5 if output_shape[x] > 1 else 0.0`
+    pytorch_half_pixel = 1,
+    // the coordinate in the original tensor axis `x` is calculated according to the formula `x_resized / scale[x]`
+    asymmetric = 2,
+    // the coordinate in the original tensor axis `x` is `(x_resized + 0.5) / scale[x]`
+    tf_half_pixel_for_nn = 3,
+    // the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else x_resized * (input_shape[x] - 1) / (output_shape[x] - 1)`
+    align_corners = 4
+)
+
+VPU_DECLARE_ENUM(ResampleNearestMode,
+    // this mode is known as round half down
+    round_prefer_floor = 0,
+    // it is round half up mode
+    round_prefer_ceil = 1,
+    // this mode computes the largest integer value not greater than rounded value
+    floor = 2,
+    // this mode computes the smallest integer value not less than rounded value
+    ceil = 3,
+    // this mode behaves as `ceil` mode when `Interpolate` is downsample, and as dropping the fractional part otherwise
+    simple = 4
+)
+
+VPU_DECLARE_ENUM(ResampleAxis,
+    along_b = 0,
+    along_f = 1,
+    along_x = 2,
+    along_y = 3,
+    along_z = 4,
+    along_w = 5
+)
+
 namespace {
 
 class ResampleStage final : public StageNode {
@@ -54,10 +96,16 @@ private:
         auto antialias = attrs().get<bool>("antialias");
         auto factor = attrs().get<float>("factor");
         auto sampleType = attrs().get<ResampleType>("type");
+        auto sampleNearestMode = attrs().get<ResampleNearestMode>("nearestMode");
+        auto sampleShapeCalcMode = attrs().get<ResampleShapeCalcMode>("shapeCalcMode");
+        auto sampleCoordTransMode = attrs().get<ResampleCoordTransMode>("coordTransMode");
 
         serializer.append(static_cast<int32_t>(antialias));
         serializer.append(static_cast<float>(factor));
         serializer.append(static_cast<uint32_t>(sampleType));
+        serializer.append(static_cast<uint32_t>(sampleNearestMode));
+        serializer.append(static_cast<uint32_t>(sampleShapeCalcMode));
+        serializer.append(static_cast<uint32_t>(sampleCoordTransMode));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -67,6 +115,16 @@ private:
         input->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
     }
+    int32_t pad_begin;
+    int32_t antialias;
+    int32_t align_corners;
+    
+    float cube_coeff;
+
+    ResampleType operation_type;
+    ResampleNearestMode round_mode;
+    ResampleShapeCalcMode shape_calc_mode;
+    ResampleCoordTransMode coord_trans_mode;
 };
 
 }  // namespace
@@ -85,8 +143,51 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+    } else if (cmp(method, "caffe.ResampleParameter.LINEAR")) {
+        stage->attrs().set<ResampleType>("type", ResampleType::Linear);
+    } else if (cmp(method, "caffe.ResampleParameter.CUBIC")) {
+        stage->attrs().set<ResampleType>("type", ResampleType::Cubic);
     } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample type";
+    }
+
+    auto nnMode = layer->GetParamAsString("nearestMode", "caffe.ResampleParameter.round_prefer_floor");
+    if (cmp(nnMode, "caffe.ResampleParameter.round_prefer_floor")) {
+        stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::round_prefer_floor);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.round_prefer_ceil")) {
+        stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::round_prefer_ceil);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.floor")) {
+        stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::floor);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.ceil")) {
+        stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::ceil);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.simple")) {
+        stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::simple);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample nearest mode variant";
+    }
+
+    auto shapeCalcMode = layer->GetParamAsString("shapeCalcMode", "caffe.ResampleParameter.sizes");
+    if (cmp(shapeCalcMode, "caffe.ResampleParameter.sizes")) {
+        stage->attrs().set<ResampleShapeCalcMode>("shapeCalcMode", ResampleShapeCalcMode::sizes);
+    } else if (cmp(shapeCalcMode, "caffe.ResampleParameter.scales")) {
+        stage->attrs().set<ResampleShapeCalcMode>("shapeCalcMode", ResampleShapeCalcMode::scales);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample shape calculation mode";
+    }
+
+    auto coordTransMode = layer->GetParamAsString("coordTransMode", "caffe.ResampleParameter.half_pixel");
+    if (cmp(coordTransMode, "caffe.ResampleParameter.half_pixel")) {
+        stage->attrs().set<ResampleCoordTransMode>("coordTransMode", ResampleCoordTransMode::half_pixel);
+    } else if (cmp(coordTransMode, "caffe.ResampleParameter.pytorch_half_pixel")) {
+        stage->attrs().set<ResampleCoordTransMode>("coordTransMode", ResampleCoordTransMode::pytorch_half_pixel);
+    } else if (cmp(coordTransMode, "caffe.ResampleParameter.pytorch_half_pixel")) {
+        stage->attrs().set<ResampleCoordTransMode>("coordTransMode", ResampleCoordTransMode::pytorch_half_pixel);
+    } else if (cmp(coordTransMode, "caffe.ResampleParameter.tf_half_pixel_for_nn")) {
+        stage->attrs().set<ResampleCoordTransMode>("coordTransMode", ResampleCoordTransMode::tf_half_pixel_for_nn);
+    } else if (cmp(coordTransMode, "caffe.ResampleParameter.align_corners")) {
+        stage->attrs().set<ResampleCoordTransMode>("coordTransMode", ResampleCoordTransMode::align_corners);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample coordinate transform mode";
     }
 }
 
