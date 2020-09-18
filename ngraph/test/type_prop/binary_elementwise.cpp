@@ -195,8 +195,7 @@ void test_binary_logical(std::string /* node_type */,
     test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
 }
 
-// LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, or_bad_arguments)
+TEST(type_prop, or_bad_arguments)
 {
     test_binary_logical(
         "Or", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
@@ -204,8 +203,7 @@ TEST(DISABLED_type_prop, or_bad_arguments)
         });
 }
 
-// LPT_SUPPORT: temporary disabled
-TEST(DISABLED_type_prop, xor_bad_arguments)
+TEST(type_prop, xor_bad_arguments)
 {
     test_binary_logical(
         "Xor", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {

@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-// TODO: LPT_SUPPORT
-TEST(TransformationTests, DISABLED_ConstFoldingPriorBox) {
+TEST(TransformationTests, ConstFoldingPriorBox) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
@@ -111,8 +110,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-// TODO: LPT_SUPPORT
-TEST(TransformationTests, DISABLED_ConstFoldingPriorBoxSubgraph) {
+TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 

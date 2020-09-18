@@ -10,11 +10,6 @@
 #
 #-------------------------------------------------------------------------------
 
-# LPT_SUPPORT: temporary disabling
-# onnx_model_gemm_abc
-# reduce_sum_keep_5d_to_scalar_int32
-# et_dynamic_shape_static_validation_fails
-
 # Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point

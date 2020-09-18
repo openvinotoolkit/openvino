@@ -26,8 +26,8 @@ public:
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
 
     bool empty() const;
-
     bool isShared() const;
+    bool isLowPrecision() const;
 
     Output<Node> data;
     std::shared_ptr<opset1::Convert> convert;

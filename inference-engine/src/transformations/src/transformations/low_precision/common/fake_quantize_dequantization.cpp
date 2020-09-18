@@ -43,6 +43,10 @@ bool FakeQuantizeDequantization::isShared() const {
     return false;
 }
 
+bool FakeQuantizeDequantization::isLowPrecision() const {
+    return (data.get_element_type() == element::i8) || (data.get_element_type() == element::u8);
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
