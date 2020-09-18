@@ -10,6 +10,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL2Decomposition, "ReduceL2Decomposition", 0);
+
 ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     // decomposes ReduceL2 operations into sqrt(ReduceSum(x * x))
     auto reduce_l2 = ngraph::pattern::wrap_type<opset4::ReduceL2>();
@@ -18,7 +20,7 @@ ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto reduce_l2_node = std::dynamic_pointer_cast<ngraph::opset4::ReduceL2>(pattern_to_output.at(reduce_l2).get_node_shared_ptr());
 
-        if (m_transformation_callback(reduce_l2_node)) {
+        if (reduce_l2_node == nullptr || m_transformation_callback(reduce_l2_node)) {
             return false;
         }
 

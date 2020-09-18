@@ -12,6 +12,10 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithMax, "NormalizeL2FusionWithMax", 0);
+
 ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto input = ngraph::pattern::any_input();
 
@@ -62,6 +66,8 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "NormalizeL2FusionWithMax");
     register_matcher(m, matcher_pass_callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithAdd, "NormalizeL2FusionWithAdd", 0);
 
 ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     auto input = ngraph::pattern::any_input();

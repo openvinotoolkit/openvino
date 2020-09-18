@@ -40,9 +40,6 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# Not supported ONNX op: ScatterND
-onnx_model_scatterND
-
 # Not supported ONNX op: GatherND
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
@@ -143,6 +140,7 @@ onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
 onnx_model_one_hot_without_axis
+onnx_model_scatterND_param_i64_indices
 
 # [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
 IE_CPU.fused_clamp_uint64
@@ -178,7 +176,7 @@ arg_min_no_keep_dims_dyn_shape
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
-onnx_upsample9_scales_input_nearest_infer
+# onnx_upsample9_scales_input_nearest_infer
 fused_clamp_uint16
 fused_clamp_uint8
 fused_clamp_int32
@@ -1084,25 +1082,29 @@ IE_CPU.builder_opset1_collapse_dyn_shape
 
 # Interpolate-1 in linear mode
 # 2.666666507720947266 is not close to 3 at index 1
-IE_CPU.interpolate_down_scales_const_linear
-
-# Result mismatch 2.666666507720947266 is not close to 3 at index 1
-IE_CPU.onnx_resize10_down_scales_const_linear
-IE_CPU.onnx_resize11_scales_down_linear
-
-# C++ exception with description "Interpolate operation should be converted to Interp
-# not constant output_shape passed to Interpolate-1
-IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+# IE_CPU.interpolate_down_scales_const_linear
 
 # GRUCell operation has a form that is not supported
-IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_activations
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_rev_clip
-IE_CPU.onnx_model_gru_reverse
-IE_CPU.onnx_model_gru_fwd_bias_initial_h
-IE_CPU.onnx_model_gru_bidirectional
-IE_CPU.onnx_model_gru_fwd_linear_before_reset
+onnx_model_gru_defaults_fwd
+onnx_model_gru_fwd_activations
+onnx_model_gru_fwd_mixed_seq_len
+onnx_model_gru_rev_clip
+onnx_model_gru_reverse
+onnx_model_gru_fwd_bias_initial_h
+onnx_model_gru_bidirectional
+onnx_model_gru_fwd_linear_before_reset
+
+# Not implemented Interpolate-4:
+IE_CPU.onnx_model_round
+IE_CPU.onnx_upsample9_scales_const_linear_infer
+IE_CPU.onnx_upsample9_scales_const_nearest_infer
+IE_CPU.onnx_upsample8_nearest_infer
+IE_CPU.onnx_upsample8_linear_infer
+IE_CPU.interpolate_down_scales_const_linear
+IE_CPU.onnx_upsample8_import_only
+IE_CPU.onnx_upsample9_scales_const_import_only
+IE_CPU.onnx_empty_initializers_handling
+IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # RNNCell operation has a form that is not supported
 IE_CPU.onnx_model_rnn_defaults_fwd
@@ -1392,7 +1394,7 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
-IE_GPU.onnx_upsample9_scales_input_nearest_infer
+# IE_GPU.onnx_upsample9_scales_input_nearest_infer
 
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
@@ -1446,3 +1448,14 @@ IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
+
+# ONNX Loop - tests disabled temporarily
+onnx_controlflow_loop_2d_add_check_model
+onnx_controlflow_loop_scalars_check_model
+onnx_controlflow_loop_add_initializer_from_parent_scope
+onnx_controlflow_loop_add_input_from_parent_scope
+onnx_controlflow_loop_add_node_from_parent_scope
+onnx_controlflow_loop_add_value_access_to_body_scope_exception
+onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
+onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
+onnx_controlflow_loop_2d_add_const_cond

@@ -16,7 +16,6 @@
 #include <iomanip>
 
 #include <legacy/graph_transformer.h>
-#include <gna-api.h>
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
@@ -87,7 +86,6 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
-
     // actual insertion
     CNNNetworkInsertLayer(prevLayer, nextLayer, diagonalWithQuant);
 }
@@ -296,6 +294,9 @@ void SubstituteSoftSignPass::run() {
     };
     auto getNthChild = [](CNNLayerPtr l, int N) {
         auto first = getInputTo(l->outData.front()).begin();
+        auto last = getInputTo(l->outData.front()).end();
+        IE_ASSERT(first != last);
+        IE_ASSERT(N <= std::distance(first, last));
         std::advance(first, N);
         return first->second;
     };
@@ -591,19 +592,27 @@ void RemovePermutationsNHWCToNCHWPass::run() {
     for (auto&& toRemove : permutationsToRemove) {
         gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
 
-        auto next = getInputTo(toRemove->outData.front()).begin()->second;
-        if (LayerInfo(next).isConvolution()) {
-            next->input()->setDims(toRemove->input()->getDims());
-            next->input()->setLayout(Layout::NHWC);
-            auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-            layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+        if (!getInputTo(toRemove->outData.front()).empty()) {
+            auto next = getInputTo(toRemove->outData.front()).begin()->second;
+            IE_ASSERT(next != nullptr);
 
-            auto& convolution = dynamic_cast<ConvolutionLayer&>(*next);
-            if (convolution._kernel_y != 1) {
-                THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+            if (LayerInfo(next).isConvolution()) {
+                next->input()->setDims(toRemove->input()->getDims());
+                next->input()->setLayout(Layout::NHWC);
+                auto layerBeforePermute = CNNNetPrevLayer(toRemove);
+                layerBeforePermute->outData[0]->setLayout(Layout::NHWC);
+
+                auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
+                if (!convolution) {
+                    THROW_GNA_EXCEPTION << "There needs to be a convolution between permutations for RemovePermutationsNHWCToNCHWPass!";
+                }
+
+                if (convolution->_kernel_y != 1) {
+                    THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
+                }
+                auto in_channels = next->input()->getDims()[3];
+                convolution->_kernel_y = in_channels;
             }
-            auto in_channels = next->input()->getDims()[3];
-            convolution._kernel_y = in_channels;
         }
         auto prev = CNNNetPrevLayer(toRemove);
         if (LayerInfo(prev).isConvolution()) {
@@ -697,14 +706,10 @@ void InsertCopyLayerPass::run() {
             if (LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
             if (bInsert) {
-                if (LayerInfo(prevIndirectLayer).isCrop()) {
-                    auto cropLayer = LayerInfo(prevIndirectLayer).as<CropLayer *>();
-                    size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-                    if (ALIGN(cropOffset, 8) != cropOffset) {
-                        // The crop will be replaced by affine.
-                        // Copy layer insertion is not required
-                        continue;
-                    }
+                if (LayerInfo(prevIndirectLayer).isCropAffined()) {
+                    // The crop will be replaced by affine.
+                    // Copy layer insertion is not required
+                    continue;
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
                 InsertCopyLayer(prevLayer, l, i, getPassManager());
@@ -782,8 +787,9 @@ void InsertConcatAligningFilterPass::run() {
                 size_t num_rows_out = num_rows_padded + num_rows_in;
 
                 // encodes offset to beginning of split layer input
+                size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
                 concatAligningFilter->params["output_offset"] =
-                        std::to_string((aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4));
+                        std::to_string(bytesOffset);
 
                 // for padded rows we cannot use copy layer - TBD how to implement
                 concatAligningFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
@@ -837,84 +843,92 @@ void ReorderConcatInputsPass::run() {
     }
     int numOfLinkLayers = 0;
 
-    for (auto & l : *pLayers) {
-        // 1st stage locate concat align filter
+    for (auto& l : *pLayers) {
+        // 1st stage locate concat
         LayerInfo info(l);
-        if (!info.isConcatAlignFilter()) {
+        if (!info.isConcat()) {
             continue;
         }
 
-        // 2rd locating concat
-        if (l->outData.size() != 1) {
-            THROW_GNA_EXCEPTION << "no concat layer after concat aligning layer" << l->name;
-        }
-        auto nextLayers = getInputTo(l->outData.front());
-
-        if (nextLayers.size() != 1) {
-            THROW_GNA_EXCEPTION << "Invalid concat connection in align filter : " << l->name;
-        }
-        auto concat = nextLayers.begin()->second;
-        if (!LayerInfo(concat).isConcat()) {
-            THROW_GNA_EXCEPTION << "no concat layer after concat-aligning layer" << l->name << ", but was: " << concat->type;
-        }
-        // 3stage locate first input in concat
-        if (concat->insData.size() < 2) {
-            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << concat->name;
-        }
-        auto inputsToConcatFirst = CNNNetGetPrevLayersSkip(concat, [](CNNLayerPtr origin){
-            return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
-        }, 0);
-
-        if (inputsToConcatFirst.empty()) {
-            THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << l;
+        // 2nd stage locate first input in concat
+        if (l->insData.size() < 2) {
+            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << l->name;
         }
 
-        auto firstInputToConcat = inputsToConcatFirst.front().first;
-
-        // concat has first input of concat align filter - dont need to reorder it
-        if (firstInputToConcat == l) {
-            continue;
-        }
-
-        bool bFinish = false;
-        // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
-        // using ufs - upper first search
-        gnalog() << "[UFS] searching for: "<< firstInputToConcat->name << "\n";
-
-        CNNNetDFS(l, [&l, &firstInputToConcat, &bFinish](CNNLayerPtr layer) {
-            gnalog() << "[UFS] from : "<< l->name <<" reached: " << layer->name << "\n";
-            // found that direct input to concat is a indirect parent of align filter - so no link required
-            if (layer.get() == firstInputToConcat.get() || LayerInfo(firstInputToConcat).isInput()) {
-                gnalog() << "[UFS] copy layer insertion needed\n";
-                bFinish = true;
+        auto concatLayer = info.as<ConcatLayer*>();
+        auto getLayerByIndex = [&concatLayer](int idx) {
+            auto input = concatLayer->insData[idx];
+            auto lockedInput = input.lock();
+            if (!lockedInput) {
+                THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
             }
-        }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
-            // aborting UFS once link not need
-            return make_upstream_order(!bFinish ? from : nullptr);
-        });
+            return lockedInput;
+        };
 
-        auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
+        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto concatInput = getLayerByIndex(input_idx);
+            auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
-        auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({linkName, "link", Precision::FP32}));
+            LayerInfo infoConcatInput(currConcatLayer);
+            if (!infoConcatInput.isConcatAlignFilter()) {
+                continue;
+            }
 
-        auto link = quantized ?
-                    InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
-                    linkWithoutQuant;
+            auto inputsToConcatPrev = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin) {
+                return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
+                }, input_idx - 1);
+
+            if (inputsToConcatPrev.empty()) {
+                THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << currConcatLayer;
+            }
+
+            auto prevInputToConcat = inputsToConcatPrev.front().first;
+
+            // concat has first input of concat align filter - dont need to reorder it
+            if (prevInputToConcat == currConcatLayer) {
+                continue;
+            }
+
+            bool bFinish = false;
+            // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
+            // using ufs - upper first search
+            gnalog() << "[UFS] searching for: " << prevInputToConcat->name << "\n";
+
+            CNNNetDFS(currConcatLayer, [&currConcatLayer, &prevInputToConcat, &bFinish](CNNLayerPtr layer) {
+                gnalog() << "[UFS] from : " << currConcatLayer->name << " reached: " << layer->name << "\n";
+                // found that direct input to concat is a indirect parent of align filter - so no link required
+                if (layer.get() == prevInputToConcat.get() || LayerInfo(prevInputToConcat).isInput()) {
+                    gnalog() << "[UFS] copy layer insertion needed\n";
+                    bFinish = true;
+                }
+                }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS once link not needed
+                    return make_upstream_order(!bFinish ? from : nullptr);
+                });
+
+            auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
+
+            auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({ linkName, "link", Precision::FP32 }));
+
+            auto link = quantized ?
+                InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
+                linkWithoutQuant;
 
 
-        auto linkOutData = std::make_shared<Data>(linkName,
-                                              TensorDesc(Precision::FP32,
-                                                         SizeVector({1}),
-                                                         Layout::C));
-        getCreatorLayer(linkOutData) = link;
+            auto linkOutData = std::make_shared<Data>(linkName,
+                TensorDesc(Precision::FP32,
+                    SizeVector({ 1 }),
+                    Layout::C));
+            getCreatorLayer(linkOutData) = link;
 
-        link->outData.push_back(linkOutData);
-        link->insData.push_back(l->outData.front());
+            link->outData.push_back(linkOutData);
+            link->insData.push_back(currConcatLayer->outData.front());
 
-        getInputTo(linkOutData)[firstInputToConcat->name + ".via.link"] = firstInputToConcat;
-        firstInputToConcat->insData.push_back(linkOutData);
+            getInputTo(linkOutData)[prevInputToConcat->name + ".via.link"] = prevInputToConcat;
+            prevInputToConcat->insData.push_back(linkOutData);
 
-        getInputTo(l->outData.front())[linkName] = link;
+            getInputTo(currConcatLayer->outData.front())[linkName] = link;
+        }
     }
 }
 
@@ -936,68 +950,74 @@ void InsertSplitAligningFilterPass::run() {
             auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
             if (currentOffset != ALIGN64(currentOffset)) {
-                // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
+                // check that this split output actually connected to further layers
+                if (getInputTo(splitOutput).empty()) {
+                    gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
+                } else {
+                    // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
+                    // insert the filter
+                    auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
+
 #ifdef PLOT
-                // getting list of layers attached to current split output
-                gnalog() << "Inserted Affine Filter Layer between: " << l->name << " and ";
-                for (auto &&followingLayers : getInputTo(splitOutput)) {
-                    if (getInputTo(splitOutput).size() != 1) {
-                        gnalog() << "\n    ";
+                    // getting list of layers attached to current split output
+                    gnalog() << "Inserted Affine Filter: " << filterName << " between: " << l->name << " and ";
+                    for (auto &&followingLayers : getInputTo(splitOutput)) {
+                        if (getInputTo(splitOutput).size() != 1) {
+                            gnalog() << "\n    ";
+                        }
+                        gnalog() << followingLayers.second->name;
                     }
-                    gnalog() << followingLayers.second->name;
-                }
-                gnalog() << std::endl;
+                    gnalog() << std::endl;
 #endif
-                // insert the filter
-                auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
-                auto filterLayer =
-                        std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
+                    auto filterLayer =
+                            std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
 
+                    auto inputData = splitOutput;
 
-                auto inputData = splitOutput;
+                    size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
+                    size_t
+                            newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
+                                            / bytesPerSplitElement;
 
-                size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
-                size_t newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
-                                       / bytesPerSplitElement;
+                    IE_ASSERT(filterLayer != nullptr);
 
-                IE_ASSERT(filterLayer != nullptr);
+                    // encodes offset to beginning of split layer input
+                    filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
 
-                // encodes offset to beginning of split layer input
-                filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
+                    auto dims = splitOutput->getTensorDesc().getDims();
+                    if (dims.size() > 3) {
+                        THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
+                    }
 
-                auto dims = splitOutput->getTensorDesc().getDims();
-                if (dims.size() > 3) {
-                    THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
+                    auto num_rows_out = dims[1] * (dims.size() != 2 ? dims[2] : 1);
+                    std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
+
+                    auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+
+                    for (int i = 0; i != outputSize; i++) {
+                        filterWeights[offset] = 1.0f;
+                        offset += newOutputSize + 1;
+                    }
+
+                    filterLayer->_weights = make_shared_blob<float>(TensorDesc(
+                            inputData->getTensorDesc().getPrecision(),
+                            SizeVector({filterWeights.size()}),
+                            Layout::C));
+                    filterLayer->_weights->allocate();
+                    CopyVectorToBlob(filterLayer->_weights, filterWeights);
+
+                    auto outData = std::make_shared<Data>(filterName,
+                                                          TensorDesc(splitOutput->getTensorDesc().getPrecision(),
+                                                                     splitOutput->getTensorDesc().getDims(),
+                                                                     inputData->getTensorDesc().getLayout()));
+
+                    auto filterWithQuant = quantized ?
+                                           InferenceEngine::injectData<QuantizedLayerParams>(filterLayer) :
+                                           filterLayer;
+                    getCreatorLayer(outData) = filterWithQuant;
+                    filterWithQuant->outData.push_back(outData);
+                    CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
                 }
-
-                auto num_rows_out = dims[1]  * (dims.size() != 2 ? dims[2] : 1);
-                std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
-
-                auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
-
-                for (int i = 0; i != outputSize; i++) {
-                    filterWeights[offset] = 1.0f;
-                    offset += newOutputSize + 1;
-                }
-
-                filterLayer->_weights = make_shared_blob<float>(TensorDesc(
-                        inputData->getTensorDesc().getPrecision(),
-                        SizeVector({filterWeights.size()}),
-                        Layout::C));
-                filterLayer->_weights->allocate();
-                CopyVectorToBlob(filterLayer->_weights, filterWeights);
-
-                auto outData = std::make_shared<Data>(filterName,
-                                                      TensorDesc(splitOutput->getTensorDesc().getPrecision(),
-                                                                 splitOutput->getTensorDesc().getDims(),
-                                                                 inputData->getTensorDesc().getLayout()));
-
-                auto filterWithQuant = quantized ?
-                                       InferenceEngine::injectData<QuantizedLayerParams>(filterLayer) :
-                                       filterLayer;
-                getCreatorLayer(outData) = filterWithQuant;
-                filterWithQuant->outData.push_back(outData);
-                CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
             }
 
             // search data that starts from unaligned location
@@ -1102,6 +1122,7 @@ void EltwiseSplitOverChannelsPass::run() {
         for (size_t k = 0; k != totalSplits; k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
+            IE_ASSERT(eltwiseRaw != nullptr);
             eltwiseRaw->_operation = masterEltwise->_operation;
             eltwiseRaw->coeff = masterEltwise->coeff;
             auto eltwise = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(eltwiseRaw) : eltwiseRaw;
@@ -1278,9 +1299,11 @@ void FuseMultipleIdentitiesPass::run() {
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             continue;
         gnalog() << "CNNNetPrevLayer skip non functional from :: " << l->name;
-        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr ptr) {
+        auto isFunctional = [](CNNLayerPtr ptr) {
             return !LayerInfo(ptr).isNonFunctional();
-        });
+        };
+
+        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, isFunctional);
         prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
                                                prevLayersReached.end(),
                                                [] (const std::pair<CNNLayerPtr, int> & candidate) {

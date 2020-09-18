@@ -35,10 +35,12 @@ public:
 
 class ngraph::pass::ConvertMatMulToFC: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToFC();
 };
 
 class ngraph::pass::ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToGemm();
 };

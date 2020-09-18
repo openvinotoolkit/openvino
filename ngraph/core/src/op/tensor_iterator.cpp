@@ -618,6 +618,12 @@ std::shared_ptr<Node>
     op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
 {
     auto op = make_shared<op::v0::TensorIterator>(new_args);
+    NGRAPH_CHECK(op.get(),
+                 op != nullptr,
+                 "Cannot clone ",
+                 description(),
+                 " operation with name ",
+                 get_friendly_name());
     op->set_output_size(m_output_descriptions.size());
 
     std::vector<::ngraph::element::Type> types(m_body->get_parameters().size());

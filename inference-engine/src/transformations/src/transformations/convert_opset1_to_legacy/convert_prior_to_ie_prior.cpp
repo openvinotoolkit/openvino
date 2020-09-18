@@ -14,6 +14,8 @@
 #include <ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);
+
 void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
@@ -33,14 +35,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBox>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -172,14 +174,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBoxClustered>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 

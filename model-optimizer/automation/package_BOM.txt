@@ -19,6 +19,7 @@ extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
 extensions/back/EnableConstantStridedSlice.py
+extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
@@ -120,7 +121,6 @@ extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
-extensions/front/FakeOutputResolver.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
@@ -538,6 +538,7 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
+extensions/middle/ONNXResize11ToInterpolateV4.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
@@ -581,7 +582,6 @@ extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
-extensions/middle/wights_permute_normalizer.py
 extensions/ops/__init__.py
 extensions/ops/accum.py
 extensions/ops/activation_ops.py
@@ -640,6 +640,7 @@ extensions/ops/non_zero.py
 extensions/ops/normalize.py
 extensions/ops/normalize_l2.py
 extensions/ops/one_hot.py
+extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
@@ -872,7 +873,6 @@ mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
 mo/middle/passes/leaky_relu.py
-mo/middle/passes/mean_scale_values.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
