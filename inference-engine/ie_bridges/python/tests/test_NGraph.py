@@ -45,9 +45,9 @@ def test_get_ops_from_IENetwork():
                          '19/Fused_Add_', '21', '22', 'onnx_initializer_node_8/Output_0/Data__const',
                          '23/WithoutBiases', '23/Dims357/copy_const', '23', '25/mean/Fused_Mul_618620_const',
                          '24/WithoutBiases', 'data_add_578583/copy_const', '24/Fused_Add_', '26', '27',
-                         '28/Reshape/Cast_1955_const', '28/Reshape', 'onnx_initializer_node_17/Output_0/Data__const',
-                         '29/WithoutBiases', 'onnx_initializer_node_18/Output_0/Data_/copy_const', '29', 'fc_out',
-                         'fc_out/sink_port_0']
+                         'Constant_223', 'onnx_initializer_node_17/Output_0/Data__const', 'ShapeOf_219', 'Constant_221',
+                         'Constant_220', 'Gather_222', '28/Reshape/Cast_1955_const', '28/Reshape', '29/WithoutBiases',
+                         'onnx_initializer_node_18/Output_0/Data_/copy_const', '29', 'fc_out', 'fc_out/sink_port_0']
 
 
 def test_get_type_name():
