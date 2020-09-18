@@ -377,10 +377,10 @@ void GNADeviceHelper::close() {
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
-    if(scheduledReqIds.size() != 0) {
+    if (scheduledReqIds.size() != 0) {
         try {
             wait(scheduledReqIds.back());
-        } catch (...) {};
+        } catch (...) {}
     }
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     checkGna2Status(status);
