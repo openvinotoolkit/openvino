@@ -17,11 +17,18 @@ VPU_DECLARE_ENUM(ROIAlignMode,
     Max = 1
 )
 
+VPU_DECLARE_ENUM(ROIAlignStep,
+    Repacking = 0,
+    ROIAlignCHWc = 1,
+    ROIAlign = 2
+)
+
 static const char s_mode[] = "mode";
 static const char s_pooled_w[] = "pooled_w";
 static const char s_pooled_h[] = "pooled_h";
 static const char s_sampling_ratio[] = "sampling_ratio";
 static const char s_spatial_scale[] = "spatial_scale";
+static const char s_step_number[] = "step_number";
 
 namespace {
 
@@ -52,7 +59,11 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
+        const auto step_number = attrs().get<ROIAlignStep>(s_step_number);
+        std::vector<EnumSet<DataType>> repackingInputs = {{DataType::FP16}};
+        std::vector<EnumSet<DataType>> ROIAlignInputs = {{DataType::FP16}, {DataType::FP16}, {DataType::S32}};
+
+        assertInputsOutputsTypes(this, (step_number == ROIAlignStep::Repacking) ? repackingInputs : ROIAlignInputs, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -61,14 +72,14 @@ private:
         const auto sampling_ratio = attrs().get<int>(s_sampling_ratio);
         const auto spatial_scale = attrs().get<float>(s_spatial_scale);
         const auto mode = attrs().get<ROIAlignMode>(s_mode);
-        const auto use_buffer = !tempBuffers().empty();
+        const auto step_number = attrs().get<ROIAlignStep>(s_step_number);
 
         serializer.append(static_cast<uint32_t>(pooled_w));
         serializer.append(static_cast<uint32_t>(pooled_h));
         serializer.append(static_cast<uint32_t>(sampling_ratio));
         serializer.append(static_cast<float>(spatial_scale));
         serializer.append(static_cast<ROIAlignMode>(mode));
-        serializer.append(static_cast<uint32_t>(use_buffer));
+        serializer.append(static_cast<ROIAlignStep>(step_number));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -77,47 +88,51 @@ private:
         }
 
         outputEdge(0)->output()->serializeBuffer(serializer);
-        const auto use_buffer = !tempBuffers().empty();
-        if (use_buffer)
-            tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
 }  // namespace
 
 void FrontEnd::parseROIAlign(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    VPU_THROW_UNLESS(inputs.size() == 3,
-                    "ROIAlign stage with name {} has invalid number of inputs: expected 3, "
+    VPU_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 1,
+                    "ROIAlign stage with name {} has invalid number of inputs: expected 3 or 1 "
                     "actually provided {}", layer->name, inputs.size());
-
     VPU_THROW_UNLESS(outputs.size() == 1,
                     "ROIAlign stage with name {} has invalid number of outputs: expected 1, "
                     "actually provided {}", layer->name, outputs.size());
 
-    const auto stage = model->addNewStage<ROIAlignStage>(layer->name, StageType::ROIAlign, layer, inputs, outputs);
     const auto mode = layer->GetParamAsString("mode", "");
+    VPU_THROW_UNLESS(mode == "avg" || mode == "max", "Layer with name {} supports only (avg, max) mode", layer->name);
+    ROIAlignMode roi_align_mode = (mode == "avg") ? ROIAlignMode::Average : ROIAlignMode::Max;
 
-    if (mode == "avg") {
-        stage->attrs().set<ROIAlignMode>(s_mode, ROIAlignMode::Average);
-    } else if (mode == "max") {
-        stage->attrs().set<ROIAlignMode>(s_mode, ROIAlignMode::Max);
-    } else {
-        VPU_THROW_FORMAT("Layer with name {} supports only (avg, max) mode", layer->name);
+    const auto width = inputs[0]->desc().dim(Dim::W);
+    const auto is_input_static = (inputs[0]->parentDataToShapeEdge() == nullptr);
+    const auto use_chwc_repacking = (width >= 200) && (roi_align_mode == ROIAlignMode::Average) && is_input_static;
+    auto repackedInput = inputs[0];
+
+    if (use_chwc_repacking) {
+        repackedInput = model->duplicateData(inputs[0], formatString("@ROIAlignRepacked"));
+
+        const auto repacking_stage = model->addNewStage<ROIAlignStage>(layer->name + "Repacking",
+                                                                       StageType::ROIAlign, layer,
+                                                                       {inputs[0]}, {repackedInput});
+
+        repacking_stage->attrs().set<int>(s_pooled_w, layer->GetParamAsInt("pooled_w"));
+        repacking_stage->attrs().set<int>(s_pooled_h, layer->GetParamAsInt("pooled_h"));
+        repacking_stage->attrs().set<int>(s_sampling_ratio, layer->GetParamAsInt("sampling_ratio"));
+        repacking_stage->attrs().set<float>(s_spatial_scale, layer->GetParamAsFloat("spatial_scale"));
+        repacking_stage->attrs().set<ROIAlignMode>(s_mode, ROIAlignMode::Average);
+        repacking_stage->attrs().set<ROIAlignStep>(s_step_number, ROIAlignStep::Repacking);
     }
 
+    const auto stage = model->addNewStage<ROIAlignStage>(layer->name, StageType::ROIAlign, layer, {repackedInput, inputs[1], inputs[2]}, outputs);
+
+    stage->attrs().set<ROIAlignMode>(s_mode, roi_align_mode);
     stage->attrs().set<int>(s_pooled_w, layer->GetParamAsInt("pooled_w"));
     stage->attrs().set<int>(s_pooled_h, layer->GetParamAsInt("pooled_h"));
     stage->attrs().set<int>(s_sampling_ratio, layer->GetParamAsInt("sampling_ratio"));
     stage->attrs().set<float>(s_spatial_scale, layer->GetParamAsFloat("spatial_scale"));
-
-    const int width = inputs[0]->desc().dim(Dim::W);
-    const int height = inputs[0]->desc().dim(Dim::H);
-    const int channels = inputs[0]->desc().dim(Dim::C);
-    const int buffer_size = sizeof(int16_t) * width * height * channels;
-    const bool use_buffer = (width >= 200) && (mode == "avg");
-
-    if (use_buffer)
-        model->addTempBuffer(stage, DataDesc({buffer_size}));
+    stage->attrs().set<ROIAlignStep>(s_step_number, use_chwc_repacking ? ROIAlignStep::ROIAlignCHWc : ROIAlignStep::ROIAlign);
 }
 
 }  // namespace vpu
