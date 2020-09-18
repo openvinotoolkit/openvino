@@ -1,0 +1,44 @@
+name: Rust Bridge
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: inference-engine/ie_bridges/rust
+
+jobs:
+  format:
+    name: Check code format
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - run: rustup component add rustfmt
+    - run: cargo fmt --all -- --check
+
+  build:
+    name: Build from OpenVINO source
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Install system dependencies
+      run: sudo apt update && sudo apt install -y clang cmake libclang-dev gnupg2 libdrm2 libglib2.0-0 libusb-1.0 lsb-release libgtk-3-0 libtool libopencv-dev libopencv-core3.2 udev unzip dos2unix
+    - name: Build (openvino-sys from source)
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  docker:
+    name: Build from OpenVINO installation inside a Docker image
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Build the Docker image
+      run: docker build ../../.. -f Dockerfile --tag openvino-rs:$(date +%s)

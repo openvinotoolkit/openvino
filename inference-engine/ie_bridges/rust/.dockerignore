@@ -1,0 +1,6 @@
+target
+**/.git
+
+# Ignore all large submodules; TODO we only really need: crates/openvino-sys/upstream/inference-engine/ie_bridges/c/include/c_api/ie_c_api.h
+crates/openvino-sys/upstream/*
+!crates/openvino-sys/upstream/inference-engine
