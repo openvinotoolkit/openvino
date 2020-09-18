@@ -102,15 +102,12 @@
                     <tab type="usergroup" title="Operations Specifications" url="">
                         <tab type="user" title="Abs-1" url="@ref openvino_docs_ops_arithmetic_Abs_1"/>
                         <tab type="user" title="Acos-1" url="@ref openvino_docs_ops_arithmetic_Acos_1"/>
-                        <tab type="user" title="Acosh-1" url="@ref openvino_docs_ops_arithmetic_Acosh_1"/>
                         <tab type="user" title="Acosh-3" url="@ref openvino_docs_ops_arithmetic_Acosh_3"/>
                         <tab type="user" title="Add-1" url="@ref openvino_docs_ops_arithmetic_Add_1"/>
                         <tab type="user" title="Asin-1" url="@ref openvino_docs_ops_arithmetic_Asin_1"/>
-                        <tab type="user" title="Asinh-1" url="@ref openvino_docs_ops_arithmetic_Asinh_1"/>
                         <tab type="user" title="Asinh-3" url="@ref openvino_docs_ops_arithmetic_Asinh_3"/>
                         <tab type="user" title="Assign-3" url="@ref openvino_docs_ops_infrastructure_Assign_3"/>
                         <tab type="user" title="Atan-1" url="@ref openvino_docs_ops_arithmetic_Atan_1"/>
-                        <tab type="user" title="Atanh-1" url="@ref openvino_docs_ops_arithmetic_Atanh_1"/>
                         <tab type="user" title="Atanh-3" url="@ref openvino_docs_ops_arithmetic_Atanh_3"/>
                         <tab type="user" title="AvgPool-1" url="@ref openvino_docs_ops_pooling_AvgPool_1"/>
                         <tab type="user" title="BatchNormInference-1" url="@ref openvino_docs_ops_normalization_BatchNormInference_1"/>
@@ -158,8 +155,9 @@
                         <tab type="user" title="GroupConvolutionBackpropData-1" url="@ref openvino_docs_ops_convolution_GroupConvolutionBackpropData_1"/>
                         <tab type="user" title="GroupConvolution-1" url="@ref openvino_docs_ops_convolution_GroupConvolution_1"/>
                         <tab type="user" title="HardSigmoid-1" url="@ref openvino_docs_ops_activation_HardSigmoid_1"/>
+                        <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
                         <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
-                        <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_4"/>
+                        <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
                         <tab type="user" title="LRN-1" url="@ref openvino_docs_ops_normalization_LRN_1"/>
                         <tab type="user" title="LSTMCell-1" url="@ref openvino_docs_ops_sequence_LSTMCell_1"/>
                         <tab type="user" title="LSTMSequence-1" url="@ref openvino_docs_ops_sequence_LSTMSequence_1"/>
@@ -194,9 +192,13 @@
                         <tab type="user" title="PriorBoxClustered-1" url="@ref openvino_docs_ops_detection_PriorBoxClustered_1"/>
                         <tab type="user" title="PriorBox-1" url="@ref openvino_docs_ops_detection_PriorBox_1"/>
                         <tab type="user" title="Proposal-1" url="@ref openvino_docs_ops_detection_Proposal_1"/>
+                        <tab type="user" title="Proposal-4" url="@ref openvino_docs_ops_detection_Proposal_4"/>
                         <tab type="user" title="Range-1" url="@ref openvino_docs_ops_generation_Range_1"/>
+                        <tab type="user" title="Range-4" url="@ref openvino_docs_ops_generation_Range_4"/>
                         <tab type="user" title="ReadValue-3" url="@ref openvino_docs_ops_infrastructure_ReadValue_3"/>
                         <tab type="user" title="ReLU-1" url="@ref openvino_docs_ops_activation_ReLU_1"/>
+                        <tab type="user" title="ReduceL1-4" url="@ref openvino_docs_ops_reduction_ReduceL1_4"/>
+                        <tab type="user" title="ReduceL2-4" url="@ref openvino_docs_ops_reduction_ReduceL2_4"/>
                         <tab type="user" title="ReduceLogicalAnd-1" url="@ref openvino_docs_ops_reduction_ReduceLogicalAnd_1"/>
                         <tab type="user" title="ReduceLogicalOr-1" url="@ref openvino_docs_ops_reduction_ReduceLogicalOr_1"/>
                         <tab type="user" title="ReduceMax-1" url="@ref openvino_docs_ops_reduction_ReduceMax_1"/>
