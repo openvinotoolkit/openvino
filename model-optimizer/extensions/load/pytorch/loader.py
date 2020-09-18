@@ -20,6 +20,9 @@ from __future__ import unicode_literals
 
 import logging as log
 
+import torch
+from torch.autograd import Variable
+
 from extensions.load.loader import Loader
 from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
 from mo.front.extractor import extract_node_attrs
@@ -33,20 +36,16 @@ class PyTorchLoader(Loader):
     enabled = True
 
     def load(self, graph: Graph):
+        argv = graph.graph['cmd_params']
         graph.graph['fw'] = 'pytorch'
         graph.graph['layout'] = 'NCHW'
 
         update_extractors_with_extensions(pytorch_op_extractors)
 
-        import torch
-        print(torch.__version__)
-        import torch.nn as nn
-        from torch.autograd import Variable
-        import torchvision.models as models
+        # Create a dummy input
+        inp = Variable(torch.randn(list(argv.placeholder_shapes)))
 
-        model = models.alexnet(pretrained=True)
-
-        inp = Variable(torch.randn([1, 3, 227, 227]))
+        model = argv.input_model
 
         def myhook(self, inputs, output):
             global layer_id

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
  Copyright (C) 2018-2020 Intel Corporation
 
@@ -13,20 +15,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.const import Const
 
+import sys
 
-class ConstExtractor(FrontExtractorOp):
-    op = 'Const'
-    enabled = True
+from mo.utils.versions_checker import check_python_version
 
-    @classmethod
-    def extract(cls, node):
-        value = node.value
-        attrs = {
-            'data_type': value.dtype,
-            'value': value
-        }
-        Const.update_node_stat(node, attrs)
-        return cls.enabled
+ret_code = check_python_version()
+if ret_code:
+    sys.exit(ret_code)
+
+def convert(model, **args):
+    from mo.main import main
+    from mo.utils.cli_parser import get_pytorch_cli_parser
+
+    parser = get_pytorch_cli_parser()
+    parser.set_defaults(input_model=model)
+    for arg, value in args.items():
+        parser.set_defaults(**{arg: str(value)})
+
+    main(parser, 'pytorch')

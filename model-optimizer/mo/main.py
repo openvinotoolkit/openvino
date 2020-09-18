@@ -94,11 +94,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 
 def prepare_ir(argv: argparse.Namespace):
-    # is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = False, False, False, False, False
-    is_pytorch = True
-    argv.framework = 'pytorch'
-    argv.model_name = 'alexnet'
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, is_pytorch = deduce_framework_by_namespace(argv)
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx, is_pytorch]):
         raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
@@ -121,6 +117,8 @@ def prepare_ir(argv: argparse.Namespace):
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
         model_name = argv.model_name
+    elif is_pytorch:
+        model_name = argv.input_model.__class__.__name__
     elif argv.input_model:
         model_name = get_model_name(argv.input_model)
     elif is_tf and argv.saved_model_dir:
@@ -148,9 +146,12 @@ def prepare_ir(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    ret_code = check_requirements(framework=argv.framework)
-    if ret_code:
-        raise Error('check_requirements exit with return code {}'.format(ret_code))
+    if not is_pytorch:
+        # check_requirements performs TensorFlow import which might be
+        # incompatible with PyTorch due to Protobuf
+        ret_code = check_requirements(framework=argv.framework)
+        if ret_code:
+            raise Error('check_requirements exit with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config

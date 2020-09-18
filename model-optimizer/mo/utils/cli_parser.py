@@ -619,6 +619,23 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     return parser
 
 
+def get_pytorch_cli_parser(parser: argparse.ArgumentParser = None):
+    """
+    Specifies cli arguments for Model Optimizer for PyTorch
+
+    Returns
+    -------
+        ArgumentParser instance
+    """
+    if not parser:
+        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
+        get_common_cli_parser(parser=parser)
+
+    onnx_group = parser.add_argument_group('PyTorch*-specific parameters')
+
+    return parser
+
+
 def get_all_cli_parser():
     """
     Specifies cli arguments for Model Optimizer
@@ -641,6 +658,7 @@ def get_all_cli_parser():
     get_mxnet_cli_parser(parser=parser)
     get_kaldi_cli_parser(parser=parser)
     get_onnx_cli_parser(parser=parser)
+    get_pytorch_cli_parser(parser=parser)
 
     return parser
 
@@ -1183,4 +1201,3 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
-

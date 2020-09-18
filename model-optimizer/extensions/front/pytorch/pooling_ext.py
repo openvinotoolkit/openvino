@@ -18,7 +18,6 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
 from mo.ops.pooling import Pooling
 from extensions.ops.identity import Identity
 from mo.utils.error import Error
