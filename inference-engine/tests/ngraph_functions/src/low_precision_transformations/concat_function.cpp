@@ -383,6 +383,74 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecis
     return function;
 }
 
+std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateWithConstant(
+    const ngraph::element::Type precision,
+    const ngraph::Shape& inputShape,
+    const bool transparentIntermediate,
+    const FakeQuantizeOnData& fqOnData1,
+    const FakeQuantizeOnData& fqOnData2) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input1->set_friendly_name("input");
+    const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
+
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input2->set_friendly_name("input");
+    const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
+
+
+    std::shared_ptr<ngraph::op::Op> intermediateOp;
+
+    if (transparentIntermediate) {
+        const std::vector<size_t> kernel = { 3, 3 };
+        const std::vector<size_t> stride = { 1, 1 };
+        const std::vector<size_t> padBegin = { 0, 0 };
+        const std::vector<size_t> padEnd = { 0, 0 };
+        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+
+        const auto pooling = std::make_shared<ngraph::opset1::MaxPool>(
+            fakeQuantize1->output(0),
+            stride,
+            padBegin,
+            padEnd,
+            kernel,
+            roundingType,
+            padType);
+
+        ngraph::op::v0::InterpolateAttrs attributes;
+        attributes.axes = ngraph::AxisSet{ 2, 3 };
+        attributes.mode = "nearest";
+        attributes.align_corners = false;
+        attributes.antialias = false;
+        attributes.pads_begin = { 0 };
+        attributes.pads_end = { 0 };
+        const auto outputShape = op::Constant::create(
+            ngraph::element::i64, ngraph::Shape{ 2 },
+            ngraph::Shape{ inputShape[2], inputShape[3] });
+        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
+        intermediateOp->set_friendly_name("intermediate");
+    } else {
+        intermediateOp = fakeQuantize1;
+    }
+
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
+        ngraph::OutputVector{ fakeQuantize2->output(0), intermediateOp->output(0) }, 1);
+    concat->set_friendly_name("concat");
+
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(concat),
+    };
+
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatWithIntermediateWithConstantTransformation");
+
+    return function;
+}
+
 std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -914,6 +982,87 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithDifferentPreci
             THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
         }
     }
+
+    return function;
+}
+
+std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWithConstant(
+    const ngraph::element::Type precision,
+    const ngraph::Shape& inputShape,
+    const bool transparentIntermediate,
+    const FakeQuantizeOnData& fqOnData1,
+    const FakeQuantizeOnData& fqOnData2,
+    const ngraph::element::Type precisionBeforeOp,
+    const DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
+    const DequantizationOperations& dequantizationAfter,
+    const ngraph::element::Type precisionAfterDequantization) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input1->set_friendly_name("input");
+    const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize1, precisionBeforeOp);
+
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input2->set_friendly_name("input");
+    const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize2, precisionBeforeOp);
+
+    std::shared_ptr<Node> intermediateOp;
+
+    if (transparentIntermediate) {
+        const auto deqBefore = makeDequantization(fakeQuantize1->output(0), dequantizationBefore);
+        const std::vector<size_t> kernel = { 3, 3 };
+        const std::vector<size_t> stride = { 1, 1 };
+        const std::vector<size_t> padBegin = { 0, 0 };
+        const std::vector<size_t> padEnd = { 0, 0 };
+        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+
+        const auto pooling = std::make_shared<ngraph::opset1::MaxPool>(
+            fakeQuantize1->output(0),
+            stride,
+            padBegin,
+            padEnd,
+            kernel,
+            roundingType,
+            padType);
+
+        ngraph::op::v0::InterpolateAttrs attributes;
+        attributes.axes = ngraph::AxisSet{ 2, 3 };
+        attributes.mode = "nearest";
+        attributes.align_corners = false;
+        attributes.antialias = false;
+        attributes.pads_begin = { 0 };
+        attributes.pads_end = { 0 };
+
+        const auto outputShape = op::Constant::create(
+            ngraph::element::i64, ngraph::Shape{ 2 },
+            ngraph::Shape{ inputShape[2], inputShape[3] });
+        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
+        intermediateOp->set_friendly_name("intermediate");
+    } else {
+        intermediateOp = fakeQuantize1;
+    }
+
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
+        ngraph::OutputVector{ fakeQuantize2->output(0), intermediateOp->output(0) },
+        1);
+    concat->set_friendly_name("concat");
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOperation);
+
+    const auto deqAfter = makeDequantization(concat->output(0), dequantizationAfter);
+    deqAfter->set_friendly_name("concat");
+
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(deqAfter)
+    };
+
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatWithIntermediateTransformation");
 
     return function;
 }
