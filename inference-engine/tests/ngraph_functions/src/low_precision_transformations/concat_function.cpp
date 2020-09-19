@@ -1041,8 +1041,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWi
             ngraph::Shape{ inputShape[2], inputShape[3] });
         intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attrributes);
         intermediateOp->set_friendly_name("intermediate");
-    }
-    else {
+    } else {
         intermediateOp = fakeQuantize1;
     }
 
