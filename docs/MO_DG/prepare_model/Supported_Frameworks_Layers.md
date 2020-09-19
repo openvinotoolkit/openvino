@@ -151,6 +151,8 @@ Standard TensorFlow\* operations:
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
 | EuclideanNorm | No |
+| FakeQuantWithMinMaxVars | No |
+| FakeQuantWithMinMaxVarsPerChannel | No |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
