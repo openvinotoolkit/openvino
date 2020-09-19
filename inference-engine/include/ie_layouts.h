@@ -231,7 +231,7 @@ public:
      *
      * @return dimensions
      */
-    const SizeVector& getDims() const noexcept {
+    const SizeVector& getDims() const {
         if (partialShape.is_static())
             return dims;
         else

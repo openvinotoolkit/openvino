@@ -409,14 +409,15 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
                               ResponseDesc* responseDesc) noexcept {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
-    if (cnnNetwork) {
-        std::map<std::string, std::vector<size_t>> inputStaticShapes;
-        for (const auto& x: inputShapes)
-            inputStaticShapes[x.first] = x.second.get_shape();
-
-        return cnnNetwork->reshape(inputStaticShapes, responseDesc);
-    }
     try {
+        if (cnnNetwork) {
+            std::map<std::string, std::vector<size_t>> inputStaticShapes;
+            for (const auto& x: inputShapes)
+                inputStaticShapes[x.first] = x.second.get_shape();
+
+            return cnnNetwork->reshape(inputStaticShapes, responseDesc);
+        }
+
         auto params = _ngraph_function->get_parameters();
 
         for (size_t i = 0; i < params.size(); i++) {
